@@ -1,56 +1,50 @@
-# Operator-owned direct-URL lab routing
+# Operator tests through normal production routing
 
-This opt-in mode lets a real buyer test production `/route` against an operator-owned
-seller without creating trusted route history or production PQ leaves. Configure
-`LIVE402_LAB_ORIGINS` as a comma-separated list of exact HTTPS origins (no path or
-trailing slash), for example `https://402signal-lab-ross.fly.dev`. Default: disabled.
-An origin is an exclusion scope, not an SSRF exception. Public DNS/IP checks,
-verification, price/network constraints, billable winner validation, settlement,
-and durable economic replay retain their normal behavior.
+PR #100 uses the normal probe history, reputation, settlement, replay and PQ paths
+for operator-owned test sellers. There is no lab exclusion or alternate database.
+Self-test provenance does not suppress persistence, promotion, scoring or log append.
+Real successful test purchases count as production activity; they do not establish
+independent customer adoption. Catalog enrollment is separate from direct URL tests.
 
-Unpaid route challenges advertise `lab_testing.protocol=402signal-lab-route-v1`,
-the configured origins, `history_promoted=false`, and `pq_recorded=false` in both
-the body and encoded payment-required header. Lab clients must check this before
-signing, and send `lab_test=402signal-lab-route-v1` with an explicit `url`.
-A supplied marker for an unconfigured origin is rejected after verify and before
-probe/settle. A marker cannot grant the exclusion to an ordinary seller.
+Set `LIVE402_LAB_ORIGINS=https://402signal-lab-ross.fly.dev` on the reviewed router
+revision to advertise the exact origin under `lab_testing`:
+`protocol=402signal-lab-route-v2`, `processing=production`. The origin list provides
+provenance, not permission to bypass SSRF, constraints, price, payTo or payment gates.
+The old v1 exclusion contract is no longer advertised or accepted as a request marker.
+Unmarked ordinary requests retain their existing production behavior.
 
-For direct requests to a configured lab origin, classification is applied even
-when the caller omits the marker. Direct lab probes do not persist a route batch
-or attach trusted historical reputation; successful settlement does not promote
-history or append a PQ route leaf. The payment replay ledger still records settled
-and not-settled authorizations. Responses include:
+The v0.4 lab buyer requires the v2 contract before signing and sends both
+`require_transparency=true` and `require_route_binding=true`. Its `lab_test` marker
+is accepted by binding validation only for an operator-configured origin, and is
+committed in private v4 request evidence. The public leaf remains commitment-only;
+no leaf schema or Falcon/anchor behavior changes. The response provenance reports
+processing policy, not an invented guarantee that a write or anchor succeeded.
 
-```json
-{"lab_testing":{"protocol":"402signal-lab-route-v1","traffic_class":"self_test","organic_demand":false,"history_promoted":false,"pq_recorded":false}}
-```
+A valid settled winner promotes the actual probe batch and uses the ordinary PQ
+receipt path. Free misses do not settle, promote trusted observations or append a
+route leaf. Rejected or ambiguous settlement does not append. If transparency fails
+after settlement, the normal HTTP 503 preserves settled=true and the payment receipt.
+Exact/semantic replay must not settle, promote or append again after restart.
 
-Lab requests for `require_transparency` or `require_route_binding` are rejected
-before settlement: this mode deliberately cannot satisfy production PQ evidence.
-Normal unconfigured routes keep the existing history/PQ behavior.
+The buyer retains private PQ receipt/reveal material with its local run report.
+`receipt_observed_unverified` is not a claim of independent verification or anchoring.
+Checkpoint signing is distinct from automatic Falcon authorization, submission and
+independently confirmed Algorand anchoring. Verify the receipt against a separately
+pinned trusted public key, then check automatic anchoring using read-only evidence.
+A routing log receipt does not prove the separately executed seller delivered data.
 
-Scope: explicit URL probe/selection, constraints, success-only billing and replay.
-This is not a global catalog exclusion mechanism. Keep these lab endpoints out of
-public catalogs and need-based campaigns. Search/discovery ranking, production PQ
-append/anchor, and v4 binding need separate isolated integration tests. Never
-represent operator-owned test purchases as external users or organic demand.
+Rollout: review the exact PR head and CI before merging/deploying. Preserve existing
+production replay/history/PQ volumes, identities and anchor state. Recheck current
+anchor operations immediately before deployment; do not deploy with an unresolved
+AUTHORIZED, SEND_ATTEMPTED, SUBMITTED or HALTED operation. No resets, manual signer
+calls or synthetic production leaves are part of this change. Keep buyer keys on
+the laptop and the public seller free of buyer spending endpoints.
 
-## Deployment
+Use the v0.4 buyer guide for one explicitly bounded purchase at a time. Existing
+wallets, cumulative budgets, reservations and ambiguous records remain intact.
+No backfill is performed for earlier seller-only tests: they never called the router.
 
-Review and deploy this router change through the normal process. Use the existing
-production storage; do not reset or migrate replay/history/PQ data for this feature.
-No signer configuration changes or signer deployment are required. A production
-rollout still requires checking the exact deployed revision and ensuring no
-unresolved anchor operation under the existing operations policy.
-
-Stage the origin configuration for the reviewed router deployment; changing Fly
-secrets without staging restarts the current app. Verify the resulting unpaid
-challenge advertises the exact origin before enabling buyer routing. Disabling the
-origin configuration makes the new client stop before signing. Never remove the
-client capability check as a workaround for a missing deployment.
-
-The initial seller-only lab purchases remain in the laptop ledger. The v0.3 buyer
-uses that same ledger and accounts for previously consumed budget. Each routed run
-reserves 3000 atomic routing USDC plus the maximum seller price. Normal typed misses
-settle neither fee but conservatively retain the budget reservation. Payment and
-seller delivery confirmation are independent; rechecks never resubmit or resume.
+Validation includes all three rails with isolated real history/PQ databases,
+ephemeral Ed25519 checkpoint keys, v4 reveal/signature/inclusion verification,
+restart replay, normal free misses, and truthful settled transparency failures.
+No production payment, Falcon invocation or deployment is performed by the tests.

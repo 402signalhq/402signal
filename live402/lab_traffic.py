@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from urllib.parse import urlsplit
 
-PROTOCOL = "402signal-lab-route-v1"
+PROTOCOL = "402signal-lab-route-v2"
 
 def origins() -> list[str]:
     out = []
@@ -18,7 +18,7 @@ def origins() -> list[str]:
                     or raw != "https://" + u.netloc or len(raw) > 255):
                 raise ValueError("invalid lab origin")
         except ValueError:
-            # Invalid configuration never silently grants an exclusion.
+            # Invalid configuration never silently grants a classification.
             return []
         out.append("https://" + u.hostname)
     return sorted(set(out))[:16]
@@ -35,10 +35,10 @@ def is_lab_url(url) -> bool:
 
 def classification() -> dict:
     return {"protocol": PROTOCOL, "traffic_class": "self_test", "organic_demand": False,
-            "history_promoted": False, "pq_recorded": False}
+            "processing": "production"}
 
 def advertise(required: dict) -> None:
     allowed = origins()
     if allowed:
         required["lab_testing"] = {"protocol": PROTOCOL, "origins": allowed,
-                                   "history_promoted": False, "pq_recorded": False}
+                                   "processing": "production"}

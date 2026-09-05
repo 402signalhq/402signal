@@ -235,6 +235,10 @@ def build(result: dict, body: dict, *, now: int | None = None) -> dict:
     if not route._billable_winner(body, 200, result):
         _fail("invalid_winner")
     allowed = set(select.EXPLICIT_CONSTRAINT_KEYS) | {"need", "url", "policy"}
+    # Operator provenance is committed in request_json, not an ignored constraint.
+    from live402 import lab_traffic
+    if body.get("lab_test") == lab_traffic.PROTOCOL and lab_traffic.is_lab_url(body.get("url")):
+        allowed.add("lab_test")
     if set(body) - allowed or result.get("unresolved_constraints"):
         _fail("unresolved_policy")
     obs = result.get("binding_observation")
