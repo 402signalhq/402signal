@@ -42,6 +42,7 @@ EVENT_SCHEMA = "schema_changed"
 EVENT_CAP = 5_000
 
 FTS_LIMIT = 20
+CAPABILITY_BATCH = 100
 HOT_ELIGIBLE_S = 3_600
 WARM_ELIGIBLE_S = 86_400
 # Deterministic information-value refresh. Higher first. No ML.
@@ -73,6 +74,8 @@ CREATE TABLE IF NOT EXISTS resources (
     service_name TEXT,
     description TEXT,
     capability TEXT,
+    capability_version INTEGER NOT NULL DEFAULT 0,
+    tool_name TEXT,
     method TEXT,
     tags TEXT,
     input_schema_present INTEGER NOT NULL DEFAULT 0,
@@ -263,6 +266,17 @@ def _ensure_columns(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError:
             pass
 
+    for name, declaration in (
+        ("capability_version", "INTEGER NOT NULL DEFAULT 0"),
+        ("tool_name", "TEXT"),
+    ):
+        if name not in cols:
+            conn.execute(f"ALTER TABLE resources ADD COLUMN {name} {declaration}")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS resources_capability_version "
+        "ON resources(capability_version, id)"
+    )
+
 
 def refresh_priority_order() -> tuple[str, ...]:
     """Documented queue order. First reason wins. Same tuple in README."""
@@ -375,6 +389,12 @@ def _claims_from_item(item: dict, source: str) -> list[dict]:
 
 
 def _fields_from_item(item: dict) -> dict:
+    from live402 import catalog
+    # Only internal, current slim records carry a reusable classification.
+    capability = item.get("capability")
+    if item.get("_capability_version") != catalog.CAPABILITY_VERSION or not capability:
+        capability, _ = catalog.classify_capability(item)
+    tool_name = _text(catalog._tool_name(item))
     tags = item.get("tags")
     if isinstance(tags, list):
         tag_text = " ".join(str(t)[:80] for t in tags[:16] if str(t).strip())
@@ -391,7 +411,9 @@ def _fields_from_item(item: dict) -> dict:
         "canonical_url": probe._resource_url(item),
         "service_name": _text(item.get("serviceName"))[:120] if _text(item.get("serviceName")) else None,
         "description": _text(item.get("description"))[:500] if _text(item.get("description")) else None,
-        "capability": _text(item.get("capability")),
+        "capability": _text(capability),
+        "capability_version": catalog.CAPABILITY_VERSION,
+        "tool_name": tool_name[:160] if tool_name else None,
         "method": _text(method),
         "tags": tag_text or None,
         "input_schema_present": 1 if item.get("_input_schema_present") else 0,
@@ -725,6 +747,10 @@ def _upsert_one(cur, item: dict, source: str, generation: int | None, ts: int) -
                 resource_id,
             ),
         )
+    cur.execute(
+        "UPDATE resources SET capability_version = ?, tool_name = ? WHERE id = ?",
+        (fields["capability_version"], fields["tool_name"], resource_id),
+    )
     events.extend(_replace_claims(cur, resource_id, source, claims, url, ts))
     _upsert_source(cur, resource_id, source, fields.get("source_resource_id"), generation, ts)
     _sync_fts(cur, resource_id, fields)
@@ -1112,6 +1138,14 @@ def _reconstruct(cur, resource_id: int) -> dict | None:
         "_rail": primary,
         "rails": rails or [primary],
     }
+    from live402 import catalog
+    if row["tool_name"]:
+        item["toolName"] = row["tool_name"]
+    item["_capability_version"] = int(row["capability_version"] or 0)
+    if item["_capability_version"] < catalog.CAPABILITY_VERSION:
+        # Immediate correct ranking while the background index catches up. This
+        # read changes neither persisted claims nor any freshness/usage clocks.
+        item["capability"], item["capability_source"] = catalog.classify_capability(item)
     if accepts:
         item["accepts"] = accepts
     if len(rails) > 1:
@@ -1122,6 +1156,44 @@ def _reconstruct(cur, resource_id: int) -> dict | None:
         "verification": row["last_verified"],
     }
     return item
+
+
+def reclassify_capabilities(limit: int = CAPABILITY_BATCH) -> int:
+    """Reindex one bounded batch of derived labels, preserving all seller evidence.
+
+    Runs on the existing trickle worker, never as a startup/full-catalog rebuild.
+    Version and FTS updates commit together; interruption safely retries a batch.
+    Claim events, source generations, payment claims and clocks are untouched.
+    """
+    from live402 import catalog
+    cap = min(max(int(limit), 1), CAPABILITY_BATCH)
+    with _lock:
+        conn = _connect()
+        with conn:
+            cur = conn.cursor()
+            rows = cur.execute(
+                "SELECT * FROM resources WHERE capability_version < ? "
+                "ORDER BY capability_version, id LIMIT ?",
+                (catalog.CAPABILITY_VERSION, cap),
+            ).fetchall()
+            for row in rows:
+                evidence = {
+                    "url": row["canonical_url"],
+                    "description": row["description"],
+                    "serviceName": row["service_name"],
+                    "tags": (row["tags"] or "").split(),
+                    "toolName": row["tool_name"],
+                }
+                capability, _ = catalog.classify_capability(evidence)
+                fields = dict(row)
+                fields["capability"] = capability
+                digest = row_hash(fields, _load_claims(cur, row["id"]))
+                cur.execute(
+                    "UPDATE resources SET capability = ?, capability_version = ?, row_hash = ? WHERE id = ?",
+                    (capability, catalog.CAPABILITY_VERSION, digest, row["id"]),
+                )
+                _sync_fts(cur, row["id"], fields)
+        return len(rows)
 
 
 def fts_search(need: str, *, rails=None, limit: int = FTS_LIMIT, include_retired: bool = False) -> list[dict]:

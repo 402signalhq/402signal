@@ -40,7 +40,7 @@ THEME_ORDER = (
 THEME_LABELS = {
     "search": "search",
     "onchain": "on-chain read",
-    "market": "market/price",
+    "market": "market",
     "nft": "nft",
     "identity": "identity/auth",
     "weather": "weather",
@@ -236,6 +236,9 @@ def _url_theme_tokens(url: str) -> set[str]:
 
 
 def theme_id_for(item: dict, url: str) -> str:
+    # Capability refinement does not create a new historical theme/series.
+    if catalog.classify_capability(item)[0] == "market.analysis":
+        return "market"
     name = _listing_name(item, url)
     desc = str(item.get("description") or "")
     tags = item.get("tags") or []

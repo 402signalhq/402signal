@@ -63,6 +63,33 @@ Body:
 - `GET /rails` lists the three pay-in networks, asset, amountAtomic, facilitators, feePayers, maxTimeoutSeconds, and per-rail up+latency. Cached. Not stuffed into `/health`.
 - `GET /pulse` is a JSON snapshot. Catalog totals stay unpublished. Discovery uses current upstream catalogs plus a process-local shadow (not a full-world RAM index). `index_status` is `upstream-live`, `shadow-warm`, `both`, or `fixture`. Observed `n_7d` comes from `402signal_observed`. Rates (`success_7d`, `payable_rate_7d`, `invocable_rate_7d`) are omitted below `n=10`. There is no binary `healthy` and no `executable_now_rate`. Query params are ignored — no caller-supplied URLs. Cached ~15s. Fail-open: never waits on a discovery crawl. The trickle refresher never blocks `/route`.
 
+## Capability labels
+
+Capabilities are conservative, rule-based discovery hints, not output-quality or
+interchangeability guarantees. `market.price` covers quotes, prices and OHLCV data;
+`market.analysis` covers financial analysis such as market regime, sector breadth,
+leadership, technical indicators and probabilistic returns. Broad words like
+"analysis", "signal" and "leadership" need financial context in the same evidence
+source; "market" or "trading" alone no longer implies prices. RSI/MACD are distinctive
+indicator terms. Specific financial analysis resolves price/forecast overlap;
+unrelated category conflicts remain ambiguous. Existing evidence priority stays
+tags, tool name, description, service name, then a distinctive URL.
+
+Put the specific job in `need` (for example, "equity market regime" or "sector
+breadth leadership"). "Market intelligence" is a search synonym for "market
+analysis", not a second capability. Search request counts and limits are unchanged.
+Pulse keeps the broad `market` theme for both.
+
+Classification versions live with stored labels. Older records are reclassified
+on read for ranking and reindexed in batches of at most 100 on the existing
+background trickle worker. This changes derived labels and their search index only:
+claim/verification timestamps, payment claims, source generations, history and
+claim events are preserved. No restart-time full catalog rebuild is needed.
+Previously unretained tool names cannot be recovered by reclassification; ordinary
+upstream refresh supplies that evidence. New slim records retain bounded tool names.
+Future taxonomy changes must bump `CAPABILITY_VERSION` and test both positive
+examples and neighboring/ambiguous intents, including persisted catalog upgrades.
+
 ## Shadow catalog refresh queue
 
 Background trickle is one bounded step at a time (a few stale URLs, or one COLD page). It does not rebuild a 44k RAM catalog and does not add network fanout beyond the existing discovery/probe budgets.
