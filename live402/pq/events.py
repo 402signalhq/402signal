@@ -391,8 +391,12 @@ def private_evidence_v3_from_route(result: dict | None, request: dict | None = N
             live_obs = True
         elif "live" in res:
             live_obs = res.get("live")
-    payable_obs = observed.get("payable") if "payable" in observed else res.get("payable")
-    invocable_obs = observed.get("invocable") if "invocable" in observed else res.get("invocable")
+    payable_obs = observed.get("payable")
+    if payable_obs is None:
+        payable_obs = res.get("payable")
+    invocable_obs = observed.get("invocable")
+    if invocable_obs is None:
+        invocable_obs = res.get("invocable")
     http_status = observed.get("http_status") if observed.get("http_status") is not None else res.get("status")
     latency = observed.get("latency_ms") if observed.get("latency_ms") is not None else res.get("latency_ms")
     observed_at = observed.get("observed_at") or res.get("probed_at") or res.get("verified_at")

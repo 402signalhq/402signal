@@ -86,6 +86,19 @@ class BindingTests(unittest.TestCase):
         args.update(changes)
         return rb.verify_route(result, self.body, **args)
 
+    def test_null_history_fields_allow_v4_but_explicit_false_still_blocks(self):
+        for rail in ("base", "solana", "algorand"):
+            result = bound_winner(rail)
+            result["observed"] = {"payable": None, "invocable": None}
+            result["decision_binding"] = rb.build(result, self.body)
+            evidence = route_v4.evidence_from_route(result, self.body)
+            decision = json.loads(evidence["routing_evidence_json"])
+            self.assertIs(decision["observation"]["payable"], True)
+            self.assertIs(decision["observation"]["invocable"], True)
+            result["observed"]["payable"] = False
+            with self.assertRaises(rb.BindingError):
+                route_v4.evidence_from_route(result, self.body)
+
     def test_all_rails_signed_roundtrip_and_private_public_boundary(self):
         for rail in ("base", "solana", "algorand"):
             result = self.issue(rail)

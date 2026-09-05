@@ -164,6 +164,24 @@ class V3EvidenceTests(unittest.TestCase):
         self.assertIsNone(events.candidate_set_digest([]))
         self.assertIsNone(events.candidate_set_digest(None))
 
+    def test_null_observation_uses_probe_facts_without_overriding_false(self):
+        for value in (None, False, True):
+            with self.subTest(observed=value):
+                result = {
+                    "status": 402, "live": True, "payable": True, "invocable": True,
+                    "observed": {"payable": value, "invocable": value},
+                }
+                ev = events.private_evidence_v3_from_route(result)
+                expected = True if value is None else value
+                self.assertIs(ev["observation"]["payable"], expected)
+                self.assertIs(ev["observation"]["invocable"], expected)
+        ev = events.private_evidence_v3_from_route({
+            "observed": {"payable": None, "invocable": None},
+            "claimed": {"payable": True, "invocable": True},
+        })
+        self.assertIsNone(ev["observation"]["payable"])
+        self.assertIsNone(ev["observation"]["invocable"])
+
     def test_from_route_does_not_treat_catalog_as_observed(self):
         result = {
             "url": "https://wx.example/forecast",
