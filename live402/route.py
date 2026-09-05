@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from live402 import lab_traffic
+
 import sys
 import time
 
@@ -232,12 +234,16 @@ def _required_pair(resource_url: str, error: str | None = None, bazaar: dict | N
     if error:
         required = dict(required)
         required["error"] = error
+    lab_traffic.advertise(required)
     extra = {"PAYMENT-REQUIRED": payment.payment_required_header(required)}
     return required, extra
 
 
 def _bad_request(body: dict) -> tuple[int, dict] | None:
     """Body errors after a successful verify. Unpaid callers always get 402."""
+    if "lab_test" in body and (body.get("lab_test") != lab_traffic.PROTOCOL
+                                  or not lab_traffic.is_lab_url(body.get("url"))):
+        return 400, {"error": "lab target is not configured", "live": False}
     need = body.get("need")
     url = body.get("url")
     if need is not None and not isinstance(need, str):
@@ -453,6 +459,8 @@ def _paid_execute(
         return 400, result, None
 
     rail = payment.rail_of_accept(accept)
+    if lab_traffic.is_lab_url(body.get("url")) and isinstance(result, dict):
+        result["lab_testing"] = lab_traffic.classification()
     if not _billable_winner(body, code, result):
         if code == 200 or (
             isinstance(result, dict)
@@ -548,6 +556,7 @@ def _paid_execute(
     if _require_transparency(body) and not _transparency_ok(attached):
         return 503, {
             "error": "transparency receipt unavailable",
+            **({"lab_testing": attached["lab_testing"]} if "lab_testing" in attached else {}),
             "live": False,
             "invocable": False,
             "miss_reason": attached.get("miss_reason") if isinstance(attached, dict) else None,
