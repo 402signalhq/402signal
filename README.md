@@ -71,7 +71,7 @@ interchangeability guarantees. `market.price` covers quotes, prices and OHLCV da
 leadership, technical indicators and probabilistic returns. Broad words like
 "analysis", "signal" and "leadership" need financial context in the same evidence
 source; "market" or "trading" alone no longer implies prices. RSI/MACD are distinctive
-indicator terms. Specific financial analysis resolves price/forecast overlap;
+indicator terms; OHLC/OHLCV supply financial context. Specific financial analysis resolves price/forecast overlap;
 unrelated category conflicts remain ambiguous. Existing evidence priority stays
 tags, tool name, description, service name, then a distinctive URL.
 
@@ -85,6 +85,13 @@ on read for ranking and reindexed in batches of at most 100 on the existing
 background trickle worker. This changes derived labels and their search index only:
 claim/verification timestamps, payment claims, source generations, history and
 claim events are preserved. No restart-time full catalog rebuild is needed.
+Until backfill completes, searches that rely only on the new capability's indexed
+text can miss older records in both `/preview` and `/route`; on-read classification
+corrects returned candidates, not retrieval coverage. Descriptive `need` text still
+searches retained endpoint descriptions. The backlog progresses only while the
+trickle worker is enabled and storage is writable. Reclassification failures emit
+`catalog_reclassification_failed` at most once per minute and leave ordinary claim
+refresh running. No exception contents or seller metadata are logged.
 Previously unretained tool names cannot be recovered by reclassification; ordinary
 upstream refresh supplies that evidence. New slim records retain bounded tool names.
 Future taxonomy changes must bump `CAPABILITY_VERSION` and test both positive

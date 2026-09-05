@@ -9,9 +9,11 @@ limit+offset+total only. Never send page= or cursor=. Never fetch caller URLs.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
@@ -24,7 +26,7 @@ QUERY_MAX_ITEMS = 100
 SEARCH_LIMIT = 20
 NEED_QUERY_MAX = 200
 # Bump when classification semantics change; shadow labels migrate in bounded batches.
-CAPABILITY_VERSION = 2
+CAPABILITY_VERSION = 3
 # Raw CDP pages include huge schemas; 1MiB/page then slim immediately. Oversize pages dropped.
 PAGE_READ_LIMIT = 1_048_576
 # Need-scoped union only. local FTS + 3 rails, each capped. Never a 44k list.
@@ -181,7 +183,7 @@ _MARKET_CONTEXT = frozenset({
     "market", "markets", "stock", "stocks", "equity", "equities", "financial",
     "finance", "trading", "portfolio", "portfolios", "sector", "sectors",
     "crypto", "cryptocurrency", "forex", "securities", "investment", "investments",
-    "etf", "etfs",
+    "etf", "etfs", "ohlc", "ohlcv",
 })
 _MARKET_ANALYTICS = frozenset({
     "analysis", "analytics", "intelligence", "regime", "regimes", "breadth",
@@ -226,6 +228,7 @@ _query_pool_lock = threading.Lock()
 _refresh_thread: threading.Thread | None = None
 _refresh_stop = threading.Event()
 _refresh_lock = threading.Lock()
+_last_reclassification_warning: float | None = None
 
 
 def working_set_peak() -> int:
@@ -1438,12 +1441,18 @@ def trickle_once() -> str:
     """
     if fixtures.fixture_mode() or _refresh_disabled():
         return "idle"
+    global _last_reclassification_warning
     # Local derived labels only: no network, claim clock changes, or extra crawl.
     # Run alongside the existing step so taxonomy upgrades cannot starve refresh.
     try:
         shadow.reclassify_capabilities()
     except Exception:
-        pass  # Retry labels next tick; claim refresh must still get its turn.
+        # Retry next tick without starving refresh or leaking database paths,
+        # seller metadata, or exception contents. Persistent failures stay visible.
+        now = time.monotonic()
+        if _last_reclassification_warning is None or now - _last_reclassification_warning >= 60:
+            _last_reclassification_warning = now
+            logging.getLogger(__name__).warning("catalog_reclassification_failed")
     valued = shadow.due_valued(3)
     if valued:
         for row in valued:

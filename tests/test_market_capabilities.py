@@ -22,6 +22,7 @@ class MarketCapabilityTests(unittest.TestCase):
             "probabilistic forward return distributions", "RSI", "MACD",
             "stock momentum signals", "ETF sector rotation", "equity screener",
             "market regime based on price and volume", "stock price forecast",
+            "OHLC technical analysis", "OHLCV regime indicators",
         ):
             with self.subTest(text=text):
                 self.assertEqual(catalog.capability_for_need(text), "market.analysis")
@@ -46,7 +47,7 @@ class MarketCapabilityTests(unittest.TestCase):
     def test_prices_keep_their_category(self):
         for text in (
             "stock price", "market ticker", "equity quotes", "historical OHLCV candles",
-            "trading price feed", "crypto prices", "forex quote", "DEX swap quote", "TVL",
+            "OHLC", "OHLCV", "trading price feed", "crypto prices", "forex quote", "DEX swap quote", "TVL",
         ):
             with self.subTest(text=text):
                 self.assertEqual(catalog.capability_for_need(text), "market.price")
@@ -262,3 +263,28 @@ class StoredCapabilityTests(unittest.TestCase):
         self.assertEqual(shadow.fts_search("price"), [])
         with sqlite3.connect(self.db) as conn:
             self.assertEqual(conn.execute("SELECT status,retired_at FROM resources").fetchone(), ("retired", 1700000020))
+
+    def test_reclassification_failure_warning_is_coarse_and_rate_limited(self):
+        with patch("live402.catalog.fixtures.fixture_mode", return_value=False), patch(
+            "live402.catalog._refresh_disabled", return_value=False
+        ), patch("live402.shadow.reclassify_capabilities", side_effect=sqlite3.OperationalError("private /data/path seller secret")), patch(
+            "live402.shadow.due_valued", return_value=[]
+        ), patch("live402.shadow.next_cold_source", return_value="cdp"), patch(
+            "live402.catalog.ingest_one_page"
+        ) as ingest, patch("live402.catalog._last_reclassification_warning", None), patch(
+            "live402.catalog.time.monotonic", side_effect=[10, 11, 70]
+        ), self.assertLogs("live402.catalog", level="WARNING") as logs:
+            for _ in range(3):
+                self.assertEqual(catalog.trickle_once(), "cold")
+            self.assertEqual(ingest.call_count, 3)
+        self.assertEqual([record.getMessage() for record in logs.records],
+                         ["catalog_reclassification_failed"] * 2)
+        self.assertNotIn("private", " ".join(logs.output))
+
+    def test_capability_only_retrieval_catches_up_after_reindex(self):
+        self.seed_legacy(description="equity regime")
+        # A corrected label on a returned row cannot add that row to an FTS hit set.
+        self.assertEqual(shadow.fts_search("analysis"), [])
+        self.assertEqual(shadow.fts_search("equity regime")[0]["capability"], "market.analysis")
+        self.assertEqual(shadow.reclassify_capabilities(), 1)
+        self.assertEqual(shadow.fts_search("analysis")[0]["capability"], "market.analysis")
