@@ -9,8 +9,11 @@ limit+offset+total only. Never send page= or cursor=. Never fetch caller URLs.
 
 from __future__ import annotations
 
+import logging
 import os
+import re
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
@@ -22,6 +25,8 @@ QUERY_MAX_PAGES = 2
 QUERY_MAX_ITEMS = 100
 SEARCH_LIMIT = 20
 NEED_QUERY_MAX = 200
+# Bump when classification semantics change; shadow labels migrate in bounded batches.
+CAPABILITY_VERSION = 3
 # Raw CDP pages include huge schemas; 1MiB/page then slim immediately. Oversize pages dropped.
 PAGE_READ_LIMIT = 1_048_576
 # Need-scoped union only. local FTS + 3 rails, each capped. Never a 44k list.
@@ -110,6 +115,8 @@ _URL_STRONG = frozenset(
         "erc20",
         "allowance",
         "coinflip",
+        "rsi",
+        "macd",
     }
 )
 
@@ -158,7 +165,7 @@ _CAPABILITY_RULES: tuple[tuple[str, frozenset[str]], ...] = (
     ),
     (
         "market.price",
-        frozenset({"price", "market", "ticker", "quote", "trading", "swap", "dex", "candle", "ohlc", "ohlcv", "tvl"}),
+        frozenset({"price", "prices", "ticker", "tickers", "quote", "quotes", "swap", "dex", "candle", "candles", "ohlc", "ohlcv", "tvl"}),
     ),
     (
         "security.token_risk",
@@ -169,6 +176,38 @@ _CAPABILITY_RULES: tuple[tuple[str, frozenset[str]], ...] = (
         frozenset({"balance", "erc20", "allowance", "onchain", "tokenbalance"}),
     ),
 )
+
+# Broad analytical words require financial context in the SAME evidence source.
+# Neither a provider name nor a payment rail can supply missing context to a tag.
+_MARKET_CONTEXT = frozenset({
+    "market", "markets", "stock", "stocks", "equity", "equities", "financial",
+    "finance", "trading", "portfolio", "portfolios", "sector", "sectors",
+    "crypto", "cryptocurrency", "forex", "securities", "investment", "investments",
+    "etf", "etfs", "ohlc", "ohlcv",
+})
+_MARKET_ANALYTICS = frozenset({
+    "analysis", "analytics", "intelligence", "regime", "regimes", "breadth",
+    "leadership", "rotation", "technical", "technicals", "momentum",
+    "signal", "signals", "screening", "screener", "probabilistic",
+    "forecast", "forecasts", "indicator", "indicators",
+})
+_MARKET_INDICATORS = frozenset({"rsi", "macd"})
+_WEATHER_CONTEXT = frozenset({"weather", "climate", "temperature", "meteo"})
+_MARKET_INTELLIGENCE = re.compile(r"\bmarket[\s._-]+intelligence\b", re.IGNORECASE)
+
+
+def discovery_need(need: str) -> str:
+    """One search synonym, with no extra requests or change to the caller's need."""
+    return _MARKET_INTELLIGENCE.sub("market analysis", need or "")
+
+
+def _market_analysis(toks: set[str]) -> bool:
+    return bool(
+        toks & _MARKET_INDICATORS
+        or (toks & _MARKET_CONTEXT and toks & _MARKET_ANALYTICS)
+        or ("probabilistic" in toks and toks & {"return", "returns"})
+    )
+
 
 def _empty_index() -> dict:
     return {
@@ -189,6 +228,7 @@ _query_pool_lock = threading.Lock()
 _refresh_thread: threading.Thread | None = None
 _refresh_stop = threading.Event()
 _refresh_lock = threading.Lock()
+_last_reclassification_warning: float | None = None
 
 
 def working_set_peak() -> int:
@@ -406,6 +446,13 @@ def _match_capabilities(toks: set[str]) -> list[str]:
     for cap, keywords in _CAPABILITY_RULES:
         if toks & keywords:
             hits.append(cap)
+    if _market_analysis(toks):
+        # Price observations are often inputs to analysis. Specific financial
+        # evidence wins this overlap only; unrelated capability conflicts remain.
+        hits = [cap for cap in hits if cap != "market.price"]
+        if not toks & _WEATHER_CONTEXT:
+            hits = [cap for cap in hits if cap != "travel.weather"]
+        hits.append("market.analysis")
     return hits
 
 
@@ -441,7 +488,7 @@ def classify_capability(item: dict | None) -> tuple[str, str]:
     url = probe._resource_url(item)
     url_toks = _url_tokens(url)
     hits = _match_capabilities(url_toks)
-    if len(hits) == 1 and (url_toks & _URL_STRONG):
+    if len(hits) == 1 and (url_toks & _URL_STRONG or _market_analysis(url_toks)):
         return hits[0], "url"
     return "unknown", "unknown"
 
@@ -616,6 +663,9 @@ def slim_item(item: dict | None, rail: str, stash: dict | None = None) -> dict:
     name = _clip(item.get("serviceName"), 120)
     if name:
         slim["serviceName"] = name
+    tool_name = _clip(_tool_name(item), 160)
+    if tool_name:
+        slim["toolName"] = tool_name
     if item.get("type") is not None:
         slim["type"] = item.get("type")
     tags = item.get("tags")
@@ -658,6 +708,7 @@ def slim_item(item: dict | None, rail: str, stash: dict | None = None) -> dict:
     slim["_rail"] = rail
     slim["capability"] = cap
     slim["capability_source"] = cap_src
+    slim["_capability_version"] = CAPABILITY_VERSION
     return slim
 
 
@@ -953,7 +1004,7 @@ def _search_rail(rail: str, need: str, url_substring: str | None = None) -> dict
     network = _RAIL_NETWORK.get(rail) if rail == "base" else None
     url = search_url(
         base,
-        need,
+        discovery_need(need),
         SEARCH_LIMIT,
         0,
         network=network,
@@ -1002,7 +1053,7 @@ def _first_pages_rail(rail: str) -> dict:
 def _local_fts(need: str, rails) -> dict:
     """Disk FTS only. Need-scoped. Never a full-table scan into RAM."""
     try:
-        items = shadow.fts_search(need, rails=rails, limit=shadow.FTS_LIMIT)
+        items = shadow.fts_search(discovery_need(need), rails=rails, limit=shadow.FTS_LIMIT)
     except Exception:
         items = []
     return {"items": items, "via": "local", "error": None, "truncated": False}
@@ -1390,6 +1441,18 @@ def trickle_once() -> str:
     """
     if fixtures.fixture_mode() or _refresh_disabled():
         return "idle"
+    global _last_reclassification_warning
+    # Local derived labels only: no network, claim clock changes, or extra crawl.
+    # Run alongside the existing step so taxonomy upgrades cannot starve refresh.
+    try:
+        shadow.reclassify_capabilities()
+    except Exception:
+        # Retry next tick without starving refresh or leaking database paths,
+        # seller metadata, or exception contents. Persistent failures stay visible.
+        now = time.monotonic()
+        if _last_reclassification_warning is None or now - _last_reclassification_warning >= 60:
+            _last_reclassification_warning = now
+            logging.getLogger(__name__).warning("catalog_reclassification_failed")
     valued = shadow.due_valued(3)
     if valued:
         for row in valued:
