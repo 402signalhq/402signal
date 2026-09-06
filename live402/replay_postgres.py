@@ -182,11 +182,13 @@ class PostgresStore:
 
     def ready(self):
         try:
+            # Expired private bodies must still be pruned when admission is
+            # full. Capacity exhaustion is not a reason to retain responses.
+            self.prune_outcomes()
             with self._transaction(capacity=True) as conn:
                 # Test write permissions without publishing another economic row.
                 with conn.transaction(force_rollback=True):
                     conn.execute("UPDATE signal_replay.authority SET admitted=admitted WHERE singleton=TRUE")
-            self.prune_outcomes()
             return True
         except StoreError:
             return False
