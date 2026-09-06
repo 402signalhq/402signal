@@ -32,6 +32,11 @@ do not bypass or weaken rules to manufacture approval.
 
 Keep the existing Fly.io router, lab seller, separate signer, GitHub and Tatum.
 Development and fixture tests run in hosted tooling without laptop installs.
+The operator now also permits using their existing computer for deployment. Prior
+nonsecret setup evidence identifies a WSL/Ubuntu terminal with Fly CLI; this hosted
+session has no connection to that terminal. Reusing operator execution does not
+require moving hosting or copying credentials to the assistant. An operator can
+launch a cloud-built reviewed image from that terminal once release gates pass.
 This first release does not require purchasing a database or upgrading Tatum.
 
 A proposed deployment mechanism is an operator-controlled GitHub Actions job
@@ -221,20 +226,166 @@ duplicate charge, unexplained unknown payment, identity discontinuity, backend/
 fence mismatch, loss of durable readiness, or privacy/binding discrepancy.
 Reconcile instead of retrying payment or switching authority.
 
-## Separate future PostgreSQL decision
+## Prepare PostgreSQL now; activate after the prerequisite release
 
-PostgreSQL remains off. A later proposal must independently satisfy all
-[scale-production-gates](../scale-production-gates.md), including provider failover
-durability and connection limits, full cost inventory, exact-SHA reviews, staged
-failure/restore evidence, and confirmation that every runnable/rollback image is
-fence-aware. Migration sequencing remains: stop/drain all writers, expire private
-windows, verify off-host backup, verify import/digest, commit source fence, then
-activate destination. An uncertain or partial cutover is never automatically retried.
+Recommendation: prepare and qualify Fly Managed Postgres Basic while traffic is
+low, then migrate through the existing staged procedure. SQLite-first is the
+required fence-aware deployment step, not a recommendation to wait for a million
+daily authorizations. PostgreSQL activation remains NO until separately approved.
 
-Catalog, observed history and ordered PQ writes remain process-local. Shared replay
-does not authorize multiple routers. Async serving, shared state, ordered batched
-PQ, archival retention, load/failure tests and a representative soak remain future
-work and require measurements before capacity/cost claims.
+Current source limits at the application candidate are material:
+
+| Component | Reviewed implementation | Consequence |
+| --- | --- | --- |
+| HTTP serving | 32 default concurrent handlers; bounded thread creation | Slow seller/facilitator calls consume finite slots |
+| Paid-route abuse limit | 12 requests/minute per client IP by default; configurable | A legitimate shared-egress integration can hit 429 long before CPU saturation |
+| SQLite replay | 100,000 retained rows and 256 MiB capacity guard | Cumulative limits, not daily quotas; starting empty, 1M new retained identities/day would reach the row limit in 2.4 hours, potentially sooner at the byte guard |
+| PostgreSQL replay | Module lock, adapter lock, one connection, serialized authority counter | Changing backend alone does not make database admission concurrent |
+| Catalog/history/PQ | Process-local state and ordered log assumptions | Multiple API writers still blocked |
+
+These are source facts, not a fresh read of live overrides, usage or measured
+throughput. Never increase caps or disable abuse checks without capacity and
+economic-safety evidence. Track growth rate and time to exhaustion, not only
+percentage used; retained verified misses can consume replay capacity too.
+
+### Preferred provider and cost
+
+Fly Managed Postgres Basic is the first provider to qualify, in the router's
+existing iad region. Current advertised price is $38/month plus $0.28 per
+provisioned GB-month; the starting 10 GB makes the database $40.80/month. This
+includes HA, backups and pooling, not a throughput guarantee or an invoice cap.
+Storage can grow automatically and must be included in budget controls.
+
+| Candidate | Published database cost at 10 GB | Decision |
+| --- | --- | --- |
+| Fly Managed Postgres Basic, 1 GB RAM | $40.80/month | Preferred qualification target; purchase still unapproved |
+| Fly Managed Postgres Starter, 2 GB RAM | $74.80/month | Do not choose preemptively; leaves little room under the all-services ceiling |
+| Self-managed Fly PostgreSQL | Machine/volume costs plus operations | Not preferred for payment authority; cheaper compute does not include managed recovery/HA duties |
+
+For any verified existing baseline B and other uncovered costs U, the Basic
+proposal must satisfy B + $40.80 + U + at least $10 contingency <= $100.
+Do not substitute the user's partial-period estimate for B in the approval
+inventory. A one-day separate Basic/10 GB staging cluster is approximately $1.36
+before network, tax and additional resources; it requires a reviewed lifecycle and
+purchase approval. Do not reuse the live authority for destructive testing.
+
+Keep Tatum Free while verified credits and confirmation traffic permit. It remains
+a background independent Algorand confirmation source, not a per-route dependency.
+A paid Tatum plan must fit the same inventory and have its actual billing cadence
+and upgrade controls approved; willingness to upgrade is not a purchase instruction.
+
+Before selecting Fly MPG for payment authority, resolve these compatibility gates:
+
+- Demonstrate hostname/certificate verification with the adapter's required
+  sslmode=verify-full. Default encrypted connectivity alone is insufficient.
+- Prove custom runtime grants exclude authority activation/identity/cap changes;
+  the provider's generic broad Writer role is not automatically sufficient.
+- Obtain evidence of acknowledged-write survival on promoted replicas and of the
+  behavior when a synchronous replica is unavailable. HA marketing and local
+  synchronous_commit/fsync checks do not establish a zero-loss recovery point.
+- Confirm patching/version-upgrade responsibility: the current overview still
+  lists those capabilities as under development. Do not assume their status.
+- Test the selected PgBouncer mode with the actual driver. Current default Session
+  mode preserves prepared-statement compatibility; Transaction mode requires a
+  reviewed driver configuration and corresponding real-pooler tests.
+- Add and test bounded connection lifetime/idle recycling between completed
+  operations. Fly documents 600-second lifetime and 300-second idle guidance.
+  Do not transplant generic retry advice into uncertain payment-state writes.
+- Verify runtime limits and aggregate connections; Fly documents Basic at 200
+  client connections and 50 database connections. Those counts are not route RPS.
+
+If these requirements cannot be met, do not relax them to keep a preferred
+provider. Present the concrete unresolved issue and a separately priced alternative.
+
+Primary provider references checked 2026-09-06:
+- [Managed Postgres pricing and lifecycle caveats](https://fly.io/docs/mpg/)
+- [Regions, 10 GB starting storage and HA](https://fly.io/mpg/)
+- [Client connections and pooler compatibility](https://fly.io/docs/mpg/client-configuration/)
+- [Roles and configuration](https://fly.io/docs/mpg/cluster-configuration/)
+- [Self-managed PostgreSQL responsibilities](https://fly.io/docs/postgres/getting-started/what-you-should-know/)
+
+### Implementation and qualification order
+
+1. Complete the reviewed SQLite prerequisite release, source/rollback fence
+   checks, recovery evidence and bounded existing-lab tests. In hosted fixtures,
+   measure current complete-route behavior and verify existing overload controls.
+2. Prepare integration-specific authenticated quotas while retaining anonymous/IP
+   abuse controls and global economic-work limits. A caller-supplied wallet label
+   or API header is not trusted identity. Preserve open per-call x402 access,
+   buyer wallet ownership, success-only pricing and free ordinary misses.
+   Give already-admitted operations, replay/recovery and health checks protected
+   capacity; reject excess new work before economic action with truthful status.
+3. Qualify the PG client and Fly service requirements above in isolated staging
+   after the quoted resource purchase is approved. Measure lock/transaction
+   timings. Refactor serialized access only with global uniqueness, bounded quota
+   and uncertain-write tests intact; adding a pool alone cannot remove the module lock.
+4. Run the separately approved PG migration: stop/drain all writers, expire private
+   windows, verify encrypted off-host backup, verify import/digest, commit source
+   fence, then activate destination. Every runnable/rollback image must be
+   fence-aware. Never automatically retry an uncertain/partial cutover or restore
+   a stale authority. Retain one router during this step.
+5. Complete shared catalog/history policy, bounded outbound probe workers and the
+   ordered durable PQ writer. Use the same qualified database where appropriate
+   to avoid extra services; benchmark interference with replay before combining
+   workloads. Durable micro-batching must preserve leaf order, root history,
+   required-transparency acknowledgement and exact V4/private evidence.
+6. Prove two-router correctness in isolated tests before approving a second
+   production router. Verify that one instance can disappear without a duplicate
+   settlement, reordered proof or loss of accepted-work recovery. Then exercise
+   the approved live smoke at low volume.
+7. Qualify 1M logical route attempts/day first, then larger tiers as workload
+   evidence justifies. Confirm actual facilitator quotas/fees separately from
+   fixture capacity and keep the separate MainNet signer boundary intact.
+
+Each implementation step gets exact-diff security and functional review before
+merge. Deployment and spending retain their separate explicit approvals. Adding
+resources cannot substitute for removing an unsafe process-local assumption.
+
+### Load and growth evidence
+
+| Logical attempts/day | Average attempts/second | Initial 5x burst test target |
+| --- | --- | --- |
+| 1,000,000 | 11.57 | 57.87 |
+| 20,000,000 | 231.48 | 1,157.41 |
+| 50,000,000 | 578.70 | 2,893.52 |
+
+These are arithmetic test targets, not achieved capacity or verified competitor
+traffic. Confirm reporting periods and whether a claimed transaction count means
+attempts, successful settlements or cumulative ecosystem activity.
+
+A paid success can need both verification and settlement calls plus several
+seller probes and durable records. At 1M routes/day, five probes per route means
+5M outbound probes/day. Benchmark slow/failed sellers, concentrated single-host
+traffic, duplicates, verified free misses, malformed/abusive traffic and realistic
+rail mix. Keep load generators and seller/facilitator fixtures separate from the
+system under test; no high-volume MainNet payments or uncontrolled seller load.
+
+Record completed attempts, unique admissions, paid successes, p50/p95/p99 latency,
+queue/handler saturation, CPU/memory, database lock/WAL/byte growth, PQ append time,
+429/503 rates, external-call quotas and measured infrastructure cost. Define the
+latency/error SLO before the run. Require a representative 24-hour soak at the
+claimed daily tier plus burst/failure/restore cases; a short loop of DB inserts
+does not qualify the application.
+
+For storage sensitivity only, 1 KB retained per admitted identity at 1M new
+identities/day is 30 GB/month before indexes, WAL, backups or PQ/history data.
+At the listed storage unit price that is $8.40/month of additional provisioned
+capacity for each such 30 GB increment. Measure actual bytes; 10 GB is a starting
+footprint. Implement compact permanent replay identities and bounded/archived
+detail retention without weakening uniqueness or private expiry.
+
+Protect service availability by refusing excess new work before payment rather
+than admitting unlimited work into an exhausted queue. This sacrifices some
+throughput under overload, so a large integration needs a measured quota,
+burst allowance and a staged traffic ramp. Hard $100 spending and unlimited
+unannounced traffic acceptance cannot both be guaranteed.
+
+Agree a separate growth-budget decision before a major launch if measured demand
+needs it. Keep the current $100 limit until explicitly changed; do not silently
+enable unbounded autoscaling or provider upgrades. Revenue calculations must count
+actual successful paid routes, not all attempts, and subtract variable facilitator
+and network COGS.
+
 
 ## Release decision record
 
