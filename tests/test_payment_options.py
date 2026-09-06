@@ -407,5 +407,74 @@ class PulsePriceLabelTests(unittest.TestCase):
         self.assertAlmostEqual(usd, 0.01)
 
 
+
+class PaymentSchemeIsolationTests(unittest.TestCase):
+    def accept(self, scheme="exact", **changes):
+        acc = {"scheme":scheme,"network":payment.BASE_CAIP2,
+               "asset":payment.USDC_BASE,"amount":"10000",
+               "payTo":"0xabcabcabcabcabcabcabcabcabcabcabcabcabca",
+               "maxTimeoutSeconds":60}
+        acc.update(changes)
+        return acc
+
+    def test_metered_ceiling_is_not_a_fixed_or_comparable_price(self):
+        exact = payment.payment_option_from_accept(self.accept())
+        upto = payment.payment_option_from_accept(self.accept("upto"))
+        self.assertEqual(upto["display_amount"],"Up to $0.01")
+        self.assertIsNone(upto["normalized_usd"])
+        self.assertFalse(payment.prices_equivalent(exact,upto))
+        self.assertFalse(payment.prices_equivalent(upto,upto))
+        target = probe.build_target(None,{"x402Version":2,"accepts":[self.accept("upto")]})
+        self.assertEqual(target["displayAmount"],"Up to $0.01")
+
+    def test_batch_unknown_and_noncanonical_schemes_never_publish_fixed_price(self):
+        for scheme in ("batch-settlement","session","unknown","EXACT"):
+            with self.subTest(scheme=scheme):
+                option = payment.payment_option_from_accept(self.accept(scheme))
+                self.assertIsNone(option["normalized_usd"])
+                self.assertEqual(option["display_amount"],"Variable payment terms")
+                self.assertFalse(payment.prices_equivalent(option,option))
+
+    def test_mixed_offers_preserve_exact_in_either_order(self):
+        exact, upto = self.accept(), self.accept("upto")
+        for accepts in ([upto,exact],[exact,upto]):
+            env = {"x402Version":2,"accepts":accepts}
+            target = probe.build_target(None,env)
+            self.assertEqual(len(target["accepts"]),2)
+            result = {"live":True,"status":402,"envelope":env,"target":target}
+            options = payment.payment_options_from_result(result)
+            self.assertEqual(len(options),1)
+            self.assertEqual(options[0]["scheme"],"exact")
+            self.assertIsNotNone(select.pick_selected_payment(result,"cheapest",None))
+
+    def test_variable_only_challenge_remains_unpayable_on_all_rails(self):
+        for network,asset,payto in (
+                (payment.BASE_CAIP2,payment.USDC_BASE,payment.DEFAULT_PAYTO),
+                (payment.SOLANA_MAINNET,payment.USDC_SOLANA_MINT,payment.DEFAULT_PAYTO_SOLANA),
+                (payment.ALGORAND_MAINNET,payment.USDC_ALGORAND_ASA,payment.DEFAULT_PAYTO_ALGORAND)):
+            for scheme in ("upto","batch-settlement","session"):
+                with self.subTest(network=network,scheme=scheme):
+                    acc = self.accept(scheme,network=network,asset=asset,payTo=payto)
+                    env = {"x402Version":2,"accepts":[acc]}
+                    result = probe.attach_invocable_target({"live":True,"status":402},None,env)
+                    self.assertTrue(result["challenge_observed"])
+                    self.assertFalse(result["payable"])
+                    self.assertFalse(result["invocable"])
+                    self.assertIsNone(select.pick_selected_payment(result,"cheapest",None))
+
+    def test_dedupe_retains_network_timeout_and_extension_differences(self):
+        exact = self.accept()
+        offers = [exact,dict(reversed(list(exact.items()))),
+                  self.accept(network="eip155:84532"),
+                  self.accept(maxTimeoutSeconds=120),
+                  self.accept(extra={"scheme":"upto"}),
+                  self.accept(extra={"feePayer":"different-provider"})]
+        self.assertEqual(len(probe._accepts_from(None,{"accepts":offers})),5)
+
+    def test_same_amount_different_recipient_is_not_erased(self):
+        accepts = [self.accept(),self.accept(payTo="0x1111111111111111111111111111111111111111")]
+        result = {"envelope":{"x402Version":2,"accepts":accepts}}
+        self.assertEqual(len(payment.payment_options_from_result(result)),2)
+
 if __name__ == "__main__":
     unittest.main()

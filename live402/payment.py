@@ -766,6 +766,7 @@ def payment_option_from_accept(accept, fallback_network=None) -> dict | None:
         raw_amt = accept.get("maxAmountRequired")
     amount_atomic = _as_int(raw_amt)
     extra = accept.get("extra") if isinstance(accept.get("extra"), dict) else {}
+    scheme = _text(accept.get("scheme") or extra.get("scheme"))
     seller_display = extra.get("displayAmount")
     if seller_display is not None:
         seller_display = str(seller_display).strip() or None
@@ -787,6 +788,15 @@ def payment_option_from_accept(accept, fallback_network=None) -> dict | None:
     elif amount_atomic is None and raw_amt is None and not asset and not network_s:
         return None
 
+    # A ceiling/channel authorization is not a comparable fixed purchase price.
+    # Unknown schemes remain visible as unclassified terms, never as exact.
+    if scheme not in (None, "exact"):
+        normalized_usd = None
+        if scheme == "upto":
+            display_amount = ("Up to " + display_amount) if display_amount else None
+        else:
+            display_amount = "Variable payment terms"
+
     fac = extra.get("facilitator")
     fac_url = None
     if isinstance(fac, str) and fac.strip().startswith("https://"):
@@ -806,7 +816,7 @@ def payment_option_from_accept(accept, fallback_network=None) -> dict | None:
         "normalized_usd": normalized_usd,
         "payTo": _text(accept.get("payTo")),
         "facilitator": fac_url,
-        "scheme": _text(accept.get("scheme") or extra.get("scheme")),
+        "scheme": scheme,
         "version": accept.get("x402Version", extra.get("version")),
     }
 
@@ -827,7 +837,8 @@ def _option_identity(opt: dict) -> tuple:
     asset = str(opt.get("asset") or "")
     amt = opt.get("amount_atomic")
     net = str(opt.get("network") or "")
-    return (rail, net, asset, amt)
+    return (rail, net, asset, amt, opt.get("payTo"), opt.get("facilitator"),
+            opt.get("scheme"), opt.get("version"))
 
 
 def _dedupe_options(opts: list[dict]) -> list[dict]:
@@ -1296,21 +1307,26 @@ def asset_identity(opt: dict | None) -> str | None:
 
 
 def accept_identity(acc: dict) -> tuple:
-    """Dedupe key for catalog accepts: rail + asset + payTo + amount."""
-    if not isinstance(acc, dict):
-        return ("", "", "", "")
-    rail = rail_of_network(acc.get("network") or "") or ""
-    asset = _accept_asset(acc) or ""
-    pay = _text(acc.get("payTo")) or ""
-    amt = acc.get("amount")
-    if amt is None or amt == "":
-        amt = acc.get("maxAmountRequired")
-    return (rail, str(asset), pay, str(amt) if amt is not None else "")
+    """Deduplicate identical JSON offers, retaining every distinct term.
+
+    Scheme, exact network, recipient, timeout and extension terms all matter.
+    This is discovery deduplication, not the payment replay fingerprint.
+    """
+    try:
+        if not isinstance(acc, dict):
+            raise TypeError()
+        return (json.dumps(acc, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=True, allow_nan=False),)
+    except (TypeError, ValueError, RecursionError):
+        # Malformed helper input must not erase a different observed offer.
+        return ("invalid", id(acc))
 
 
 def prices_equivalent(left, right) -> bool:
     """True when two payment options are the same price. Incomparable → False."""
     if not isinstance(left, dict) or not isinstance(right, dict):
+        return False
+    if any(opt.get("scheme") not in (None, "exact") for opt in (left, right)):
         return False
     lu, ru = left.get("normalized_usd"), right.get("normalized_usd")
     if lu is not None and ru is not None:
