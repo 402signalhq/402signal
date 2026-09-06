@@ -84,3 +84,26 @@ The prior PR103 paid matrix is historical evidence, not authorization for new
 spending. Any post-deployment paid validation needs its own bounded spending
 plan. Public health checks, existing-receipt reconciliation and local fixtures
 do not require new transactions.
+
+## Additional review follow-ups
+
+- The historical-observation label and README rate-limit/readiness/runtime
+  descriptions are corrected. Replay readiness performs a real write; the
+  remaining database access checks still do not simulate full-volume writes.
+  The isolated non-root rehearsal writes all four schemas, but does not attest
+  current production disk capacity.
+- The existing DNS resolver pool remains bounded; socket deadlines do not
+  forcibly cancel the operating system's resolver. Use bounded staging checks
+  for Fly ingress, resolver saturation and worker recovery.
+- Strict route binding rejects conflicting seller challenge channels. Whether
+  to require that stricter policy for every ordinary billable route remains a
+  product/compatibility decision, not a demonstrated additional charge defect.
+- Existing pinned GitHub Actions are retained under the repository's action
+  allowlist. Their runtime deprecation annotations remain maintenance work:
+  review compatible replacement pins and the organization policy together.
+- CAA/DNSSEC policy, Fly access/MFA, off-host backup age and alerts, and private
+  signer controls require operator evidence. No public finding established
+  takeover, credential compromise or private signer isolation.
+- PR103's live matrix covers one operator seller's three utilities. Broader
+  seller discovery, churn, unsupported schemas and adoption remain coverage
+  limitations; synthetic tests are not evidence of organic usage.
