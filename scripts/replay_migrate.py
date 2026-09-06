@@ -8,6 +8,7 @@ receipt, DSN, credential, database row or exception detail is printed.
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import math
@@ -23,6 +24,21 @@ from live402.replay_postgres import STATES, validate_settings
 
 COLUMNS = 'fp_hash,state,outcome_json,created_at,fingerprint_version,scope_hash,expires_at'
 SCHEMA = Path(__file__).resolve().parents[1] / 'ops' / 'replay-postgres.sql'
+
+
+def require_fence_aware_runtime(module):
+    """Production apply must prove the imported runtime actually rejects a fence."""
+    if not callable(getattr(module, '_store', None)):
+        raise StoreError('runtime replay integration is absent')
+    checker = getattr(module, '_identity_cutover_ready', None)
+    if not callable(checker):
+        raise StoreError('runtime replay fence is absent')
+    with closing(sqlite3.connect(':memory:')) as probe:
+        probe.executescript("CREATE TABLE settle_ledger (fingerprint_version INTEGER); "
+                            "CREATE TABLE replay_meta (key TEXT PRIMARY KEY,value TEXT); "
+                            "INSERT INTO replay_meta VALUES ('external_authority_id','fence-probe');")
+        if checker(probe) is not False:
+            raise StoreError('runtime does not honor the source migration fence')
 
 
 def normalized(row, now):
@@ -66,6 +82,9 @@ def migrate(source, environ, *, apply=False, writers_stopped=False, max_rows=1_0
         environ.get(k) for k in ('FLY_APP_NAME','FLY_ALLOC_ID','FLY_MACHINE_ID')))
     if apply and (not writers_stopped or (not local_test and str(source) != '/data/live402-replay.sqlite')):
         raise StoreError('apply requires drained writers and the authoritative volume ledger')
+    if apply and not local_test:
+        from live402 import replay
+        require_fence_aware_runtime(replay)
     if type(max_rows) is not int or not 1 <= max_rows <= 10_000_000:
         raise StoreError('invalid row budget')
     if type(max_bytes) is not int or not 1048576 <= max_bytes <= 10 * 1024**3:
