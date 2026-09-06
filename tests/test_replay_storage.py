@@ -286,7 +286,7 @@ class PostgreSQLContracts(unittest.TestCase):
             self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
             first = self.store.conn
             first_pid = first.info.backend_pid
-            for now in (1299.0,1599.0):
+            for now in (1299.0,1598.0,1599.0):
                 clock.return_value = now
                 self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
                 self.assertIs(self.store.conn,first)
