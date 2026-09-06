@@ -74,10 +74,14 @@ export function canonical(x: unknown): string {
   return JSON.stringify(x);
 }
 export const digest = (x: string | Uint8Array) => createHash('sha256').update(x).digest('hex');
+function unpad64(s: string): string {
+  const padding = s.endsWith('==') ? 2 : s.endsWith('=') ? 1 : 0;
+  return s.slice(0, s.length - padding);
+}
 export function decode64(x: unknown, max = 16384): Buffer {
   const s = text(x, max * 2); assert(/^[A-Za-z0-9+/]+={0,2}$/.test(s), 'invalid_base64');
   const bytes = Buffer.from(s, 'base64');
-  assert(bytes.length <= max && bytes.toString('base64').replace(/=+$/, '') === s.replace(/=+$/, ''), 'invalid_base64');
+  assert(bytes.length <= max && unpad64(bytes.toString('base64')) === unpad64(s), 'invalid_base64');
   return bytes;
 }
 export const encode64 = (x: unknown) => Buffer.from(JSON.stringify(x)).toString('base64');

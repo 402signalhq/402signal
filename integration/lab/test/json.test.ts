@@ -27,3 +27,11 @@ test('utilities deliver useful deterministic results without HTML rendering', ()
   assert.equal(t.whitespace_delimited_words, 3); assert.equal(t.lines, 2); assert.equal(t.unicode_code_points, 10);
   assert.equal(utility('payload/sha256', { text: 'abc' }).sha256, 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
 });
+
+test('base64 padding is bounded for long malformed and canonical inputs', () => {
+  for (const s of ['A'+'='.repeat(32000)+'!', 'A'.repeat(32000)+'===', '='.repeat(32000)])
+    assert.throws(() => decode64(s), /invalid_base64/);
+  const bytes=Buffer.alloc(16384,7), encoded=bytes.toString('base64');
+  assert.deepEqual(decode64(encoded),bytes);
+  assert.deepEqual(decode64(encoded.slice(0,-2)),bytes);
+});
