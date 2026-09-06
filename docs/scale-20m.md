@@ -51,7 +51,7 @@ Required invariants:
 - failover must not create a second facilitator POST;
 - storage-capacity failure remains fail-closed.
 
-A low-cost hosted SQLite-compatible service (for example Turso/libSQL) is a reasonable first shared-store candidate because it can start below the $100/month current budget and preserves SQLite-like semantics. It is not a permanent cost commitment: at hundreds of millions of monthly writes, usage pricing must be re-evaluated against Postgres or another strongly consistent store.
+The implemented opt-in candidate is PostgreSQL; SQLite remains the default. No provider has been purchased or approved. Provider selection requires verified acknowledged-write durability, failover behavior, connection limits and all-services budget evidence. A low advertised price alone is insufficient.
 
 Do not enable multi-writer routing merely because a remote database is reachable. The exact reserve/finish/unknown state machine and concurrent duplicate tests must pass first.
 
@@ -143,7 +143,7 @@ A practical current profile is:
 
 - existing single Fly application machine and volume: keep current low-cost footprint;
 - no additional always-on API replicas yet;
-- shared replay-store development may use a free or low-cost Turso plan when activated;
+- PostgreSQL development runs in ephemeral GitHub Actions; any production database still requires budget and durability approval;
 - Tatum background confirmation stays on free/shared capacity while it remains sufficient;
 - no paid Redis cluster; use process-local cache until multiple API writers are enabled;
 - object storage only for verified backups / batched archives, with bounded retention;
