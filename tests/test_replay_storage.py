@@ -657,3 +657,65 @@ class PostgreSQLRuntimeContracts(unittest.TestCase):
             self.assertEqual(r.ledger_state('migrated'),r.STATE_UNKNOWN)
             self.assertEqual(r.begin('migrated',scope='private')[0],'reject')
             self.assertEqual(r.begin('target-new',scope='private')[0],'run')
+
+    def test_application_lost_admission_ack_does_not_probe_or_settle(self):
+        original = PostgresStore.reserve
+        def lost_ack(store, *args):
+            admitted = original(store,*args)
+            if admitted:
+                raise StoreError('simulated lost COMMIT acknowledgement')
+            return admitted
+        with patch.object(PostgresStore,'reserve',lost_ack):
+            out,calls = self.route('admission-ack')
+        self.assertEqual(out[0],503)
+        self.assertEqual(calls,(1,0,0))
+        self.replay.reset_memory()
+        out,calls = self.route('admission-ack')
+        self.assertEqual(out[0],503)
+        self.assertEqual(calls,(0,0,0))
+        self.assertEqual(self.admin.execute('SELECT state FROM signal_replay.entries').fetchone()[0],'settlement_pending')
+
+    def test_application_lost_finish_ack_never_settles_twice(self):
+        original = PostgresStore.finish
+        def lost_ack(store,*args):
+            original(store,*args)
+            raise StoreError('simulated lost finish acknowledgement')
+        with patch.object(PostgresStore,'finish',lost_ack):
+            first,calls = self.route('finish-ack')
+        self.assertEqual(calls,(1,1,1))
+        self.replay.reset_memory()
+        second,calls = self.route('finish-ack')
+        self.assertEqual(first,second)
+        self.assertEqual(calls,(0,0,0))
+
+    def test_application_failed_finish_retains_pending_on_restart(self):
+        with patch.object(PostgresStore,'finish',side_effect=StoreError('unavailable')):
+            first,calls = self.route('finish-failed')
+        self.assertEqual(calls,(1,1,1))
+        self.assertTrue(first[1]['billing']['settled'])
+        self.replay.reset_memory()
+        second,calls = self.route('finish-failed')
+        self.assertEqual(second[0],503)
+        self.assertEqual(calls,(0,0,0))
+        self.assertEqual(self.admin.execute('SELECT state FROM signal_replay.entries').fetchone()[0],'settlement_pending')
+
+
+import test_route_binding as binding_contracts
+
+
+@unittest.skipUnless(os.environ.get('LIVE402_PG_TEST_DESTRUCTIVE') == 'isolated-ci-only',
+                     'requires explicitly isolated PostgreSQL CI database')
+class PostgreSQLBindingContracts(binding_contracts.BindingTests):
+    """Run all existing V4/PQ adversarial contracts with the real PG authority."""
+    def setUp(self):
+        super().setUp()
+        self.pg_fixture = PostgreSQLContracts()
+        self.pg_fixture.setUp()
+        self.addCleanup(self.pg_fixture.tearDown)
+        self.pg_env = patch.dict(os.environ,dict(self.pg_fixture.settings,
+                                                LIVE402_REPLAY_BACKEND='postgres'))
+        self.pg_env.start()
+        self.addCleanup(self.pg_env.stop)
+        from live402 import replay
+        replay.reset_memory()
+        self.addCleanup(replay.reset_memory)
