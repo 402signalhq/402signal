@@ -18,6 +18,9 @@ from live402.replay_store import StoreError
 STATES = frozenset({"settlement_pending", "unknown", "settled", "not_settled", "rejected"})
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 MAX_OUTCOME = 256 * 1024
+# Recycle only before a separate operation, never inside a transaction.
+MAX_CONNECTION_AGE = 600
+MAX_CONNECTION_IDLE = 300
 
 
 def validate_settings(environ, parse_dsn) -> tuple[dict, str]:
@@ -59,7 +62,8 @@ class PostgresStore:
 
     The adapter deliberately does not claim high-throughput pooling yet. A lost
     connection is discarded, and only a subsequent separate operation reconnects.
-    No failed operation is automatically replayed.
+    No failed operation is automatically replayed. Connection age/idle limits
+    are checked at the next operation under the same lock, after prior commit.
     """
     def __init__(self, environ=None, driver=None):
         try:
@@ -74,6 +78,8 @@ class PostgresStore:
             raise StoreError("PostgreSQL replay driver unavailable") from None
         self.driver = driver
         self.conn = None
+        self.connected_at = 0.0
+        self.last_used = 0.0
         self.lock = threading.Lock()
         self.last_prune = 0.0
 
@@ -83,6 +89,7 @@ class PostgresStore:
 
     def _discard(self):
         conn, self.conn = self.conn, None
+        self.connected_at = self.last_used = 0.0
         if conn is not None:
             try:
                 conn.close()
@@ -93,9 +100,19 @@ class PostgresStore:
     def _transaction(self, *, capacity=False, write_meta=False):
         with self.lock:
             try:
-                if self.conn is None or self.conn.closed:
-                    self.conn = self.driver.connect(**self.config, autocommit=True,
-                                                    connect_timeout=2, application_name="402signal-replay")
+                now = time.monotonic()
+                if self.conn is not None and (
+                        self.conn.closed
+                        or now - self.connected_at >= MAX_CONNECTION_AGE
+                        or now - self.last_used >= MAX_CONNECTION_IDLE):
+                    self._discard()
+                if self.conn is None:
+                    self.conn = self.driver.connect(
+                        **self.config, autocommit=True, connect_timeout=2,
+                        application_name="402signal-replay", prepare_threshold=None)
+                    self.connected_at = self.last_used = time.monotonic()
+                # Unnamed statements work with transaction poolers. Session
+                # settings are SET LOCAL below; no operation is retried here.
                 with self.conn.transaction():
                     self.conn.execute("SET LOCAL statement_timeout = '2000ms'")
                     self.conn.execute("SET LOCAL lock_timeout = '1000ms'")
@@ -118,6 +135,7 @@ class PostgresStore:
                         raise StoreError("replay authority capacity exhausted")
                     yield self.conn
                 # Returning from the context means COMMIT was acknowledged.
+                self.last_used = time.monotonic()
             except Exception:
                 self._discard()
                 raise StoreError("replay authority unavailable") from None
