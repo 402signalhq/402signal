@@ -28,7 +28,7 @@ SCHEMA = Path(__file__).resolve().parents[1] / 'ops' / 'replay-postgres.sql'
 
 def require_fence_aware_runtime(module):
     """Production apply must prove the imported runtime actually rejects a fence."""
-    if not callable(getattr(module, '_store', None)):
+    if not callable(getattr(module, '_selected_store_locked', None)):
         raise StoreError('runtime replay integration is absent')
     checker = getattr(module, '_identity_cutover_ready', None)
     if not callable(checker):
