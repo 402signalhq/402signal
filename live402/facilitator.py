@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
 from live402 import cdp_auth, payment
+from live402.io_deadline import DeadlineHTTPSHandler
 
 # Official x402 + CDP REST (2026):
 # https://docs.cdp.coinbase.com/api-reference/v2/rest-api/x402-facilitator/verify-payment
@@ -175,7 +176,7 @@ def post_json(url: str, body: dict, headers: dict | None = None, timeout: float 
         if val:
             hdrs[key] = val
     req = urllib.request.Request(url, data=raw, method="POST", headers=hdrs)
-    opener = urllib.request.build_opener(NoRedirectHandler)
+    opener = urllib.request.build_opener(NoRedirectHandler, DeadlineHTTPSHandler)
     try:
         with opener.open(req, timeout=timeout) as resp:
             status = getattr(resp, "status", None) or resp.getcode()

@@ -452,7 +452,7 @@ class HomepageProductTests(unittest.TestCase):
         self.assertIn("matches returned by discovery", js)
         self.assertIn(" shown", js)
         self.assertIn("Seller says", js)
-        self.assertIn("Observed now", js)
+        self.assertIn("Previously observed", js)
         self.assertIn("Readiness", js)
         self.assertIn("Discovered", js)
         self.assertIn("Payable", js)
@@ -838,7 +838,7 @@ class HomepageProductTests(unittest.TestCase):
     def test_human_pages_are_static_html_same_csp(self):
         for path in ("/", "/catalog", "/how", "/developers", "/insights/pre-spend-routing", "/contact", "/transparency"):
             status, raw, hdrs = _get_full(self.port, path)
-            self.assertEqual(status, 200, path)
+            self.assertEqual(status, 405 if path == "/mcp/v0.3.1" else 200, path)
             self.assertIn("text/html", hdrs.get("content-type", ""), path)
             self.assertTrue(raw.strip(), path)
             csp = hdrs.get("content-security-policy") or ""
@@ -862,7 +862,7 @@ class HomepageProductTests(unittest.TestCase):
             "/llms.txt",
         ):
             status, raw, hdrs = _get_full(self.port, path)
-            self.assertEqual(status, 200, path)
+            self.assertEqual(status, 405 if path == "/mcp/v0.3.1" else 200, path)
             self.assertTrue(raw.strip(), path)
         att_status, _att_raw, _att_hdrs = _get_full(self.port, "/attestation")
         self.assertIn(att_status, (200, 404))
@@ -883,8 +883,8 @@ class HomepageProductTests(unittest.TestCase):
         registry_status, registry_raw, _registry_hdrs = _get_full(
             self.port, "/mcp/v0.3.1"
         )
-        self.assertEqual(registry_status, 200)
-        self.assertEqual(json.loads(registry_raw), mcp)
+        self.assertEqual(registry_status, 405)
+        self.assertIn('POST', json.loads(registry_raw)['error'])
         conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
         conn.request(
             "POST",
@@ -1113,7 +1113,7 @@ class HomepageProductTests(unittest.TestCase):
             "/.well-known/x402list.txt",
         ):
             status, raw, _hdrs = _get_full(self.port, path)
-            self.assertEqual(status, 200, path)
+            self.assertEqual(status, 405 if path == "/mcp/v0.3.1" else 200, path)
             self.assertTrue(raw, path)
         status, token, hdrs = _get_full(self.port, "/.well-known/x402list.txt")
         self.assertEqual(status, 200)

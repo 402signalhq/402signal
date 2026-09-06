@@ -30,16 +30,30 @@ export class Ledger {
       CREATE TABLE IF NOT EXISTS intents (id TEXT PRIMARY KEY, intent TEXT NOT NULL, receipt TEXT, confirmation TEXT);
       CREATE TABLE IF NOT EXISTS route_runs (id TEXT PRIMARY KEY, report TEXT NOT NULL);`);
   }
-  reserve(id: string, scope: string): { run: boolean; outcome?: Outcome } {
-    // One atomic insert across processes; no expiry, cleanup or reopening.
-    const count = this.db.prepare('SELECT count(*) AS n FROM payments').get() as any;
-    assert(count.n < 10000, 'ledger_capacity_reached', 503);
-    const inserted = this.db.prepare('INSERT OR IGNORE INTO payments VALUES (?, ?, ?, NULL, ?)').run(id, scope, 'reserved', Date.now());
-    if (inserted.changes) return { run: true };
+  lookup(id: string, scope: string): { run: false; outcome: Outcome } | undefined {
     const row = this.db.prepare('SELECT * FROM payments WHERE id=?').get(id) as any;
+    if (!row) return undefined;
     assert(row && row.scope === scope, 'authorization_scope_conflict', 409);
-    if (row.outcome) return { run: false, outcome: JSON.parse(row.outcome) };
+    if (row.outcome && row.created + 120000 > Date.now()) return { run: false, outcome: JSON.parse(row.outcome) };
     return { run: false, outcome: { status: 409, body: { error: 'authorization_incomplete', billing: { settled: null, settlement_state: 'unknown' } } } };
+  }
+  capacity() {
+    const count = (this.db.prepare('SELECT count(*) AS n FROM payments').get() as any).n as number;
+    return { ready: count < 10000, remaining: Math.max(0, 10000 - count) };
+  }
+  reserve(id: string, scope: string): { run: boolean; outcome?: Outcome } {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      // Existing outcomes and incomplete economic records remain accessible
+      // even when new admission is full. Never expire economic identities.
+      const existing = this.lookup(id, scope);
+      if (existing) { this.db.exec('COMMIT'); return existing; }
+      this.db.prepare('UPDATE payments SET outcome=NULL WHERE outcome IS NOT NULL AND created<=?').run(Date.now() - 120000);
+      assert(this.capacity().ready, 'ledger_capacity_reached', 503);
+      this.db.prepare('INSERT INTO payments VALUES (?, ?, ?, NULL, ?)').run(id, scope, 'reserved', Date.now());
+      this.db.exec('COMMIT');
+      return { run: true };
+    } catch (e) { this.db.exec('ROLLBACK'); throw e; }
   }
   attempting(id: string): void {
     const r = this.db.prepare("UPDATE payments SET state='attempted' WHERE id=? AND state='reserved'").run(id);

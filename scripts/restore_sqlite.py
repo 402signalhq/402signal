@@ -19,6 +19,9 @@ from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
+    if os.environ.get('LIVE402_FIXTURE') != '1':
+        print('Individual database restore is fixture-only. Use restore_bundle.py and the complete recovery runbook.')
+        return 1
     parser = argparse.ArgumentParser(description="Restore one 402Signal sqlite file")
     parser.add_argument("--src", required=True, help="Snapshot produced by backup_sqlite.py")
     parser.add_argument("--dest", required=True, help="Live sqlite path to replace")

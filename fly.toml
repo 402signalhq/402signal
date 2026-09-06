@@ -50,7 +50,8 @@ primary_region = "iad"
 # or TestNet broadcast flags here.
 # Do not enable TestNet or MainNet Falcon broadcast from this file.
 # Automatic anchoring stays off. No extra machines in this PR. Falcon SK is not on this app.
-# Scheduled snapshots off.
+# Snapshot schedule, retention and off-host recovery copies are managed by
+# 402ops. Verify the actual volume settings; comments are not a backup policy.
 [[mounts]]
   source = "data"
   destination = "/data"

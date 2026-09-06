@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+import uuid
 from pathlib import Path
 from unittest.mock import patch
 
@@ -59,7 +60,10 @@ class ContractTests(unittest.TestCase):
         settled=_settled();settled.body.pop('payer',None);settled.body['network']=_routing_accept(case['rail'])['network']
         settled.body['transaction']={'base':'0x'+'ab'*32,'solana':'2'*88,'algorand':'A'*52}[case['rail']]
         with patch('live402.facilitator.verify',return_value=_verified()),patch('live402.route.run_probe',return_value=(503 if variant=='free_miss' else 200,win)),patch('live402.facilitator.settle',return_value=settled) as settle:
-            code,result,_=route._paid_execute(body,_payload(),_routing_accept(case['rail']),RESOURCE,None,time.monotonic()+60)
+            fp = 'synthetic-contract-' + uuid.uuid4().hex
+            self.assertEqual(replay.begin(fp, scope='private-contract', reserve=False)[0], 'run')
+            code,result,extra=route._paid_execute(body,_payload(),_routing_accept(case['rail']),RESOURCE,None,time.monotonic()+60,fp)
+            replay.finish(fp, (code,result,extra), cache=code != 400)
         return code,result,body,settle.call_count
 
     def test_nine_real_seller_challenges_route_through_signed_proof_and_guard_to_delivery(self):

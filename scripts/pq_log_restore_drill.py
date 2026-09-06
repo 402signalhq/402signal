@@ -87,22 +87,25 @@ def compare_identity(src: dict, restored: dict) -> list[str]:
 
 
 def run_drill(src: Path, dest_dir: Path) -> dict:
+    if os.environ.get('LIVE402_FIXTURE') != '1':
+        raise SystemExit('standalone PQ drill requires LIVE402_FIXTURE=1; production recovery requires a complete bundle')
     _refuse_production(src, "src")
     _refuse_production(dest_dir, "dest-dir")
     dest_dir.mkdir(parents=True, exist_ok=True)
     before = _identity(src)
-    backup = _load_script("backup_sqlite")
     restore = _load_script("restore_sqlite")
     os.environ["LIVE402_PQ_LOG_DB"] = str(src)
-    os.environ.setdefault("LIVE402_HISTORY_DB", str(dest_dir / "missing-history.sqlite"))
-    os.environ.setdefault("LIVE402_CATALOG_DB", str(dest_dir / "missing-catalog.sqlite"))
-    rc = backup.main(["--dest", str(dest_dir)])
-    snaps = sorted(dest_dir.glob("pq-log-*.sqlite"))
-    if not snaps:
-        raise SystemExit("backup produced no pq-log snapshot (rc=%s)" % rc)
+    # This fixture drills only Merkle identity. It is deliberately separate
+    # from complete production backup admission and never produces a manifest.
+    snapshot = dest_dir / 'pq-log-fixture.sqlite'
+    if snapshot.exists():
+        raise SystemExit('fixture snapshot already exists')
+    from contextlib import closing
+    with closing(sqlite3.connect(src.resolve().as_uri() + '?mode=ro', uri=True)) as source, closing(sqlite3.connect(snapshot)) as target:
+        source.backup(target)
     restored = dest_dir / "pq-log-restored.sqlite"
     _refuse_production(restored, "restore dest")
-    if restore.main(["--src", str(snaps[-1]), "--dest", str(restored), "--force"]) != 0:
+    if restore.main(["--src", str(snapshot), "--dest", str(restored), "--force"]) != 0:
         raise SystemExit("restore failed")
     after = _identity(restored)
     mismatches = compare_identity(before, after)

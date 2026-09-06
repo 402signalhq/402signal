@@ -30,7 +30,7 @@ class CloseoutStaticTests(unittest.TestCase):
         self.assertNotIn("python:3.12.11-slim@", DOCKERFILE)
         self.assertNotIn("LIVE402_PQ_FALCON_BROADCAST", DOCKERFILE)
         self.assertNotIn("LIVE402_PQ_FALCON_SK", DOCKERFILE)
-        self.assertFalse(any(ln.startswith("USER ") for ln in DOCKERFILE.splitlines()))
+        self.assertIn("USER 10001:10001", DOCKERFILE)
 
     def test_python_dependencies_are_hash_locked(self):
         self.assertRegex(REQ_IN.strip(), r"^cryptography==50\.0\.1$")

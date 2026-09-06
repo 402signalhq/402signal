@@ -149,7 +149,7 @@ def _payload(nonce: str = "55") -> dict:
 
 def _headers(payload: dict) -> dict:
     raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    return {"PAYMENT-SIGNATURE": base64.b64encode(raw).decode("ascii")}
+    return {"PAYMENT-SIGNATURE": base64.b64encode(raw).decode("ascii"), "Replay-Key": "a1" * 32}
 
 
 class RequirementAndBoundaryTests(unittest.TestCase):
@@ -315,13 +315,17 @@ class PaidExecutionTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def _execute(self, body: dict | None = None):
-        return _paid_execute(
+        # Pipeline unit tests isolate reservation; handle_route tests below
+        # exercise the real durable admission path.
+        with patch('live402.replay.authorize', return_value=True):
+            return _paid_execute(
             body or {"need": "weather"},
             self.parsed,
             self.accept,
             RESOURCE,
             None,
             self.deadline,
+            fp="pipeline-fixture",
         )
 
     def test_success_verifies_probes_settles_marks_and_attaches_once(self):
@@ -619,19 +623,19 @@ class CompatibilityAndAbuseControlTests(unittest.TestCase):
 
     def test_legacy_503_without_billing_remains_settled(self):
         fp = "ab" * 32
-        self.assertEqual(replay.begin(fp)[0], "run")
+        self.assertEqual(replay.begin(fp, scope="private-unit-fixture")[0], "run")
         replay.finish(fp, (503, {"live": False}, None), cache=True)
         self.assertEqual(replay.ledger_state(fp), replay.STATE_SETTLED)
 
     def test_invalid_billing_shape_cannot_claim_not_settled(self):
         fp = "cd" * 32
-        self.assertEqual(replay.begin(fp)[0], "run")
+        self.assertEqual(replay.begin(fp, scope="private-unit-fixture")[0], "run")
         replay.finish(fp, (503, {"billing": {"settled": False}}, None), cache=True)
         self.assertEqual(replay.ledger_state(fp), replay.STATE_SETTLED)
 
     def test_http_200_cannot_claim_free_terminal_outcome(self):
         fp = "ef" * 32
-        self.assertEqual(replay.begin(fp)[0], "run")
+        self.assertEqual(replay.begin(fp, scope="private-unit-fixture")[0], "run")
         billing = {
             "model": payment.ROUTING_BILLING_MODEL,
             "condition": payment.ROUTING_SETTLEMENT_CONDITION,
@@ -649,7 +653,7 @@ class CompatibilityAndAbuseControlTests(unittest.TestCase):
 
     def test_replay_redacts_payment_containers_but_preserves_public_proofs(self):
         fp = "12" * 32
-        self.assertEqual(replay.begin(fp)[0], "run")
+        self.assertEqual(replay.begin(fp, scope="private-unit-fixture")[0], "run")
         billing = {
             "model": payment.ROUTING_BILLING_MODEL,
             "condition": payment.ROUTING_SETTLEMENT_CONDITION,
@@ -685,9 +689,9 @@ class CompatibilityAndAbuseControlTests(unittest.TestCase):
             }
         )
         replay.finish(fp, (200, body, {"PAYMENT-RESPONSE": response}), cache=True)
-        immediate = replay.begin(fp)[1]
+        immediate = replay.begin(fp, scope="private-unit-fixture")[1]
         replay.reset_memory()
-        restarted = replay.begin(fp)[1]
+        restarted = replay.begin(fp, scope="private-unit-fixture")[1]
         for result in (immediate, restarted):
             dumped = json.dumps(result)
             self.assertNotIn(canary, dumped)

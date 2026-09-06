@@ -584,6 +584,17 @@ class TransparencyPrivacyTests(unittest.TestCase):
 
 
 class TransparencyHelperTests(unittest.TestCase):
+    def test_copy_origin_uses_confirmed_identity_or_current_empty_log(self):
+        from unittest.mock import patch
+        for origin in ('402signal.com/pq/log/mainnet-v1', '402signal.com/pq/log'):
+            model = {'confirmed': {'origin': origin}, 'confirmed_size': 1,
+                     'current_size': 1, 'vkey': ''}
+            html = pq_view._verify_yourself(model)
+            self.assertIn('data-copy="' + origin + '"', html)
+        model['confirmed'] = None
+        with patch.object(pq_view, '_live_origin', return_value='402signal.com/pq/log/mainnet-v1'):
+            self.assertIn('data-copy="402signal.com/pq/log/mainnet-v1"', pq_view._verify_yourself(model))
+
     def test_abbreviate_falcon_is_base32_not_hex(self):
         shown = pq_view.abbreviate_falcon(_FALCON)
         self.assertEqual(shown, "OBHYXCUV…34IFFIU")

@@ -422,6 +422,7 @@ def _paid_execute(
     resource_url: str,
     bazaar: dict | None,
     paid_deadline: float,
+    fp: str,
 ) -> tuple[int, dict, dict | None]:
     verify_t = deadline_mod.verify_timeout(paid_deadline)
     if verify_t <= 0:
@@ -454,6 +455,9 @@ def _paid_execute(
     bad = _bad_request(body if isinstance(body, dict) else {})
     if bad:
         return bad[0], bad[1], None
+
+    if not replay.authorize(fp):
+        return _unknown_outcome(payment.rail_of_accept(accept), attempted=False)
 
     probe_until = deadline_mod.probe_deadline(paid_deadline)
     with telemetry.phase("routing_probe"):
@@ -621,13 +625,14 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
     try:
         fp = replay.canonical_fingerprint(parsed, accept)
         legacy_fp = replay.legacy_fingerprint(parsed, accept)
+        private_scope = replay.request_scope(body, resource_url, headers)
     except (TypeError, ValueError):
         required, extra = _required_pair(
             resource_url, "Payment verification failed", bazaar=bazaar
         )
         return 402, required, extra
     with telemetry.phase("replay_lookup"):
-        kind, token = replay.begin(fp, legacy_fp=legacy_fp, scope=resource_url)
+        kind, token = replay.begin(fp, legacy_fp=legacy_fp, scope=private_scope, reserve=False)
     if kind == "cached" and isinstance(token, tuple) and len(token) == 3:
         telemetry.mark_replayed()
         return token[0], token[1], token[2]
@@ -642,7 +647,7 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
 
     cache = False
     try:
-        out = _paid_execute(body, parsed, accept, resource_url, bazaar, paid_deadline)
+        out = _paid_execute(body, parsed, accept, resource_url, bazaar, paid_deadline, fp)
         out = telemetry.finish_current(out)
         # Cache terminal settled, not-settled, and rejected outcomes. A 400 may retry.
         cache = out[0] != 400

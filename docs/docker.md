@@ -53,20 +53,24 @@ Docker image both install with `--require-hashes`; an unpinned package or
 unapproved artifact fails the build. Review both the version change and
 the regenerated hashes whenever the direct dependency is updated.
 
-## Non-root (ACCEPTED path, not implemented)
+## Non-root runtime
 
-The process stays root in the published Dockerfile.
+The image runs as UID/GID `10001:10001`. A fresh image-owned `/data` directory
+belongs to that user. Mounted volumes preserve their existing ownership;
+they require the explicit migration described in `docs/remediation-rollout.md`.
 
-The Fly volume mounts at `/data`. Catalog, history, and pq-log sqlite
-files are created there at runtime. A non-root `USER` would not own that
-mount unless an admin `chown`s the volume on every machine, which is not
-done today. Switching `USER` without that chown would break production
-writes.
+`scripts/prepare_volume.py --volume /data` prints a plan. It never recursively
+changes files and refuses symlinks and hard-linked database files. After the
+single writer is stopped and a complete backup is verified, the volume
+administrator may apply that exact plan with `--apply --router-stopped`.
+Save the previous owners/modes as the rollback record. Startup performs no
+privileged ownership change. The image must not be deployed onto an unmigrated
+root-owned volume: fail-closed readiness would make the service unavailable.
 
-A root-then-drop-privs entrypoint was considered. It cannot be proven in
-this environment against the production Fly volume without touching that
-volume. Do not chown production `/data` from this PR.
-
-Blocker: `/data` Fly volume writability for a non-root UID is not
-proven. Do not add `USER` until an admin confirms a one-time `chown`
-(or an equivalent volume ACL) and a staging `/ready` check succeeds.
+Validate the built image against a synthetic volume first: run with the normal
+USER, a read-only root filesystem, writable `/tmp` and `/data`, and no network.
+Confirm catalog/history/PQ/replay writes and complete backup/restore work as
+10001. Test an unmigrated volume fails safely, then migrate it and confirm
+existing pending/settled replay records are preserved. Production still needs
+its operator migration and health/readiness checks; a local rehearsal does not
+attest deployed ownership.
