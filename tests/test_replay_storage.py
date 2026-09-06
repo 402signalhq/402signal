@@ -419,3 +419,241 @@ class PostgreSQLContracts(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+# Runtime tests deliberately use the application's public replay API and route
+# handler. Only external seller/facilitator I/O is replaced by synthetic fixtures.
+def runtime_contender(settings, event, queue):
+    from live402 import replay
+    with patch.dict(os.environ, dict(settings, LIVE402_FIXTURE='1', LIVE402_REPLAY_BACKEND='postgres')):
+        replay.reset_memory()
+        event.wait(5)
+        status, _ = replay.begin('runtime-duplicate', scope='private', reserve=False)
+        admitted = status == 'run' and replay.authorize('runtime-duplicate')
+        queue.put(admitted)
+        replay.reset_memory()
+
+
+class RuntimeSQLiteContracts(unittest.TestCase):
+    def setUp(self):
+        from live402 import replay
+        self.replay = replay
+        self.temp = tempfile.TemporaryDirectory()
+        self.env = patch.dict(os.environ, {
+            'LIVE402_FIXTURE':'1', 'LIVE402_REPLAY_BACKEND':'sqlite',
+            'LIVE402_REPLAY_POSTGRES_DSN':'', 'LIVE402_REPLAY_AUTHORITY_ID':'',
+            'LIVE402_REPLAY_DB':self.temp.name+'/runtime.sqlite'})
+        self.env.start()
+        replay.reset_memory()
+
+    def tearDown(self):
+        self.replay.reset_memory()
+        self.env.stop()
+        self.temp.cleanup()
+
+    def test_readiness_does_not_recursively_lock(self):
+        result = []
+        worker = threading.Thread(target=lambda: result.append(self.replay.durable_ready()), daemon=True)
+        worker.start()
+        worker.join(3)
+        self.assertFalse(worker.is_alive(), 'readiness deadlocked on the module lock')
+        self.assertEqual(result, [True])
+
+    def test_fence_after_lookup_blocks_delayed_admission_and_reset(self):
+        r = self.replay
+        self.assertEqual(r.begin('delayed',scope='private',reserve=False)[0],'run')
+        path = r.db_path()
+        with sqlite3.connect(path) as conn:
+            conn.execute("INSERT INTO replay_meta VALUES('external_authority_id',?)",(AUTHORITY,))
+        self.assertFalse(r.authorize('delayed'))
+        self.assertFalse(r.durable_ready())
+        r.reset()
+        with sqlite3.connect(path) as conn:
+            self.assertIsNotNone(conn.execute("SELECT 1 FROM replay_meta WHERE key='external_authority_id'").fetchone())
+        self.assertEqual(r.begin('new',scope='private')[0],'reject')
+
+    def test_configuration_conflicts_never_create_fallback(self):
+        r = self.replay
+        for config in ({'LIVE402_REPLAY_BACKEND':'invalid'},
+                       {'LIVE402_REPLAY_POSTGRES_DSN':'not-a-dsn'},
+                       {'LIVE402_REPLAY_BACKEND':'postgres','LIVE402_REPLAY_AUTHORITY_ID':''}):
+            r.reset_memory()
+            with patch.dict(os.environ, config):
+                self.assertFalse(r.durable_ready())
+                self.assertEqual(r.begin('config',scope='private')[0],'reject')
+                self.assertIsNone(r._conn)
+
+    def test_missing_driver_fails_closed(self):
+        import sys
+        r = self.replay
+        with patch.dict(os.environ, LIVE402_REPLAY_BACKEND='postgres'), patch.dict(sys.modules, {'psycopg':None}):
+            self.assertFalse(r.durable_ready())
+            self.assertEqual(r.begin('driver',scope='private')[0],'reject')
+            self.assertIsNone(r._conn)
+
+    def test_backend_change_requires_restart(self):
+        r = self.replay
+        self.assertTrue(r.durable_ready())
+        with patch.dict(os.environ, LIVE402_REPLAY_BACKEND='postgres'):
+            self.assertFalse(r.durable_ready())
+            self.assertEqual(r.begin('switch',scope='private')[0],'reject')
+
+    def test_runtime_lost_commit_ack_retains_pending_across_restart(self):
+        r = self.replay
+        real = r._connect()
+        class LostAck:
+            def __getattr__(self,name):
+                return getattr(real,name)
+            def commit(self):
+                real.commit()
+                raise sqlite3.OperationalError('lost acknowledgement')
+        with patch.object(r, '_connect', return_value=LostAck()):
+            self.assertEqual(r.begin('lost',scope='private')[0],'reject')
+        r.reset_memory()
+        self.assertEqual(r.ledger_state('lost'),r.STATE_PENDING)
+        self.assertEqual(r.begin('lost',scope='private')[0],'reject')
+
+    def test_legacy_identity_still_blocks_admission(self):
+        r = self.replay
+        conn = r._connect()
+        conn.execute("INSERT INTO settle_ledger VALUES(?,?,?,?,?,?,?)",
+                     (r.durable_hash('old'),'settled',None,1,1,None,None))
+        conn.execute("INSERT INTO replay_meta VALUES(?,?)",(r._CUTOVER_META_KEY,'ack'))
+        conn.commit()
+        self.assertEqual(r.begin('new',legacy_fp='old',scope='private')[0],'reject')
+
+
+@unittest.skipUnless(os.environ.get('LIVE402_PG_TEST_DESTRUCTIVE') == 'isolated-ci-only',
+                     'requires explicitly isolated PostgreSQL CI database')
+class PostgreSQLRuntimeContracts(unittest.TestCase):
+    def setUp(self):
+        # Reuse the existing guarded fixture, not its standalone test methods.
+        self.fixture = PostgreSQLContracts()
+        self.fixture.setUp()
+        self.admin = self.fixture.admin
+        self.settings = self.fixture.settings
+        self.env = patch.dict(os.environ, dict(self.settings,
+            LIVE402_REPLAY_BACKEND='postgres', LIVE402_FIXTURE='1', LOCAL_FREE='0'))
+        self.env.start()
+        from live402 import replay
+        self.replay = replay
+        replay.reset_memory()
+
+    def tearDown(self):
+        self.replay.reset_memory()
+        self.env.stop()
+        self.fixture.tearDown()
+
+    def route(self, nonce, result=None, verified=True):
+        from live402 import facilitator
+        from live402.route import handle_route
+        from test_success_only_billing import RESOURCE, _headers, _payload, _verified, _settled, _winner
+        with patch('live402.facilitator.verify', return_value=_verified() if verified else facilitator.FacilitatorResult(ok=False)) as verify, \
+             patch('live402.route.run_probe', return_value=result or (200,_winner())) as probe, \
+             patch('live402.facilitator.settle',return_value=_settled()) as settle, \
+             patch('live402.history.mark_batch_settled'), \
+             patch('live402.route._attach_pq_trust',side_effect=lambda _c,r,_b:r):
+            out = handle_route({'need':'weather'},_headers(_payload(nonce)),RESOURCE)
+        return out, (verify.call_count,probe.call_count,settle.call_count)
+
+    def test_application_success_and_private_restart_replay(self):
+        from live402.route import handle_route
+        from test_success_only_billing import RESOURCE, _headers, _payload
+        first, calls = self.route('pg-winner')
+        self.assertEqual(first[0],200)
+        self.assertEqual(calls,(1,1,1))
+        self.assertEqual(first[1]['billing']['amount_atomic'],'3000')
+        self.assertTrue(first[1]['billing']['settled'])
+        self.assertIsNone(self.replay._conn, 'PostgreSQL must never open SQLite')
+        self.replay.reset_memory()
+        second, calls = self.route('pg-winner')
+        self.assertEqual(second,first)
+        self.assertEqual(calls,(0,0,0))
+        headers = _headers(_payload('pg-winner'))
+        headers['Replay-Key'] = 'b2'*32
+        with patch('live402.facilitator.settle') as settle:
+            denied = handle_route({'need':'weather'},headers,RESOURCE)
+        self.assertEqual(denied[0],503)
+        self.assertNotIn('url',denied[1])
+        settle.assert_not_called()
+
+    def test_application_all_normal_misses_are_free_and_durable(self):
+        from test_success_only_billing import TYPED_MISSES, _miss
+        from live402.route_outcomes import NORMAL_MISS_REASONS
+        for reason in TYPED_MISSES:
+            first,calls = self.route(reason,(503,_miss(reason)))
+            self.assertEqual(first[0],200 if reason in NORMAL_MISS_REASONS else 503)
+            self.assertEqual(calls,(1,1,0))
+            self.assertFalse(first[1]['billing']['settled'])
+            self.replay.reset_memory()
+            second,calls = self.route(reason,(503,_miss(reason)))
+            self.assertEqual(second,first)
+            self.assertEqual(calls,(0,0,0))
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM signal_replay.entries WHERE state='not_settled'").fetchone()[0],len(TYPED_MISSES))
+
+    def test_invalid_verification_has_no_admission_or_seller_call(self):
+        out,calls = self.route('invalid',verified=False)
+        self.assertEqual(out[0],402)
+        self.assertEqual(calls,(1,0,0))
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM signal_replay.entries').fetchone()[0],0)
+
+    def test_authority_outage_blocks_application_before_economic_action(self):
+        self.admin.execute('UPDATE signal_replay.authority SET active=FALSE')
+        out,calls = self.route('inactive')
+        self.assertEqual(out[0],503)
+        self.assertEqual(calls,(0,0,0))
+        self.assertIsNone(self.replay._conn)
+
+    def test_shared_reset_never_deletes_authorizations(self):
+        r = self.replay
+        self.assertEqual(r.begin('retained',scope='private')[0],'run')
+        r.reset()
+        self.assertEqual(r.ledger_state('retained'),r.STATE_PENDING)
+        self.assertEqual(r.begin('retained',scope='private')[0],'reject')
+
+    def test_runtime_multiprocess_duplicate_payment_has_one_admission(self):
+        ctx = multiprocessing.get_context('spawn')
+        event,queue = ctx.Event(),ctx.Queue()
+        jobs=[ctx.Process(target=runtime_contender,args=(self.settings,event,queue)) for _ in range(4)]
+        for job in jobs: job.start()
+        event.set()
+        results=[queue.get(timeout=20) for _ in jobs]
+        for job in jobs:
+            job.join(5)
+            self.assertEqual(job.exitcode,0)
+        self.assertEqual(results.count(True),1)
+        self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
+
+    def test_runtime_expiry_and_abandon_never_release_identity(self):
+        r = self.replay
+        self.assertEqual(r.begin('abandoned',scope='private')[0],'run')
+        r.abandon('abandoned')
+        self.admin.execute('UPDATE signal_replay.entries SET expires_at=1')
+        r.reset_memory()
+        self.assertEqual(r.ledger_state('abandoned'),r.STATE_UNKNOWN)
+        self.assertEqual(r.begin('abandoned',scope='private')[0],'reject')
+
+    def test_runtime_sqlite_to_postgres_rehearsal(self):
+        r = self.replay
+        r.reset_memory()
+        with tempfile.TemporaryDirectory() as directory:
+            source = str(Path(directory)/'runtime.sqlite')
+            with patch.dict(os.environ, LIVE402_REPLAY_BACKEND='sqlite',
+                            LIVE402_REPLAY_POSTGRES_DSN='',LIVE402_REPLAY_AUTHORITY_ID='',
+                            LIVE402_REPLAY_DB=source):
+                self.assertTrue(r.durable_ready())
+                self.assertEqual(r.begin('migrated',scope='private')[0],'run')
+                r.abandon('migrated')
+                r.reset_memory()
+                self.admin.execute('DROP SCHEMA signal_replay CASCADE')
+                from scripts.replay_migrate import require_fence_aware_runtime
+                require_fence_aware_runtime(r)
+                report=migrate(source,self.settings,apply=True,writers_stopped=True)
+                self.assertTrue(report['source_fenced'] and report['target_active'])
+                self.assertFalse(r.durable_ready())
+                self.assertEqual(r.begin('source-new',scope='private')[0],'reject')
+                r.reset_memory()
+            self.assertTrue(r.durable_ready())
+            self.assertEqual(r.ledger_state('migrated'),r.STATE_UNKNOWN)
+            self.assertEqual(r.begin('migrated',scope='private')[0],'reject')
+            self.assertEqual(r.begin('target-new',scope='private')[0],'run')
