@@ -86,11 +86,14 @@ class SQLiteStore:
         try:
             if keep:
                 conn.execute("UPDATE settle_ledger SET state = ?, outcome_json = "
-                             "CASE WHEN scope_hash IS NULL THEN NULL ELSE ? END WHERE fp_hash = ?",
-                             (state, outcome, key))
+                             "CASE WHEN scope_hash IS NULL OR expires_at IS NULL OR expires_at <= ? "
+                             "THEN NULL ELSE ? END WHERE fp_hash = ? "
+                             "AND state IN ('settlement_pending','unknown')",
+                             (state, time.time(), outcome, key))
             else:
                 # Existing contract: only a 400 before any economic action.
-                conn.execute("DELETE FROM settle_ledger WHERE fp_hash = ?", (key,))
+                conn.execute("DELETE FROM settle_ledger WHERE fp_hash = ? "
+                             "AND state = 'settlement_pending'", (key,))
             conn.commit()
         except BaseException:
             conn.rollback()
