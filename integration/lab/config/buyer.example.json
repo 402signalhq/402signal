@@ -1,0 +1,15 @@
+{
+  "mode": "testnet",
+  "routerUrl": "https://REPLACE-STAGING-ROUTER.invalid/route",
+  "sellerOrigin": "https://REPLACE-LAB-HOST.invalid",
+  "ledgerPath": "data/testnet-buyer.sqlite",
+  "sellerMaxAtomic": "1000",
+  "capAtomicPerRail": { "base": "0", "solana": "0", "algorand": "0" },
+  "routerPayTo": { "base": "REPLACE", "solana": "REPLACE", "algorand": "REPLACE" },
+  "sellerPayTo": { "base": "REPLACE", "solana": "REPLACE", "algorand": "REPLACE" },
+  "feePayers": {
+    "base": [],
+    "solana": ["CKPKJWNdJEqa81x7CkZ14BVPiY6y16Sxs7owznqtWYp5"],
+    "algorand": ["G7QWRIJODICBDG6JAVXNKHNTCKTBJZBXTSCGQLSMXSCIKEJ5SNFPEJSFQQ"]
+  }
+}

@@ -1544,6 +1544,9 @@ def health_from_probe(url: str, snap: dict) -> dict:
     }
     if snap.get("binding_observation") is not None:
         out["binding_observation"] = snap["binding_observation"]
+    from live402 import route_observability
+    if isinstance(snap.get("binding_error_reason"), str) and snap["binding_error_reason"] in route_observability.BINDING_REASONS:
+        out["binding_error_reason"] = snap["binding_error_reason"]
     if snap.get("probes") is not None:
         out["probes"] = snap["probes"]
     if not live and snap.get("miss_reason"):
@@ -1659,6 +1662,7 @@ def _one_request(
     envelope, miss = parse_envelope(status, hdrs, body)
     live = envelope is not None and miss is None and status == 402
     binding_observation = None
+    binding_error_reason = "redirected_quote" if live and (final_url != url or req.binding_redirected) else None
     if live and final_url == url and not req.binding_redirected:
         from live402 import route_binding
 
@@ -1670,10 +1674,14 @@ def _one_request(
                     "observed_at": int(time.time()),
                     "quote_sha256": route_binding.digest(strict_env),
                 }
-        except route_binding.BindingError:
-            pass  # Opt-in binding unavailable; ordinary probe semantics unchanged.
+            else:
+                binding_error_reason = "ambiguous_challenge"
+        except route_binding.BindingError as exc:
+            from live402 import route_observability
+            binding_error_reason = route_observability.binding_reason(exc)
     return {
         "binding_observation": binding_observation,
+        "binding_error_reason": binding_error_reason,
         "live": live,
         "status": status,
         "has_402_challenge": _has_402_challenge(status, hdrs),
@@ -1849,6 +1857,7 @@ def probe_url(url: str, catalog_item: dict | None = None, deadline: float | None
     snap = {
         "live": live,
         "binding_observation": (winner or {}).get("binding_observation"),
+        "binding_error_reason": (winner or {}).get("binding_error_reason"),
         "status": (winner or {}).get("status"),
         "latency_ms": latency_ms,
         "has_402_challenge": bool((winner or {}).get("has_402_challenge")),
@@ -2561,7 +2570,9 @@ def route_need(
     else:
         ceiling = plan["probe_ceiling"]
     try:
-        items = fetch_discovery(need, prefer_network=prefer, networks=rails)
+        from live402 import route_observability
+        with route_observability.phase("discovery"):
+            items = fetch_discovery(need, prefer_network=prefer, networks=rails)
     except Exception:
         miss = _discovery_unavailable_miss(obj)
         miss["probe_ceiling"] = ceiling
@@ -2571,7 +2582,8 @@ def route_need(
     ranked = _history_boost_shortlist(ranked, need=need, prefer_network=prefer)
     try:
         from live402 import hydrate as hydrate_mod
-        hydrate_mod.hydrate_finalists(ranked, stash=last_discovery_contracts())
+        with route_observability.phase("hydration"):
+            hydrate_mod.hydrate_finalists(ranked, stash=last_discovery_contracts())
     except Exception:
         pass
     discovery_matches = len(ranked)
@@ -2607,7 +2619,8 @@ def route_need(
         if take <= 0:
             break
         tranche = ranked[next_idx:next_idx + take]
-        batch = _probe_tranche(tranche, need, deadline)
+        with route_observability.phase("candidate_probing"):
+            batch = _probe_tranche(tranche, need, deadline)
         if batch:
             probed.extend(batch)
             last = batch[-1]

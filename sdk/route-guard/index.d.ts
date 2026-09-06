@@ -35,3 +35,15 @@ export function withVerifiedRoute<T>(
   options: GuardOptions,
   authorize: (action: VerifiedAction) => T,
 ): T;
+
+export interface ReceiptOptions {
+  routeResponseJson: string;
+  routeRequestJson: string;
+  trustedLogVkey: string;
+}
+/** Historical signature/inclusion verification grants no spending authority. */
+export function verifyReceipt(options: ReceiptOptions): Readonly<{
+  proof: 'signature_and_inclusion_verified'; index: number; checkpoint_size: number;
+  current_quote: 'not_checked'; payment_confirmation: 'not_checked';
+  anchor: 'not_checked'; delivery: 'not_checked';
+}>;

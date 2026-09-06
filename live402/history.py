@@ -197,6 +197,8 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
             """,
             (TRUST_ROUTE_TENTATIVE, TRUST_INDEPENDENT),
         )
+    if "traffic_class" not in cols:
+        conn.execute("ALTER TABLE probes ADD COLUMN traffic_class TEXT NOT NULL DEFAULT 'unclassified'")
     state_cols = {row[1] for row in conn.execute("PRAGMA table_info(url_state)").fetchall()}
     if "pending_payTo" not in state_cols:
         conn.execute("ALTER TABLE url_state ADD COLUMN pending_payTo TEXT")
@@ -785,6 +787,10 @@ def _write_probe_row(dest: str, snap: dict, meta: dict) -> None:
         (dest, ts, live, payable, invocable, latency, pay_to, amount, miss, rail, schema_present, settled, trust_class),
     )
     probe_id = cur.lastrowid
+    # Authority comes from operator configuration, never a caller/seller label.
+    from live402 import lab_traffic
+    if lab_traffic.is_lab_url(dest):
+        cur.execute("UPDATE probes SET traffic_class='self_test' WHERE id=?", (probe_id,))
     obs_fields = {
         "live": live,
         "payable": payable,
@@ -1518,7 +1524,7 @@ def reputation_evidence(url: str) -> dict:
                 if state[4] is not None:
                     out["age_s"] = max(0, now - int(state[4]))
             cur.execute(
-                "SELECT ts, live, rail, payTo, amount, schema_present, settled_route_observation, trust_class "
+                "SELECT ts, live, rail, payTo, amount, schema_present, settled_route_observation, trust_class, traffic_class "
                 "FROM probes WHERE url = ? ORDER BY ts ASC, id ASC",
                 (dest,),
             )
@@ -1529,6 +1535,11 @@ def reputation_evidence(url: str) -> dict:
         out["first_probe_ts"] = rows[0][0]
         n_7d = 0
         ok_7d = 0
+        scoring_n = scoring_ok = self_tests = 0
+        from live402 import lab_traffic
+        # Legacy rows have no classification; currently configured lab origins
+        # remain excluded without rewriting historical observations or proofs.
+        configured_lab = lab_traffic.is_lab_url(dest)
         days = set()
         flips = 0
         prev_live = None
@@ -1575,6 +1586,11 @@ def reputation_evidence(url: str) -> dict:
                 prev_live = live
                 continue
             n_7d += 1
+            if configured_lab or row[8] == 'self_test':
+                self_tests += 1
+            else:
+                scoring_n += 1
+                scoring_ok += int(bool(live))
             if live:
                 ok_7d += 1
             try:
@@ -1587,6 +1603,9 @@ def reputation_evidence(url: str) -> dict:
         out["n_7d"] = n_7d
         out["ok_7d"] = ok_7d
         out["probe_count_7d"] = n_7d
+        out["self_test_count_7d"] = self_tests
+        out["scoring_probe_count_7d"] = scoring_n
+        out["scoring_success_7d"] = scoring_ok / scoring_n if scoring_n else None
         out["success_7d"] = (ok_7d / n_7d) if n_7d else None
         out["distinct_days_7d"] = len(days) if n_7d else 0
         out["outcome_flips_7d"] = flips if n_7d else 0

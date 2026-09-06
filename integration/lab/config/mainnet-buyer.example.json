@@ -1,0 +1,25 @@
+{
+  "mode": "mainnet",
+  "routerUrl": "https://REPLACE-STAGING-ROUTER.invalid/route",
+  "sellerOrigin": "https://REPLACE-LAB-HOST.invalid",
+  "ledgerPath": "/labdata/mainnet-buyer.sqlite",
+  "sellerMaxAtomic": "1000",
+  "capAtomicPerRail": {"base":"0","solana":"0","algorand":"0"},
+  "routerPayTo": {"base":"REPLACE","solana":"REPLACE","algorand":"REPLACE"},
+  "sellerPayTo": {"base":"REPLACE","solana":"REPLACE","algorand":"REPLACE"},
+  "feePayers": {
+    "base": [],
+    "solana": ["8a8fFNfk2AGS7rgVv1BoqPUWnzQuoCrShJV8tSE6RAYi"],
+    "algorand": ["ZMFK2OI7ZBD2U27ISERZC4S6LKM6WMFJPZQ4MYNJDZ2VNBNMBA67RA22AA"]
+  },
+  "mainnet": {
+    "workflow":"seller_only",
+    "buyerNativeFeeAtomic":"0",
+    "buyerAddresses":{"base":"REPLACE","solana":"REPLACE","algorand":"REPLACE"},
+    "rpcUrls": {
+      "base":"https://mainnet.base.org",
+      "solana":"https://api.mainnet-beta.solana.com",
+      "algorand":"https://mainnet-api.algonode.cloud"
+    }
+  }
+}

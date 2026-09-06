@@ -1,0 +1,32 @@
+{
+  "name": "402signal-lab",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "build": "node sync-sdk.mjs && tsc",
+    "check": "tsc --noEmit",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "start": "node dist/src/cli.js serve",
+    "demo": "npm run build && node dist/src/cli.js demo",
+    "doctor": "npm run build && node dist/src/cli.js doctor",
+    "buyer:plan": "node dist/src/cli.js plan",
+    "buyer:run": "node dist/src/cli.js run"
+  },
+  "dependencies": {
+    "@x402/core": "2.25.0",
+    "@x402/evm": "2.25.0",
+    "@x402/svm": "2.25.0",
+    "@x402/avm": "2.25.0",
+    "@solana/kit": "5.5.1",
+    "@algorandfoundation/algokit-utils": "10.0.0-alpha.46",
+    "viem": "2.56.3"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "24.12.0"
+  }
+}
