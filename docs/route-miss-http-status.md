@@ -29,7 +29,10 @@ and rejects malformed JSON and contradictory billing. It does not prove an
 on-chain outcome, authorize a new payment, release reserved budget, or replace
 `withVerifiedRoute` for seller execution.
 
-Durable replay preserves the original response, including old 503 responses.
+Within the private recovery window, eligible durable replay entries preserve
+their original response, including a retained 503 response. Older payloads without
+private retrieval credentials are removed by the privacy migration; economic
+identities remain permanent. See [private recovery](replay-recovery.md).
 New 200 misses are terminal `not_settled`; an identical private replay performs
 no second verification, probe, settlement, or proof append. Existing authorization
 uniqueness, request binding, expiration, and unknown-state handling are unchanged.
