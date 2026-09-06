@@ -1177,6 +1177,7 @@ def validate_observed_accept(accept, envelope=None) -> dict | None:
     opt["rail"] = rail
     opt["network"] = accept.get("network")
     opt["scheme"] = "exact"
+    opt["version"] = version
     if not is_complete_payment_option(opt, env):
         return None
     return opt

@@ -471,6 +471,14 @@ class PaymentSchemeIsolationTests(unittest.TestCase):
                   self.accept(extra={"feePayer":"different-provider"})]
         self.assertEqual(len(probe._accepts_from(None,{"accepts":offers})),5)
 
+    def test_seller_extra_version_cannot_break_validated_option_identity(self):
+        for metadata in ({"untrusted":"metadata"},["untrusted"],True,99):
+            acc = self.accept(extra={"version":metadata})
+            result = {"envelope":{"x402Version":2,"accepts":[acc]}}
+            options = payment.payment_options_from_result(result)
+            self.assertEqual(len(options),1)
+            self.assertEqual(options[0]["version"],2)
+
     def test_same_amount_different_recipient_is_not_erased(self):
         accepts = [self.accept(),self.accept(payTo="0x1111111111111111111111111111111111111111")]
         result = {"envelope":{"x402Version":2,"accepts":accepts}}
