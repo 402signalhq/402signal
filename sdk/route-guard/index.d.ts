@@ -31,6 +31,13 @@ export class RouteGuardError extends Error {
   readonly code: string;
 }
 export function verifyRoute(options: GuardOptions): VerifiedAction;
+/** Explicit unpaid outcome only. Does not authorize a retry or release budget. */
+export function isUnsettledRouteMiss(options: {
+  httpStatus: number;
+  routeResponseJson: string;
+  /** Pass the result of headers.get("PAYMENT-RESPONSE"); null means absent. */
+  paymentResponseHeader: string | null;
+}): boolean;
 export function withVerifiedRoute<T>(
   options: GuardOptions,
   authorize: (action: VerifiedAction) => T,

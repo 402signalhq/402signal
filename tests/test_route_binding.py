@@ -24,6 +24,7 @@ from test_success_only_billing import (
     _winner,
 )
 
+from live402.route_outcomes import NORMAL_MISS_REASONS
 from live402 import payment, probe, replay, route
 from live402 import route_binding as rb
 from live402.pq import events, receipt, route_v4, store
@@ -300,7 +301,7 @@ class BindingTests(unittest.TestCase):
                 out = route.handle_route(
                     self.body, _headers(_payload(str(i))), RESOURCE
                 )
-                self.assertEqual(out[0], 503)
+                self.assertEqual(out[0], 200 if reason in NORMAL_MISS_REASONS else 503)
                 self.assertFalse(out[1]["billing"]["settled"])
                 settle.assert_not_called()
                 attach.assert_not_called()

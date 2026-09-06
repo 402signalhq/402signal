@@ -50,7 +50,7 @@
         <pre class="code">curl -sS -D - https://402signal.com/route \
   -H 'Content-Type: application/json' \
   -d '{"need":"weather data","max_price_usd":0.02}'</pre>
-        <p>Sign one authorization, then retry the same request with <code>PAYMENT-SIGNATURE</code>. Include a private <code>Replay-Key</code> of 32 random bytes encoded as lowercase hex if you need to recover the response after a connection failure. Keep the key and request unchanged; recovery expires after 120 seconds and never grants a second charge. 402Signal verifies payment before probing and settles it only after finding a valid live eligible route. A normal typed HTTP 503 miss is not settled.</p>
+        <p>Sign one authorization, then retry the same request with <code>PAYMENT-SIGNATURE</code>. Include a private <code>Replay-Key</code> of 32 random bytes encoded as lowercase hex if you need to recover the response after a connection failure. Keep the key and request unchanged; recovery expires after 120 seconds and never grants a second charge. 402Signal verifies payment before probing and settles it only after finding a valid live eligible route. A completed normal miss returns HTTP 200 with <code>live:false</code>, <code>payable:false</code>, <code>selected_payment:null</code> and <code>billing.settlement_state=not_attempted</code>; it is not settled.</p>
       </section>
 
       <section class="block request-options">
@@ -72,8 +72,8 @@
       <section class="block response-guide">
         <h2>What comes back</h2>
         <dl class="checks compact">
-          <div><dt>HTTP 200</dt><dd>A settled routing authorization, a current qualifying target, the exact observed <code>selected_payment</code>, and <code>billing.settled=true</code>.</dd></div>
-          <div><dt>HTTP 503</dt><dd>Inspect <code>billing.settlement_state</code> before retrying. <code>not_attempted</code> is a free normal miss; <code>settled</code> can mean required transparency failed after settlement; <code>unknown</code> means settlement may have occurred and the authorization must not be reused.</dd></div>
+          <div><dt>HTTP 200</dt><dd>A completed routing check. A normal miss has <code>live:false</code> and <code>billing.settled=false</code>. A winner has a settled routing authorization, a current qualifying target, the exact observed <code>selected_payment</code>, and <code>billing.settled=true</code>.</dd></div>
+          <div><dt>HTTP 503</dt><dd>Inspect <code>billing.settlement_state</code> before retrying. <code>not_attempted</code> is an unpaid operational failure (or a cached legacy miss); <code>settled</code> can mean required transparency failed after settlement; <code>unknown</code> means settlement may have occurred and the authorization must not be reused.</dd></div>
           <div><dt>Payment boundary</dt><dd>$0.003 only when a valid live route is found. Normal typed misses are not settled. Seller payment is separate.</dd></div>
         </dl>
       </section>

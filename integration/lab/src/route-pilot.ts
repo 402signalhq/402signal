@@ -32,8 +32,6 @@ export interface RouteReport {
   pq_trust?: {transparency: Record<string,unknown>};
   result_sha256?: string; stopped_because?: string;
 }
-const misses = new Set(['no_candidates','constraints_unmet','no_402_envelope','probe_timeout','upstream_5xx','quote_expired',
-  'reachable_200','no_payto','ssrf','no_input_schema','probe_budget_exhausted','probe_limit_reached','unsafe_to_probe','invalid_need']);
 const phaseId = (id: string, phase: 'router'|'seller') => `${id}:${phase}`;
 function checkId(id: string) {assert(/^[a-zA-Z0-9_-]{1,64}$/.test(id),'invalid_run_id');}
 export function routeBody(c: BuyerConfig, rail: Rail, name: Utility, scenario: 'purchase'|'price_miss' = 'purchase') {
@@ -131,8 +129,10 @@ export class RoutePilot {
         r.pq_trust={transparency:kept};
         r.pq_evidence=tr.receipt?.checkpoint?'receipt_observed_unverified':'unavailable';save();
       }
-      if(response.status===503 && b.settled===false && b.settlement_attempted===false && b.settlement_state==='not_attempted' &&
-          response.body.live===false && response.body.selected_payment===null && misses.has(response.body.miss_reason) && !raw) {
+      const guardModule = '../../sdk/route-guard/index.mjs';
+      const {isUnsettledRouteMiss} = await import(guardModule);
+      if(isUnsettledRouteMiss({httpStatus:response.status,
+          routeResponseJson:response.rawBody ?? JSON.stringify(response.body), paymentResponseHeader:raw})) {
         r.router.state='not_settled';r.miss_reason=response.body.miss_reason;save();
         this.ledger.spendState(id,'route_free_miss');return r;
       }

@@ -63,7 +63,7 @@ class LabTrafficTests(unittest.TestCase):
              patch('live402.facilitator.settle') as settle, patch('live402.history.mark_batch_settled') as promote, \
              patch('live402.route._attach_pq_trust',side_effect=lambda code,result,body:result) as pq:
             code,body,_=_paid_execute({'url':URL},_payload(),_routing_accept(),'https://402signal.com/route',None,time.monotonic()+100)
-            self.assertEqual(code,503);self.assertFalse(body['billing']['settled']);self.assertEqual(body['lab_testing'],lab_traffic.classification())
+            self.assertEqual(code,200);self.assertFalse(body['billing']['settled']);self.assertEqual(body['lab_testing'],lab_traffic.classification())
             settle.assert_not_called();promote.assert_not_called();pq.assert_not_called()
     def test_normal_success_keeps_history_and_pq(self):
         with patch('live402.facilitator.verify', return_value=_verified()), patch('live402.route.run_probe', return_value=(200,_winner())), \

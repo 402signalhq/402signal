@@ -9,6 +9,35 @@ const TYPE = "402signal.route_decision.v4";
 const MODEL = "proof_carrying_route_v1";
 const HEX = /^[0-9a-f]{64}$/;
 const LIMIT = 64 * 1024;
+const NORMAL_MISSES = new Set([
+  "no_candidates", "no_402_envelope", "no_payto", "reachable_200",
+  "quote_expired", "no_input_schema", "constraints_unmet", "unsafe_to_probe",
+]);
+const LEGACY_MISSES = new Set([...NORMAL_MISSES, "probe_timeout", "upstream_5xx",
+  "ssrf", "probe_budget_exhausted", "probe_limit_reached", "invalid_need"]);
+
+/** Classifies an explicit unpaid outcome; never grants spending/retry authority. */
+export function isUnsettledRouteMiss(options) {
+  try {
+    const {httpStatus, routeResponseJson, paymentResponseHeader} = options;
+    if (![200, 503].includes(httpStatus) || paymentResponseHeader !== null) return false;
+    const body = parse(routeResponseJson, {ordinaryNumbers: true, limit: 256 * 1024});
+    const b = body.billing;
+    if (body.live !== false || body.payable !== false || body.selected_payment !== null ||
+        !b || b.model !== "success_only_v1" || b.condition !== "live_eligible_route_found" ||
+        b.asset !== "USDC" || b.amount_atomic !== "3000" || b.display_amount !== "$0.003" ||
+        !["base", "solana", "algorand"].includes(b.rail) ||
+        b.settlement_attempted !== false || b.settled !== false || b.settlement_state !== "not_attempted") return false;
+    if (httpStatus === 503) return LEGACY_MISSES.has(body.miss_reason);
+    return NORMAL_MISSES.has(body.miss_reason) &&
+      ["error", "binding_error", "binding_error_reason"].every(k => body[k] == null) &&
+      (!Object.hasOwn(body, "evaluation_complete") || body.evaluation_complete === true) &&
+      (!Object.hasOwn(body, "candidate_evaluation_complete") || body.candidate_evaluation_complete === true) &&
+      (!Object.hasOwn(body, "probe_budget_exhausted") || body.probe_budget_exhausted === false);
+  } catch {
+    return false;
+  }
+}
 const sha = (...buffers) =>
   createHash("sha256")
     .update(Buffer.concat(buffers.map((b) => Buffer.from(b))))

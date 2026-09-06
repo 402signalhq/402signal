@@ -10,6 +10,7 @@ import time
 from live402 import deadline as deadline_mod
 from live402 import facilitator, fixtures, payment, probe, replay, reqctx, select
 from live402 import policy as policy_mod
+from live402.route_outcomes import is_normal_miss
 
 
 def _preserve_observed_facts(result: dict) -> None:
@@ -222,6 +223,10 @@ def run_probe(body: dict, deadline: float | None = None) -> tuple[int, dict]:
         result["invocable"] = False
         result["payable"] = False
         result["selected_payment"] = None
+    if result.get("live") is False:
+        result.setdefault("payable", False)
+        result.setdefault("invocable", False)
+        result.setdefault("selected_payment", None)
     return 503, result
 
 
@@ -490,6 +495,9 @@ def _paid_execute(
         )
         _log_settle_skipped(rail)
         # Free misses remain tentative history and create no PQ route leaf.
+        # Classify only after the independent winner gate has skipped settlement.
+        if code == 503 and is_normal_miss(result):
+            code = 200
         return code, result, None
 
     if body.get("require_route_binding") is True:

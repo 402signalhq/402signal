@@ -130,3 +130,15 @@ claim alone is not a sufficient observer implementation.
 
 See [the complete recovery contract](../../docs/route-recovery-observability.md)
 for confirmation levels, limits, outcome fields and the versioned scoring policy.
+
+
+## Completed unpaid misses
+
+Use exported isUnsettledRouteMiss({httpStatus, routeResponseJson,
+paymentResponseHeader}) to recognize explicit unpaid outcomes. Pass the raw
+JSON response and headers.get("PAYMENT-RESPONSE") (null when absent).
+It accepts completed normal HTTP 200 misses and legacy HTTP 503 unpaid misses.
+False means unclassified, never permission to execute or retry. True does not
+release a spend reservation or replace chain reconciliation. Keep
+withVerifiedRoute as the seller-authorization gate; HTTP 200 alone is insufficient.
+See [the response contract](../../docs/route-miss-http-status.md).
