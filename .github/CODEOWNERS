@@ -23,3 +23,13 @@
 /scripts/sqlite_bundle.py @ross402signal
 /scripts/restore_bundle.py @ross402signal
 /scripts/prepare_volume.py @ross402signal
+
+# Scale replay authority, migration, and budget boundaries.
+/live402/replay_store.py @ross402signal
+/live402/replay_postgres.py @ross402signal
+/ops/replay-postgres.sql @ross402signal
+/scripts/replay_migrate.py @ross402signal
+/Dockerfile.postgres @ross402signal
+/requirements-postgres.txt @ross402signal
+/scripts/infrastructure_budget.py @ross402signal
+/ops/infrastructure-budget.example.json @ross402signal
