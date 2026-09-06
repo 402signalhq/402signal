@@ -273,6 +273,79 @@ class PostgreSQLContracts(unittest.TestCase):
         self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
         self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
 
+
+    def test_repeated_queries_do_not_create_named_prepared_statements(self):
+        self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+        for _ in range(12):
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+        self.assertEqual(self.store.conn.execute(
+            'SELECT count(*) FROM pg_prepared_statements').fetchone()[0],0)
+
+    def test_connection_age_recycles_busy_connection_without_reopening_identity(self):
+        with patch('live402.replay_postgres.time.monotonic',return_value=1000.0) as clock:
+            self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+            first = self.store.conn
+            first_pid = first.info.backend_pid
+            for now in (1299.0,1598.0,1599.0):
+                clock.return_value = now
+                self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+                self.assertIs(self.store.conn,first)
+            clock.return_value = 1600.0
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+            self.assertTrue(first.closed)
+            self.assertNotEqual(self.store.conn.info.backend_pid,first_pid)
+            self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+
+    def test_idle_connection_recycles_before_reuse(self):
+        with patch('live402.replay_postgres.time.monotonic',return_value=1000.0) as clock:
+            self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+            first = self.store.conn
+            clock.return_value = 1299.0
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+            self.assertIs(self.store.conn,first)
+            clock.return_value = 1599.0
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+            self.assertTrue(first.closed)
+            self.assertIsNot(self.store.conn,first)
+            self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+
+    def test_failed_connection_renewal_is_not_retried(self):
+        import psycopg
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        with patch('live402.replay_postgres.time.monotonic',return_value=1000.0) as clock:
+            self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+            first = self.store.conn
+            clock.return_value = 1300.0
+            connect = Mock(side_effect=psycopg.OperationalError('PRIVATE_DSN_DETAIL'))
+            self.store.driver = SimpleNamespace(connect=connect)
+            with self.assertRaisesRegex(StoreError,'^replay authority unavailable$'):
+                self.store.reserve('d'*64,SCOPE,time.time()+120)
+            self.assertEqual(connect.call_count,1)
+            self.assertTrue(first.closed)
+            self.assertIsNone(self.store.conn)
+            self.assertIsNone(self.admin.execute(
+                'SELECT fp_hash FROM signal_replay.entries WHERE fp_hash=%s',('d'*64,)).fetchone())
+            # A later independent lookup can reconnect; it cannot repeat the
+            # previously acknowledged admission or recover an uncertain write.
+            self.store.driver = psycopg
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+            self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+
+    def test_connection_is_not_recycled_inside_transaction(self):
+        with patch('live402.replay_postgres.time.monotonic',return_value=1000.0) as clock:
+            self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+            first = self.store.conn
+            with self.store._transaction() as conn:
+                clock.return_value = 1601.0
+                conn.execute("UPDATE signal_replay.entries SET state='unknown' WHERE fp_hash=%s",(KEY,))
+                self.assertIs(conn,first)
+                self.assertFalse(first.closed)
+            self.assertFalse(first.closed)
+            self.assertEqual(self.store.lookup(KEY)[0],'unknown')
+            self.assertTrue(first.closed)
+            self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+
     def test_unknown_never_reopens_after_expiry(self):
         self.store.reserve(KEY,SCOPE,1)
         self.store.abandon(KEY)
