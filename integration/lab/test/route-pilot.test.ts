@@ -60,9 +60,12 @@ function fixture(c:BuyerConfig,rail:Rail,scenario='success') {
   assert.equal(body.require_transparency,true);assert.equal(body.require_route_binding,true);
   const result:any={pq_trust:{transparency:{status:'pending',state:'checkpoint_signed',receipt:{checkpoint:'fixture note',index:0,inclusion_path:[]},reveal:{event_version:'402signal.route_decision.v4'}}},url:body.url,live:true,payable:true,status:402,lab_testing:classification,
    selected_payment:{rail,network:info.network,asset:info.asset,payTo:sellers[rail],amount_atomic:1000},
-   billing:{model:'success_only_v1',amount_atomic:'3000',asset:'USDC',rail,settled:true,settlement_attempted:true,settlement_state:'settled'}};
+   billing:{model:'success_only_v1',condition:'live_eligible_route_found',display_amount:'$0.003',amount_atomic:'3000',asset:'USDC',rail,settled:true,settlement_attempted:true,settlement_state:'settled'}};
   let status=200;
-  if(scenario==='free_miss'){status=503;result.live=false;result.selected_payment=null;result.miss_reason='constraints_unmet';result.billing={...result.billing,settled:false,settlement_attempted:false,settlement_state:'not_attempted'};headers.delete('PAYMENT-RESPONSE');delete result.pq_trust;}
+  if(['free_miss','legacy_free_miss','malformed_free_miss','unknown_200','receipt_miss'].includes(scenario)){status=scenario==='legacy_free_miss'?503:200;result.live=false;result.payable=false;result.invocable=false;result.selected_payment=null;result.miss_reason='constraints_unmet';result.billing={...result.billing,settled:false,settlement_attempted:false,settlement_state:'not_attempted'};headers.delete('PAYMENT-RESPONSE');delete result.pq_trust;}
+  if(scenario==='malformed_free_miss')result.payable=true;
+  if(scenario==='unknown_200')result.billing.settlement_state='unknown';
+  if(scenario==='receipt_miss')headers.set('PAYMENT-RESPONSE',encode64({success:true,transaction:tx,network:info.network,amount:'3000'}));
   if(scenario==='wrong_selected')result.selected_payment.payTo=buyers[rail];
   if(scenario==='missing_classification')delete result.lab_testing;
   if(scenario==='settled_503'){status=503;result.live=false;result.pq_trust={transparency:{status:'unavailable',state:'unavailable'}};}
@@ -84,14 +87,14 @@ for(const rail of RAILS){
    for(const table of ['route_runs','intents'])assert(!JSON.stringify(l.db.prepare('SELECT * FROM '+table).all()).includes('PRIVATE_CANARY'));
   }finally{l.close();}
  });
- for(const scenario of ['old_router','free_miss','wrong_selected','quote_changed','missing_classification','missing_pq','settled_503','router_lost','seller_lost']){
+ for(const scenario of ['old_router','free_miss','legacy_free_miss','malformed_free_miss','unknown_200','receipt_miss','wrong_selected','quote_changed','missing_classification','missing_pq','settled_503','router_lost','seller_lost']){
   test(`${rail}: ${scenario} stops correctly without retry`,async()=>{
    const c=config(),l=new Ledger(':memory:'),f=fixture(c,rail,scenario);
    try {const b=new RoutePilot(c,l,f.sign,f.sign,async()=>({state:'confirmed'}),f.send,f.verifyBinding);const r=await b.run('stop',rail,'payload/sha256');
     assert.equal(f.counts().sellerPosts,scenario==='seller_lost'?1:0);
     if(scenario==='old_router'){assert.equal(f.counts().signatures,0);assert.equal(r.stopped_because,'router_production_processing_not_deployed');}
     if(scenario==='settled_503'){assert.equal(r.router.state,'confirmed');assert.equal(r.pq_evidence,'unavailable');}
-    if(scenario==='free_miss'){assert.equal(r.pq_evidence,'not_checked');assert.equal(r.router.state,'not_settled');assert.equal(r.stopped_because,undefined);}else assert(r.stopped_because);
+    if(scenario==='free_miss'||scenario==='legacy_free_miss'){assert.equal(r.route_status,scenario==='free_miss'?200:503);assert.equal(f.counts().signatures,1);assert.equal(r.pq_evidence,'not_checked');assert.equal(r.router.state,'not_settled');assert.equal(r.stopped_because,undefined);}else assert(r.stopped_because);
     const count=f.counts();await assert.rejects(b.run('stop',rail,'payload/sha256'),/reserved/);assert.deepEqual(f.counts(),count);
    }finally{l.close();}
   });

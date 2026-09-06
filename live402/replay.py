@@ -27,6 +27,7 @@ import threading
 import time
 
 from live402 import clock, payment
+from live402.route_outcomes import is_normal_miss
 
 COMPLETED_TTL_SECONDS = 120.0
 MAX_COMPLETED = 256
@@ -555,6 +556,14 @@ def _sanitize_outcome(result: tuple) -> tuple:
         return value
 
     safe_body = cleanse(body) if isinstance(body, dict) else {}
+    if code == 200 and _explicit_outcome_state(result) == STATE_UNKNOWN:
+        # An unpaid body accompanied by a receipt is contradictory. Preserve
+        # that uncertainty in replay even though unsafe receipt data is removed.
+        code = 503
+        safe_body["miss_reason"] = "settlement_unknown"
+        safe_body["error"] = "Contradictory payment outcome"
+        safe_body["billing"].update(settlement_attempted=None, settled=None,
+                                    settlement_state="unknown")
     if int(code) == 402 and "error" in safe_body:
         safe_body["error"] = "Payment processing failed"
     safe_extra = None
@@ -637,6 +646,13 @@ def _explicit_outcome_state(result: tuple) -> str | None:
         if code in (200, 503):
             return STATE_SETTLED
     if state == "not_attempted" and attempted is False and settled is False:
+        if code == 200 and is_normal_miss(body):
+            if _extra is None:
+                return STATE_NOT_SETTLED
+            if isinstance(_extra, dict):
+                if any(str(key).lower() == "payment-response" for key in _extra):
+                    return STATE_UNKNOWN
+                return STATE_NOT_SETTLED
         if code == 503 and body.get("live") is False:
             return STATE_NOT_SETTLED
     if state == "rejected" and type(attempted) is bool and settled is False:
@@ -898,7 +914,10 @@ def finish(fp: str, result: tuple, cache: bool) -> None:
             _completed[fp] = (now + max(0, entry.expires_at - time.time()), scope_hash, safe_result)
             _prune_completed(now)
         if entry is not None and entry.reserved:
-            _ledger_finish(fp_hash, safe_result, cache)
+            # Classify before redaction: stripping an unexpected receipt must not
+            # turn a contradictory HTTP 200 into an explicit unpaid outcome.
+            # _ledger_finish still sanitizes all serialized response material.
+            _ledger_finish(fp_hash, result, cache)
 
 
 def abandon(fp: str) -> None:

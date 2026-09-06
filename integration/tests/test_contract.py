@@ -89,7 +89,7 @@ class ContractTests(unittest.TestCase):
         for case in self.cases:
             for variant in ('expired_before_settle','explicit_false','free_miss'):
                 code,result,_,settles=self.issue(case,variant)
-                self.assertEqual(code,503);self.assertEqual(settles,0)
+                self.assertEqual(code,200 if variant=="free_miss" else 503);self.assertEqual(settles,0)
                 self.assertFalse(result['billing']['settled']);self.assertNotIn('pq_trust',result)
         self.assertEqual(store.size(),0)
 

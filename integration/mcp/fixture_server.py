@@ -19,7 +19,8 @@ with tempfile.TemporaryDirectory() as temp, ExitStack() as stack:
     stack.enter_context(patch('live402.facilitator.post_json', side_effect=_fake_facilitator))
     app = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     headers = _headers_for(_payload('official-mcp-client', resource_url='https://402signal.com/mcp'))
-    print(json.dumps({'url': 'http://127.0.0.1:' + str(app.server_port) + '/mcp', 'headers': headers}), flush=True)
+    miss_headers = _headers_for(_payload('official-mcp-miss', resource_url='https://402signal.com/mcp'))
+    print(json.dumps({'miss_headers': miss_headers, 'url': 'http://127.0.0.1:' + str(app.server_port) + '/mcp', 'headers': headers}), flush=True)
     try:
         app.serve_forever()
     finally:

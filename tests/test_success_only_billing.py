@@ -18,6 +18,7 @@ os.environ.setdefault("LIVE402_FIXTURE", "1")
 os.environ.pop("LOCAL_FREE", None)
 
 from live402 import discover, facilitator, mcp, payment, replay, server
+from live402.route_outcomes import NORMAL_MISS_REASONS
 from live402.route import _billable_winner, _paid_execute, handle_route
 
 RESOURCE = "https://402signal.com/route"
@@ -190,6 +191,12 @@ class RequirementAndBoundaryTests(unittest.TestCase):
         )
 
         examples = route_responses["503"]["content"]["application/json"]["examples"]
+        success_examples = route_responses["200"]["content"]["application/json"]["examples"]
+        normal = success_examples["normal_typed_miss"]["value"]
+        self.assertIs(normal["live"], False)
+        self.assertIs(normal["payable"], False)
+        self.assertIsNone(normal["selected_payment"])
+        self.assertEqual(normal["billing"]["settlement_state"], "not_attempted")
         states = {
             item["value"]["billing"]["settlement_state"]
             for item in examples.values()
@@ -369,7 +376,7 @@ class PaidExecutionTests(unittest.TestCase):
                 "live402.history.mark_batch_settled"
             ) as mark, patch("live402.route._attach_pq_trust") as attach:
                 code, body, extra = self._execute()
-            self.assertEqual(code, 503)
+            self.assertEqual(code, 200 if reason in NORMAL_MISS_REASONS else 503)
             self.assertEqual(body["miss_reason"], reason)
             self.assertFalse(body["billing"]["settlement_attempted"])
             self.assertFalse(body["billing"]["settled"])
@@ -529,6 +536,7 @@ class FreeMissReplayTests(unittest.TestCase):
 
     def test_sequential_and_restart_replay_identical_without_work(self):
         first, verifies, probes, settles = self._run()
+        self.assertEqual(first[0], 200)
         self.assertEqual((verifies, probes, settles), (1, 1, 0))
         fp = self._fingerprint()
         self.assertEqual(replay.ledger_state(fp), replay.STATE_NOT_SETTLED)
@@ -583,7 +591,7 @@ class FreeMissReplayTests(unittest.TestCase):
                 replay.reset()
                 self.headers = _headers(_payload(f"{index:02x}"))
                 result, verifies, probes, settles = self._run(reason)
-                self.assertEqual(result[0], 503)
+                self.assertEqual(result[0], 200 if reason in NORMAL_MISS_REASONS else 503)
                 self.assertEqual((verifies, probes, settles), (1, 1, 0))
                 self.assertEqual(
                     replay.ledger_state(self._fingerprint()),
@@ -650,6 +658,23 @@ class CompatibilityAndAbuseControlTests(unittest.TestCase):
             fp, (200, {"live": True, "billing": billing}, None), cache=True
         )
         self.assertEqual(replay.ledger_state(fp), replay.STATE_SETTLED)
+
+    def test_receipt_contradiction_stays_conservative_before_redaction(self):
+        from live402.route import _billing
+        fp = "13" * 32
+        self.assertEqual(replay.begin(fp, scope="private-unit-fixture")[0], "run")
+        body = _miss()
+        body["billing"] = _billing("base", settlement_attempted=False,
+                                   settled=False, settlement_state="not_attempted")
+        replay.finish(fp, (200, body, {"PAYMENT-RESPONSE": "contradictory-receipt"}), cache=True)
+        self.assertEqual(replay.ledger_state(fp), replay.STATE_UNKNOWN)
+        replay.reset_memory()
+        status, cached = replay.begin(fp, scope="private-unit-fixture")
+        self.assertEqual(status, "cached")
+        self.assertEqual(cached[0], 503)
+        self.assertIsNone(cached[1]["billing"]["settled"])
+        self.assertEqual(cached[1]["billing"]["settlement_state"], "unknown")
+        self.assertIsNone(cached[2])
 
     def test_replay_redacts_payment_containers_but_preserves_public_proofs(self):
         fp = "12" * 32

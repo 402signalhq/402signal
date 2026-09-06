@@ -44,6 +44,17 @@ test('official MCP client initializes, notifies, lists tools and calls free and 
     assert.equal(result.structuredContent.billing.settled, true);
     const again = await paid.callTool({name:'route',arguments:args});
     assert.deepEqual(again.structuredContent, result.structuredContent);
+    const missClient = await connect(fixture.miss_headers);
+    const missArgs = {need:'echo',url:'https://fixture.402signal.local/echo'};
+    const miss = await missClient.callTool({name:'route',arguments:missArgs});
+    assert.equal(miss.isError,false);
+    assert.equal(miss.structuredContent.live,false);
+    assert.equal(miss.structuredContent.payable,false);
+    assert.equal(miss.structuredContent.selected_payment,null);
+    assert.equal(miss.structuredContent.billing.settlement_state,'not_attempted');
+    assert.equal(miss.structuredContent.billing.settled,false);
+    assert.equal(miss.structuredContent.pq_trust,undefined);
+    assert.deepEqual((await missClient.callTool({name:'route',arguments:missArgs})).structuredContent,miss.structuredContent);
   } finally {
     await Promise.allSettled(clients.map(client => client.close()));
     if (child.exitCode === null) { child.kill(); await once(child,'exit'); }

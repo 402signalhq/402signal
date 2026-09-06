@@ -6,7 +6,7 @@ atomic step.
 ## Settled winner / free miss
 
 Only a valid live eligible HTTP 200 winner is settled and passed to the
-transparency append path. A normal typed HTTP 503 miss is not settled,
+transparency append path. A normal typed HTTP 200 miss is not settled,
 does not append a route-decision leaf, and cannot cause a Falcon anchor
 solely for that request.
 
@@ -36,7 +36,7 @@ The response is HTTP 503 (`transparency receipt unavailable`) but its
 `billing` object remains explicit: settlement was attempted and succeeded.
 The request is not described as free, and no second settlement is attempted.
 Clients must inspect `billing.settlement_state` on every HTTP 503 before
-retrying. This settled transparency failure reports `settled`; a normal miss
+retrying. This settled transparency failure reports `settled`; an unpaid operational failure
 reports `not_attempted`; a lost or malformed settlement reply reports
 `unknown` with `settled:null`, and that authorization must not be reused.
 
