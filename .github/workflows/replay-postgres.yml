@@ -21,7 +21,7 @@ jobs:
           POSTGRES_PASSWORD: local-ci-only
           POSTGRES_DB: 402signal_ci
         ports:
-          - 5432:5432
+          - 127.0.0.1:5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d 402signal_ci"
           --health-interval 5s --health-timeout 5s --health-retries 10
