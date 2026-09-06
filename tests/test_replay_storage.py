@@ -434,6 +434,24 @@ def runtime_contender(settings, event, queue):
         replay.reset_memory()
 
 
+
+def route_contender(settings, event, queue):
+    from live402 import replay
+    from live402.route import handle_route
+    from test_success_only_billing import RESOURCE, _headers, _payload, _verified, _settled, _winner
+    with patch.dict(os.environ, dict(settings,LIVE402_FIXTURE='1',
+                                    LIVE402_REPLAY_BACKEND='postgres',LOCAL_FREE='0')):
+        replay.reset_memory()
+        with patch('live402.facilitator.verify',return_value=_verified()), \
+             patch('live402.route.run_probe',return_value=(200,_winner())), \
+             patch('live402.facilitator.settle',return_value=_settled()) as settle, \
+             patch('live402.history.mark_batch_settled'), \
+             patch('live402.route._attach_pq_trust',side_effect=lambda _c,r,_b:r):
+            event.wait(5)
+            result=handle_route({'need':'weather'},_headers(_payload('multiprocess-route')),RESOURCE)
+            queue.put((result[0],settle.call_count))
+        replay.reset_memory()
+
 class RuntimeSQLiteContracts(unittest.TestCase):
     def setUp(self):
         from live402 import replay
@@ -622,6 +640,22 @@ class PostgreSQLRuntimeContracts(unittest.TestCase):
             job.join(5)
             self.assertEqual(job.exitcode,0)
         self.assertEqual(results.count(True),1)
+        self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
+
+
+    def test_multiprocess_route_calls_settle_exactly_once(self):
+        ctx=multiprocessing.get_context('spawn')
+        event,queue=ctx.Event(),ctx.Queue()
+        jobs=[ctx.Process(target=route_contender,args=(self.settings,event,queue)) for _ in range(4)]
+        for job in jobs: job.start()
+        event.set()
+        results=[queue.get(timeout=20) for _ in jobs]
+        for job in jobs:
+            job.join(5)
+            self.assertEqual(job.exitcode,0)
+        self.assertEqual(sum(calls for _code,calls in results),1)
+        self.assertIn(200,[code for code,_calls in results])
+        self.assertTrue(all(code in (200,503) for code,_calls in results))
         self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
 
     def test_runtime_expiry_and_abandon_never_release_identity(self):
