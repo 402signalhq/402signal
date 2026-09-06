@@ -1,10 +1,11 @@
 # Scale migration: security, functionality and release gates
 
-Status: opt-in replay backend candidate, NOT an activated production migration.
-The runtime replay integration was prepared locally but its GitHub write was
-blocked. This PR therefore leaves `live402/replay.py` unchanged. Neither the
-PostgreSQL adapter nor the migration command may be activated in production yet.
-The full application remains single-writer and its existing ledger limits remain.
+Status: integrated replay backend candidate, NOT an activated production migration.
+The runtime now uses one selected ReplayStore for readiness and durable operations.
+SQLite remains the default; PostgreSQL requires explicit matching configuration.
+The full application remains single-writer and SQLite's existing limits remain.
+Implementation and verification for this continuation use GitHub and hosted Actions.
+Production activation still requires the release gates below.
 
 ## Preserved boundaries
 
@@ -63,13 +64,12 @@ one usable authority or neither, never intentionally both. Partial imports are
 not overwritten or automatically retried.
 
 IMPORTANT: the old production binary does not understand the new source fence.
-Production use is BLOCKED until the separately reviewed replay integration is
-available and deployed in SQLite mode first. Then prove every runnable/rollback
+Production use is BLOCKED until this replay integration is independently reviewed
+and deployed in SQLite mode first. Then prove every runnable/rollback
 image is fence-aware, stop and drain all writers, let private response windows
 expire, and create/verify an encrypted off-host recovery copy. Merely setting a
 new environment variable, copying a live SQLite file, or selecting an empty
-PostgreSQL database is not migration. Do not use the optional image to imply the
-missing runtime integration has been applied.
+PostgreSQL database is not migration. The optional image is not evidence of a deployed runtime or a completed migration.
 
 Apply requires the authoritative `/data/live402-replay.sqlite`, a deliberate
 writers-stopped assertion, admin DSN, and a fresh matching authority ID. Never
@@ -133,3 +133,33 @@ a proven 20M/day service. Payment fees remain variable COGS, not infrastructure.
 - https://pypi.org/project/psycopg/3.3.5/
 - https://pypi.org/project/psycopg-binary/3.3.5/
 - https://tatum.io/pricing
+
+
+## Integrated runtime review
+
+The module lock owns SQLite callbacks; readiness uses a locked helper and never
+recursively acquires the same Lock. Configuration is pinned until explicit restart;
+invalid configuration, missing driver and authority failures never select a fallback.
+Source identity/fence checks run inside the adapter's BEGIN IMMEDIATE admission.
+Terminal SQLite updates now match PostgreSQL: no overwrite/delete of terminal rows,
+and no private response persistence after its original expiry.
+
+Tests exercise handle_route through a real isolated PostgreSQL database, normal
+free misses, success pricing, private restart replay, invalid verification before
+admission, unavailable authority, lost admission/finish acknowledgements, failed
+finish, process duplicates, and runtime SQLite-to-PostgreSQL migration. The existing
+V4/PQ adversarial suite also runs with the PostgreSQL replay authority. Its PQ log
+remains a single fixture SQLite writer and uses fixture signing keys only.
+
+reset() never deletes PostgreSQL rows, a fenced source, or the production volume.
+reset_memory() drops process connections/maps only. Neither API is a migration,
+failover, or authorization to discard economic identities.
+
+These are self-review plus fixture CI, not independent 402security/402QA approvals.
+CI migration is a local ephemeral database rehearsal, not off-host production
+restore/failover evidence. Do not broaden deployment beyond one router/PQ writer.
+
+Budget accounting must distinguish annualized recurring price from upfront cash:
+an annually billed provider can fit a monthly average and still exceed the current
+month's cash ceiling. Record billing cadence and actual charges privately. A missing
+auto-upgrade control is unresolved evidence, never proof that upgrades are disabled.
