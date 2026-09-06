@@ -1,0 +1,9 @@
+# Optional CPython 3.12 Linux amd64/arm64 wheel lock. Default image is unchanged.
+# Official PyPI digests checked 2026-09-06. Install with --only-binary=:all: --require-hashes.
+psycopg[binary]==3.3.5 \
+    --hash=sha256:ce5aa5cdb4f9379f00f487590e5890bfa7df9a164648c969ffa628505e21af4e
+psycopg-binary==3.3.5 \
+    --hash=sha256:682a17a57415c3ca1731eec018ed031f012ffcb81ba74806eb219cb396065672 \
+    --hash=sha256:d2a61e8147902771df7efe14062a3c8736347850d0d8befcf048235752504f2e
+typing-extensions==4.15.0 ; python_version < "3.13" \
+    --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548

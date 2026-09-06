@@ -1,0 +1,19 @@
+# Opt-in variant. No changes to default Dockerfile/fly.toml or runtime backend.
+FROM python:3.12.14-slim@sha256:e5c9fa26ffb76e11e0f054f30dc2523a2f9693f0c36c0cf1e39b27e152d899fc
+WORKDIR /app
+COPY requirements.txt requirements-postgres.txt ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt \
+    && pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements-postgres.txt
+COPY . .
+ARG GIT_SHA
+# This variant requires an exact build identity; no accidental anonymous release.
+RUN python -c 'import re,sys; assert re.fullmatch(r"[0-9a-f]{40}", sys.argv[1])' "$GIT_SHA" \
+    && printf '%s\n' "$GIT_SHA" > /app/.asset-version
+ENV LIVE402_ASSET_VERSION=${GIT_SHA}
+ENV LIVE402_HOST=0.0.0.0 PORT=8080 PYTHONPATH=/app PYTHONUNBUFFERED=1
+EXPOSE 8080
+RUN groupadd --gid 10001 live402 \
+    && useradd --uid 10001 --gid 10001 --no-create-home --no-log-init --shell /usr/sbin/nologin live402 \
+    && mkdir -p /data && chown 10001:10001 /data
+USER 10001:10001
+CMD ["sh", "-c", "python3 -m live402 --host ${LIVE402_HOST:-0.0.0.0} --port ${PORT:-8080}"]
