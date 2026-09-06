@@ -112,3 +112,21 @@ resource changes before callback. No live wallet, payment or signer is needed.
 
 See [the v1 contract](../../docs/proof-carrying-route-v1.md) for format, privacy,
 rollout and rollback details.
+
+## Historical receipts and read-only recovery (0.2.0)
+
+`verifyReceipt({routeResponseJson, routeRequestJson, trustedLogVkey})` verifies a
+saved v4 signature and inclusion proof after expiry, without returning accepted
+terms or invoking an authorization callback. It reports current quote, chain
+confirmation, delivery and anchor as not_checked. Use verifyRoute for a new seller
+payment; historical verification grants no permission to bypass quote expiry.
+
+`reconcilePayment` from `./recovery.mjs` polls a caller-supplied, independently
+secured read-only observer for an existing transaction, with bounded attempts,
+a deadline and cancellation. It never releases budget, resubmits a payment or
+resumes seller execution. The observer must verify effects against the durable
+intent, honor AbortSignal and have no payment side effects. A server settlement
+claim alone is not a sufficient observer implementation.
+
+See [the complete recovery contract](../../docs/route-recovery-observability.md)
+for confirmation levels, limits, outcome fields and the versioned scoring policy.

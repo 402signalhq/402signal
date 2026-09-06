@@ -533,3 +533,24 @@ export function withVerifiedRoute(options, authorize) {
   const action = verifyRoute(options);
   return authorize(action);
 }
+
+
+/** Authenticate historical receipt evidence only. Never returns payment terms,
+ * calls a signer, refreshes expiry, or claims chain/anchor/delivery verification. */
+export function verifyReceipt(options) {
+  try {
+    const response = parse(options.routeResponseJson, {limit: 256 * 1024});
+    const tr = response.pq_trust.transparency;
+    const evidence = authenticate(tr, options.trustedLogVkey);
+    const expected = parse(options.routeRequestJson, {ordinaryNumbers: true});
+    const original = parse(evidence.request_json, {ordinaryNumbers: true});
+    if (canonical(expected, true) !== canonical(original, true)) fail("request_mismatch");
+    return freeze({proof: "signature_and_inclusion_verified", index: tr.receipt.index,
+      checkpoint_size: Number(tr.receipt.checkpoint.split("\n")[1]),
+      current_quote: "not_checked", payment_confirmation: "not_checked",
+      anchor: "not_checked", delivery: "not_checked"});
+  } catch (error) {
+    if (error instanceof RouteGuardError) throw error;
+    fail("untrusted_receipt");
+  }
+}

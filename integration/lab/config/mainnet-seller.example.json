@@ -1,0 +1,9 @@
+{
+  "mode": "mainnet", "origin": "https://REPLACE-LAB-HOST.invalid", "host": "0.0.0.0", "port": 4021,
+  "ledgerPath": "/labdata/mainnet-seller.sqlite", "priceAtomic": "1000",
+  "rails": {
+    "base": { "payTo": "REPLACE_BASE_PUBLIC_ADDRESS", "facilitatorUrl": "https://facilitator.goplausible.xyz" },
+    "solana": { "payTo": "REPLACE_SOLANA_PUBLIC_ADDRESS", "facilitatorUrl": "https://facilitator.goplausible.xyz" },
+    "algorand": { "payTo": "REPLACE_ALGORAND_PUBLIC_ADDRESS", "facilitatorUrl": "https://facilitator.goplausible.xyz" }
+  }
+}

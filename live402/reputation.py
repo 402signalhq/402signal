@@ -1,4 +1,4 @@
-"""Transparent reputation evidence, then a documented V1 score.
+"""Transparent reputation evidence, then a documented V2 score.
 
 Evidence is assembled first. A score is never returned without components.
 Missing is not 0. Usage is not called reputation. Probe counts are not uptime.
@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 MATURE_N = 10
 WEAK_N = 3
 
-# --- V1 scoring model (adjudicated; not a caller-defined slider) -------------
+# --- V2 scoring model (adjudicated; not a caller-defined slider) -------------
 #
 # Why these weights:
 # - observed_performance 0.50: the only reliability-like signal 402Signal
@@ -40,8 +40,8 @@ WEAK_N = 3
 # Weak n (n_7d < 10): confidence is capped low. We still may emit a score
 # next to components, but we do not present a mature public reliability %.
 #
-MODEL_ID = "reputation-v1"
-MODEL_EFFECTIVE_TS = 1756627200  # 2026-08-31T00:00:00Z
+MODEL_ID = "reputation-v2"
+MODEL_EFFECTIVE_TS = 1788652800  # 2026-09-06T00:00:00Z
 WEIGHTS = {
     "observed_performance": 0.50,
     "stability": 0.20,
@@ -105,17 +105,23 @@ def _log_cap(n: float, cap: float) -> float:
 
 
 def model_spec() -> dict:
-    """Canonical V1 methodology. Historical scores stay interpretable via hash."""
+    """Canonical V2 methodology. Historical scores stay interpretable via hash."""
     return {
         "model_id": MODEL_ID,
         "effective_ts": MODEL_EFFECTIVE_TS,
         "scale": "0-1",
         "chain_neutral": True,
         "algo_bonus": False,
+        "traffic_policy": {
+            "authority": "operator-configured lab origins and persisted server classification",
+            "self_test": "retain operational observations; exclude from usage, performance sample, and confidence sample",
+            "unclassified": "eligible observations, not proof of organic demand or payer independence",
+            "legacy": "configured lab origins excluded on read; historical proofs unchanged",
+        },
         "components": {
             "observed_performance": {
-                "inputs": ["success_7d", "n_7d"],
-                "rule": "success_7d when n_7d >= 3, else missing",
+                "inputs": ["scoring_success_7d", "scoring_probe_count_7d"],
+                "rule": "eligible success rate when eligible count >= 3, else missing; legacy evidence falls back to success_7d/n_7d",
                 "missing": "drop and lower confidence; never treat as 0.0",
             },
             "stability": {
@@ -124,12 +130,12 @@ def model_spec() -> dict:
                     "price_changed_at",
                     "schema_changed_at",
                     "rail_changed_at",
-                    "has_observation_history",
+                    "has_eligible_observation_history",
                 ],
                 "rule": (
                     "1.0 minus 0.35 per identity-class change (payTo, rail) "
                     "and 0.15 per quote-class change (price, schema) in the last 7d. "
-                    "Floor 0. Unknown unless we have any observation history."
+                    "Floor 0. Unknown without eligible observation history; operational change penalties are retained."
                 ),
                 "missing": "drop; never treat never-seen as perfectly stable",
             },
@@ -139,9 +145,9 @@ def model_spec() -> dict:
                 "missing": "drop; age is not quality",
             },
             "usage": {
-                "inputs": ["probe_count_7d"],
+                "inputs": ["scoring_probe_count_7d"],
                 "label": "402signal_observed",
-                "rule": "log1p(probe_count) / log1p(100), cap 1.0, only when count >= 1",
+                "rule": "log1p(eligible_probe_count) / log1p(100), cap 1.0, only when count >= 1; legacy evidence falls back to probe_count_7d",
                 "missing": (
                     "drop. 0 probes and unknown usage both omit this component "
                     "so 0 does not look worse than unknown. Settlement and "
@@ -165,12 +171,12 @@ def model_spec() -> dict:
         "missing_data": (
             "Missing component is dropped (neutralized), not scored as 0 or 1. "
             "reputation_confidence is the present-weight fraction, then capped "
-            "low when n_7d < 10."
+            "low when the eligible observation count is below 10."
         ),
         "confidence": {
             "present_weight_fraction": True,
-            "n_7d_lt_3_cap": VERY_LOW_CONFIDENCE_CAP,
-            "n_7d_lt_10_cap": LOW_CONFIDENCE_CAP,
+            "eligible_n_7d_lt_3_cap": VERY_LOW_CONFIDENCE_CAP,
+            "eligible_n_7d_lt_10_cap": LOW_CONFIDENCE_CAP,
             "no_public_reliability_pct_below_n": MATURE_N,
         },
         "privacy": {
@@ -266,6 +272,12 @@ def components_from_evidence(evidence: dict | None, listing: dict | None = None)
         "settlement_count": _unknown_usage_field("no_settlement_ledger"),
         "unique_payer_count": _unknown_usage_field("no_payer_identities"),
     }
+    if "scoring_probe_count_7d" in ev:
+        usage["scoring_probe_count"] = {
+            "value": _as_int(ev.get("scoring_probe_count_7d")),
+            "excluded_self_tests": _as_int(ev.get("self_test_count_7d")),
+            "window": "7d", "policy": "exclude_known_operator_tests",
+        }
     # Usage is probe_count_7d only. Do not infer it from n_7d here: 0 and
     # missing both omit the usage score so zero does not look worse than unknown.
     probes = _as_int(ev.get("probe_count_7d"))
@@ -377,20 +389,26 @@ def _recent(ts, now: int, window: int = 86400 * 7) -> bool:
 
 
 def _component_scores(components: dict, evidence: dict) -> dict:
-    """Return {name: float|None} for V1. None = missing (neutralize)."""
+    """Return {name: float|None} for V2. None = missing (neutralize)."""
     ev = evidence if isinstance(evidence, dict) else {}
     n_7d = _as_int(ev.get("n_7d"))
+    if "scoring_probe_count_7d" in ev:
+        n_7d = _as_int(ev.get("scoring_probe_count_7d"))
     rate = None
     observed = components.get("observed") if isinstance(components.get("observed"), dict) else {}
     stab = observed.get("outcome_stability") if isinstance(observed.get("outcome_stability"), dict) else {}
     rate = _as_float(stab.get("success_7d"))
     if rate is None:
         rate = _as_float(ev.get("success_7d"))
+    if "scoring_probe_count_7d" in ev:
+        rate = _as_float(ev.get("scoring_success_7d"))
     observed_score = None
     if n_7d is not None and n_7d >= WEAK_N and rate is not None:
         observed_score = max(0.0, min(1.0, rate))
 
     has_hist = ev.get("has_probe_history") is True or (n_7d is not None)
+    if "scoring_probe_count_7d" in ev:
+        has_hist = n_7d is not None and n_7d > 0
     stability_score = None
     if has_hist:
         now = int(time.time())
@@ -424,6 +442,8 @@ def _component_scores(components: dict, evidence: dict) -> dict:
     usage = components.get("usage") if isinstance(components.get("usage"), dict) else {}
     probe = usage.get("probe_count") if isinstance(usage.get("probe_count"), dict) else {}
     probes = _as_int(probe.get("value"))
+    if "scoring_probe_count_7d" in ev:
+        probes = _as_int(ev.get("scoring_probe_count_7d"))
     if probes is not None and probes >= 1:
         usage_score = _log_cap(float(probes), float(USAGE_LOG_CAP))
 
@@ -442,7 +462,7 @@ def _component_scores(components: dict, evidence: dict) -> dict:
 
 
 def score_v1(components: dict, evidence: dict | None = None) -> dict:
-    """Deterministic V1. Never returns a score without the same components object."""
+    """Current model; function name retained for compatibility. Never returns a score without the same components object."""
     comps = strip_payer_lists(components if isinstance(components, dict) else {})
     ev = evidence if isinstance(evidence, dict) else {}
     parts = _component_scores(comps, ev)
@@ -459,6 +479,8 @@ def score_v1(components: dict, evidence: dict | None = None) -> dict:
     n_7d = _as_int(ev.get("n_7d"))
     if n_7d is None:
         n_7d = _as_int((comps.get("observed") or {}).get("observation_count"))
+    if "scoring_probe_count_7d" in ev:
+        n_7d = _as_int(ev.get("scoring_probe_count_7d"))
     confidence = present_frac
     if n_7d is None or n_7d < WEAK_N:
         confidence = min(confidence, VERY_LOW_CONFIDENCE_CAP)
@@ -491,8 +513,14 @@ def public_reliability_pct(n_7d, success_7d):
 
 
 def for_result(result: dict | None, *, listing=None, evidence=None, score: bool = True) -> dict:
-    """Components, and V1 score+model when score=True. Never a payer list."""
+    """Components, and V2 score+model when score=True. Never a payer list."""
     ev = evidence if isinstance(evidence, dict) else evidence_from_result(result)
+    # Preserve configured-origin exclusions even when the history read fails
+    # and only an in-memory summary is available. Never trust a caller label.
+    from live402 import lab_traffic
+    if isinstance(result, dict) and lab_traffic.is_lab_url(result.get("url")):
+        ev = {**ev, "self_test_count_7d": _as_int(ev.get("n_7d")),
+              "scoring_probe_count_7d": 0, "scoring_success_7d": None}
     listing = listing if isinstance(listing, dict) else {}
     comps = components_from_evidence(ev, listing)
     if not score:

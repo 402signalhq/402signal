@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from live402 import lab_traffic
+from live402 import lab_traffic, route_observability as telemetry
 
 import sys
 import time
@@ -88,7 +88,8 @@ def _direct_url_result(body: dict, url: str, need: str, deadline: float) -> tupl
         }
         policy_mod.attach_policy(result, body)
         return 503, result
-    result = probe.probe_url(url, catalog_item=item, deadline=deadline, record=False)
+    with telemetry.phase("candidate_probing"):
+        result = probe.probe_url(url, catalog_item=item, deadline=deadline, record=False)
     result = probe.attach_catalog_fields(result, item)
     try:
         from live402 import history as history_mod
@@ -435,7 +436,8 @@ def _paid_execute(
         )
         return 402, required, extra
 
-    verify = facilitator.verify(parsed, accept, timeout=verify_t)
+    with telemetry.phase("verification"):
+        verify = facilitator.verify(parsed, accept, timeout=verify_t)
     if not verify.ok:
         required, extra = _required_pair(
             resource_url, "Payment verification failed", bazaar=bazaar
@@ -454,7 +456,8 @@ def _paid_execute(
         return bad[0], bad[1], None
 
     probe_until = deadline_mod.probe_deadline(paid_deadline)
-    code, result = run_probe(body, deadline=probe_until)
+    with telemetry.phase("routing_probe"):
+        code, result = run_probe(body, deadline=probe_until)
     if code == 400:
         return 400, result, None
 
@@ -490,13 +493,18 @@ def _paid_execute(
         from live402.pq import route_v4
 
         try:
-            result["decision_binding"] = route_binding.build(result, body)
-            # Prevalidate full evidence before an economic action.
-            route_v4.evidence_from_route(result, body)
-        except (ValueError, TypeError, KeyError):
+            with telemetry.phase("binding_validation"):
+                result["decision_binding"] = route_binding.build(result, body)
+                # Prevalidate full evidence before an economic action.
+                route_v4.evidence_from_route(result, body)
+        except (ValueError, TypeError, KeyError) as exc:
+            reason = result.get("binding_error_reason")
+            if not isinstance(reason, str) or reason not in telemetry.BINDING_REASONS:
+                reason = telemetry.binding_reason(exc)
             result = _downgrade_unbillable_result(result)
             result.pop("decision_binding", None)
             result["binding_error"] = "route_binding_unavailable"
+            result["binding_error_reason"] = reason
             result["billing"] = _billing(rail, settlement_attempted=False, settled=False,
                                          settlement_state="not_attempted")
             _log_settle_skipped(rail)
@@ -515,7 +523,8 @@ def _paid_execute(
         )
         _log_settle_skipped(rail)
         return 402, required, extra
-    settle = facilitator.settle(parsed, accept, timeout=settle_t)
+    with telemetry.phase("settlement"):
+        settle = facilitator.settle(parsed, accept, timeout=settle_t)
     extra: dict = {}
     if not settle.ok:
         if settle.ambiguous:
@@ -548,11 +557,13 @@ def _paid_execute(
     try:
         from live402 import history as history_mod
 
-        history_mod.mark_batch_settled(result.get("batch_id") if isinstance(result, dict) else None)
+        with telemetry.phase("history"):
+            history_mod.mark_batch_settled(result.get("batch_id") if isinstance(result, dict) else None)
     except Exception:
         pass
     result.pop("binding_observation", None)
-    attached = _attach_pq_trust(code, result, body if isinstance(body, dict) else {})
+    with telemetry.phase("pq_receipt"):
+        attached = _attach_pq_trust(code, result, body if isinstance(body, dict) else {})
     if _require_transparency(body) and not _transparency_ok(attached):
         return 503, {
             "error": "transparency receipt unavailable",
@@ -566,7 +577,7 @@ def _paid_execute(
     return code, attached, extra or None
 
 
-def handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = None) -> tuple[int, dict, dict | None]:
+def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = None) -> tuple[int, dict, dict | None]:
     """Returns (status, json_body, extra_headers). Never probes before verify.
 
     Unpaid requests always 402 (empty JSON / missing need+url included) so
@@ -615,25 +626,37 @@ def handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = N
             resource_url, "Payment verification failed", bazaar=bazaar
         )
         return 402, required, extra
-    kind, token = replay.begin(fp, legacy_fp=legacy_fp, scope=resource_url)
+    with telemetry.phase("replay_lookup"):
+        kind, token = replay.begin(fp, legacy_fp=legacy_fp, scope=resource_url)
     if kind == "cached" and isinstance(token, tuple) and len(token) == 3:
+        telemetry.mark_replayed()
         return token[0], token[1], token[2]
     if kind == "reject":
         return _unknown_outcome(payment.rail_of_accept(accept), attempted=None)
     if kind == "wait":
         waited = replay.wait_result(token, paid_deadline)
         if isinstance(waited, tuple) and len(waited) == 3:
+            telemetry.mark_replayed()
             return waited[0], waited[1], waited[2]
         return _unknown_outcome(payment.rail_of_accept(accept), attempted=None)
 
     cache = False
     try:
         out = _paid_execute(body, parsed, accept, resource_url, bazaar, paid_deadline)
+        out = telemetry.finish_current(out)
         # Cache terminal settled, not-settled, and rejected outcomes. A 400 may retry.
         cache = out[0] != 400
         replay.finish(fp, out, cache=cache)
         return out
     except Exception:
         out = _unknown_outcome(payment.rail_of_accept(accept), attempted=None)
+        out = telemetry.finish_current(out)
         replay.finish(fp, out, cache=True)
         return out
+
+
+def handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = None):
+    start = time.monotonic()
+    with telemetry.trace() as timings:
+        out = _handle_route(body, headers, resource_url, bazaar)
+        return telemetry.finish(out, timings, start)
