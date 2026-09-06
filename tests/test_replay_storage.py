@@ -288,6 +288,18 @@ class PostgreSQLContracts(unittest.TestCase):
         self.assertIsNone(self.store.lookup('d'*64))
         self.assertFalse(self.store.ready())
 
+    def test_full_authority_still_prunes_expired_private_outcomes(self):
+        self.admin.execute('UPDATE signal_replay.authority SET max_rows=1')
+        self.store.reserve(KEY,SCOPE,time.time()+120)
+        self.store.finish(KEY,'settled','private response',True)
+        self.admin.execute('UPDATE signal_replay.entries SET expires_at=1')
+        self.store.last_prune=0
+        self.assertFalse(self.store.ready(), 'capacity must still refuse admission')
+        self.assertEqual(self.store.lookup(KEY)[:2],('settled',None))
+        self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
+        with self.assertRaises(StoreError):
+            self.store.reserve('d'*64,SCOPE,time.time()+120)
+
     def test_pre_economic_release_keeps_retry_contract(self):
         self.store.reserve(KEY,SCOPE,time.time()+120)
         self.store.finish(KEY,'rejected',None,False)
