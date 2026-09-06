@@ -6,6 +6,7 @@ on:
     paths:
       - server.json
       - .github/workflows/publish-mcp.yml
+      - scripts/mcp_registry_preflight.py
   workflow_dispatch:
 
 permissions:
@@ -41,8 +42,17 @@ jobs:
       - name: Validate manifest
         run: ./mcp-publisher validate server.json
 
+      - name: Check immutable registry version
+        id: registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/mcp_registry_preflight.py server.json >> "$GITHUB_OUTPUT"
+
       - name: Authenticate with GitHub OIDC
+        if: steps.registry.outputs.publish == 'true'
         run: ./mcp-publisher login github-oidc
 
       - name: Publish
+        if: steps.registry.outputs.publish == 'true'
         run: ./mcp-publisher publish server.json
