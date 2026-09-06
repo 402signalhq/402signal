@@ -148,6 +148,16 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
     origin = _origin_from_resource(resource_url)
     required = payment.payment_required(resource_url)
     miss_enum = list(schema_fields.MISS_REASONS)
+    # A documentation-only seller quote; never a live quote or payment authority.
+    example_seller_accept = {
+        "scheme": "exact", "network": payment.BASE_CAIP2, "asset": payment.USDC_BASE,
+        "amount": "10000", "payTo": "0x1111111111111111111111111111111111111111",
+        "maxTimeoutSeconds": 60,
+    }
+    example_seller_envelope = {"x402Version": 2, "accepts": [example_seller_accept]}
+    example_selected = payment.selected_payment_fields(
+        payment.validate_observed_accept(example_seller_accept, example_seller_envelope)
+    )
     probe_item = {
         "type": "object",
         "properties": {
@@ -327,7 +337,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "type": "object",
                 "description": (
                     "Transparent components first (observed, usage, tenure, stability, "
-                    "source_count), then V1 reputation_score, reputation_confidence, "
+                    "source_count), then V2 reputation_score, reputation_confidence, "
                     "and scoring_model_id/hash. Score is never returned without components. "
                     "No public 0-100 catalog badge. Unique payer addresses are never listed."
                 ),
@@ -552,7 +562,11 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                                     "examples": {
                                         "settled_winner": {"value": {
                                                 "live": True,
+                                                "payable": True,
                                                 "invocable": True,
+                                                "payTo": example_seller_accept["payTo"],
+                                                "envelope": example_seller_envelope,
+                                                "selected_payment": example_selected,
                                                 "url": "https://example.com/x402/balance",
                                                 "status": 402,
                                                 "latency_ms": 87,
@@ -572,14 +586,10 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                                                     "settlement_state": "settled",
                                                 },
                                                 "target": {
-                                                    "method": "POST",
-                                                    "inputSchema": {
-                                                        "type": "object",
-                                                        "properties": {"address": {"type": "string"}},
-                                                        "required": ["address"],
-                                                    },
+                                                    "method": "GET",
+                                                    "inputSchema": {"type": "object"},
                                                     "outputSchema": {"type": "object"},
-                                                    "accepts": [],
+                                                    "accepts": [example_seller_accept],
                                                     "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402",
                                                     "amountAtomic": "10000",
                                                     "displayAmount": "$0.01",
@@ -698,7 +708,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "operationId": "mcpManifest",
                     "tags": ["Public"],
                     "summary": "List MCP tools without a payment",
-                    "description": "One tool: route. Unpaid tools/call returns HTTP 402.",
+                    "description": "Three tools: route, preview, validate. Route calls require a payment authorization (HTTP 402 without one); preview and validate are unpaid.",
                     "responses": {"200": {"description": "MCP manifest"}},
                 }
             },
@@ -1191,7 +1201,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "-H 'Content-Type: application/json' "
                 "-H \"PAYMENT-SIGNATURE: $SIG\" "
                 "-d '{\"need\":\"YOUR_NEED\"}'\n"
-                "# HTTP 200 settled winner or unpaid live:false miss; HTTP 503 operational failure"
+                "# HTTP 200: settled winner or completed unpaid miss. Inspect live, payable, selected_payment and billing before seller execution; HTTP 503 can be unpaid, settled or unknown."
             ),
             "fetch": (
                 "const r = await fetch('https://402signal.com/route', "
@@ -1201,14 +1211,14 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "const paid = await fetch('https://402signal.com/route', "
                 "{method:'POST', headers:{'Content-Type':'application/json', "
                 "'PAYMENT-SIGNATURE': sig}, body: JSON.stringify({need:'YOUR_NEED'})});\n"
-                "// paid.status === 200 or 503"
+                "// HTTP 200 can also be an unpaid miss. Inspect live, payable, selected_payment and billing; a 503 may be settled or unknown. Never automatically pay again."
             ),
             "mcp": (
                 "POST https://402signal.com/mcp\n"
                 '{"jsonrpc":"2.0","id":1,"method":"tools/call",'
                 '"params":{"name":"route","arguments":{"need":"YOUR_NEED"}}}\n'
                 "# unpaid HTTP 402. Sign, retry the same tools/call with PAYMENT-SIGNATURE. "
-                "200 live+target or 503 miss_reason."
+                "MCP result.isError is false for a winner or completed unpaid miss; operational failures are tool errors. Inspect the route body and billing before seller execution."
             ),
         },
     }
@@ -1262,7 +1272,7 @@ $0.003 only when a valid live route is found. Normal typed misses are not settle
 - Binding supports exact x402 v2 offers on the existing three rails: GET without a body or a justified POST with exactly {}. Disable redirects. Changed terms, unsupported extensions and expired evidence fail closed. The default freshness window is 60 seconds from observation; issuance, replay and human approval never refresh it. A later rejected seller handoff does not undo a settled routing fee. This checks observed terms, not seller delivery or output quality.
 - Local Node/TypeScript guard (Node >=22, no runtime dependencies, source only, not published to npm): https://github.com/402signalhq/402signal/tree/main/sdk/route-guard . Python verifier and full contract: https://github.com/402signalhq/402signal/blob/main/docs/proof-carrying-route-v1.md . The immediate receipt uses Ed25519; cumulative Falcon anchoring is separate. The buyer's wallet still enforces transaction validation, budgets and durable economic replay protection. The verifiers do not hold keys, perform network requests or execute payments.
 - For later PQ Trust verification, set require_transparency=true and securely retain the complete paid /route response, including compared[]. At minimum, keep pq_trust.transparency.receipt and pq_trust.transparency.reveal together. Private replay outcomes can retain the reveal; they are not a recovery service. Keep your own copy. Modified evidence fails verification against the public log. The reveal contains private request and decision evidence; do not put it in public logs.
-- Upstream probe is GET first, then POST {} only with strong method justification (GET 405/501, or the catalog explicitly declares POST and does not require a request body). Never POST {} after an arbitrary 200/400/404. Never POST seller-declared or catalog-declared input bodies. If a required body means a valid unpaid probe cannot be constructed, miss_reason is unsafe_to_probe. DNS uses a bounded getaddrinfo pool (2s); TCP/TLS is pinned to those SSRF-checked public IPs with TLS SNI and HTTP Host set to the original hostname (re-pinned on redirects).
+- Upstream probe is GET first, then POST {} only when GET is 405/501 AND the catalog explicitly declares POST AND does not require a request body. Never POST {} after GET 200/400/401/403/404/500. Never POST seller-declared or catalog-declared input bodies. If a required body means a valid unpaid probe cannot be constructed, miss_reason is unsafe_to_probe. DNS uses a bounded getaddrinfo pool (2s); TCP/TLS is pinned to those SSRF-checked public IPs with TLS SNI and HTTP Host set to the original hostname (re-pinned on redirects).
 - payable requires a complete observed option (rail/network, amount, asset, payTo). invocable is payable + input schema. challenge_observed is HTTP 402 + parseable x402.
 - If inputSchema is missing: live may be true, invocable false, miss_reason no_input_schema
 - Normal typed miss → HTTP 200 {live:false, payable:false, selected_payment:null, miss_reason, billing:{settlement_attempted:false,settled:false,settlement_state:"not_attempted"}}

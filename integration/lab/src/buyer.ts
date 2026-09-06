@@ -106,11 +106,11 @@ export class Buyer {
         const routed = await this.send(c.routerUrl, 'POST', routeBody, { 'PAYMENT-SIGNATURE': encode64(payment), 'Replay-Key': replayKey });
         report.routing_ms = Date.now() - start;
         const b = routed.body?.billing;
-        if (b?.settled === false && b?.settlement_state === 'not_attempted' && b?.settlement_attempted === false &&
-            routed.body?.live === false && typeof routed.body?.miss_reason === 'string' && routed.status === 503) {
-          const known = ['no_candidates', 'constraints_unmet', 'no_402_envelope', 'probe_timeout', 'upstream_5xx', 'quote_expired', 'reachable_200',
-            'no_payto', 'ssrf', 'no_input_schema', 'probe_budget_exhausted', 'probe_limit_reached', 'unsafe_to_probe', 'invalid_need'];
-          assert(known.includes(routed.body.miss_reason), 'unknown_miss_type');
+        const guardModule = '../../sdk/route-guard/index.mjs';
+        const { isUnsettledRouteMiss } = await import(guardModule);
+        if (isUnsettledRouteMiss({ httpStatus: routed.status,
+            routeResponseJson: routed.rawBody ?? JSON.stringify(routed.body),
+            paymentResponseHeader: routed.headers.get('PAYMENT-RESPONSE') })) {
           report.routing = 'free_miss'; report.miss_reason = routed.body.miss_reason;
           this.ledger.spendState(runId, 'free_miss'); return report;
         }
