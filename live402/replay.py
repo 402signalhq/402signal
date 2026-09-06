@@ -550,10 +550,20 @@ def reset() -> None:
     """Drop memory and the sqlite file (tests)."""
     with _lock:
         _clear_memory_locked()
-        if backend_name() != "sqlite" or (_store_config is not None and _store_config[0] == "postgres"):
+        if backend_name() != "sqlite" or (_store is not None and not isinstance(_store, SQLiteStore)):
             _close_store_locked()
             return
         path = _conn_path or db_path()
+        # A test reset must never erase a fenced source or production authority.
+        if not _test_support() or os.path.realpath(path) == os.path.realpath(VOLUME_DB):
+            _close_store_locked()
+            return
+        if os.path.exists(path):
+            conn = _connect()
+            if conn.execute("SELECT 1 FROM replay_meta WHERE key = ?",
+                            ("external_authority_id",)).fetchone():
+                _close_store_locked()
+                return
         _close_store_locked()
         for p in (path, path + "-wal", path + "-shm"):
             try:
