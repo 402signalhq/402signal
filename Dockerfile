@@ -46,8 +46,13 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8080
 
-# Stays root. /data Fly volume writability for a non-root UID is not proven;
-# adding USER would break production sqlite writes. See docs/docker.md.
+# Existing Fly volumes require the reviewed one-time migration in
+# scripts/prepare_volume.py before this image is deployed. No startup chown.
+RUN groupadd --gid 10001 live402 \
+    && useradd --uid 10001 --gid 10001 --no-create-home --no-log-init --shell /usr/sbin/nologin live402 \
+    && mkdir -p /data \
+    && chown 10001:10001 /data
+USER 10001:10001
 
 # Fly sets PORT. LIVE402_HOST defaults to 0.0.0.0 here.
 CMD ["sh", "-c", "python3 -m live402 --host ${LIVE402_HOST:-0.0.0.0} --port ${PORT:-8080}"]

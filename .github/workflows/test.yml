@@ -47,6 +47,13 @@ jobs:
           LIVE402_ROUTE_RPM: "60"
           PYTHONPATH: .:tests
         run: python -m unittest discover -s integration/tests -v
+      - name: Official MCP client interoperability (synthetic payments, loopback only)
+        env:
+          LIVE402_FIXTURE: "1"
+        run: |
+          npm --prefix integration/mcp ci --ignore-scripts --no-audit --no-fund
+          npm --prefix integration/mcp test
+          npm --prefix integration/mcp audit --omit=optional --audit-level=high
       # Audit the exact universal hash lock used by CI and the image.
       - name: pip-audit locked requirements (no upgrades)
         uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266 # v1.1.0

@@ -352,7 +352,7 @@
     side.className = "result-side observation";
     const label = document.createElement("p");
     label.className = "result-side-label";
-    label.textContent = "Observed now";
+    label.textContent = "Previously observed";
     side.appendChild(label);
     const bits = document.createElement("p");
     bits.className = "result-bits";

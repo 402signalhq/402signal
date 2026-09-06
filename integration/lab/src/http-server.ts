@@ -32,7 +32,10 @@ export function server(seller: Seller) {
       assert(!path.includes('?') && !path.includes('%') && path.length <= 256, 'invalid_path', 404);
       if (req.method === 'GET' || req.method === 'HEAD') {
         if (path === '/health') return send(res, { status: 200, body: { ok: true, mode: seller.config.mode } }, req.method === 'HEAD');
-        if (path === '/ready') return send(res, { status: seller.ready ? 200 : 503, body: { ok: seller.ready } }, req.method === 'HEAD');
+        if (path === '/ready') {
+          const capacity = seller.ledger.capacity(), ok = seller.ready && capacity.ready;
+          return send(res, { status: ok ? 200 : 503, body: { ok, payment_capacity_remaining: capacity.remaining } }, req.method === 'HEAD');
+        }
         if (path === '/openapi.json') return send(res, { status: 200, body: seller.openapi() }, req.method === 'HEAD');
         if (['/catalog.json', '/.well-known/x402.json'].includes(path)) return send(res, { status: 200, body: seller.catalog() }, req.method === 'HEAD');
       }

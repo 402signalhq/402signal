@@ -423,11 +423,8 @@ class BackupScriptTests(unittest.TestCase):
         try:
             rc = backup_sqlite.main(["--dest", str(dest_dir)])
             self.assertEqual(rc, 1)
-            snaps = list(dest_dir.glob("catalog-*.sqlite"))
-            self.assertEqual(len(snaps), 1)
-            restored = Path(tmp.name) / "restored.sqlite"
-            self.assertEqual(restore_sqlite.main(["--src", str(snaps[0]), "--dest", str(restored)]), 0)
-            conn = sqlite3.connect(restored)
+            self.assertEqual(list(dest_dir.glob("**/manifest.json")), [])
+            conn = sqlite3.connect(src)
             self.assertEqual(conn.execute("SELECT v FROM t").fetchone()[0], "keep")
             conn.close()
         finally:

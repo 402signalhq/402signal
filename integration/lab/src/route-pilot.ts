@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import type { PaymentRequired } from '@x402/core/types';
 import { type BuyerConfig, type Signer, validateBuyer, challenge, selectTerms } from './buyer.js';
 import { Ledger } from './ledger.js';
@@ -99,7 +100,8 @@ export class RoutePilot {
       this.ledger.recordIntent(phaseId(id,'router'),paymentIntent(rail,req,signed,c.mainnet!.buyerAddresses[rail]));
       r.router.state='prepared';save();
       this.ledger.spendState(id,'router_attempted');r.router.state='submitted';save();
-      const response=await send(c.routerUrl,'POST',body,{'PAYMENT-SIGNATURE':encode64(signed)});
+      const replayKey=randomBytes(32).toString('hex');
+      const response=await send(c.routerUrl,'POST',body,{'PAYMENT-SIGNATURE':encode64(signed),'Replay-Key':replayKey});
       r.route_status=response.status;const b=response.body?.billing;
       if(response.body?.timings_ms){
         r.router_timings_ms={};

@@ -183,6 +183,7 @@ class ValidatePaywallSeparateTests(unittest.TestCase):
             },
         )
         self.assertEqual(status, 200)
+        body = json.loads(body["result"]["content"][0]["text"])
         self.assertIn(body.get("readiness"), ("discovered", "payable", "invocable", "recently_verified"))
         self.assertNotIn("healthy", body)
 

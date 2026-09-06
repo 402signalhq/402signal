@@ -1,0 +1,7 @@
+{
+  "name": "402signal-mcp-interoperability",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test client.test.mjs"},
+  "devDependencies": {"@modelcontextprotocol/sdk": "1.30.0"}
+}

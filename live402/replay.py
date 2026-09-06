@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
+import shutil
 import json
 import os
 import re
@@ -27,7 +29,45 @@ import time
 from live402 import clock, payment
 
 COMPLETED_TTL_SECONDS = 120.0
-MAX_COMPLETED = 2048
+MAX_COMPLETED = 256
+MAX_OUTCOME_BYTES = 256 * 1024
+MAX_LEDGER_ROWS = 100_000
+MAX_LEDGER_BYTES = 256 * 1024 * 1024
+MIN_FREE_BYTES = 64 * 1024 * 1024
+REPLAY_KEY_HEADER = "Replay-Key"
+
+
+def request_scope(body: dict, resource: str, headers) -> str | None:
+    """Bind private retrieval to a client-generated 256-bit secret and exact JSON.
+
+    The secret is never part of a payment, response, log, or public receipt.
+    Clients without a key may execute once, but cannot retrieve cached output.
+    Reordering object keys is allowed; every request value remains bound.
+    """
+    values = [v for k, v in headers.items() if str(k).lower() == "replay-key"]
+    if len(values) > 1:
+        raise ValueError("duplicate Replay-Key")
+    key = values[0] if values else None
+    if key is None:
+        return None
+    if not isinstance(key, str) or not re.fullmatch(r"[0-9a-f]{64}", key):
+        raise ValueError("Replay-Key must be 32 random bytes encoded as lowercase hex")
+    raw = json.dumps([resource, body], sort_keys=True, separators=(",", ":"),
+                     allow_nan=False).encode("utf-8")
+    return "private-replay-v1:" + hmac.new(bytes.fromhex(key), raw, hashlib.sha256).hexdigest()
+
+
+def _scope_matches(stored, requested) -> bool:
+    return bool(stored and requested and hmac.compare_digest(stored, requested))
+
+
+def _storage_available(conn) -> bool:
+    count = conn.execute("SELECT count(*) FROM settle_ledger").fetchone()[0]
+    pages = conn.execute("PRAGMA page_count").fetchone()[0]
+    page_size = conn.execute("PRAGMA page_size").fetchone()[0]
+    free = shutil.disk_usage(os.path.dirname(os.path.abspath(db_path()))).free
+    return count < MAX_LEDGER_ROWS and pages * page_size < MAX_LEDGER_BYTES - MAX_OUTCOME_BYTES and free >= MIN_FREE_BYTES
+
 WAIT_SLICE = 0.05
 
 DEFAULT_DB = "/tmp/live402-replay.sqlite"
@@ -49,6 +89,7 @@ CREATE TABLE IF NOT EXISTS settle_ledger (
     created_at REAL NOT NULL,
     fingerprint_version INTEGER NOT NULL DEFAULT 2,
     scope_hash TEXT,
+    expires_at REAL,
     CONSTRAINT settle_fp_hash_unique UNIQUE (fp_hash)
 );
 CREATE TABLE IF NOT EXISTS replay_meta (
@@ -259,12 +300,14 @@ def durable_hash(fp: str) -> str:
 
 
 class _Entry:
-    __slots__ = ("event", "result", "scope_hash")
+    __slots__ = ("event", "result", "scope_hash", "reserved", "expires_at")
 
     def __init__(self, scope_hash: str | None) -> None:
         self.event = threading.Event()
         self.result: tuple | None = None
         self.scope_hash = scope_hash
+        self.reserved = False
+        self.expires_at = time.time() + COMPLETED_TTL_SECONDS
 
 
 _lock = threading.Lock()
@@ -352,13 +395,17 @@ def durable_ready() -> bool:
                 "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'settle_ledger'"
             ).fetchone()
             conn.execute("BEGIN IMMEDIATE")
+            conn.execute("INSERT OR REPLACE INTO replay_meta(key,value) VALUES ('writability_probe','1')")
             conn.rollback()
+            conn.execute("UPDATE settle_ledger SET outcome_json = NULL WHERE outcome_json IS NOT NULL AND (expires_at IS NULL OR expires_at <= ?)", (time.time(),))
+            conn.commit()
             return bool(
                 sync
                 and int(sync[0]) == 2
                 and journal
                 and str(journal[0]).lower() == "wal"
                 and table
+                and _storage_available(conn)
                 and _identity_cutover_ready(conn)
             )
         except (OSError, sqlite3.Error, TypeError, ValueError):
@@ -394,6 +441,14 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
     if "scope_hash" not in cols:
         conn.execute("ALTER TABLE settle_ledger ADD COLUMN scope_hash TEXT")
         conn.commit()
+    if "expires_at" not in cols:
+        conn.execute("ALTER TABLE settle_ledger ADD COLUMN expires_at REAL")
+        # Old responses have no private retrieval credential. Preserve every
+        # economic tombstone while removing output that cannot be authenticated.
+        conn.execute("UPDATE settle_ledger SET outcome_json = NULL")
+        conn.commit()
+    conn.execute("CREATE INDEX IF NOT EXISTS replay_expiring_outcomes ON settle_ledger(expires_at) WHERE outcome_json IS NOT NULL")
+    conn.commit()
     legacy = conn.execute(
         "SELECT 1 FROM settle_ledger WHERE fingerprint_version < ? LIMIT 1",
         (FINGERPRINT_VERSION,),
@@ -532,6 +587,11 @@ def _encode_outcome(result: tuple) -> str:
     return json.dumps({"c": code, "b": body, "e": extra}, separators=(",", ":"), default=str)
 
 
+def _bounded_outcome(result: tuple) -> str | None:
+    raw = _encode_outcome(result)
+    return raw if len(raw.encode("utf-8")) <= MAX_OUTCOME_BYTES else None
+
+
 def _decode_outcome(raw: str) -> tuple | None:
     try:
         data = json.loads(raw)
@@ -553,7 +613,7 @@ def _explicit_outcome_state(result: tuple) -> str | None:
         code, body, _extra = result
     except (TypeError, ValueError):
         return None
-    if code not in (200, 503) or not isinstance(body, dict):
+    if code not in (200, 402, 503) or not isinstance(body, dict):
         return None
     billing = body.get("billing")
     if not isinstance(billing, dict):
@@ -608,7 +668,7 @@ def _ledger_lookup(
     try:
         conn = _connect()
         row = conn.execute(
-            "SELECT state, outcome_json, fingerprint_version, scope_hash "
+            "SELECT state, outcome_json, fingerprint_version, scope_hash, expires_at "
             "FROM settle_ledger WHERE fp_hash = ?",
             (fp_hash,),
         ).fetchone()
@@ -616,14 +676,17 @@ def _ledger_lookup(
         return "reject", None
     if row is None:
         return "missing", None
-    state, outcome, version, stored_scope = row
+    state, outcome, version, stored_scope, expires_at = row
+    if not expires_at or expires_at <= time.time():
+        return "reject", None
     try:
         version_number = int(version or 1)
     except (TypeError, ValueError):
         return "reject", None
-    if enforce_scope and version_number >= FINGERPRINT_VERSION:
-        if stored_scope != scope_hash:
-            return "reject", None
+    if not enforce_scope or version_number < FINGERPRINT_VERSION:
+        return "reject", None
+    if not _scope_matches(stored_scope, scope_hash):
+        return "reject", None
     if state == STATE_UNKNOWN and outcome:
         decoded = _decode_outcome(outcome)
         if decoded is not None and _explicit_outcome_state(decoded) == STATE_UNKNOWN:
@@ -637,17 +700,23 @@ def _ledger_lookup(
     return "reject", None
 
 
-def _ledger_reserve(fp_hash: str, scope_hash: str | None = None) -> str:
+def _ledger_reserve(fp_hash: str, scope_hash: str | None = None, expires_at: float | None = None) -> str:
     """INSERT settlement_pending. run or reject. UNIQUE is the inter-process lock."""
+    conn = None
     try:
         conn = _connect()
         if not _identity_cutover_ready(conn):
             return "reject"
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("UPDATE settle_ledger SET outcome_json = NULL WHERE outcome_json IS NOT NULL AND (expires_at IS NULL OR expires_at <= ?)", (time.time(),))
+        if not _storage_available(conn):
+            conn.rollback()
+            return "reject"
         conn.execute(
             "INSERT INTO settle_ledger "
-            "(fp_hash, state, outcome_json, created_at, fingerprint_version, scope_hash) "
-            "VALUES (?, ?, NULL, ?, ?, ?)",
-            (fp_hash, STATE_PENDING, time.time(), FINGERPRINT_VERSION, scope_hash),
+            "(fp_hash, state, outcome_json, created_at, fingerprint_version, scope_hash, expires_at) "
+            "VALUES (?, ?, NULL, ?, ?, ?, ?)",
+            (fp_hash, STATE_PENDING, time.time(), FINGERPRINT_VERSION, scope_hash, expires_at if expires_at is not None else time.time() + COMPLETED_TTL_SECONDS),
         )
         conn.commit()
         return "run"
@@ -658,10 +727,13 @@ def _ledger_reserve(fp_hash: str, scope_hash: str | None = None) -> str:
             pass
         return "reject"
     except (OSError, sqlite3.Error, TypeError, ValueError):
+        if conn is not None:
+            conn.rollback()
         return "reject"
 
 
 def _ledger_finish(fp_hash: str, result: tuple, cache: bool) -> None:
+    conn = None
     try:
         conn = _connect()
         if cache:
@@ -672,14 +744,15 @@ def _ledger_finish(fp_hash: str, result: tuple, cache: bool) -> None:
                 # Backward compatibility for outcomes stored before this model.
                 state = STATE_SETTLED if result[0] in (200, 503) else STATE_REJECTED
             conn.execute(
-                "UPDATE settle_ledger SET state = ?, outcome_json = ? WHERE fp_hash = ?",
-                (state, _encode_outcome(result), fp_hash),
+                "UPDATE settle_ledger SET state = ?, outcome_json = CASE WHEN scope_hash IS NULL THEN NULL ELSE ? END WHERE fp_hash = ?",
+                (state, _bounded_outcome(result), fp_hash),
             )
         else:
             conn.execute("DELETE FROM settle_ledger WHERE fp_hash = ?", (fp_hash,))
         conn.commit()
     except (OSError, sqlite3.Error, TypeError, ValueError):
-        pass
+        if conn is not None:
+            conn.rollback()
 
 
 def _ledger_mark_unknown(fp_hash: str) -> None:
@@ -696,7 +769,7 @@ def _ledger_mark_unknown(fp_hash: str) -> None:
 
 
 def _prune_completed(now: float) -> None:
-    # TTL is the in-memory response cache only. Sqlite uniqueness does not expire.
+    # Response content expires in both caches. Economic uniqueness never expires.
     stale = [key for key, (exp, _scope, _res) in _completed.items() if exp <= now]
     for key in stale:
         _completed.pop(key, None)
@@ -716,7 +789,7 @@ def peek_completed(fp: str, scope: str | None = None) -> tuple | None:
         if exp <= now:
             _completed.pop(fp, None)
             return None
-        if stored_scope != _scope_hash(scope):
+        if not _scope_matches(stored_scope, _scope_hash(scope)):
             return None
         return result
 
@@ -731,6 +804,7 @@ def begin(
     fp: str,
     legacy_fp: str | None = None,
     scope: str | None = None,
+    *, reserve: bool = True,
 ) -> tuple[str, _Entry | tuple | None]:
     """Acquire execution, return a cached result, wait, or reject a duplicate.
 
@@ -743,12 +817,12 @@ def begin(
         _prune_completed(now)
         cached = _completed.get(fp)
         if cached and cached[0] > now:
-            if cached[1] != scope_hash:
+            if not _scope_matches(cached[1], scope_hash):
                 return "reject", None
             return "cached", cached[2]
         existing = _inflight.get(fp)
         if existing is not None:
-            if existing.scope_hash != scope_hash:
+            if not _scope_matches(existing.scope_hash, scope_hash):
                 return "reject", None
             return "wait", existing
         status, persisted = _ledger_lookup(fp_hash, scope_hash)
@@ -764,16 +838,32 @@ def begin(
                 return "cached", legacy_persisted
             if legacy_status == "reject":
                 return "reject", None
-        if _ledger_reserve(fp_hash, scope_hash) != "run":
+        if len(_inflight) >= MAX_COMPLETED:
+            return "reject", None
+        if reserve and _ledger_reserve(fp_hash, scope_hash) != "run":
             return "reject", None
         entry = _Entry(scope_hash)
+        entry.reserved = reserve
         _inflight[fp] = entry
         return "run", entry
+
+
+def authorize(fp: str) -> bool:
+    """Durably reserve only after successful verification, before probing/settling."""
+    with _lock:
+        entry = _inflight.get(fp)
+        if entry is None:
+            return False
+        if not entry.reserved:
+            entry.reserved = _ledger_reserve(durable_hash(fp), entry.scope_hash, entry.expires_at) == "run"
+        return entry.reserved
 
 
 def wait_result(entry: _Entry, deadline: float | None) -> tuple | None:
     """Wait for the in-flight owner. None means fail closed."""
     while True:
+        if time.time() >= entry.expires_at:
+            return None
         left = None
         if deadline is not None:
             left = float(deadline) - clock.monotonic()
@@ -789,8 +879,9 @@ def wait_result(entry: _Entry, deadline: float | None) -> tuple | None:
 def finish(fp: str, result: tuple, cache: bool) -> None:
     """Publish the result to waiters. Cache settled/rejected fingerprints only.
 
-    cache=True writes the outcome to sqlite. cache=False (400) drops the
-    reservation so a corrected body may retry. TTL still applies to RAM only.
+    Only verified, durably reserved requests write to sqlite. Private output
+    expires in both caches; economic uniqueness remains after expiry.
+    cache=False is only for input rejected before any economic action.
     """
     now = clock.monotonic()
     fp_hash = durable_hash(fp)
@@ -801,12 +892,13 @@ def finish(fp: str, result: tuple, cache: bool) -> None:
             entry.result = safe_result
             entry.event.set()
             _inflight.pop(fp, None)
-        if cache:
+        if cache and entry is not None and entry.scope_hash and _bounded_outcome(safe_result):
             _prune_completed(now)
             scope_hash = entry.scope_hash if entry is not None else None
-            _completed[fp] = (now + COMPLETED_TTL_SECONDS, scope_hash, safe_result)
+            _completed[fp] = (now + max(0, entry.expires_at - time.time()), scope_hash, safe_result)
             _prune_completed(now)
-        _ledger_finish(fp_hash, safe_result, cache)
+        if entry is not None and entry.reserved:
+            _ledger_finish(fp_hash, safe_result, cache)
 
 
 def abandon(fp: str) -> None:

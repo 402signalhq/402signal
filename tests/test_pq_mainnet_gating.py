@@ -645,14 +645,11 @@ class RecoveryDrillTests(unittest.TestCase):
         os.environ["LIVE402_CATALOG_DB"] = str(Path(self.tmp.name) / "missing-catalog.sqlite")
         try:
             rc = backup.main(["--dest", str(dest_dir)])
-            self.assertIn(rc, (0, 1))
-            snaps = list(dest_dir.glob("pq-log-*.sqlite"))
-            self.assertEqual(len(snaps), 1)
-            restored = Path(self.tmp.name) / "pq-log-restored.sqlite"
-            self.assertEqual(restore.main(["--src", str(snaps[0]), "--dest", str(restored), "--force"]), 0)
+            self.assertEqual(rc, 1)
+            self.assertEqual(list(dest_dir.glob("**/manifest.json")), [])
             import sqlite3
 
-            conn = sqlite3.connect(restored)
+            conn = sqlite3.connect(src)
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM leaves").fetchone()[0], 1)
             conn.close()
             self.assertTrue(os.path.isfile(src))

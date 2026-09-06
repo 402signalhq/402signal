@@ -50,7 +50,7 @@
         <pre class="code">curl -sS -D - https://402signal.com/route \
   -H 'Content-Type: application/json' \
   -d '{"need":"weather data","max_price_usd":0.02}'</pre>
-        <p>Sign one authorization, then retry the same request with <code>PAYMENT-SIGNATURE</code>. 402Signal verifies it before probing and settles it only after finding a valid live eligible route. A normal typed HTTP 503 miss is not settled.</p>
+        <p>Sign one authorization, then retry the same request with <code>PAYMENT-SIGNATURE</code>. Include a private <code>Replay-Key</code> of 32 random bytes encoded as lowercase hex if you need to recover the response after a connection failure. Keep the key and request unchanged; recovery expires after 120 seconds and never grants a second charge. 402Signal verifies payment before probing and settles it only after finding a valid live eligible route. A normal typed HTTP 503 miss is not settled.</p>
       </section>
 
       <section class="block request-options">

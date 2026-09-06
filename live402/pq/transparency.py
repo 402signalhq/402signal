@@ -986,7 +986,8 @@ def _technical(model: dict) -> str:
 
 def _verify_yourself(model: dict) -> str:
     conf = model["confirmed"]
-    copies = [("Origin", ORIGIN, ORIGIN, "origin")]
+    origin = (conf or {}).get("origin") or _live_origin()
+    copies = [("Origin", origin, origin, "origin")]
     copies.append(
         (
             "Tree size",

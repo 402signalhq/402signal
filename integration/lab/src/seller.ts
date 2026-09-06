@@ -83,23 +83,26 @@ export class Seller {
     const req = this.requirements.get(rail)!;
     assert(matchRequirements(payment, req), 'payment_terms_mismatch');
     const id = paymentIdentity(rail, payment, req);
-    // Exact body digest even for invalid JSON: invalid authorizations stay terminal.
+    // Existing results are scoped to the exact utility input. Lookup precedes
+    // admission; invalid inputs and failed verification never consume rows.
     const scope = digest(`${rail}/${name}\n${raw}`);
-    const reservation = this.ledger.reserve(id, scope);
-    if (!reservation.run) return reservation.outcome!;
+    const existing = this.ledger.lookup(id, scope);
+    if (existing) return existing.outcome;
     const noPayment = (error: string, status: number) => ({ status, body: { error, evidence: this.evidence(),
       billing: { settled: false, settlement_attempted: false, settlement_state: 'not_attempted' } } });
     let result: unknown;
     try { result = utility(name, parseJson(raw)); }
-    catch { const o = noPayment('invalid_input', 400); this.ledger.finish(id, 'not_attempted', o); return o; }
+    catch { return noPayment('invalid_input', 400); }
     try {
       const v = await this.servers.get(rail)!.verifyPayment(payment, req);
       if (v.isValid !== true) {
-        const o = noPayment('payment_rejected', 402); this.ledger.finish(id, 'rejected', o); return o;
+        return noPayment('payment_rejected', 402);
       }
     } catch {
-      const o = noPayment('verification_unavailable', 503); this.ledger.finish(id, 'not_attempted', o); return o;
+      return noPayment('verification_unavailable', 503);
     }
+    const reservation = this.ledger.reserve(id, scope);
+    if (!reservation.run) return reservation.outcome!;
     // If this write fails, do not call settle. Attempted is durable before POST.
     this.ledger.attempting(id);
     let outcome: Outcome;

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from live402 import payment, pulse, schema_fields, validate
 from live402.route import handle_route
 
 ROUTE_DESCRIPTION = payment.CATALOG_DESCRIPTION
+PROTOCOL_VERSION = "2025-06-18"
+SUPPORTED_PROTOCOLS = ("2025-03-26", PROTOCOL_VERSION)
 
 PREVIEW_DESCRIPTION = (
     "Request-time catalog preflight over upstream catalogs plus a local shadow. "
@@ -245,12 +248,12 @@ def manifest() -> dict:
     }
 
 
-def jsonrpc_initialize(req_id) -> dict:
+def jsonrpc_initialize(req_id, version=PROTOCOL_VERSION) -> dict:
     return {
         "jsonrpc": "2.0",
         "id": req_id,
         "result": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": version if version in SUPPORTED_PROTOCOLS else PROTOCOL_VERSION,
             "capabilities": {"tools": {}},
             "serverInfo": {"name": "402Signal", "version": "0.5.0"},
         },
@@ -301,33 +304,56 @@ def _preview_result(args: dict) -> dict:
     return pulse.preview_need(need, prefer_network=prefer, networks=networks)
 
 
-def handle_mcp(payload: dict, headers, resource_url: str) -> tuple[int, dict, dict | None]:
-    """JSON-RPC 2.0. initialize, tools/list, preview are unpaid. tools/call route is x402-gated."""
-    if not isinstance(payload, dict):
-        return 400, {"error": "JSON object required"}, None
-    method = payload.get("method")
+def _tool_result(req_id, body: dict, code: int, version: str) -> dict:
+    result = {"content": [{"type": "text", "text": json.dumps(body, separators=(",", ":"))}],
+              "isError": code >= 400}
+    if version == PROTOCOL_VERSION:
+        result["structuredContent"] = body
+    return {"jsonrpc": "2.0", "id": req_id, "result": result}
+
+
+def handle_mcp(payload: dict, headers, resource_url: str) -> tuple[int, dict | None, dict | None]:
+    """Stateless Streamable HTTP JSON responses; x402 remains an HTTP extension."""
+    version = next((v for k, v in headers.items() if str(k).lower() == "mcp-protocol-version"), "2025-03-26")
+    if version not in SUPPORTED_PROTOCOLS:
+        return 400, jsonrpc_error(None, -32600, "Unsupported protocol version"), None
+    if not isinstance(payload, dict) or payload.get("jsonrpc") != "2.0":
+        return 400, jsonrpc_error(None, -32600, "Invalid Request"), None
     req_id = payload.get("id")
+    if "id" in payload and type(req_id) not in (int, str):
+        return 400, jsonrpc_error(None, -32600, "Invalid request id"), None
+    method = payload.get("method")
+    if not isinstance(method, str):
+        return 400, jsonrpc_error(req_id, -32600, "Invalid Request"), None
+    # Notifications never execute tools and never receive JSON-RPC responses.
+    if "id" not in payload:
+        return 202, None, None
+    params = payload.get("params", {})
+    if not isinstance(params, dict):
+        return 200, jsonrpc_error(req_id, -32602, "Invalid params"), None
     if method == "initialize":
-        return 200, jsonrpc_initialize(req_id), None
-    if method == "notifications/initialized":
+        return 200, jsonrpc_initialize(req_id, params.get("protocolVersion")), None
+    if method == "ping":
         return 200, {"jsonrpc": "2.0", "id": req_id, "result": {}}, None
     if method == "tools/list":
-        return 200, jsonrpc_tools_list(req_id), None
+        result = jsonrpc_tools_list(req_id)
+        if version != PROTOCOL_VERSION:
+            result["result"]["tools"] = [{k: v for k, v in tool.items() if k != "outputSchema"} for tool in TOOLS]
+        return 200, result, None
     if method == "tools/call":
-        params = payload.get("params") if isinstance(payload.get("params"), dict) else {}
-        name = (params or {}).get("name")
-        args = (params or {}).get("arguments")
-        if args is None:
-            args = {}
+        name, args = params.get("name"), params.get("arguments", {})
         if not isinstance(args, dict):
-            return 400, {"error": "arguments must be an object"}, None
+            return 200, jsonrpc_error(req_id, -32602, "arguments must be an object"), None
         if name == "preview":
-            return 200, _preview_result(args), None
+            return 200, _tool_result(req_id, _preview_result(args), 200, version), None
         if name == "validate":
-            url = args.get("url") if isinstance(args, dict) else ""
-            _code, body = validate.validate_url(url if isinstance(url, str) else "")
-            return 200 if _code != 400 else 400, body, None
+            url = args.get("url")
+            code, body = validate.validate_url(url if isinstance(url, str) else "")
+            return 200, _tool_result(req_id, body, code, version), None
         if name != "route":
-            return 200, jsonrpc_error(req_id, -32601, "Unknown tool"), None
-        return handle_route(args, headers, resource_url, bazaar=payment.BAZAAR_MCP)
+            return 200, jsonrpc_error(req_id, -32602, "Unknown tool"), None
+        code, body, extra = handle_route(args, headers, resource_url, bazaar=payment.BAZAAR_MCP)
+        if code == 402:
+            return code, body, extra
+        return 200, _tool_result(req_id, body, code, version), extra
     return 200, jsonrpc_error(req_id, -32601, "Method not found"), None

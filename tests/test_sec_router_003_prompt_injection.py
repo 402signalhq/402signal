@@ -115,6 +115,7 @@ class SecRouter003PreviewMcpTests(unittest.TestCase):
                 "https://402signal.com/mcp",
             )
         self.assertEqual(code, 200)
+        body = json.loads(body["result"]["content"][0]["text"])
         self.assertTrue(body.get("not_probed"))
         hits = body.get("hits") or []
         self.assertTrue(hits)

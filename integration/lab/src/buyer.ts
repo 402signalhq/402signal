@@ -1,4 +1,5 @@
 import type { PaymentPayload, PaymentRequired, PaymentRequirements } from '@x402/core/types';
+import { randomBytes } from 'node:crypto';
 import { type Rail, type Mode, RAILS, railInfo, safeUrl } from './config.js';
 import { assert, atomic, canonical, decode64, digest, encode64, object, parseJson, LabError } from './json.js';
 import { Ledger } from './ledger.js';
@@ -101,7 +102,8 @@ export class Buyer {
         assert(canonical(payment.accepted) === canonical(req), 'signer_changed_terms');
         const start = Date.now();
         this.ledger.spendState(runId, 'router_attempted'); report.routing = 'unknown';
-        const routed = await this.send(c.routerUrl, 'POST', routeBody, { 'PAYMENT-SIGNATURE': encode64(payment) });
+        const replayKey = randomBytes(32).toString('hex');
+        const routed = await this.send(c.routerUrl, 'POST', routeBody, { 'PAYMENT-SIGNATURE': encode64(payment), 'Replay-Key': replayKey });
         report.routing_ms = Date.now() - start;
         const b = routed.body?.billing;
         if (b?.settled === false && b?.settlement_state === 'not_attempted' && b?.settlement_attempted === false &&

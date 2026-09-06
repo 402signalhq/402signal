@@ -418,6 +418,15 @@ class Handler(SimpleHTTPRequestHandler):
             self.connection.settimeout(REQUEST_TIMEOUT)
         except Exception:
             pass
+        from live402.io_deadline import DeadlineReader
+        self.rfile.close()
+        self.rfile = DeadlineReader(self.connection)
+
+    def parse_request(self) -> bool:
+        try:
+            return super().parse_request()
+        finally:
+            self.rfile.set_deadline(None)
 
     def handle(self) -> None:
         """BaseHTTPRequestHandler owns the keep-alive loop. Cap is at process_request."""
@@ -552,6 +561,7 @@ class Handler(SimpleHTTPRequestHandler):
         sys.stderr.write(line)
 
     def handle_one_request(self) -> None:
+        self.rfile.set_deadline(time.monotonic() + REQUEST_TIMEOUT)
         self._request_id = uuid.uuid4().hex[:16]
         self._req_started = time.monotonic()
         self._logged_access = False
@@ -579,7 +589,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers",
-            "Content-Type, PAYMENT-SIGNATURE, PAYMENT-PAYLOAD, X-PAYMENT, PAYMENT-RESPONSE, Algorand-Sender, X-Algorand-Sender",
+            "Content-Type, Replay-Key, MCP-Protocol-Version, PAYMENT-SIGNATURE, PAYMENT-PAYLOAD, X-PAYMENT, PAYMENT-RESPONSE, Algorand-Sender, X-Algorand-Sender",
         )
         self.send_header(
             "Access-Control-Expose-Headers",
@@ -587,7 +597,7 @@ class Handler(SimpleHTTPRequestHandler):
         )
 
     def _json(self, code: int, payload: dict, extra_headers: dict | None = None) -> None:
-        body = json.dumps(payload).encode("utf-8")
+        body = b"" if payload is None else json.dumps(payload).encode("utf-8")
         headers = {"Cache-Control": "no-store"}
         headers.update(extra_headers or {})
         self.send_response(code)
@@ -925,7 +935,11 @@ class Handler(SimpleHTTPRequestHandler):
             return self._text(200, X402LIST_VERIFY_TOKEN + "\n")
         if parsed.path == "/llms.txt":
             return self._text(200, discover.LLMS_TXT)
-        if parsed.path in {"/mcp", "/mcp.json", "/.well-known/mcp.json", MCP_REGISTRY_PATH}:
+        if parsed.path in {"/mcp", MCP_REGISTRY_PATH}:
+            if not self._mcp_origin_allowed():
+                return self._json(403, {"error": "origin not allowed"})
+            return self._json(405, {"error": "SSE stream not offered; use POST"}, {"Allow": "POST, OPTIONS"})
+        if parsed.path in {"/mcp.json", "/.well-known/mcp.json"}:
             return self._json(
                 200,
                 mcp.manifest(),
@@ -960,7 +974,13 @@ class Handler(SimpleHTTPRequestHandler):
             extra = {"PAYMENT-REQUIRED": payment.payment_required_header(body)}
         return self._json(code, body, extra)
 
+    def _mcp_origin_allowed(self) -> bool:
+        origin = self.headers.get('Origin')
+        return origin is None or origin in {discover.ORIGIN, 'https://www.402signal.com'}
+
     def _post_mcp(self) -> None:
+        if not self._mcp_origin_allowed():
+            return self._close_error(403, "origin not allowed")
         payload = self._read_json_body()
         if payload is None:
             return

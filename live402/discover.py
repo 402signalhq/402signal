@@ -510,6 +510,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "post": {
                     "operationId": "route",
                     "tags": ["Paid"],
+                    "parameters": [{"$ref": "#/components/parameters/ReplayKey"}],
                     "summary": "Authorize $0.003 USDC; settle only for a valid live route",
                     "description": DESC,
                     "x-payment-info": {
@@ -697,12 +698,13 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "get": {
                     "operationId": "mcpManifestAlias",
                     "tags": ["Public"],
-                    "summary": "List MCP tools at the MCP alias",
-                    "responses": {"200": {"description": "MCP manifest"}},
+                    "summary": "Streamable HTTP endpoint; SSE is not offered",
+                    "responses": {"405": {"description": "Use POST; tool metadata remains at /mcp.json"}},
                 },
                 "post": {
                     "operationId": "mcpJsonRpc",
                     "tags": ["Paid"],
+                    "parameters": [{"$ref": "#/components/parameters/ReplayKey"}],
                     "summary": "Post MCP JSON-RPC; tools/call route is x402-gated",
                     "description": DESC,
                     "x-payment-info": {
@@ -713,7 +715,8 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                         "typedMissesSettled": False,
                     },
                     "responses": {
-                        "200": {"description": "initialize / tools/list / paid route result"},
+                        "200": {"description": "Correlated JSON-RPC result; tool content is in result.content and, for protocol 2025-06-18, result.structuredContent. Tool failures set result.isError."},
+                        "202": {"description": "Accepted notification; empty body"},
                         "402": {"description": "Payment required for tools/call route"},
                     },
                 }
@@ -1083,6 +1086,13 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
             },
         },
         "components": {
+            "parameters": {
+                "ReplayKey": {
+                    "name": "Replay-Key", "in": "header", "required": False,
+                    "schema": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "description": "Client-generated 32 random bytes, lowercase hex. Retain privately with the exact request for up to 120 seconds of authorized response retrieval. Never place it in payment metadata, logs, URLs or public receipts. Omission allows one execution but no cached response retrieval. Payment identity remains permanently one-use; expiry never authorizes a new charge."
+                }
+            },
             "securitySchemes": {
                 "paymentSignature": {
                     "type": "apiKey",

@@ -9,6 +9,12 @@ from test_success_only_billing import _winner, _miss, _routing_accept, _verified
 ORIGIN = "https://402signal-lab-ross.fly.dev"
 URL = ORIGIN + "/base/payload/sha256"
 
+def _paid_execute(*args):
+    # Isolate the post-verification pipeline. Integrated handle_route tests
+    # retain the real replay database and crash/restart guarantees.
+    with patch('live402.replay.authorize', return_value=True):
+        return route._paid_execute(*args, fp='pipeline-fixture')
+
 class LabTrafficTests(unittest.TestCase):
     def setUp(self):
         self.env = patch.dict(os.environ, {"LIVE402_LAB_ORIGINS": ORIGIN, "LIVE402_FIXTURE": "1"})
@@ -44,7 +50,7 @@ class LabTrafficTests(unittest.TestCase):
         with patch('live402.facilitator.verify', return_value=_verified()), patch('live402.route.run_probe', return_value=(200,win)), \
              patch('live402.facilitator.settle', return_value=_settled()) as settle, \
              patch('live402.history.mark_batch_settled') as promote, patch('live402.route._attach_pq_trust',side_effect=lambda code,result,body:result) as pq:
-            code,body,headers=route._paid_execute({'url':URL,'lab_test':lab_traffic.PROTOCOL},_payload(),_routing_accept(),
+            code,body,headers=_paid_execute({'url':URL,'lab_test':lab_traffic.PROTOCOL},_payload(),_routing_accept(),
                 'https://402signal.com/route',None,time.monotonic()+100)
             self.assertEqual(code,200);self.assertTrue(body['billing']['settled']);self.assertIn('PAYMENT-RESPONSE',headers)
             self.assertEqual(body['lab_testing'],lab_traffic.classification())
@@ -56,14 +62,14 @@ class LabTrafficTests(unittest.TestCase):
         with patch('live402.facilitator.verify', return_value=_verified()), patch('live402.route.run_probe', return_value=(503,_miss())), \
              patch('live402.facilitator.settle') as settle, patch('live402.history.mark_batch_settled') as promote, \
              patch('live402.route._attach_pq_trust',side_effect=lambda code,result,body:result) as pq:
-            code,body,_=route._paid_execute({'url':URL},_payload(),_routing_accept(),'https://402signal.com/route',None,time.monotonic()+100)
+            code,body,_=_paid_execute({'url':URL},_payload(),_routing_accept(),'https://402signal.com/route',None,time.monotonic()+100)
             self.assertEqual(code,503);self.assertFalse(body['billing']['settled']);self.assertEqual(body['lab_testing'],lab_traffic.classification())
             settle.assert_not_called();promote.assert_not_called();pq.assert_not_called()
     def test_normal_success_keeps_history_and_pq(self):
         with patch('live402.facilitator.verify', return_value=_verified()), patch('live402.route.run_probe', return_value=(200,_winner())), \
              patch('live402.facilitator.settle', return_value=_settled()), patch('live402.history.mark_batch_settled') as promote, \
              patch('live402.route._attach_pq_trust',side_effect=lambda code,result,body:result) as pq:
-            code,body,_=route._paid_execute({'url':'https://seller.example/x402'},_payload(),_routing_accept(),'https://402signal.com/route',None,time.monotonic()+100)
+            code,body,_=_paid_execute({'url':'https://seller.example/x402'},_payload(),_routing_accept(),'https://402signal.com/route',None,time.monotonic()+100)
             self.assertEqual(code,200);self.assertNotIn('lab_testing',body);promote.assert_called_once();pq.assert_called_once()
 
 class LabProductionEvidenceTests(unittest.TestCase):
@@ -112,7 +118,7 @@ class LabProductionEvidenceTests(unittest.TestCase):
             with patch('live402.facilitator.verify', return_value=_verified()), \
                  patch('live402.route.run_probe', return_value=(200, win)), \
                  patch('live402.facilitator.settle', return_value=settled):
-                code, result, _ = route._paid_execute(self.body, _payload(), _routing_accept(rail),
+                code, result, _ = _paid_execute(self.body, _payload(), _routing_accept(rail),
                     'https://402signal.com/route', None, time.monotonic()+100)
             self.assertEqual(code, 200)
             self.assertTrue(result['billing']['settled'])
@@ -153,7 +159,7 @@ class LabProductionEvidenceTests(unittest.TestCase):
              patch('live402.facilitator.settle', return_value=_settled()) as settle, \
              patch('live402.history.mark_batch_settled') as mark, \
              patch('live402.pq.receipt.attach_to_route', side_effect=RuntimeError('fixture')):
-            code, result, headers = route._paid_execute(self.body, _payload(), _routing_accept(),
+            code, result, headers = _paid_execute(self.body, _payload(), _routing_accept(),
                 'https://402signal.com/route', None, time.monotonic()+100)
             self.assertEqual(code, 503)
             self.assertTrue(result['billing']['settled'])

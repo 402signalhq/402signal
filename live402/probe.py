@@ -994,6 +994,10 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
             kwargs.pop("max_response_headers", None)
             super().__init__(host, *args, **kwargs)
         self._pinned_addrs = list(pinned_addrs or [])
+        from functools import partial
+        from live402.io_deadline import DeadlineHTTPResponse
+        self._io_deadline = clock.monotonic() + (float(self.timeout) if isinstance(self.timeout, (int, float)) else DEFAULT_TIMEOUT)
+        self.response_class = partial(DeadlineHTTPResponse, deadline=self._io_deadline)
         self._server_hostname = server_hostname
         if not self._server_hostname:
             raw = (host or "").split("%")[0]
@@ -1020,7 +1024,7 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
             try:
                 sock = socket.create_connection(
                     (ip, self.port),
-                    self.timeout,
+                    max(0.001, self._io_deadline - clock.monotonic()),
                     self.source_address,
                 )
                 break
@@ -1032,6 +1036,10 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
                 raise last_err
             raise ProbeBlocked("pin connect failed")
         try:
+            left = self._io_deadline - clock.monotonic()
+            if left <= 0:
+                raise TimeoutError('probe timeout')
+            sock.settimeout(left)
             self.sock = context.wrap_socket(sock, server_hostname=hostname)
         except Exception:
             try:
@@ -1212,6 +1220,8 @@ def parse_envelope(status: int | None, headers: dict[str, str], body: bytes) -> 
 def _read_limited(fp) -> bytes:
     try:
         return fp.read(READ_LIMIT) if fp is not None else b""
+    except TimeoutError:
+        raise
     except Exception:
         return b""
 

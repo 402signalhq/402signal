@@ -67,7 +67,8 @@ class _Headers(dict):
 
 def _headers_for(payload):
     raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    return _Headers({"PAYMENT-SIGNATURE": base64.b64encode(raw).decode("ascii")})
+    return _Headers({"PAYMENT-SIGNATURE": base64.b64encode(raw).decode("ascii"),
+                     "Replay-Key": "a1" * 32})
 
 
 def _weather_body():
@@ -363,10 +364,9 @@ class ReplayDurabilityTests(unittest.TestCase):
 
         semantic_fp = replay.canonical_fingerprint(payload, accept)
         kind, exact = replay.begin(semantic_fp, legacy_fp=legacy_fp)
-        self.assertEqual(kind, "cached")
-        self.assertEqual(exact[1]["miss_reason"], "no_candidates")
-        self.assertNotIn("LEGACY-SECRET-CANARY", json.dumps(exact))
-        self.assertIsNone(exact[2])
+        self.assertEqual(kind, "reject")
+        self.assertIsNone(exact)
+        self.assertIsNone(replay._connect().execute("SELECT outcome_json FROM settle_ledger").fetchone()[0])
         self.assertFalse(replay.durable_ready())
 
         variant = copy.deepcopy(payload)
@@ -821,8 +821,8 @@ class StateMachineReplayTests(unittest.TestCase):
             result = handle_route(_weather_body(), headers, discover.ROUTE)
         self.assertEqual(result[0], 503)
         self.assertEqual(result[1]["billing"]["settlement_state"], "unknown")
-        self.assertIsNone(result[1]["billing"]["settlement_attempted"])
-        verify.assert_not_called()
+        self.assertFalse(result[1]["billing"]["settlement_attempted"])
+        verify.assert_called_once()
         probe.assert_not_called()
         settle.assert_not_called()
 

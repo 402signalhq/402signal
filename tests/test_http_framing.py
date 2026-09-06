@@ -293,7 +293,7 @@ class FramingServerTests(unittest.TestCase):
             ),
             timeout=12,
         )
-        self.assertEqual(_status(raw), 400)
+        self.assertEqual(_status(raw), 408)
         self.assertIn(b"Connection: close", raw)
 
     def test_malformed_json(self):

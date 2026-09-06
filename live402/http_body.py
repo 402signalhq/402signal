@@ -117,6 +117,8 @@ def read_exactly(rfile, n: int, deadline: float | None = None) -> bytes:
             raise BodyReadError(408, "body read timeout")
         try:
             chunk = rfile.read(remaining)
+        except TimeoutError as exc:
+            raise BodyReadError(408, "body read timeout") from exc
         except Exception as exc:
             raise BodyReadError(400, "short body") from exc
         if not chunk:
@@ -163,5 +165,12 @@ def read_json_object(handler, max_body: int = MAX_BODY, deadline: float | None =
         deadline = clock.monotonic() + BODY_DEADLINE_SECONDS
     if clock.monotonic() >= deadline:
         raise BodyReadError(408, "body read timeout")
-    raw = read_exactly(handler.rfile, length, deadline=deadline)
+    setter = getattr(handler.rfile, 'set_deadline', None)
+    if callable(setter):
+        setter(deadline)
+    try:
+        raw = read_exactly(handler.rfile, length, deadline=deadline)
+    finally:
+        if callable(setter):
+            setter(None)
     return loads_json_object(raw)

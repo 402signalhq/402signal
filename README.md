@@ -58,7 +58,7 @@ Body:
 - Settled **HTTP 200** includes `target: { method, inputSchema, outputSchema, accepts, facilitator, amountAtomic, displayAmount, timeoutSeconds }` (envelope accepts only), `selected_payment: { rail, network, asset, amount_atomic, display_amount, normalized_usd, payTo, facilitator }`, and `billing: { model, condition, asset, amount_atomic, display_amount, rail, settlement_attempted, settled, settlement_state }`. `selected_payment` must exactly match a valid option from the current envelope. `payable` requires a complete observed option; `invocable` is payable plus input schema. If schema is missing, `live` may still be true with `invocable: false` and `miss_reason: "no_input_schema"`. `accepts[].extra.facilitator` is copied as `{url, feePayer, caip2, scheme}` — do not default to x402.org.
 - `miss_reason` is a closed enum: `no_candidates`, `no_402_envelope`, `no_payto`, `reachable_200`, `probe_timeout`, `quote_expired`, `invalid_need`, `upstream_5xx`, `ssrf`, `no_input_schema`, `constraints_unmet`, `probe_budget_exhausted`, `probe_limit_reached`, `unsafe_to_probe`, `settlement_unknown`. HTTP 402 with no usable payTo is `no_payto` (typed miss, not retry-pay). Probe budget is under 60s; a hang returns **503** JSON immediately. `stop_reason` and `probe_ceiling` say why probing stopped.
 - `GET /health` is **HTTP 200** `{ "ok": true }` for Fly checks. Not a paid listing. Not a rails dump.
-- `GET /ready` checks storage, catalog, history, and pq_log. Response is booleans only (no paths, no secrets). Fly health stays on `/health` until `/ready` is proven safe in staging.
+- `GET /ready` checks catalog/history/log access and log consistency, plus a real replay-ledger write probe, durable journal mode and storage admission capacity. Response is booleans only (no paths, no secrets). The catalog/history/log checks do not simulate disk-full writes. Fly health stays on `/health` until `/ready` is proven safe in staging.
 - `GET /preview?need=` is an unpaid request-time catalog search (`not_probed: true`, hits + prices + freshness + facilitator/method/inputSchema_present/rails_up, optional `also_on[]`). Optional `prefer_network=base|solana|algorand` is a weak ranking preference: it ranks that rail first but still searches all three. Optional `networks=solana` (repeat or comma-separate) is a hard policy lock on which rails are queried. `discovery_via` is a compact per-rail how-found map; `discovery_exhaustive` is true only when the returned set is known complete. It does not probe and does not charge. Paid `POST /route` remains the fail-closed 402 probe.
 - `GET /rails` lists the three pay-in networks, asset, amountAtomic, facilitators, feePayers, maxTimeoutSeconds, and per-rail up+latency. Cached. Not stuffed into `/health`.
 - `GET /pulse` is a JSON snapshot. Catalog totals stay unpublished. Discovery uses current upstream catalogs plus a process-local shadow (not a full-world RAM index). `index_status` is `upstream-live`, `shadow-warm`, `both`, or `fixture`. Observed `n_7d` comes from `402signal_observed`. Rates (`success_7d`, `payable_rate_7d`, `invocable_rate_7d`) are omitted below `n=10`. There is no binary `healthy` and no `executable_now_rate`. Query params are ignored — no caller-supplied URLs. Cached ~15s. Fail-open: never waits on a discovery crawl. The trickle refresher never blocks `/route`.
@@ -224,7 +224,7 @@ Base CDP calls need `CDP_API_KEY_ID` + `CDP_API_KEY_SECRET` (or `CDP_ACCESS_TOKE
 | `LIVE402_COLD_SWEEP_S` | `64800` (clamped 12–24h) | COLD rolling generation sweep cadence |
 | `LIVE402_TRICKLE_SLEEP_S` | `2` (clamped 1–30) | Sleep between trickle pages |
 | `LIVE402_CATALOG_REFRESH` | `1` | `0` disables the background trickle |
-| `LIVE402_ROUTE_RPM` | `60` | paid `POST /route` per IP per minute. No User-Agent privilege. |
+| `LIVE402_ROUTE_RPM` | `12` | paid `POST /route` per IP per minute. No User-Agent privilege. CI explicitly uses 60. |
 | `LIVE402_PREVIEW_RPM` | `180` (or 2× route, whichever is larger) | unpaid `GET /preview` and MCP preview per IP per minute |
 | `LIVE402_PUBLIC_RPM` | `180` (or 2× route, whichever is larger) | unpaid `GET /pulse`, `GET /rails`, and `GET /attestation` per IP per minute (separate buckets) |
 | `LIVE402_VALIDATE_RPM` | `60` | unpaid `POST /validate` / `GET /validate` and MCP `tools/call validate` per IP per minute |
@@ -273,11 +273,11 @@ live402/static/     GET / homepage (app.js, styles, dashboard.js)
 live402/algod.py    pinned algod suggestedParams for the unpaid Algorand 402 extra
 live402/data/       fixture catalog
 tests/              unittest
-Dockerfile          Python 3.12.14-slim (gh-150743), 0.0.0.0:$PORT (root; see docs/docker.md)
+Dockerfile          Python 3.12.14-slim (gh-150743), 0.0.0.0:$PORT, UID/GID 10001
 fly.toml            app 402signal, internal_port 8080, one machine
 docs/backup.md      sqlite backup tooling + Fly human checklist (backups not claimed active)
 docs/github-protection.md  branch protection (Protect main ruleset is active)
 docs/automation-security-boundaries.md  bot and human roles. production command bans
-docs/docker.md      non-root /data blocker (USER not added)
+docs/docker.md      non-root runtime and required existing-volume migration
 docs/merkle-bench.md  honest 10k/100k/1m frontier timings; SQLite commit is the bottleneck
 ```

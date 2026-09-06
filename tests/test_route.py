@@ -757,8 +757,8 @@ class PaywallTests(unittest.TestCase):
         self.assertEqual(status2, 200)
         self.assertEqual(json.loads(raw2).get("tools"), body.get("tools"))
         status3, raw3 = _get(self.port, "/mcp")
-        self.assertEqual(status3, 200)
-        self.assertEqual(json.loads(raw3).get("tools"), body.get("tools"))
+        self.assertEqual(status3, 405)
+        self.assertIn("POST", json.loads(raw3)["error"])
 
     def test_mcp_tools_list_free_and_call_unpaid_402(self):
         status, body = _json_post(
@@ -1688,6 +1688,7 @@ class RateLimitTests(unittest.TestCase):
             extra_headers=ip_headers,
         )
         self.assertEqual(status, 200)
+        body = json.loads(body["result"]["content"][0]["text"])
         self.assertTrue(body.get("not_probed"))
 
 
@@ -2008,6 +2009,7 @@ class ProductBriefTests(unittest.TestCase):
             },
         )
         self.assertEqual(status, 200)
+        body = json.loads(body["result"]["content"][0]["text"])
         self.assertTrue(body.get("not_probed"))
         self.assertIn("hits", body)
 
