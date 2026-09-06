@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "currency": "USD",
+  "contingency_usd": "10",
+  "all_services_accounted_for": false,
+  "services": [
+    {"category":"router","name":"Fly router","monthly_max_usd":null,"verified":false,"verified_on":null,"evidence":"","auto_upgrade_disabled":false,"usage_taxes_storage_egress_included":false},
+    {"category":"signer","name":"Fly isolated MainNet signer","monthly_max_usd":null,"verified":false,"verified_on":null,"evidence":"","auto_upgrade_disabled":false,"usage_taxes_storage_egress_included":false},
+    {"category":"database","name":"Shared replay PostgreSQL","monthly_max_usd":null,"verified":false,"verified_on":null,"evidence":"","auto_upgrade_disabled":false,"usage_taxes_storage_egress_included":false},
+    {"category":"rpc","name":"Tatum","monthly_max_usd":null,"verified":false,"verified_on":null,"evidence":"","auto_upgrade_disabled":false,"usage_taxes_storage_egress_included":false},
+    {"category":"storage_backup","name":"Volumes and off-host encrypted backups","monthly_max_usd":null,"verified":false,"verified_on":null,"evidence":"","auto_upgrade_disabled":false,"usage_taxes_storage_egress_included":false},
+    {"category":"monitoring","name":"Monitoring","monthly_max_usd":null,"verified":false,"verified_on":null,"evidence":"","auto_upgrade_disabled":false,"usage_taxes_storage_egress_included":false},
+    {"category":"network","name":"Egress and IPs","monthly_max_usd":null,"verified":false,"verified_on":null,"evidence":"","auto_upgrade_disabled":false,"usage_taxes_storage_egress_included":false},
+    {"category":"other","name":"Domains taxes staging and all other providers","monthly_max_usd":null,"verified":false,"verified_on":null,"evidence":"","auto_upgrade_disabled":false,"usage_taxes_storage_egress_included":false}
+  ],
+  "monthly_limit_usd": "100"
+}

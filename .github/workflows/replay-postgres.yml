@@ -1,0 +1,59 @@
+name: replay-postgres
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        # Ephemeral CI only. Print the resolved digest below; not production provisioning.
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: 402signal_ci
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d 402signal_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12.14"
+      - name: Record ephemeral database image identity
+        run: docker image inspect postgres:17 --format '{{json .RepoDigests}}'
+      - name: Install locked core and optional PostgreSQL dependencies
+        run: |
+          pip install --require-hashes -r requirements.txt
+          pip install --only-binary=:all: --require-hashes -r requirements-postgres.txt
+      - name: Storage contracts against real isolated PostgreSQL
+        env:
+          LIVE402_PG_TEST_DESTRUCTIVE: isolated-ci-only
+          LIVE402_PG_TEST_DSN: host=127.0.0.1 port=5432 dbname=402signal_ci user=postgres password=local-ci-only sslmode=disable
+        run: python -m unittest discover -s tests -p test_replay_storage.py -v
+      - name: Default-backend compatibility and budget gates
+        env:
+          LIVE402_FIXTURE: "1"
+        run: |
+          python -m unittest discover -s tests -p test_infrastructure_budget.py -v
+          if python -m scripts.infrastructure_budget ops/infrastructure-budget.example.json; then
+            echo 'Unverified example must never approve spending'; exit 1
+          fi
+      - name: Audit exact optional lock
+        uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266 # v1.1.0
+        with:
+          inputs: requirements-postgres.txt
+      - name: Build opt-in image without deploying or signing
+        run: |
+          docker build -f Dockerfile.postgres --build-arg GIT_SHA="$GITHUB_SHA" -t signal-postgres-ci .
+          docker run --rm --entrypoint python signal-postgres-ci -c 'import os, psycopg; from live402.replay_store import backend_name; assert os.getuid() == 10001; assert backend_name() == "sqlite"'

@@ -28,6 +28,7 @@ import time
 
 from live402 import clock, payment
 from live402.route_outcomes import is_normal_miss
+from live402.replay_store import ReplayStore, SQLiteStore, StoreError, backend_name
 
 COMPLETED_TTL_SECONDS = 120.0
 MAX_COMPLETED = 256
@@ -316,6 +317,39 @@ _inflight: dict[str, _Entry] = {}
 _completed: dict[str, tuple[float, str | None, tuple]] = {}
 _conn: sqlite3.Connection | None = None
 _conn_path: str | None = None
+_store: ReplayStore | None = None
+_store_config: tuple | None = None
+
+
+def _selected_store_locked() -> ReplayStore:
+    """Pin authority configuration until an explicit process restart."""
+    global _store, _store_config
+    config = tuple(os.environ.get(key) for key in (
+        "LIVE402_REPLAY_BACKEND", "LIVE402_REPLAY_POSTGRES_DSN",
+        "LIVE402_REPLAY_AUTHORITY_ID", "LIVE402_REPLAY_DB",
+        "LIVE402_ROUTER_WRITERS", "LIVE402_PG_TEST_SUPPORT"))
+    name = backend_name()
+    if _store_config is not None and config != _store_config:
+        raise StoreError("replay configuration changed; restart required")
+    _store_config = config
+    if _store is None:
+        if name == "postgres":
+            from live402.replay_postgres import PostgresStore
+            _store = PostgresStore()
+        else:
+            _store = SQLiteStore(_connect, _storage_available,
+                                 _identity_cutover_ready, _sqlite_ready_locked)
+    return _store
+
+
+def _close_store_locked() -> None:
+    global _store, _store_config
+    if _store is not None:
+        _store.close()
+    _store = None
+    _store_config = None
+    _close_conn_locked()
+
 
 
 def db_path() -> str:
@@ -373,6 +407,15 @@ def _test_support() -> bool:
 
 
 def durable_ready() -> bool:
+    """Readiness uses the same selected authority as every durable operation."""
+    with _lock:
+        try:
+            return bool(_selected_store_locked().ready())
+        except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
+            return False
+
+
+def _sqlite_ready_locked() -> bool:
     """True when the paid-settlement ledger is writable and durable.
 
     Production must use the one mounted `/data` ledger configured in
@@ -386,36 +429,35 @@ def durable_ready() -> bool:
                 return False
         except (OSError, TypeError, ValueError):
             return False
-    with _lock:
-        conn = None
+    conn = None
+    try:
+        conn = _connect()
+        sync = conn.execute("PRAGMA synchronous").fetchone()
+        journal = conn.execute("PRAGMA journal_mode").fetchone()
+        table = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'settle_ledger'"
+        ).fetchone()
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("INSERT OR REPLACE INTO replay_meta(key,value) VALUES ('writability_probe','1')")
+        conn.rollback()
+        conn.execute("UPDATE settle_ledger SET outcome_json = NULL WHERE outcome_json IS NOT NULL AND (expires_at IS NULL OR expires_at <= ?)", (time.time(),))
+        conn.commit()
+        return bool(
+            sync
+            and int(sync[0]) == 2
+            and journal
+            and str(journal[0]).lower() == "wal"
+            and table
+            and _storage_available(conn)
+            and _identity_cutover_ready(conn)
+        )
+    except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
         try:
-            conn = _connect()
-            sync = conn.execute("PRAGMA synchronous").fetchone()
-            journal = conn.execute("PRAGMA journal_mode").fetchone()
-            table = conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'settle_ledger'"
-            ).fetchone()
-            conn.execute("BEGIN IMMEDIATE")
-            conn.execute("INSERT OR REPLACE INTO replay_meta(key,value) VALUES ('writability_probe','1')")
-            conn.rollback()
-            conn.execute("UPDATE settle_ledger SET outcome_json = NULL WHERE outcome_json IS NOT NULL AND (expires_at IS NULL OR expires_at <= ?)", (time.time(),))
-            conn.commit()
-            return bool(
-                sync
-                and int(sync[0]) == 2
-                and journal
-                and str(journal[0]).lower() == "wal"
-                and table
-                and _storage_available(conn)
-                and _identity_cutover_ready(conn)
-            )
-        except (OSError, sqlite3.Error, TypeError, ValueError):
-            try:
-                if conn is not None:
-                    conn.rollback()
-            except Exception:
-                pass
-            return False
+            if conn is not None:
+                conn.rollback()
+        except Exception:
+            pass
+        return False
 
 
 def _migrate_columns(conn: sqlite3.Connection) -> None:
@@ -470,6 +512,9 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
 
 
 def _identity_cutover_ready(conn: sqlite3.Connection) -> bool:
+    if conn.execute("SELECT 1 FROM replay_meta WHERE key = ?",
+                    ("external_authority_id",)).fetchone():
+        return False
     legacy = conn.execute(
         "SELECT 1 FROM settle_ledger WHERE fingerprint_version < ? LIMIT 1",
         (FINGERPRINT_VERSION,),
@@ -505,8 +550,21 @@ def reset() -> None:
     """Drop memory and the sqlite file (tests)."""
     with _lock:
         _clear_memory_locked()
+        if backend_name() != "sqlite" or (_store is not None and not isinstance(_store, SQLiteStore)):
+            _close_store_locked()
+            return
         path = _conn_path or db_path()
-        _close_conn_locked()
+        # A test reset must never erase a fenced source or production authority.
+        if not _test_support() or os.path.realpath(path) == os.path.realpath(VOLUME_DB):
+            _close_store_locked()
+            return
+        if os.path.exists(path):
+            conn = _connect()
+            if conn.execute("SELECT 1 FROM replay_meta WHERE key = ?",
+                            ("external_authority_id",)).fetchone():
+                _close_store_locked()
+                return
+        _close_store_locked()
         for p in (path, path + "-wal", path + "-shm"):
             try:
                 os.remove(p)
@@ -518,7 +576,7 @@ def reset_memory() -> None:
     """Drop process-local maps only. Sqlite stays. Tests simulate restart."""
     with _lock:
         _clear_memory_locked()
-        _close_conn_locked()
+        _close_store_locked()
 
 
 def _sanitize_outcome(result: tuple) -> tuple:
@@ -682,13 +740,8 @@ def _ledger_lookup(
     success and never authorize a second settle.
     """
     try:
-        conn = _connect()
-        row = conn.execute(
-            "SELECT state, outcome_json, fingerprint_version, scope_hash, expires_at "
-            "FROM settle_ledger WHERE fp_hash = ?",
-            (fp_hash,),
-        ).fetchone()
-    except (OSError, sqlite3.Error, TypeError, ValueError):
+        row = _selected_store_locked().lookup(fp_hash)
+    except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
         return "reject", None
     if row is None:
         return "missing", None
@@ -717,70 +770,30 @@ def _ledger_lookup(
 
 
 def _ledger_reserve(fp_hash: str, scope_hash: str | None = None, expires_at: float | None = None) -> str:
-    """INSERT settlement_pending. run or reject. UNIQUE is the inter-process lock."""
-    conn = None
+    """Only an acknowledged committed admission allows an economic action."""
     try:
-        conn = _connect()
-        if not _identity_cutover_ready(conn):
-            return "reject"
-        conn.execute("BEGIN IMMEDIATE")
-        conn.execute("UPDATE settle_ledger SET outcome_json = NULL WHERE outcome_json IS NOT NULL AND (expires_at IS NULL OR expires_at <= ?)", (time.time(),))
-        if not _storage_available(conn):
-            conn.rollback()
-            return "reject"
-        conn.execute(
-            "INSERT INTO settle_ledger "
-            "(fp_hash, state, outcome_json, created_at, fingerprint_version, scope_hash, expires_at) "
-            "VALUES (?, ?, NULL, ?, ?, ?, ?)",
-            (fp_hash, STATE_PENDING, time.time(), FINGERPRINT_VERSION, scope_hash, expires_at if expires_at is not None else time.time() + COMPLETED_TTL_SECONDS),
-        )
-        conn.commit()
-        return "run"
-    except sqlite3.IntegrityError:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-        return "reject"
-    except (OSError, sqlite3.Error, TypeError, ValueError):
-        if conn is not None:
-            conn.rollback()
+        expires = expires_at if expires_at is not None else time.time() + COMPLETED_TTL_SECONDS
+        return "run" if _selected_store_locked().reserve(fp_hash, scope_hash, expires) else "reject"
+    except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
         return "reject"
 
 
 def _ledger_finish(fp_hash: str, result: tuple, cache: bool) -> None:
-    conn = None
     try:
-        conn = _connect()
-        if cache:
-            explicit = _explicit_outcome_state(result)
-            if explicit is not None:
-                state = explicit
-            else:
-                # Backward compatibility for outcomes stored before this model.
-                state = STATE_SETTLED if result[0] in (200, 503) else STATE_REJECTED
-            conn.execute(
-                "UPDATE settle_ledger SET state = ?, outcome_json = CASE WHEN scope_hash IS NULL THEN NULL ELSE ? END WHERE fp_hash = ?",
-                (state, _bounded_outcome(result), fp_hash),
-            )
-        else:
-            conn.execute("DELETE FROM settle_ledger WHERE fp_hash = ?", (fp_hash,))
-        conn.commit()
-    except (OSError, sqlite3.Error, TypeError, ValueError):
-        if conn is not None:
-            conn.rollback()
+        state = _explicit_outcome_state(result)
+        if state is None:
+            state = STATE_SETTLED if result[0] in (200, 503) else STATE_REJECTED
+        _selected_store_locked().finish(fp_hash, state, _bounded_outcome(result) if cache else None, cache)
+    except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
+        # Uncertain writes are never retried or moved to another authority.
+        pass
 
 
 def _ledger_mark_unknown(fp_hash: str) -> None:
-    """Abandon stays non-terminal. Do not delete: no second economic action."""
+    """Retain the economic identity when execution is abandoned."""
     try:
-        conn = _connect()
-        conn.execute(
-            "UPDATE settle_ledger SET state = ? WHERE fp_hash = ? AND state IN (?, ?)",
-            (STATE_UNKNOWN, fp_hash, STATE_PENDING, STATE_UNKNOWN),
-        )
-        conn.commit()
-    except (OSError, sqlite3.Error, TypeError, ValueError):
+        _selected_store_locked().abandon(fp_hash)
+    except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
         pass
 
 
@@ -935,12 +948,8 @@ def ledger_state(fp: str) -> str | None:
     fp_hash = durable_hash(fp)
     with _lock:
         try:
-            conn = _connect()
-            row = conn.execute(
-                "SELECT state FROM settle_ledger WHERE fp_hash = ?",
-                (fp_hash,),
-            ).fetchone()
-        except sqlite3.Error:
+            row = _selected_store_locked().lookup(fp_hash)
+        except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
             return STATE_UNKNOWN
     if row is None:
         return None
