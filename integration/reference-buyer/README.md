@@ -18,7 +18,7 @@ Read-only follow-up commands are `recover-router /private/config.json JOB_ID` an
 
 ## Limits
 
-No automatic protocol fallback, new authorization after ambiguity, native gas payment, Permit2, token approval, custom headers, arbitrary seller origins or session top-up. Configuration and injected account/transport/factory are trusted operator code. The reference enforces exact transfer effects before delegating signing, but cannot make a malicious caller-supplied module safe. Read-only reconciliation makes at most three observations within 15 seconds and never resubmits. Base confirmation checks the intended USDC Transfer and AuthorizationUsed nonce, canonical receipt block and a second block, and rejects any additional USDC debit from this buyer; this is not a finality guarantee. Never describe a synthetic test or an unpaid 402 challenge as a completed external purchase.
+No automatic protocol fallback, new authorization after ambiguity, native gas payment, Permit2, token approval, custom headers, arbitrary seller origins or session top-up. Configuration and injected account/transport/factory are trusted operator code. The reference enforces exact transfer effects before delegating signing, but cannot make a malicious caller-supplied module safe. Read-only reconciliation makes at most six observations within 15 seconds and never resubmits. Base confirmation checks the intended USDC Transfer and AuthorizationUsed nonce, canonical receipt block and a second block, and rejects any additional USDC debit from this buyer; this is not a finality guarantee. Never describe a synthetic test or an unpaid 402 challenge as a completed external purchase.
 
 ## Verification
 

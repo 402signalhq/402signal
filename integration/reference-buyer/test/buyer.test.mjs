@@ -183,6 +183,7 @@ function setup(options = {}) {
     fetch: fetchImpl,
     rpc,
     now: () => selected.now,
+    confirmationIntervalMs: 0,
     ...options.buyerOptions,
   });
   const q = {
@@ -897,3 +898,43 @@ for (const field of ["from", "to", "value", "validAfter", "validBefore", "nonce"
     }
   });
 }
+
+test("fourth independent observation confirms without any additional signing or submission", async () => {
+  const s = setup();
+  try {
+    s.buyer.reserve("job", agentsToolsSearch(fixture.query));
+    await s.buyer.signRouting("job", wire(s.q));
+    let observations = 0;
+    const buyer = new BaseBuyer({
+      account: s.account, journal: s.journal, policy: s.policy,
+      now: () => fixture.now, confirmationIntervalMs: 0,
+      fetch: () => assert.fail("confirmation cannot submit HTTP payment"),
+      rpc: async (method, params) => {
+        if (method === "eth_getTransactionReceipt" && ++observations <= 3) return null;
+        return s.rpc(method, params);
+      },
+    });
+    assert.equal(await buyer.confirmRouting("job", s.outcome), true);
+    assert.equal(observations, 4);
+    assert.ok(s.journal.get("job", "router_confirmation"));
+    assert.deepEqual(s.counts(), { signatures: 1, paid: 0, unpaid: 0 });
+  } finally { s.close(); }
+});
+test("six pending observations remain unknown without releasing signing authority", async () => {
+  const s = setup();
+  try {
+    s.buyer.reserve("job", agentsToolsSearch(fixture.query));
+    await s.buyer.signRouting("job", wire(s.q));
+    let observations = 0;
+    const buyer = new BaseBuyer({account:s.account,journal:s.journal,policy:s.policy,
+      confirmationIntervalMs:0,fetch:()=>assert.fail(),rpc:async(method,params)=>{
+        if(method === "eth_getTransactionReceipt"){ observations++; return null; }
+        return s.rpc(method,params);
+      }});
+    assert.equal(await buyer.confirmRouting("job",s.outcome),false);
+    assert.equal(observations,6);
+    assert.equal(s.journal.get("job","router_confirmation"),undefined);
+    await assert.rejects(buyer.signRouting("job",wire(s.q)),/stage_already_claimed/);
+    assert.deepEqual(s.counts(),{signatures:1,paid:0,unpaid:0});
+  } finally {s.close();}
+});
