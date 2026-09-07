@@ -203,3 +203,17 @@ test('empty discovery extension marker is explicitly restored without discarding
   assert.deepEqual(JSON.parse(Buffer.from(made.header.value,'base64')).extensions,{bazaar:{}});
   assert.equal(calls.length,1);
 });
+
+test('header padding remains bounded and canonical',async()=>{
+  for(const suffix of ['','=', '==']) {
+    const value=fixture();
+    const wire=value.challenge.paymentRequired;
+    const end=wire.indexOf('=');
+    value.challenge.paymentRequired=(end<0?wire:wire.slice(0,end))+suffix;
+    await prepared(value);
+  }
+  for(const wire of ['='.repeat(32768),'A'.repeat(32766)+'===','A=A','A']) {
+    const value=fixture();value.challenge.paymentRequired=wire;
+    await assert.rejects(prepared(value));
+  }
+});

@@ -36,7 +36,8 @@ function address(value) {
 function decodeHeader(value) {
   check(typeof value==='string'&&value.length>0&&value.length<=HEADER_MAX&&/^[A-Za-z0-9+/]+={0,2}$/.test(value),'invalid_payment_required');
   const bytes=Buffer.from(value,'base64');
-  check(bytes.toString('base64').replace(/=+$/,'')===value.replace(/=+$/,''),'invalid_payment_required');
+  const withoutPadding = text => {const end=text.indexOf('=');return end<0?text:text.slice(0,end);};
+  check(withoutPadding(bytes.toString('base64'))===withoutPadding(value),'invalid_payment_required');
   let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{throw new MppInteropError('invalid_payment_required');}
   return strictJson(text,HEADER_MAX);
 }
