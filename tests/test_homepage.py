@@ -132,7 +132,7 @@ class _DocParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         classes = (attrs.get("class") or "").split()
-        if tag == "nav":
+        if tag == "nav" and attrs.get("aria-label") == "Primary":
             self._in_nav = True
             self._nav_depth = 1
         elif self._in_nav:
@@ -245,8 +245,8 @@ class HomepageProductTests(unittest.TestCase):
         self.assertEqual(parsed.h1, ["Check the deal before your agent pays."])
         self.assertNotIn("<h1>402Signal</h1>", html)
         self.assertEqual(html.count("<h1"), 1)
-        self.assertIn("402Signal · Find a paid API that works right now", html)
-        self.assertIn("x402 lets software pay for APIs one request at a time.", html)
+        self.assertIn("402Signal · Check before your agent pays", html)
+        self.assertIn("x402 lets software pay for APIs.", html)
         self.assertIn("Your app keeps the wallet.", html)
         self.assertIn("Base · Solana · Algorand", html)
         self.assertIn("View the quick start", html)
@@ -258,7 +258,7 @@ class HomepageProductTests(unittest.TestCase):
         self.assertIn("Pay for a qualifying route.", html)
         self.assertIn("It does not guarantee delivery", html)
         self.assertIn("Authorize $0.003 USDC.", html)
-        self.assertIn("Normal typed misses are not settled", html)
+        self.assertIn("Normal misses have no routing charge", html)
         self.assertIn("Seller payment is separate.", html)
         self.assertIn("Connect through HTTP or MCP.", html)
         self.assertNotIn('<pre class="code">', html)
@@ -282,11 +282,11 @@ class HomepageProductTests(unittest.TestCase):
         self.assertNotIn("Latest confirmed Tree", html)
         self.assertNotIn("Algorand MainNet log · awaiting first confirmed checkpoint", html)
         self.assertIn("A record of what was checked.", html)
-        self.assertIn("402Signal records routing evidence in an append-only Merkle log.", html)
-        self.assertIn("Falcon-1024 authorizes the checkpoint transaction.", html)
+        self.assertIn("Check later whether that record has changed.", html)
+        self.assertIn("Store your verification record securely.", html)
         self.assertIn('class="pq-trust"', html)
         self.assertNotIn("pq-testnet", html)
-        self.assertIn("Inspect the latest checkpoint", html)
+        self.assertIn('href="/transparency">transparency page</a>', html)
         self.assertIn("Algorand MainNet", html)
         self.assertNotIn('class="signal-flow"', html)
         self.assertNotIn('class="trust-rail"', html)
@@ -306,19 +306,47 @@ class HomepageProductTests(unittest.TestCase):
         self.assertIn('src="/hero-routing.png"', html)
         self.assertIn('alt="A highlighted route selected from a network of possible API paths."', html)
         self.assertIn("PQ Trust", html)
-        self.assertIn("Cumulative checkpoints are anchored on Algorand MainNet with native Falcon-1024 authorization.", html)
+        self.assertIn("Checkpoints are anchored on Algorand MainNet.", html)
         self.assertNotIn('class="hero-trust-note"', html)
         self.assertNotIn("Falcon", _parse(html).h1[0])
+
+    def test_refresh_preserves_buyer_control_and_qualification_boundaries(self):
+        for snippet in (
+            'per qualifying API observation',
+            'Normal misses have no routing charge',
+            'Your app keeps the wallet.',
+            'A later guard rejection does not reverse a settled routing fee',
+        ):
+            self.assertIn(snippet, self.home)
+        for snippet in (
+            'npm install ./402signal-route-guard-0.5.0.tgz',
+            'This archive is not an npm registry release',
+            'client.recover(attemptId)',
+            'they are not customer wallet keys',
+            'parallel-search-json-v1',
+            'It is not a general POST proxy',
+            'Live paid qualification is still in progress.',
+            'Native MPP push sessions',
+            'does not claim cross-channel batch settlement',
+            'two USDC payments to the same recipient',
+            'An ordinary exact-payment receipt does not authorize a batch or session',
+        ):
+            self.assertIn(snippet, self.devs)
+        self.assertIn('rel="canonical" href="https://402signal.com/"', self.home)
+        self.assertIn('property="og:url" content="https://402signal.com/"', self.home)
+        for path, text in self.pages.items():
+            self.assertIn('href="/.well-known/security.txt"', text, path)
+            self.assertIn('href="https://github.com/402signalhq/402signal/blob/main/LICENSE"', text, path)
 
     def test_plain_language_home_preserves_v4_boundaries(self):
         for phrase in (
             "$0.023 combined, before any network fees",
-            "optional v4 protection integrated into your app",
-            "a local guard compares the fresh seller offer",
+            "Integrate the optional buyer guard",
+            "compare a fresh seller offer",
             "Your wallet still validates and signs the actual transaction",
-            "A pending record is not yet confirmed on-chain",
+            "Pending records are not yet confirmed on-chain",
             "It does not guarantee delivery or the quality of the weather data",
-            "securely keep the verification record",
+            "Store your verification record securely",
         ):
             self.assertIn(phrase, self.home)
         self.assertNotIn("payment/data never passes through", self.home)
@@ -339,7 +367,7 @@ class HomepageProductTests(unittest.TestCase):
             "/": "Check the deal before your agent pays.",
             "/catalog": "Explore paid APIs",
             "/how": "What happens during a route check",
-            "/developers": "Call POST /route",
+            "/developers": "Check an offer before your buyer signs.",
             "/contact": "Contact 402Signal",
             "/transparency": "Routing history you can verify",
         }
@@ -765,7 +793,7 @@ class HomepageProductTests(unittest.TestCase):
         contact = _read("contact.html")
         self.assertNotIn("<form", contact)
         self.assertNotIn("<script", contact)
-        self.assertIn("Do not send private keys, mnemonics, payment credentials, or other secrets.", contact)
+        self.assertIn("Do not send private keys, seed phrases, payment authorizations, access credentials or private verification records.", contact)
 
     def test_contact_page(self):
         status, html, hdrs = _get_full(self.port, "/contact")
@@ -976,8 +1004,8 @@ class HomepageProductTests(unittest.TestCase):
     def test_pq_customer_retention_disclosure_is_everywhere(self):
         from live402 import discover, mcp, payment, schema_fields
 
-        self.assertIn("securely keep the verification record", self.home)
-        self.assertIn("Private replay outcomes can retain", self.home)
+        self.assertIn("Store your verification record securely", self.home)
+        self.assertIn('href="/transparency">transparency page</a>', self.home)
         self.assertNotIn("does not retain the private evidence", self.home)
         self.assertIn("Private replay records can retain", self.insight)
         self.assertIn("securely retain the complete paid", self.how)
@@ -1022,10 +1050,10 @@ class HomepageProductTests(unittest.TestCase):
         self.assertIn("docs/route-recovery.md", readme)
 
     def test_seo_titles(self):
-        self.assertIn("<title>402Signal · Find a paid API that works right now</title>", self.home)
+        self.assertIn("<title>402Signal · Check before your agent pays</title>", self.home)
         self.assertIn("<title>Explore paid APIs</title>", self.catalog)
-        self.assertIn("<title>How 402Signal routes x402 requests</title>", self.how)
-        self.assertIn("<title>402Signal developer guide · POST /route</title>", self.devs)
+        self.assertIn("<title>How 402Signal checks a paid API offer</title>", self.how)
+        self.assertIn("<title>Integrate a pre-spend check · 402Signal</title>", self.devs)
         self.assertIn("<title>Contact 402Signal</title>", self.contact)
         self.assertIn("<title>Routing history you can verify</title>", self.transparency)
 
@@ -1225,10 +1253,10 @@ class HomepageProductTests(unittest.TestCase):
             "PQ-safe",
             "merchant payments PQ-safe",
         )
-        self.assertIn("Falcon-1024", self.home)
+        self.assertNotIn("Falcon-1024", self.home)
         self.assertIn("post-quantum", self.transparency.lower())
         self.assertIn("Falcon-1024 account", self.transparency)
-        self.assertEqual(self.home.lower().count("post-quantum"), 1)
+        self.assertEqual(self.home.lower().count("post-quantum"), 0)
         self.assertNotIn("post-quantum", self.how.lower())
         self.assertIn("PQ Trust", self.devs)
         self.assertIn("Falcon-1024", self.devs)

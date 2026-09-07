@@ -3,25 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>402Signal developer guide · POST /route</title>
-  <meta name="description" content="Use POST /route or MCP to search, check, and select an x402 payment route." />
+  <title>Integrate a pre-spend check · 402Signal</title>
+  <meta name="description" content="Add 402Signal to an agent buyer with HTTP, MCP and an installable client. Verify the observed offer before your own wallet signs." />
   <link rel="canonical" href="https://402signal.com/developers" />
-  <meta property="og:title" content="402Signal developer guide · POST /route" />
-  <meta property="og:description" content="Use POST /route or MCP to search, check, and select an x402 payment route." />
+  <meta property="og:title" content="Integrate a pre-spend check · 402Signal" />
+  <meta property="og:description" content="Add 402Signal to an agent buyer with HTTP, MCP and an installable client. Verify the observed offer before your own wallet signs." />
   <meta property="og:url" content="https://402signal.com/developers" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="402Signal" />
   <meta property="og:image" content="https://402signal.com/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="402Signal developer guide · POST /route" />
-  <meta name="twitter:description" content="Use POST /route or MCP to search, check, and select an x402 payment route." />
+  <meta name="twitter:title" content="Integrate a pre-spend check · 402Signal" />
+  <meta name="twitter:description" content="Add 402Signal to an agent buyer with HTTP, MCP and an installable client. Verify the observed offer before your own wallet signs." />
   <meta name="twitter:image" content="https://402signal.com/og.png" />
   <meta name="twitter:site" content="@402Signal" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page developer-page">
     <header class="site">
       <a class="brand" href="/">
         <span class="mark">402</span>
@@ -35,134 +38,136 @@
       </nav>
     </header>
 
-    <main>
-      <section class="hero compact">
-        <p class="eyebrow">Developer guide</p>
-        <h1>Call POST /route</h1>
-        <p class="lede hero-copy">Send what your agent needs and the rules a route must meet. 402Signal searches and checks candidates, then returns one observed payment option or a typed miss.</p>
-        <p class="boundary-line">Your application keeps its wallet, signs the seller payment, and calls the selected service.</p>
+    <main id="main">
+<section class="hero compact">
+        <p class="eyebrow">For agent runtimes, SDKs and MCP clients</p>
+        <h1>Check an offer before your buyer signs.</h1>
+        <p class="lede hero-copy">Send what your agent needs and the rules a route must meet. Get a qualifying route or a typed miss, then keep the final payment decision in your application.</p>
+        <p>Your wallet and private keys stay in your runtime. The client handles the route attempt and evidence; your payment code authorizes and signs.</p>
+        <nav class="page-links" aria-label="Developer sections"><a href="#quickstart">Quick start</a><a href="#route-binding">Verify before signing</a><a href="#recovery">Recover an attempt</a><a href="#batch-support">Batch scope</a><a href="#pq-trust">Keep evidence</a></nav>
       </section>
-
       <section class="block quickstart" id="quickstart">
-        <p class="eyebrow">Quick start</p>
-        <h2>Send an unpaid request first</h2>
-        <p>This returns HTTP 402 and a <code>PAYMENT-REQUIRED</code> header with Base, Solana, and Algorand options to authorize $0.003 USDC.</p>
-        <pre class="code">curl -sS -D - https://402signal.com/route \
+        <p class="eyebrow">1. Get the advertised routing fee</p><h2>Call POST /route</h2>
+        <p>Send an unpaid request first. This returns HTTP 402 with the current payment requirements; it does not authorize or settle a payment.</p>
+        <pre class="code"><code>curl -sS -D - https://402signal.com/route \
   -H 'Content-Type: application/json' \
-  -d '{"need":"weather data","max_price_usd":0.02}'</pre>
-        <p>Sign one authorization, then retry the same request with <code>PAYMENT-SIGNATURE</code>. Include a private <code>Replay-Key</code> of 32 random bytes encoded as lowercase hex if you need to recover the response after a connection failure. Keep the key and request unchanged; recovery expires after 120 seconds and never grants a second charge. 402Signal verifies payment before probing and settles it only after finding a valid live eligible route. A completed normal miss returns HTTP 200 with <code>live:false</code>, <code>payable:false</code>, <code>selected_payment:null</code> and <code>billing.settlement_state=not_attempted</code>; it is not settled.</p>
-      </section>
+  --data '{"need":"web search","networks":["base"],"max_price_usd":0.02,"require_route_binding":true}'</code></pre>
+        <p>Validate the returned requirements and authorize the $0.003 USDC routing fee using your buyer's wallet. Submit the identical JSON with the resulting <code>PAYMENT-SIGNATURE</code>. Do not send wallet secrets to 402Signal.</p>
+        <p class="scope-note">$0.003 only when a valid live route is found. Normal typed misses are not settled. Seller payment is separate.</p>
+        <h3>Install the client and guard</h3>
+        <p>Use the reviewed <a href="https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0" rel="noopener noreferrer">v0.5.0 release archive</a>, verify its published digest, then install it locally. Node.js 22 or newer is required. This archive is not an npm registry release.</p>
+        <pre class="code"><code>npm install ./402signal-route-guard-0.5.0.tgz</code></pre>
+        <p>The package exports <code>@402signal/route-guard/client</code>, <code>/file-store</code>, the exact-payment guard and the separate <code>/batch</code> guard. The private file store needs a supported POSIX filesystem, such as the buyer's Linux or WSL environment.</p>
+        <pre class="code"><code>import { RouteClient } from '@402signal/route-guard/client';
+import { FileAttemptStore } from '@402signal/route-guard/file-store';
 
-      <section class="block request-options">
-        <h2>What you can send</h2>
-        <p>Use <code>need</code> to discover and rank services. Use <code>url</code> to check one specific HTTPS endpoint. Either field is enough, and both can be used together.</p>
-        <div class="code-pair">
-          <div><p class="label">Discover and rank</p><pre class="code">{
+const client = new RouteClient({
+  store: new FileAttemptStore('/private/buyer/route-attempts'),
+  recoveryProfile: 'http-route-v1'
+});
+
+await client.prepare(attemptId, JSON.stringify({
+  need: 'web search', require_route_binding: true
+}));
+const challenge = await client.challenge(attemptId);
+// Your wallet checks the quote and budget, then signs.
+await client.setPaymentHeader(attemptId, { value: signedHeader });
+const outcome = await client.submit(attemptId);</code></pre>
+        <p><code>attemptId</code> is your durable, unique operation identifier. <code>signedHeader</code> comes from your own payment code. This example does not implement wallet signing or authorize a seller purchase.</p>
+      </section>
+      <section class="block" id="request">
+        <p class="eyebrow">2. State your requirements</p><h2>What you can send</h2>
+        <div class="code-pair"><div><h3>Discover a capability</h3><pre class="code"><code>{
   "need": "erc20 token balance",
-  "prefer_network": "base",
-  "max_price_usd": 0.05
-}</pre></div>
-          <div><p class="label">Check one endpoint</p><pre class="code">{
-  "url": "https://seller.example/x402"
-}</pre></div>
-        </div>
-        <p class="note">Hard constraints fail closed when a required value is unknown. 402Signal does not silently relax them.</p>
-      </section>
-
-      <section class="block response-guide">
-        <h2>What comes back</h2>
-        <dl class="checks compact">
-          <div><dt>HTTP 200</dt><dd>A completed routing check. A normal miss has <code>live:false</code> and <code>billing.settled=false</code>. A winner has a settled routing authorization, a current qualifying target, the exact observed <code>selected_payment</code>, and <code>billing.settled=true</code>.</dd></div>
-          <div><dt>HTTP 503</dt><dd>Inspect <code>billing.settlement_state</code> before retrying. <code>not_attempted</code> is an unpaid operational failure (or a cached legacy miss); <code>settled</code> can mean required transparency failed after settlement; <code>unknown</code> means settlement may have occurred and the authorization must not be reused.</dd></div>
-          <div><dt>Payment boundary</dt><dd>$0.003 only when a valid live route is found. Normal typed misses are not settled. Seller payment is separate.</dd></div>
-        </dl>
-      </section>
-
-      <section class="block" id="route-binding">
-        <p class="eyebrow">Optional route binding</p>
-        <h2>Check the seller's terms before signing</h2>
-        <p>Add <code>"require_route_binding": true</code> to your initial route request. A successful response includes a signed v4 receipt and a <code>decision_binding</code> for the observed seller URL, HTTP method, exact request-body hash and complete x402 payment offer. The routing fee remains $0.003 USDC. Without this flag, requests keep the existing v3 receipt path.</p>
-        <pre class="code">{
-  "need": "weather data",
+  "networks": ["base"],
   "max_price_usd": 0.02,
+  "require_invocable": true,
   "require_route_binding": true
-}</pre>
-        <ol>
-          <li>Keep your actual route request and the complete response as raw JSON text. Preserve the private receipt and reveal outside public logs.</li>
-          <li>Pin the production log verification key through trusted configuration. Do not trust a key supplied by the same route response you are checking.</li>
-          <li>Use your own HTTP client to fetch the seller's unpaid 402 challenge with the same URL, method and body bytes. Disable redirects and keep the raw response body and payment-required headers.</li>
-          <li>Run the local verifier immediately before your payment code. It authenticates the receipt, checks your original route request, and compares the current seller challenge with the bound terms. Pass only the verified terms to your wallet flow.</li>
-        </ol>
-        <p>The <a href="https://github.com/402signalhq/402signal/tree/main/sdk/route-guard">Node/TypeScript guard</a> requires Node 22 or newer and has no runtime dependencies. Use its source from this repository; it is not published to npm. A <a href="https://github.com/402signalhq/402signal/blob/main/docs/proof-carrying-route-v1.md#python-verifier">Python verifier</a> is also included. Neither verifier holds keys, makes network requests or executes a payment. Your wallet must still validate the transaction and enforce spending limits and durable replay protection.</p>
-        <p class="note"><strong>Supported profile:</strong> exact x402 v2 offers on Base, Solana and Algorand, observed through GET without a body or a justified POST with exactly <code>{}</code>. The default freshness window is 60 seconds from observation. Redirects, changed requests, unknown extensions and expired evidence fail closed. Personalized or rotating offers and arbitrary POST bodies may not qualify. Repeat verification after a human approval delay; never fall back to unguarded payment.</p>
-        <p class="note"><strong>Billing:</strong> an unprovable required binding before settlement returns HTTP 503 with <code>billing.settlement_state=not_attempted</code>; it is not charged. If the routing fee was already settled, a later expired or changed seller challenge does not undo that charge. This flag also requires transparency: a receipt failure after settlement returns HTTP 503 with <code>billing.settled=true</code>. Do not retry settlement to repair a receipt.</p>
-        <p><a href="https://github.com/402signalhq/402signal/blob/main/docs/proof-carrying-route-v1.md">Full contract, offline examples and verification limits</a></p>
+}</code></pre></div><div><h3>Check one endpoint</h3><pre class="code"><code>{
+  "url": "https://seller.example/x402",
+  "require_route_binding": true
+}</code></pre></div></div>
+        <p>A required network excludes other networks; <code>prefer_network</code> only influences ranking. Price, response-time and invocation constraints remain separate. Unknown costs cannot satisfy a required total-cost cap.</p>
+        <p>Use the <a href="/catalog">free request builder</a> for supported filters, or the <a href="/openapi.json">OpenAPI schema</a> for the complete contract. HTTP probe time is not settlement latency.</p>
+        <h3>Supported exact request bodies</h3>
+        <p>The ordinary guard covers observed GET requests and the narrowly justified empty-object POST fallback. A separate opt-in profile permits one reviewed search request at <code>https://parallelmpp.dev/api/search</code>.</p>
+        <pre class="code"><code>{
+  "url": "https://parallelmpp.dev/api/search",
+  "networks": ["base"],
+  "max_price_usd": 0.01,
+  "require_invocable": true,
+  "require_route_binding": true,
+  "probe_request": {
+    "profile": "parallel-search-json-v1",
+    "method": "POST",
+    "body": "{\"query\":\"x402 payment protocol\",\"mode\":\"one-shot\"}"
+  }
+}</code></pre>
+        <p>The exact JSON string is bound to the observation. This profile accepts only a nonempty query of at most 300 characters and <code>mode:"one-shot"</code>, within 4 KiB. It sends that body only to the designated endpoint, with no arbitrary caller headers. It is not a general POST proxy.</p>
       </section>
+      <section class="block" id="route-binding">
+        <p class="eyebrow">3. Verify, then let your wallet decide</p><h2>Compare the current offer before signing</h2>
+        <p>Set <code>"require_route_binding": true</code> to require a signed v4 receipt for a supported exact x402 observation. The record binds the route request, seller URL, method, exact body hash and complete observed payment offer.</p>
+        <p>Keep the raw route response and original route request. Immediately before signing, obtain the seller's current unpaid challenge and call <code>withVerifiedRoute</code> with an independently trusted log verification key.</p>
+        <pre class="code"><code>import { withVerifiedRoute } from '@402signal/route-guard';
 
-      <section class="block pq-developer" id="pq-trust">
-        <p class="eyebrow">PQ Trust</p>
-        <h2>Make routing evidence part of the response</h2>
-        <p>Set <code>"require_transparency": true</code> when a settled winner must include a durable log leaf and signed checkpoint. A free miss creates no route-decision leaf. If settlement succeeds but the required receipt then cannot be produced, 402Signal returns a fail-closed HTTP 503 whose billing object still truthfully reports <code>settled=true</code>; it does not settle again or call the request free.</p>
-        <p>A lost or malformed facilitator settlement response is different: HTTP 503 reports <code>settlement_state=unknown</code> and <code>settled=null</code>. Do not reuse that authorization or assume the routing fee was not paid.</p>
-        <p>The response includes <code>receipt</code> and <code>reveal</code> under <code>pq_trust.transparency</code>. The immediate checkpoint signature is Ed25519. The separate automation controller batches routing evidence into cumulative checkpoints anchored on Algorand MainNet with native Falcon-1024 authorization. The route call does not wait for chain confirmation. A pending receipt is not a confirmed Falcon anchor.</p>
-        <p class="note"><strong>Keep the verification record:</strong> securely retain the complete paid <code>/route</code> response, including <code>compared[]</code>. At minimum, later verification requires both <code>pq_trust.transparency.receipt</code> and <code>pq_trust.transparency.reveal</code>. Private replay outcomes can retain the reveal; they are not a recovery service. Keep your own copy. A modified copy will fail verification against the public log. Because the reveal contains private request and decision evidence, do not put it in public logs.</p>
-        <p class="pq-boundary"><strong>Scope:</strong> Falcon-1024 authorizes the checkpoint transaction. It does not authorize or secure the seller payment.</p>
-        <p><a href="/transparency">Inspect checkpoints and verification details</a></p>
+await withVerifiedRoute({
+  routeResponseJson, routeRequestJson, trustedLogVkey,
+  request: { url, method, body: exactRequestBytes },
+  challenge: { status: 402, bodyText, paymentRequired }
+}, async verified =&gt; {
+  // Your buyer checks the actual transaction and budget
+  // against verified.accepted, then signs in its own wallet.
+});</code></pre>
+        <p>The guard verifies the log signature and inclusion proof, request binding, observed terms and freshness. It rejects altered or expired evidence before invoking your callback. The default observation window is 60 seconds; check the receipt's actual expiry.</p>
+        <p class="scope-note">The callback is a permission boundary in your application, not an automatic payment guarantee. Independently validate the actual transaction, reserve the budget and prevent duplicate seller sends. A valid receipt does not guarantee delivery, establish output quality or reverse the routing fee.</p>
+        <p>Historical <code>verifyReceipt</code> checks evidence integrity after expiry. It does not authorize a fresh purchase. The x402 adapter for <code>mppx</code> handles gateway challenges; it is separate from native MPP sessions.</p>
       </section>
-
-      <section class="block">
-        <h2>API and agent endpoints</h2>
+      <section class="block" id="recovery">
+        <p class="eyebrow">4. Retain one attempt until its outcome is known</p><h2>Recover a lost response without a fresh payment</h2>
+        <p>The durable client records the exact request, payment header and private recovery credentials before its ordinary paid submission. Reopening the same attempt enters recovery instead of silently creating another authorization.</p>
+        <pre class="code"><code>const recovered = await client.recover(attemptId);</code></pre>
+        <p>Protect the attempt store as private credentials. A payment authorization is sensitive even though it is not a wallet private key. Optional customer access credentials identify an integration; they are not customer wallet keys.</p>
         <dl class="checks compact">
-          <div>
-            <dt>POST /route</dt>
-            <dd>Paid search, check, policy, and selection</dd>
-          </div>
-          <div>
-            <dt>GET /preview</dt>
-            <dd>Free discovery search without a new endpoint check</dd>
-          </div>
-          <div>
-            <dt>GET /rails</dt>
-            <dd>Supported payment rails</dd>
-          </div>
-          <div>
-            <dt>GET /openapi.json</dt>
-            <dd>OpenAPI specification</dd>
-          </div>
-          <div>
-            <dt>GET /mcp.json</dt>
-            <dd>MCP manifest</dd>
-          </div>
-          <div>
-            <dt>POST /mcp</dt>
-            <dd>MCP JSON-RPC</dd>
-          </div>
-          <div>
-            <dt>GET /transparency</dt>
-            <dd>Transparency log</dd>
-          </div>
+          <div><dt>Completed miss</dt><dd>A completed normal miss returns HTTP 200 with <code>live:false</code>, <code>payable:false</code>, <code>selected_payment:null</code> and <code>billing.settlement_state=not_attempted</code>. No routing settlement was attempted.</dd></div>
+          <div><dt>Operational or uncertain outcome</dt><dd>HTTP 503 can represent incomplete evaluation, a required evidence failure after settlement, or unknown settlement. Inspect <code>billing.settlement_state</code> before retrying. Do not reuse an unknown authorization or treat an unread response as proof that no payment occurred.</dd></div>
+          <div><dt>Recovery unavailable</dt><dd>Reconcile the original authorization using read-only chain evidence. Keep the reserved budget until the outcome is established; do not generate another seller payment as a recovery shortcut.</dd></div>
         </dl>
       </section>
-
-      <section class="block">
-        <h2>Use it through MCP</h2>
-        <p>The <code>route</code> tool uses the same payment and routing flow.</p>
-        <pre class="code">POST https://402signal.com/mcp
-
-{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"route","arguments":{"need":"weather data"}}}</pre>
+      <section class="block" id="batch-support">
+        <p class="eyebrow">Release qualification</p><h2>Batch offers need their own evidence</h2>
+        <p class="scope-note"><strong>Supported profiles:</strong> Base batch settlement, Solana MPP push sessions and Algorand two-item atomic groups. Live paid qualification is still in progress. An ordinary exact-payment receipt does not authorize a batch or session.</p>
+        <div class="table-scroll"><table class="support-table"><caption>Bounded profiles; lab examples use controlled merchants</caption><thead><tr><th scope="col">Network</th><th scope="col">Profile being qualified</th><th scope="col">Scope</th></tr></thead><tbody>
+          <tr><th scope="row">Base</th><td>EVM batch settlement</td><td>Explicit channel terms and buyer caps. A voucher acceptance is distinct from an on-chain payout.</td></tr>
+          <tr><th scope="row">Solana</th><td>Native MPP push sessions</td><td>Buyer-owned opening, signed vouchers and closing. This does not claim cross-channel batch settlement.</td></tr>
+          <tr><th scope="row">Algorand</th><td>Two-item atomic grouping</td><td>One exact HTTPS GET endpoint, two USDC payments to the same recipient, explicit item and total caps and job hashes.</td></tr>
+        </tbody></table></div>
+        <p>The separate v5 batch evidence model binds a supported merchant profile, full observed offer and buyer limits. Profile-specific buyer adapters still validate and sign their own transactions.</p>
+        <p>The routing check is one qualifying API observation at $0.003. Merchant charges, channel deposits, fees and rent remain separate. This is not a promise that arbitrary batches, endpoints or group sizes are supported.</p>
       </section>
-
-      <section class="block quiet">
-        <p class="link-row">
-          <a href="/openapi.json">OpenAPI</a>
-          <a href="/mcp.json">MCP</a>
-          <a href="/llms.txt">llms.txt</a>
-          <a href="/.well-known/x402.json">x402 discovery</a>
-          <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-        </p>
+      <section class="block pq-developer" id="pq-trust">
+        <p class="eyebrow">PQ Trust</p><h2>Make routing evidence part of the response</h2>
+        <p>Use <code>"require_transparency": true</code> when evidence is required without the exact-request guard. Bound routes require their own signed evidence. Inspect <code>pq_trust.transparency</code> rather than treating an HTTP success as proof of log inclusion.</p>
+        <p><strong>Keep the verification record:</strong> retain the full paid response, including <code>pq_trust.transparency.receipt</code> and <code>pq_trust.transparency.reveal</code>, plus your original request. Store it privately; do not put it in public logs.</p>
+        <p>The immediate log receipt uses Ed25519. Cumulative checkpoints use native Falcon-1024 authorization on Algorand MainNet. The route call does not wait for chain confirmation. A pending anchor is not confirmed evidence.</p>
+        <p>The public log commits a fingerprint of the private record. Private replay outcomes can retain the reveal, but are not a recovery service. Retain your own copy and a trusted verification key.</p>
+        <p>Checkpoint verification establishes evidence integrity. It does not authorize or secure the seller payment.</p>
+        <p><a href="/transparency">Inspect the transparency log</a></p>
+      </section>
+      <section class="block" id="interfaces"><h2>HTTP and MCP interfaces</h2>
+        <dl class="checks compact">
+          <div><dt><code>POST /route</code></dt><dd>Paid search, check, policy, and selection</dd></div>
+          <div><dt><code>GET /preview</code></dt><dd>Free discovery search without a new endpoint check</dd></div>
+          <div><dt><code>GET /rails</code></dt><dd>Supported payment rails</dd></div>
+          <div><dt><code>GET /openapi.json</code></dt><dd>OpenAPI specification</dd></div>
+          <div><dt><code>GET /mcp.json</code></dt><dd>MCP manifest</dd></div>
+          <div><dt><code>POST /mcp</code></dt><dd>MCP JSON-RPC</dd></div>
+          <div><dt><code>GET /transparency</code></dt><dd>Transparency log</dd></div>
+        </dl>
+        <p>Start with the <a href="/mcp.json">MCP manifest</a>, <a href="/openapi.json">OpenAPI specification</a> or <a href="/llms.txt">machine-readable guide</a>. Keep buyer authorization and payment recovery explicit in your integration.</p>
+        <p><a class="btn" href="/catalog">Build a request</a> <a class="btn secondary" href="/contact">Get in touch</a></p>
       </section>
     </main>
-
     <footer class="foot">
       <p>402Signal</p>
       <p>
@@ -173,10 +178,12 @@
         <a href="/mcp.json">MCP</a>
         <a href="/transparency">Transparency</a>
         <a href="/contact">Contact</a>
+        <a href="/.well-known/security.txt">Security</a>
+        <a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a>
         <a href="mailto:ross@402signal.com">ross@402signal.com</a>
       </p>
     </footer>
   </div>
-  <script src="/app.js"></script>
+  <script src="/app.js" defer></script>
 </body>
 </html>

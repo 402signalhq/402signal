@@ -68,13 +68,53 @@ issuance, HTTP retries, and replay never reset observation time. The x402
 not used to invent one. Expiry can occur while settling or waiting for approval;
 an expired receipt is unusable, and the original billing result remains accurate.
 
-Current probes send GET without a body, or a justified POST with exactly `{}`.
+Ordinary probes send GET without a body, or a justified POST with exactly `{}`.
 The guard accepts only that same URL, method and body. It does not certify an
-arbitrary input merely because a schema exists. Routes requiring a different
-POST body, redirects, personalized/rotating challenges, unsupported extensions,
-or unresolved natural-language policy may be ineligible. There is no fallback to
-ordinary unguarded execution. Optional binding availability is narrower than
-ordinary routing availability.
+arbitrary input merely because a schema exists. Redirects, personalized/rotating
+challenges, unsupported extensions or unresolved policy may be ineligible. There
+is no fallback to ordinary unguarded execution. Optional binding availability is
+narrower than ordinary routing availability.
+
+### Reviewed search POST profile
+
+`parallel-search-json-v1` is a separate, explicit exception for one reviewed
+read-only search endpoint. The caller supplies the exact URL and raw JSON body;
+there is no discovery fanout for that body and no general POST proxy.
+
+```json
+{
+  "url": "https://parallelmpp.dev/api/search",
+  "networks": ["base"],
+  "max_price_usd": 0.01,
+  "require_invocable": true,
+  "require_route_binding": true,
+  "probe_request": {
+    "profile": "parallel-search-json-v1",
+    "method": "POST",
+    "body": "{\"query\":\"x402 payment protocol\",\"mode\":\"one-shot\"}"
+  }
+}
+```
+
+The URL must match exactly. The profile accepts only `query` (1..300 Unicode
+characters) and `mode` exactly `one-shot`, encoded as a JSON object within 4096
+UTF-8 bytes. Unknown fields, duplicate JSON keys, unsupported methods, malformed
+bodies, another endpoint, or combining the profile with capability discovery
+fail before payment verification or outbound probing. Arbitrary caller headers
+are not accepted. The request uses the same public-address validation, pinned
+DNS connection and bounded admission/probe budgets, with redirects disabled.
+
+The actual method and exact supplied UTF-8 body bytes are retained for the v4
+request hash. The buyer must reproduce those bytes; parsing and reserializing
+the JSON can change whitespace or key order and invalidate the binding. The
+original route request carries the search body in private evidence and bounded
+private response recovery. Do not put that evidence in public logs. Raw search
+bodies are not written to public log leaves or observation history. There is no
+new payment authority, receipt version or seller-fulfillment guarantee.
+
+Other nonempty POST bodies remain unsupported by this profile. Batch/session
+observations use a [separate v5 contract](batch-observation-v1.md); a v4 exact
+receipt does not authorize batch funding or session vouchers.
 
 ## Authentication and privacy
 
@@ -124,8 +164,10 @@ v1-v3 historical leaves and their original verification paths remain unchanged.
 
 For Node/TypeScript, see the [local route guard](../sdk/route-guard/README.md).
 It uses the same signed fixtures and a caller-owned authorization callback, with
-no runtime dependencies or network operations. It is distributed as source in
-this repository and is not published to npm. See the
+no runtime dependencies or network operations. The published [v0.5.0 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0)
+contains the client and offline guard; verify its digest before installation.
+Source is also available in this repository. This is not an npm registry
+publication. See the
 [developer walkthrough](https://402signal.com/developers#route-binding) for the
 request and buyer-side integration sequence.
 
