@@ -35,7 +35,12 @@ def _number(value):
 class Policy:
     def __init__(self, value):
         required = {"version", "window_seconds", "max_keys", "ingress", "unpaid", "target", "customers"}
-        if not isinstance(value, dict) or set(value) != required or value["version"] != 1:
+        if not isinstance(value, dict) or type(value.get("version")) is not int or value["version"] not in (1, 2):
+            raise ValueError("invalid policy")
+        self.version = value["version"]
+        if self.version == 2:
+            required |= {"anonymous_totals", "recovery"}
+        if set(value) != required:
             raise ValueError("invalid policy")
         self.window = _number(value["window_seconds"])
         self.max_keys = value["max_keys"]
@@ -44,6 +49,17 @@ class Policy:
         self.ingress = self._capacities(value["ingress"], {"global", "anonymous"})
         self.unpaid = self._capacities(value["unpaid"], {"global", "anonymous"})
         self.target = self._capacities(value["target"], {"global", "origin", "failures"})
+        self.anonymous_totals = None
+        if self.version == 2:
+            self.anonymous_totals = self._capacities(value["anonymous_totals"], {"ingress", "unpaid"})
+            if (self.anonymous_totals["ingress"] >= self.ingress["global"]
+                    or self.anonymous_totals["unpaid"] >= self.unpaid["global"]):
+                raise ValueError("anonymous capacity must leave shared headroom")
+        self.recovery = self._capacities(value.get("recovery", {
+            "global": 60, "anonymous_total": 45, "anonymous": 6, "customer": 12,
+        }), {"global", "anonymous_total", "anonymous", "customer"})
+        if self.recovery["anonymous_total"] >= self.recovery["global"]:
+            raise ValueError("anonymous recovery must leave shared headroom")
         self.customers = value["customers"]
         if not isinstance(self.customers, dict) or len(self.customers) > self.max_keys // 4:
             raise ValueError("invalid customers")
@@ -93,21 +109,48 @@ class Engine:
         self.started_at = clock() if cold_start else None
         self.lock = threading.Lock()
         self.buckets = {}
+        self.recovery_buckets = {}
+        self.pinned = set()
+        if policy.version == 2:
+            initial = {"ingress:global": policy.ingress["global"],
+                       "unpaid:global": policy.unpaid["global"],
+                       "ingress:anonymous-total": policy.anonymous_totals["ingress"],
+                       "unpaid:anonymous-total": policy.anonymous_totals["unpaid"]}
+            for digest, caps in policy.customers.items():
+                initial["ingress:customer:" + digest] = caps["ingress"]
+                initial["unpaid:customer:" + digest] = caps["unpaid"]
+            self._preallocate(self.buckets, initial)
+            self.pinned = set(initial)
+        initial = {"recovery:global": policy.recovery["global"],
+                   "recovery:anonymous-total": policy.recovery["anonymous_total"]}
+        initial.update({"recovery:customer:" + digest: policy.recovery["customer"]
+                        for digest in policy.customers})
+        self._preallocate(self.recovery_buckets, initial)
+        self.recovery_pinned = set(initial)
 
-    def take(self, specifications):
+    def _preallocate(self, pool, specifications):
+        now = self.clock()
+        for key, capacity in specifications.items():
+            bucket = Bucket(capacity, now)
+            bucket.balance = self._initial_balance(capacity, now)
+            pool[key] = bucket
+
+    def take(self, specifications, *, recovery=False):
         with self.lock:
+            pool = self.recovery_buckets if recovery else self.buckets
+            pinned = self.recovery_pinned if recovery else self.pinned
             now = self.clock()
             requested = dict(specifications)
-            missing = [key for key in requested if key not in self.buckets]
-            if len(self.buckets) + len(missing) > self.policy.max_keys:
-                for key, bucket in list(self.buckets.items()):
+            missing = [key for key in requested if key not in pool]
+            if len(pool) + len(missing) > self.policy.max_keys:
+                for key, bucket in list(pool.items()):
                     bucket.refresh(now, self.policy.window)
-                    if bucket.balance >= bucket.capacity and key not in requested:
-                        del self.buckets[key]
-                if len(self.buckets) + len(missing) > self.policy.max_keys:
+                    if bucket.balance >= bucket.capacity and key not in requested and key not in pinned:
+                        del pool[key]
+                if len(pool) + len(missing) > self.policy.max_keys:
                     return None
             for key, capacity in requested.items():
-                bucket = self.buckets.get(key)
+                bucket = pool.get(key)
                 if bucket is not None:
                     bucket.refresh(now, self.policy.window)
                     if bucket.balance < 1:
@@ -116,11 +159,11 @@ class Engine:
                     return None
             buckets = []
             for key, capacity in requested.items():
-                bucket = self.buckets.get(key)
+                bucket = pool.get(key)
                 if bucket is None:
                     bucket = Bucket(capacity, now)
                     bucket.balance = self._initial_balance(capacity, now)
-                    self.buckets[key] = bucket
+                    pool[key] = bucket
                 bucket.balance -= 1
                 buckets.append(bucket)
             return Lease(self, buckets)
@@ -151,12 +194,28 @@ class Engine:
     def ingress(self, headers, peer):
         identity, customer = self.identity(headers, peer)
         cap = customer["ingress"] if customer else self.policy.ingress["anonymous"]
-        return self.take([("ingress:global", self.policy.ingress["global"]), ("ingress:" + identity, cap)]) is not None
+        specifications = [("ingress:global", self.policy.ingress["global"]), ("ingress:" + identity, cap)]
+        if not customer and self.policy.anonymous_totals is not None:
+            specifications.append(("ingress:anonymous-total", self.policy.anonymous_totals["ingress"]))
+        return self.take(specifications) is not None
 
     def reserve(self, headers, peer):
         identity, customer = self.identity(headers, peer)
         cap = customer["unpaid"] if customer else self.policy.unpaid["anonymous"]
-        return self.take([("unpaid:global", self.policy.unpaid["global"]), ("unpaid:" + identity, cap)])
+        specifications = [("unpaid:global", self.policy.unpaid["global"]), ("unpaid:" + identity, cap)]
+        if not customer and self.policy.anonymous_totals is not None:
+            specifications.append(("unpaid:anonymous-total", self.policy.anonymous_totals["unpaid"]))
+        return self.take(specifications)
+
+    def recover(self, headers, peer):
+        identity, customer = self.identity(headers, peer)
+        cap = self.policy.recovery["customer" if customer else "anonymous"]
+        specifications = [("recovery:global", self.policy.recovery["global"]),
+                          ("recovery:" + identity, cap)]
+        if not customer:
+            specifications.append(("recovery:anonymous-total", self.policy.recovery["anonymous_total"]))
+        # Recovery has its own bounded pool and never replenishes economic work.
+        return self.take(specifications, recovery=True) is not None
 
     def probe(self, url):
         parsed = urlsplit(url)
@@ -241,7 +300,7 @@ def reserve_probe(url):
     return lease
 
 def rejected():
-    return 429, {"error": "work capacity unavailable", "retryable": True}, {"Retry-After": "60", "Cache-Control": "no-store"}
+    return 429, {"error": "work capacity unavailable", "retryable": True, "retry_same_request": True, "new_payment_allowed": False}, {"Retry-After": "60", "Cache-Control": "no-store"}
 
 
 def free_ingress(headers, peer):
@@ -261,5 +320,22 @@ def ready():
     try:
         engine()
         return True
+    except Exception:
+        return False
+
+
+_fallback_recovery = Engine(Policy({
+    "version": 1, "window_seconds": 60, "max_keys": 1024,
+    "ingress": {"global": 1, "anonymous": 1},
+    "unpaid": {"global": 1, "anonymous": 1},
+    "target": {"global": 1, "origin": 1, "failures": 1}, "customers": {},
+}), cold_start=True)
+
+
+def recovery(headers, peer):
+    """Bound retrieval separately; this grants no access to private outcomes."""
+    try:
+        e = engine()
+        return (e if e is not None else _fallback_recovery).recover(headers, peer)
     except Exception:
         return False

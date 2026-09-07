@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from live402 import payment, pulse, schema_fields, validate
+from live402 import payment, pulse, replay, schema_fields, validate
 from live402.route import handle_route
 
 ROUTE_DESCRIPTION = payment.CATALOG_DESCRIPTION
@@ -314,6 +314,8 @@ def _tool_result(req_id, body: dict, code: int, version: str) -> dict:
 
 def handle_mcp(payload: dict, headers, resource_url: str) -> tuple[int, dict | None, dict | None]:
     """Stateless Streamable HTTP JSON responses; x402 remains an HTTP extension."""
+    if replay.recovery_requested(headers):
+        return 400, jsonrpc_error(None, -32600, "recovery_unsupported"), {"Cache-Control": "no-store"}
     version = next((v for k, v in headers.items() if str(k).lower() == "mcp-protocol-version"), "2025-03-26")
     if version not in SUPPORTED_PROTOCOLS:
         return 400, jsonrpc_error(None, -32600, "Unsupported protocol version"), None

@@ -25,6 +25,7 @@ import re
 import sqlite3
 import threading
 import time
+from pathlib import Path
 
 from live402 import clock, payment
 from live402.route_outcomes import is_normal_miss
@@ -37,6 +38,12 @@ MAX_LEDGER_ROWS = 100_000
 MAX_LEDGER_BYTES = 256 * 1024 * 1024
 MIN_FREE_BYTES = 64 * 1024 * 1024
 REPLAY_KEY_HEADER = "Replay-Key"
+REPLAY_ONLY_HEADER = "Replay-Only"
+
+
+def recovery_requested(headers) -> bool:
+    """Presence selects the fail-closed lane, including malformed/duplicate values."""
+    return any(str(key).lower() == "replay-only" for key, _ in headers.items())
 
 
 def request_scope(body: dict, resource: str, headers) -> str | None:
@@ -743,6 +750,10 @@ def _ledger_lookup(
         row = _selected_store_locked().lookup(fp_hash)
     except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
         return "reject", None
+    return _decode_ledger_row(row, scope_hash, enforce_scope=enforce_scope)
+
+
+def _decode_ledger_row(row, scope_hash, *, enforce_scope=True):
     if row is None:
         return "missing", None
     state, outcome, version, stored_scope, expires_at = row
@@ -805,6 +816,46 @@ def _prune_completed(now: float) -> None:
     while len(_completed) > MAX_COMPLETED:
         oldest = next(iter(_completed))
         _completed.pop(oldest, None)
+
+
+def lookup_completed(fp: str, scope: str | None) -> tuple | None:
+    """Read an existing private response without admission, writes or TTL renewal.
+
+    Missing, unfinished, expired and inaccessible outcomes are indistinguishable.
+    The selected durable authority is always checked, so a memory copy or a
+    fenced SQLite source cannot serve stale responses after PostgreSQL cutover.
+    """
+    if not isinstance(fp, str) or not re.fullmatch(r"[0-9a-f]{64}", fp):
+        return None
+    if not isinstance(scope, str) or not re.fullmatch(r"private-replay-v1:[0-9a-f]{64}", scope):
+        return None
+    scope_hash = _scope_hash(scope)
+    with _lock:
+        try:
+            store = _selected_store_locked()
+            if backend_name() == "sqlite":
+                # Never create the database, migrate its schema, or change WAL mode.
+                uri = Path(db_path()).resolve().as_uri() + "?mode=ro"
+                conn = sqlite3.connect(uri, uri=True, timeout=0.25)
+                try:
+                    if not _identity_cutover_ready(conn):
+                        return None
+                    row = conn.execute(
+                        "SELECT state, outcome_json, fingerprint_version, scope_hash, expires_at "
+                        "FROM settle_ledger WHERE fp_hash = ?", (durable_hash(fp),)
+                    ).fetchone()
+                finally:
+                    conn.close()
+            else:
+                row = store.lookup(durable_hash(fp))
+            if fp in _inflight:
+                return None
+            # The durable authority governs state, scope and expiry. A memory copy
+            # must never resurrect a missing, expired or superseded durable result.
+            kind, outcome = _decode_ledger_row(row, scope_hash)
+            return outcome if kind == "cached" else None
+        except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
+            return None
 
 
 def peek_completed(fp: str, scope: str | None = None) -> tuple | None:

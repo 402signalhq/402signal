@@ -20,7 +20,7 @@ jobs:
           # Public synthetic CI credential; never used outside this job.
           POSTGRES_PASSWORD: lab-fixture-password
         ports:
-          - 5432:5432
+          - 127.0.0.1:5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d lab_batch_ci"
           --health-interval 5s
@@ -65,6 +65,10 @@ jobs:
         run: |
           npm --prefix integration/lab/solana-session-contracts ci --ignore-scripts --no-audit --no-fund
           npm --prefix integration/lab/solana-session-contracts test
+      - name: Audit locked lab and Solana dependencies (no updates)
+        run: |
+          npm --prefix integration/lab audit --package-lock-only --ignore-scripts --audit-level=high
+          npm --prefix integration/lab/solana-session-contracts audit --package-lock-only --ignore-scripts --audit-level=high
       - name: Cross-component route contract (loopback only)
         env:
           LIVE402_FIXTURE: "1"

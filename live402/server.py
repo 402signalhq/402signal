@@ -17,9 +17,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from live402 import asset_version, catalog, discover, history, mcp, payment, pulse, rails, ready, reqctx, validate
-from live402 import admission, http_body
+from live402 import admission, http_body, replay
 from live402.http_body import BodyReadError
-from live402.route import handle_route
+from live402.route import handle_route, recover_route
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 MCP_REGISTRY_PATH = "/mcp/v0.3.1"
@@ -467,7 +467,12 @@ class Handler(SimpleHTTPRequestHandler):
     def _close_error(self, code: int, error: str) -> None:
         self.close_connection = True
         try:
-            self._json(code, {"error": error}, {"Connection": "close"})
+            payload = {"error": error}
+            headers = {"Connection": "close"}
+            if code == 429:
+                payload.update(new_payment_allowed=False, retry_same_request=True)
+                headers["Retry-After"] = "60"
+            self._json(code, payload, headers)
             try:
                 self.wfile.flush()
             except Exception:
@@ -591,11 +596,11 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers",
-            "Content-Type, Replay-Key, X-402Signal-Key, MCP-Protocol-Version, PAYMENT-SIGNATURE, PAYMENT-PAYLOAD, X-PAYMENT, PAYMENT-RESPONSE, Algorand-Sender, X-Algorand-Sender",
+            "Content-Type, Replay-Key, Replay-Only, X-402Signal-Key, MCP-Protocol-Version, PAYMENT-SIGNATURE, PAYMENT-PAYLOAD, X-PAYMENT, PAYMENT-RESPONSE, Algorand-Sender, X-Algorand-Sender",
         )
         self.send_header(
             "Access-Control-Expose-Headers",
-            "PAYMENT-REQUIRED, PAYMENT-RESPONSE",
+            "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Retry-After",
         )
 
     def _json(self, code: int, payload: dict, extra_headers: dict | None = None) -> None:
@@ -965,6 +970,21 @@ class Handler(SimpleHTTPRequestHandler):
             self._shutdown_client()
             return
         parsed = urlparse(self.path)
+        if replay.recovery_requested(self.headers):
+            # Header presence never opens a normal execution path on any endpoint.
+            if parsed.path != "/route":
+                self._close_unread_body()
+                return self._close_error(400, "recovery_unsupported")
+            peer = client_ip(self)
+            reqctx.peer_ip.set(peer)
+            if not admission.recovery(self.headers, peer):
+                self._close_unread_body()
+                return self._close_error(429, "recovery rate limit")
+            payload = self._read_json_body()
+            if payload is None:
+                return
+            code, body, extra = recover_route(payload, self.headers, self._resource_url())
+            return self._json(code, body, extra)
         if parsed.path in {"/mcp", "/mcp.json", MCP_REGISTRY_PATH}:
             return self._post_mcp()
         if parsed.path == "/validate":
