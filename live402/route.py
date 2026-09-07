@@ -598,6 +598,45 @@ def _paid_execute(
     return code, attached, extra or None
 
 
+def recovery_unavailable() -> tuple[int, dict, dict]:
+    return 503, {
+        "error": "recovery_unavailable",
+        "recovery_only": True,
+        "new_payment_allowed": False,
+    }, {"Cache-Control": "no-store"}
+
+
+def recover_route(body: dict, headers, resource_url: str) -> tuple[int, dict, dict | None]:
+    """Retrieve only: never verify, probe, settle, reserve or publish a receipt."""
+    values = [value for key, value in headers.items() if str(key).lower() == "replay-only"]
+    if values != ["1"]:
+        return recovery_unavailable()
+    try:
+        scope = replay.request_scope(body, resource_url, headers)
+        if scope is None:
+            return recovery_unavailable()
+        payment_headers = [value for key, value in headers.items() if str(key).lower() in {
+            "payment-signature", "payment-payload", "x-payment", "x-payment-signature",
+        }]
+        if len(payment_headers) != 1:
+            return recovery_unavailable()
+        parsed = payment.extract_payment_payload(headers)
+        if not parsed:
+            return recovery_unavailable()
+        # Matching fixed terms does not need suggested rounds or unsigned groups.
+        accept = payment.match_accept(parsed, payment.payment_required(resource_url, dynamic=False))
+        if not accept:
+            return recovery_unavailable()
+        fp = replay.canonical_fingerprint(parsed, accept)
+        outcome = replay.lookup_completed(fp, scope)
+    except (TypeError, ValueError):
+        return recovery_unavailable()
+    if outcome is None:
+        return recovery_unavailable()
+    code, result, extra = outcome
+    return code, result, {**(extra or {}), "Cache-Control": "no-store"}
+
+
 def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = None) -> tuple[int, dict, dict | None]:
     """Returns (status, json_body, extra_headers). Never probes before verify.
 
@@ -605,6 +644,8 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
     CDP validate and bazaar crawlers can index. Body 400 only after verify
     succeeds, and we do not settle on 400.
     """
+    if replay.recovery_requested(headers):
+        return recover_route(body, headers, resource_url)
     if fixtures.local_free():
         code, result = run_probe(body if isinstance(body, dict) else {})
         try:

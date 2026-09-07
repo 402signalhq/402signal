@@ -295,7 +295,7 @@ BAZAAR_MCP = {
 
 
 
-def _algorand_extra(sender: str | None = None) -> dict:
+def _algorand_extra(sender: str | None = None, *, dynamic: bool = True) -> dict:
     """Facilitator + feePayer + tag. suggestedParams / unsignedGroup from algo_tx."""
     extra = {
         "name": "USD Coin",
@@ -304,6 +304,8 @@ def _algorand_extra(sender: str | None = None) -> dict:
         "displayAmount": AMOUNT_USD,
         "tag": "x402-global-challenge",
     }
+    if not dynamic:
+        return extra
     try:
         from live402.algo_tx import algorand_accept_extra
         extra.update(
@@ -326,7 +328,8 @@ def _algorand_extra(sender: str | None = None) -> dict:
     return extra
 
 
-def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sender: str | None = None) -> dict:
+def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sender: str | None = None, *, dynamic: bool = True) -> dict:
+    """Construct terms; dynamic=False omits Algorand network enrichment for retrieval."""
     pay_to = payto_address()
     return {
         "x402Version": 2,
@@ -391,7 +394,7 @@ def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sen
                 "amount": AMOUNT_ATOMIC,
                 "payTo": payto_algorand(),
                 "maxTimeoutSeconds": 60,
-                "extra": _algorand_extra(algorand_sender),
+                "extra": _algorand_extra(algorand_sender, dynamic=dynamic),
             },
         ],
         "extensions": {"bazaar": bazaar or BAZAAR_EXTENSION},
