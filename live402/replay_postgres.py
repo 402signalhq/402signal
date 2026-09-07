@@ -6,7 +6,7 @@ The driver is optional; the existing SQLite image remains unchanged.
 """
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import math
 import os
 import re
@@ -101,7 +101,7 @@ class PostgresStore:
                 pass
 
     @contextmanager
-    def _transaction(self, *, capacity=False, write_meta=False):
+    def _transaction(self, *, capacity=False, write_meta=False, guarded_api=False):
         with self.lock:
             try:
                 now = time.monotonic()
@@ -117,32 +117,41 @@ class PostgresStore:
                     self.connected_at = self.last_used = time.monotonic()
                 # Unnamed statements work with transaction poolers. Session
                 # settings are SET LOCAL below; no operation is retried here.
-                with self.conn.transaction():
+                # Pipeline only this one replay operation. Its COMMIT still
+                # synchronizes and must be acknowledged before returning.
+                # No payment, reservation or other request shares this commit.
+                pipeline = self.conn.pipeline() if self.functions_api else nullcontext()
+                with pipeline, self.conn.transaction():
                     self.conn.execute("SET LOCAL statement_timeout = '2000ms'")
                     self.conn.execute("SET LOCAL lock_timeout = '1000ms'")
                     self.conn.execute("SET LOCAL idle_in_transaction_session_timeout = '3000ms'")
                     self.conn.execute("SET LOCAL synchronous_commit = 'on'")
-                    safe = self.conn.execute("SELECT NOT pg_is_in_recovery(), "
-                                             "current_setting('fsync'), current_setting('full_page_writes')").fetchone()
-                    if safe != (True, 'on', 'on'):
-                        raise StoreError("replay authority is not durable primary")
-                    if self.functions_api:
-                        row = self.conn.execute(
-                            "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes "
-                            "FROM signal_replay.api_authority(%s,%s,%s)",
-                            (self.authority,capacity,write_meta)).fetchone()
-                    else:
-                        row = self.conn.execute(
-                            "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes "
-                            "FROM signal_replay.authority WHERE singleton = TRUE"
-                            + (" FOR UPDATE" if capacity or write_meta else " FOR SHARE")
-                        ).fetchone()
-                    if not row or row[:4] != (self.authority, 1, True, True):
-                        raise StoreError("replay authority not activated")
-                    if capacity and (row[4] >= row[5] or self.conn.execute(
-                            "SELECT pg_total_relation_size('signal_replay.entries')").fetchone()[0]
-                                     >= row[6] - MAX_OUTCOME):
-                        raise StoreError("replay authority capacity exhausted")
+                    # Owner write functions check the same durable primary,
+                    # activation, instance fence, role and capacity inside the
+                    # mutation. Repeating those queries here adds round trips.
+                    # Reads and the direct API retain their explicit checks.
+                    if not (self.functions_api and guarded_api):
+                        safe = self.conn.execute("SELECT NOT pg_is_in_recovery(), "
+                                                 "current_setting('fsync'), current_setting('full_page_writes')").fetchone()
+                        if safe != (True, 'on', 'on'):
+                            raise StoreError("replay authority is not durable primary")
+                        if self.functions_api:
+                            row = self.conn.execute(
+                                "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes "
+                                "FROM signal_replay.api_authority(%s,%s,%s)",
+                                (self.authority,capacity,write_meta)).fetchone()
+                        else:
+                            row = self.conn.execute(
+                                "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes "
+                                "FROM signal_replay.authority WHERE singleton = TRUE"
+                                + (" FOR UPDATE" if capacity or write_meta else " FOR SHARE")
+                            ).fetchone()
+                        if not row or row[:4] != (self.authority, 1, True, True):
+                            raise StoreError("replay authority not activated")
+                        if capacity and (row[4] >= row[5] or self.conn.execute(
+                                "SELECT pg_total_relation_size('signal_replay.entries')").fetchone()[0]
+                                         >= row[6] - MAX_OUTCOME):
+                            raise StoreError("replay authority capacity exhausted")
                     yield self.conn
                 # Returning from the context means COMMIT was acknowledged.
                 self.last_used = time.monotonic()
@@ -164,7 +173,7 @@ class PostgresStore:
         if isinstance(expires, bool) or not isinstance(expires, (int, float)) or not math.isfinite(expires):
             raise StoreError("invalid replay expiry")
         if self.functions_api:
-            with self._transaction(capacity=True) as conn:
+            with self._transaction(capacity=True, guarded_api=True) as conn:
                 return conn.execute("SELECT signal_replay.api_reserve(%s,%s,%s,%s)",
                                     (self.authority,key,scope,expires)).fetchone()[0]
         admitted = False
@@ -191,7 +200,7 @@ class PostgresStore:
             raise StoreError("invalid replay state")
         if outcome is not None and (not isinstance(outcome, str) or len(outcome.encode()) > MAX_OUTCOME):
             raise StoreError("invalid replay outcome")
-        with self._transaction(write_meta=not keep) as conn:
+        with self._transaction(write_meta=not keep, guarded_api=True) as conn:
             if self.functions_api:
                 conn.execute("SELECT signal_replay.api_finish(%s,%s,%s,%s,%s)",
                              (self.authority,key,state,outcome,keep))
@@ -212,7 +221,7 @@ class PostgresStore:
 
     def abandon(self, key):
         self._key(key)
-        with self._transaction() as conn:
+        with self._transaction(guarded_api=True) as conn:
             if self.functions_api:
                 conn.execute("SELECT signal_replay.api_abandon(%s,%s)",(self.authority,key))
                 return
@@ -224,7 +233,7 @@ class PostgresStore:
             # Expired private bodies must still be pruned when admission is
             # full. Capacity exhaustion is not a reason to retain responses.
             self.prune_outcomes()
-            with self._transaction(capacity=True) as conn:
+            with self._transaction(capacity=True, guarded_api=True) as conn:
                 # Test write permissions without publishing another economic row.
                 with conn.transaction(force_rollback=True):
                     if self.functions_api:
@@ -240,7 +249,7 @@ class PostgresStore:
         now = time.monotonic()
         if now - self.last_prune < 30:
             return
-        with self._transaction() as conn:
+        with self._transaction(guarded_api=True) as conn:
             if self.functions_api:
                 conn.execute("SELECT signal_replay.api_prune(%s)",(self.authority,))
             else:

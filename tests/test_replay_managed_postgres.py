@@ -147,3 +147,44 @@ class ManagedPostgresContracts(unittest.TestCase):
             self.assertFalse(self.admin.execute('SELECT active FROM signal_replay.authority').fetchone()[0])
             with sqlite3.connect(source) as conn:
                 self.assertIsNotNone(conn.execute("SELECT 1 FROM replay_meta WHERE key='external_authority_id'").fetchone())
+
+    def test_pipelined_write_rejects_server_error_without_reusing_connection(self):
+        # The invalid expiry fails in the database, after commands were queued.
+        with self.assertRaises(StoreError): self.store.reserve(KEY,SCOPE,-1)
+        self.assertIsNone(self.store.conn)
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM signal_replay.entries').fetchone()[0],0)
+        self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+        self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
+
+    def test_pipelined_commit_ack_loss_never_readmits_identity(self):
+        from contextlib import contextmanager
+        import psycopg
+        class LostAck:
+            def __init__(self,real): self.real=real
+            def __getattr__(self,key): return getattr(self.real,key)
+            @contextmanager
+            def transaction(self,**kwargs):
+                with self.real.transaction(**kwargs): yield
+                raise psycopg.OperationalError('simulated acknowledgement loss')
+        class Driver:
+            used=False
+            def connect(self,**kwargs):
+                real=psycopg.connect(**kwargs)
+                if self.used: return real
+                self.used=True
+                return LostAck(real)
+        store=PostgresStore(environ=self.settings,driver=Driver())
+        try:
+            with self.assertRaises(StoreError): store.reserve(KEY,SCOPE,time.time()+120)
+            self.assertIsNone(store.conn)
+            self.assertFalse(store.reserve(KEY,SCOPE,time.time()+120))
+            self.assertEqual(store.lookup(KEY)[0],'settlement_pending')
+        finally: store.close()
+
+    def test_pipelined_write_still_checks_activation_and_capacity(self):
+        self.admin.execute('UPDATE signal_replay.authority SET active=false')
+        with self.assertRaises(StoreError): self.store.reserve(KEY,SCOPE,time.time()+120)
+        self.admin.execute('UPDATE signal_replay.authority SET active=true,max_rows=1')
+        self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+        with self.assertRaises(StoreError): self.store.reserve('d'*64,SCOPE,time.time()+120)
+        self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
