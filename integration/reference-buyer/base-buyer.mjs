@@ -214,12 +214,15 @@ export class BaseBuyer {
       "unknown_payload_authority",
     );
     const auth = payload.payload?.authorization;
+    const data = this.#journal.get(id, stage + "_typed_data");
     check(
       auth &&
         canonical(auth) ===
           canonical({
-            from: intent.buyer,
-            to: intent.payTo,
+            // Retain the exact signed address representation after the guard
+            // has checked its economic identity against the original offer.
+            from: data.message.from,
+            to: data.message.to,
             value: intent.amount,
             validAfter: intent.validAfter,
             validBefore: intent.validBefore,
@@ -227,7 +230,6 @@ export class BaseBuyer {
           }),
       "authorization_payload_mismatch",
     );
-    const data = this.#journal.get(id, stage + "_typed_data");
     check(
       await verifyTypedData({
         ...data,

@@ -68,7 +68,7 @@ function setup(options = {}) {
   const policy = {
     buyerAddress: account.address,
     routerUrl: "https://402signal.com/route",
-    routerPayTo: ROUTER,
+    routerPayTo: options.routerPayTo ?? ROUTER,
     rpcUrl: "https://rpc.example.test/",
     campaignMaximumAtomic: "4000",
     buyerNativeFeeAtomic: "0",
@@ -192,7 +192,7 @@ function setup(options = {}) {
     accepts: [
       {
         ...selected.challenge.accepts[0],
-        payTo: ROUTER,
+        payTo: policy.routerPayTo,
         amount: "3000",
         maxTimeoutSeconds: 60,
       },
@@ -848,3 +848,52 @@ test("POST operator policy refuses unreviewed bodies before journal reservation"
     s.close();
   }
 });
+
+const LIVE_ROUTER_PAYEE = "0xb18fc2275f36dae99eb215caeff03b431f887d16";
+test("real SDK preserves lowercase router offer while checksumming signed authorization", async () => {
+  const s = setup({ routerPayTo: LIVE_ROUTER_PAYEE });
+  try {
+    s.buyer.reserve("job", agentsToolsSearch(fixture.query));
+    const encoded = await s.buyer.signRouting("job", wire(s.q));
+    const payload = JSON.parse(Buffer.from(encoded, "base64").toString());
+    const data = s.journal.get("job", "router_typed_data");
+    assert.equal(payload.accepted.payTo, LIVE_ROUTER_PAYEE);
+    assert.notEqual(payload.payload.authorization.to, LIVE_ROUTER_PAYEE);
+    assert.equal(payload.payload.authorization.to, data.message.to);
+    assert.equal(data.message.to.toLowerCase(), LIVE_ROUTER_PAYEE);
+    assert.equal(payload.payload.authorization.from, data.message.from);
+    assert.ok(s.journal.get("job", "router_authorization"));
+    assert.equal(await s.buyer.confirmRouting("job", s.outcome), true);
+    await assert.rejects(s.buyer.signRouting("job", wire(s.q)), /stage_already_claimed/);
+    assert.deepEqual(s.counts(), { signatures: 1, paid: 0, unpaid: 0 });
+  } finally {
+    s.close();
+  }
+});
+for (const field of ["from", "to", "value", "validAfter", "validBefore", "nonce", "extra"]) {
+  test("post-sign " + field + " mutation remains fenced with checksum offer", async () => {
+    const s = setup({
+      routerPayTo: LIVE_ROUTER_PAYEE,
+      buyerOptions: {
+        createPayload: async (args) => {
+          const payload = await sdkPayload(args);
+          const auth = payload.payload.authorization;
+          if (field === "from" || field === "to") auth[field] = "0x" + "9".repeat(40);
+          else if (field === "nonce") auth[field] = "0x" + "9".repeat(64);
+          else if (field === "extra") auth.extra = true;
+          else auth[field] = String(BigInt(auth[field]) + 1n);
+          return payload;
+        },
+      },
+    });
+    try {
+      s.buyer.reserve("job", agentsToolsSearch(fixture.query));
+      await assert.rejects(s.buyer.signRouting("job", wire(s.q)), /authorization_payload_mismatch/);
+      assert.equal(s.journal.get("job", "router_authorization"), undefined);
+      await assert.rejects(s.buyer.signRouting("job", wire(s.q)), /stage_already_claimed/);
+      assert.deepEqual(s.counts(), { signatures: 1, paid: 0, unpaid: 0 });
+    } finally {
+      s.close();
+    }
+  });
+}
