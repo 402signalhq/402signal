@@ -43,6 +43,7 @@ export class BaseBuyer {
   #factory;
   #sellerFactory;
   #sellerTiming;
+  #confirmationInterval;
   constructor({
     account,
     journal,
@@ -53,6 +54,7 @@ export class BaseBuyer {
     createPayload = sdkPayload,
     createSellerPayload,
     sellerAuthorizationTiming = "zero",
+    confirmationIntervalMs = 1500,
   }) {
     check(
       account && typeof account.signTypedData === "function",
@@ -91,6 +93,8 @@ export class BaseBuyer {
     this.#fetch = fetchImpl;
     this.#rpc = rpc ?? readOnlyRpc(policy.rpcUrl, fetchImpl);
     this.#now = now;
+    check(Number.isInteger(confirmationIntervalMs) && confirmationIntervalMs >= 0 && confirmationIntervalMs <= 1500, "invalid_confirmation_interval");
+    this.#confirmationInterval = confirmationIntervalMs;
     this.#factory = createPayload;
     this.#sellerFactory = createSellerPayload;
     check(
@@ -298,8 +302,8 @@ export class BaseBuyer {
     const r = await reconcilePayment({
       rail: "base",
       transaction,
-      maxObservations: 3,
-      intervalMs: 500,
+      maxObservations: 6,
+      intervalMs: this.#confirmationInterval,
       timeoutMs: 15000,
       observe: ({ signal }) =>
         confirmBase(intent, transaction, (m, p) => this.#rpc(m, p, signal)),
