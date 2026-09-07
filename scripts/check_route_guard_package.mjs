@@ -71,10 +71,11 @@ import {FileAttemptStore} from '@402signal/route-guard/file-store';
 import {verifyReceipt, withVerifiedRoute} from '@402signal/route-guard';
 import {reconcilePayment} from '@402signal/route-guard/recovery';
 const store = new FileAttemptStore('/tmp/typecheck-only-not-executed');
-const client = new RouteClient({store, recoveryProfile: 'http-route-v1'});
+const client = new RouteClient({store, recoveryProfile: 'http-route-v1', customerKey: 'synthetic_customer_key_12345678901'});
 const challenge: Promise<RouteResponse> = client.challenge('typecheck-only');
 const outcome: Promise<RouteResult> = client.recover('typecheck-only');
-void challenge; void outcome; void verifyReceipt; void withVerifiedRoute; void reconcilePayment;
+const rawChallenge: Promise<string|null|undefined> = challenge.then(r => r.paymentRequired);
+void rawChallenge; void challenge; void outcome; void verifyReceipt; void withVerifiedRoute; void reconcilePayment;
 `);
   // Read the example from the installed tarball, never from the source tree.
   // This catches omitted package files as well as missing public declarations.

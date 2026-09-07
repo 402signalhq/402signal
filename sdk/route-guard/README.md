@@ -148,10 +148,10 @@ See [the response contract](../../docs/route-miss-http-status.md).
 
 ## Install the client
 
-Use the [v0.3.0 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.3.0) and verify its published digest before installing:
+Use the [v0.3.0 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.4.0) and verify its published digest before installing:
 
 ```sh
-npm install ./402signal-route-guard-0.3.0.tgz
+npm install ./402signal-route-guard-0.4.0.tgz
 ```
 
 From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. The tarball includes TypeScript
@@ -247,3 +247,18 @@ after fresh local proof/quote verification. A thrown callback is never retried.
 Observed unpaid compatibility and synthetic tests do not establish seller output
 quality, paid fulfillment, demand or ongoing availability. Keep model instructions
 and seller response data separated in the consuming agent application.
+
+### API access credentials and raw challenges
+
+`RouteClient` accepts an optional `customerKey` for an operator-issued 402Signal
+API access credential. This is not a wallet key. It is sent only to the configured
+router for challenge, submission and recovery, with redirects disabled. The client
+does not put the credential in its journal or response evidence. Keep it outside
+request bodies and use a trusted raw transport; do not use payment-aware Fetch.
+
+Challenge responses expose the bounded raw `paymentRequired` header for the
+buyer to compare with the body before signing. A challenge is not authorization.
+The reference buyer in `integration/reference-buyer` demonstrates caller-owned
+Base signing, a durable spending cap and independently checked payment receipts.
+`integration/mpp-client` adds explicit mppx interoperability with Base x402; it does
+not enable native MPP routing-fee collection or automatic payment retries.
