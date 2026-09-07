@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from live402 import asset_version, catalog, discover, history, mcp, payment, pulse, rails, ready, reqctx, validate
-from live402 import http_body
+from live402 import admission, http_body
 from live402.http_body import BodyReadError
 from live402.route import handle_route
 
@@ -566,10 +566,12 @@ class Handler(SimpleHTTPRequestHandler):
         self._req_started = time.monotonic()
         self._logged_access = False
         token = reqctx.request_id.set(self._request_id)
+        peer_token = reqctx.peer_ip.set("unknown")
         try:
             super().handle_one_request()
         finally:
             reqctx.request_id.reset(token)
+            reqctx.peer_ip.reset(peer_token)
 
     def version_string(self) -> str:
         """Do not advertise CPython / BaseHTTP version."""
@@ -589,7 +591,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers",
-            "Content-Type, Replay-Key, MCP-Protocol-Version, PAYMENT-SIGNATURE, PAYMENT-PAYLOAD, X-PAYMENT, PAYMENT-RESPONSE, Algorand-Sender, X-Algorand-Sender",
+            "Content-Type, Replay-Key, X-402Signal-Key, MCP-Protocol-Version, PAYMENT-SIGNATURE, PAYMENT-PAYLOAD, X-PAYMENT, PAYMENT-RESPONSE, Algorand-Sender, X-Algorand-Sender",
         )
         self.send_header(
             "Access-Control-Expose-Headers",
@@ -709,10 +711,15 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _route_allowed(self) -> bool:
         ip = client_ip(self)
+        reqctx.peer_ip.set(ip)
+        if admission.configured():
+            return admission.ingress(self.headers, ip)
         return _ROUTE_LIMITER.allow(ip, route_rpm())
 
     def _preview_allowed(self) -> bool:
         ip = client_ip(self)
+        if admission.configured():
+            return admission.free_ingress(self.headers, ip)
         return _PREVIEW_LIMITER.allow(ip, preview_rpm())
 
     def _public_allowed(self, which: str) -> bool:
@@ -721,6 +728,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _validate_allowed(self) -> bool:
         ip = client_ip(self)
+        if admission.configured():
+            return admission.free_ingress(self.headers, ip)
         return _VALIDATE_LIMITER.allow(ip, validate_rpm())
 
     def do_OPTIONS(self) -> None:

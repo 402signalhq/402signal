@@ -74,8 +74,9 @@ class MonitorSnapshotTests(unittest.TestCase):
         self.assertIn("ok", payload)
         self.assertEqual(
             set(payload["checks"]),
-            {"storage", "catalog", "history", "pq_log", "replay_ledger"},
+            {"storage", "catalog", "history", "pq_log", "replay_ledger", "admission"},
         )
+        self.assertTrue(all(type(value) is bool for value in payload["checks"].values()))
         self.assertNotIn("last_authorized", payload)
         self.assertNotIn("submit_provider", payload)
         self.assertNotIn("last_error", payload)

@@ -1,0 +1,260 @@
+"""Synthetic policy values only. All tests run in the isolated cloud worker."""
+import copy
+import hashlib
+import json
+import os
+from pathlib import Path
+import tempfile
+import threading
+import unittest
+from concurrent.futures import ThreadPoolExecutor
+from email.message import Message
+from unittest.mock import patch
+
+from live402 import admission, probe, reqctx, server
+
+KEY = "synthetic-customer-key-for-cloud-tests-only"
+DIGEST = hashlib.sha256(KEY.encode()).hexdigest()
+
+def policy():
+    return {"version": 1, "window_seconds": 60, "max_keys": 64,
+            "ingress": {"global": 1000, "anonymous": 3},
+            "unpaid": {"global": 20, "anonymous": 2},
+            "target": {"global": 100, "origin": 50, "failures": 2},
+            "customers": {DIGEST: {"ingress": 100, "unpaid": 10}}}
+
+class AdmissionTests(unittest.TestCase):
+    def setUp(self):
+        self.now = 10.0
+        self.e = admission.Engine(admission.Policy(policy()), lambda: self.now)
+        self.headers = {"X-402Signal-Key": KEY}
+
+    def test_customer_can_exceed_twelve_without_sharing_nat_quota(self):
+        self.assertTrue(all(self.e.ingress(self.headers, "same-ip") for _ in range(30)))
+        self.assertTrue(all(self.e.ingress({}, "same-ip") for _ in range(3)))
+        self.assertFalse(self.e.ingress({}, "same-ip"))
+
+    def test_unknown_keys_do_not_create_new_identities(self):
+        for i in range(3):
+            self.assertTrue(self.e.ingress({"X-402Signal-Key": "x" * 40 + str(i)}, "peer"))
+        self.assertFalse(self.e.ingress({"X-402Signal-Key": "different" * 6}, "peer"))
+        self.assertEqual(len(self.e.buckets), 2)
+
+    def test_duplicate_key_headers_cannot_authenticate(self):
+        headers = Message()
+        headers.add_header("X-402Signal-Key", KEY)
+        headers.add_header("X-402Signal-Key", KEY)
+        self.assertIsNone(self.e.identity(headers, "peer")[1])
+
+    def test_confirmed_payment_refunds_once(self):
+        leases = [self.e.reserve({}, "peer") for _ in range(2)]
+        self.assertIsNone(self.e.reserve({}, "peer"))
+        leases[0].finish(earned=True)
+        leases[0].finish(earned=True)
+        self.assertIsNotNone(self.e.reserve({}, "peer"))
+        self.assertIsNone(self.e.reserve({}, "peer"))
+
+    def test_failure_keeps_debit_even_if_called_success_later(self):
+        lease = self.e.reserve({}, "peer")
+        lease.finish(earned=False)
+        lease.finish(earned=True)
+        self.assertIsNotNone(self.e.reserve({}, "peer"))
+        self.assertIsNone(self.e.reserve({}, "peer"))
+
+    def test_global_budget_survives_identity_rotation(self):
+        self.assertTrue(all(self.e.reserve({}, str(i)) for i in range(20)))
+        self.assertIsNone(self.e.reserve(self.headers, "trusted"))
+
+    def test_concurrent_reservation_never_exceeds_budget(self):
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            leases = list(pool.map(lambda _: self.e.reserve(self.headers, "peer"), range(100)))
+        self.assertEqual(sum(x is not None for x in leases), 10)
+
+    def test_target_budget_not_bypassed_by_queries_paths_or_case(self):
+        for url in ("https://BAD.example/a?q=1", "https://bad.example/b?q=2"):
+            lease = self.e.probe(url)
+            self.assertIsNotNone(lease)
+            self.e.probe_complete(lease, False)
+        self.assertIsNone(self.e.probe("https://bad.example./c?q=3"))
+
+    def test_healthy_target_does_not_credit_unpaid_customer(self):
+        lease = self.e.reserve({}, "peer")
+        target = self.e.probe("https://api.example/x")
+        self.e.probe_complete(target, True)
+        self.assertEqual(self.e.buckets["unpaid:global"].balance, 19)
+        lease.finish(False)
+        self.assertEqual(self.e.buckets["probe:global"].balance, 99)
+
+    def test_full_map_never_evicts_unspent_debits(self):
+        p = policy();p["max_keys"] = 16;p["unpaid"]["global"] = 100
+        e = admission.Engine(admission.Policy(p), lambda: self.now)
+        for i in range(15): self.assertIsNotNone(e.reserve({}, str(i)))
+        self.assertIsNone(e.reserve({}, "new"))
+        self.assertEqual(len(e.buckets), 16)
+        self.assertEqual(e.buckets["unpaid:global"].balance, 85)
+
+    def test_refill_recovers_without_success_or_manual_intervention(self):
+        for _ in range(2): self.e.reserve({}, "peer")
+        self.now += 30
+        self.assertIsNotNone(self.e.reserve({}, "peer"))
+        self.assertIsNone(self.e.reserve({}, "peer"))
+
+    def test_invalid_policy_rejects_nan_bool_and_unknown_fields(self):
+        for bad in (float("nan"), True, 0, -1):
+            p = policy();p["unpaid"]["global"] = bad
+            with self.assertRaises(ValueError): admission.Policy(p)
+        p = policy();p["allow_everything"] = True
+        with self.assertRaises(ValueError): admission.Policy(p)
+
+    def test_private_policy_permissions_and_generic_errors(self):
+        with tempfile.TemporaryDirectory() as d:
+            file = Path(d) / "policy.json";file.write_text(json.dumps(policy()));file.chmod(0o644)
+            with patch.dict(os.environ, {"LIVE402_ADMISSION_POLICY_FILE": str(file)}):
+                with self.assertRaises(admission.Unavailable) as exc: admission.engine()
+                self.assertNotIn(str(file), str(exc.exception))
+                self.assertFalse(admission.ingress(self.headers, "peer"))
+            good = Path(d) / "private.json";good.write_text(json.dumps(policy()));good.chmod(0o600)
+            with patch.dict(os.environ, {"LIVE402_ADMISSION_POLICY_FILE": str(good)}):
+                self.assertTrue(admission.ready())
+                self.assertFalse(admission.ingress(self.headers, "peer"))
+                admission.engine().started_at -= 60
+                self.assertTrue(admission.ingress(self.headers, "peer"))
+
+    def test_probe_denial_does_not_execute_network_or_direct_history(self):
+        with patch.object(admission, "reserve_probe", side_effect=admission.Unavailable), patch.object(probe, "_probe_url_unbudgeted") as network:
+            result = probe.probe_url("https://example.com")
+            self.assertEqual(result["miss_reason"], "probe_capacity")
+            network.assert_not_called()
+
+    def test_invalid_policy_cannot_fall_back_to_legacy_http_capacity(self):
+        handler = object.__new__(server.Handler)
+        handler.headers = {}
+        handler.client_address = ("127.0.0.1", 1000)
+        with patch.dict(os.environ, {"LIVE402_ADMISSION_POLICY_FILE": "/no/such/private/policy"}), patch.object(server, "client_ip", return_value="peer"), patch.object(server._ROUTE_LIMITER, "allow") as legacy:
+            self.assertFalse(handler._route_allowed())
+            legacy.assert_not_called()
+
+    def test_preview_and_validate_share_unpaid_capacity(self):
+        handler = object.__new__(server.Handler);handler.headers=self.headers
+        with patch.object(admission, "engine", return_value=self.e), patch.object(admission, "configured", return_value=True), patch.object(server, "client_ip", return_value="peer"):
+            self.assertTrue(all(handler._preview_allowed() for _ in range(5)))
+            self.assertTrue(all(handler._validate_allowed() for _ in range(5)))
+            self.assertFalse(handler._preview_allowed())
+            self.assertFalse(handler._validate_allowed())
+
+    def test_symlink_policy_is_refused_without_reading_target(self):
+        with tempfile.TemporaryDirectory() as d:
+            real = Path(d)/"real";real.write_text(json.dumps(policy()));real.chmod(0o600)
+            link = Path(d)/"link";link.symlink_to(real)
+            with patch.dict(os.environ, {"LIVE402_ADMISSION_POLICY_FILE": str(link)}):
+                self.assertFalse(admission.ready())
+
+
+    def test_restart_does_not_reset_spent_capacity(self):
+        e = admission.Engine(admission.Policy(policy()), lambda: self.now, cold_start=True)
+        self.assertIsNone(e.reserve({}, "peer"))
+        self.now += 30
+        self.assertIsNotNone(e.reserve({}, "peer"))
+        self.assertIsNone(e.reserve({}, "peer"))
+        restarted = admission.Engine(admission.Policy(policy()), lambda: self.now, cold_start=True)
+        self.assertIsNone(restarted.reserve({}, "peer"))
+        self.now += 30
+        self.assertIsNotNone(restarted.reserve({}, "peer"))
+        self.assertIsNone(restarted.reserve({}, "peer"))
+
+    def test_cold_capacity_is_not_preallocated_by_identity_rotation(self):
+        e = admission.Engine(admission.Policy(policy()), lambda: self.now, cold_start=True)
+        self.now += 3
+        self.assertIsNone(e.reserve({}, "peer"))
+        # The customer's larger trial can use the single accrued global unit.
+        self.now += 3
+        self.assertIsNotNone(e.reserve(self.headers, "customer"))
+        self.assertIsNone(e.reserve(self.headers, "different-peer"))
+        self.assertLessEqual(e.buckets["unpaid:global"].balance, 1)
+
+    def test_readiness_reports_invalid_policy_without_details(self):
+        from live402 import ready
+        with patch.object(ready, "_storage_ok", return_value=True), patch.object(ready, "_catalog_ok", return_value=True), patch.object(ready, "_history_ok", return_value=True), patch.object(ready, "_pq_log_ok", return_value=True), patch.object(ready, "_replay_ok", return_value=True), patch.dict(os.environ, {"LIVE402_ADMISSION_POLICY_FILE": "/missing/private/policy"}):
+            out=ready.readiness()
+            self.assertFalse(out["ok"])
+            self.assertFalse(out["checks"]["admission"])
+            self.assertNotIn("/missing", json.dumps(out))
+
+    def test_real_http_preflight_and_customer_capacity(self):
+        import http.client
+        class QuietHandler(server.Handler):
+            def log_message(self, *args): pass
+        httpd=server.BoundedThreadingHTTPServer(("127.0.0.1",0), QuietHandler)
+        thread=threading.Thread(target=httpd.serve_forever,daemon=True);thread.start()
+        def request(method, headers):
+            c=http.client.HTTPConnection("127.0.0.1",httpd.server_port,timeout=5)
+            try:
+                c.request(method,"/route",body="{}" if method=="POST" else None,headers=headers)
+                r=c.getresponse();result=(r.status,dict(r.getheaders()));r.read();return result
+            finally: c.close()
+        try:
+            with patch.object(admission,"engine",return_value=self.e), patch.object(admission,"configured",return_value=True), patch.object(server,"handle_route",return_value=(402,{"test":"payment-required"},{})):
+                code,headers=request("OPTIONS", {"Origin":"https://buyer.example", "Access-Control-Request-Method":"POST", "Access-Control-Request-Headers":"content-type,x-402signal-key"})
+                self.assertIn(code,(200,204))
+                self.assertIn("x-402signal-key",headers["Access-Control-Allow-Headers"].lower())
+                for _ in range(20):
+                    self.assertEqual(request("POST",{"Content-Type":"application/json",**self.headers})[0],402)
+                for _ in range(3):
+                    self.assertEqual(request("POST",{"Content-Type":"application/json","X-402Signal-Key":"bad"*20})[0],402)
+                self.assertEqual(request("POST",{"Content-Type":"application/json","X-402Signal-Key":"other"*12})[0],429)
+        finally:
+            httpd.shutdown();httpd.server_close();thread.join(timeout=5)
+
+
+
+class RouteAdmissionTests(unittest.TestCase):
+    def setUp(self):
+        from live402 import replay, history
+        self.temp = tempfile.TemporaryDirectory()
+        root = Path(self.temp.name)
+        file = root / "policy.json";file.write_text(json.dumps(policy()));file.chmod(0o600)
+        self.env = patch.dict(os.environ, {"LIVE402_ADMISSION_POLICY_FILE": str(file), "LIVE402_REPLAY_DB": str(root / "replay.sqlite"), "LIVE402_HISTORY_DB": str(root / "history.sqlite"), "LIVE402_FIXTURE": "1", "CDP_ACCESS_TOKEN": "test-fixture-token"})
+        self.env.start();replay.reset()
+        self.peer = reqctx.peer_ip.set("unknown")
+        self.e = admission.engine()
+        self.e.started_at -= 60
+
+    def tearDown(self):
+        from live402 import replay, history
+        replay.reset();history.reset();reqctx.peer_ip.reset(self.peer);self.env.stop();self.temp.cleanup()
+
+    def test_denial_precedes_verify_probe_and_durable_admission(self):
+        from live402 import replay, facilitator
+        from live402.route import handle_route
+        from test_pay_replay import _payload, _headers_for, _weather_body
+        for _ in range(2): self.e.reserve({}, "unknown")
+        with patch.object(facilitator, "verify") as verify, patch("live402.route.run_probe") as probe_call, patch.object(replay, "authorize") as admit:
+            out = handle_route(_weather_body(), _headers_for(_payload("capacity-denied")), "https://402signal.com/route")
+            self.assertEqual(out[0], 429)
+            verify.assert_not_called();probe_call.assert_not_called();admit.assert_not_called()
+
+    def test_confirmed_payment_restores_work_but_replay_does_not_mint_credit(self):
+        from live402 import facilitator
+        from live402.route import handle_route
+        from test_pay_replay import _payload, _headers_for, _weather_body, _fake_facilitator
+        headers = _headers_for(_payload("capacity-success"))
+        with patch.object(facilitator, "post_json", side_effect=_fake_facilitator):
+            out = handle_route(_weather_body(), headers, "https://402signal.com/route")
+            self.assertTrue(out[1].get("billing", {}).get("settled"), out)
+            self.assertGreaterEqual(self.e.buckets["unpaid:global"].balance, 19.99)
+            self.e.reserve({}, "other")
+            before = self.e.buckets["unpaid:global"].balance
+            again = handle_route(_weather_body(), headers, "https://402signal.com/route")
+            self.assertEqual(again[0], out[0])
+            self.assertEqual(self.e.buckets["unpaid:global"].balance, before)
+
+    def test_free_miss_keeps_work_debit_and_never_settles(self):
+        from live402 import facilitator
+        from live402.route import handle_route
+        from test_pay_replay import _payload, _headers_for, _counting_facilitator
+        verify_calls=[];settle_calls=[]
+        with patch.object(facilitator, "post_json", side_effect=_counting_facilitator(verify_calls, settle_calls)):
+            out = handle_route({"url": "https://fixture.402signal.local/weather", "max_price_usd": 0}, _headers_for(_payload("capacity-miss")), "https://402signal.com/route")
+            self.assertFalse(out[1].get("billing", {}).get("settled"), out)
+            self.assertEqual(len(verify_calls), 1);self.assertEqual(settle_calls, [])
+            self.assertLess(self.e.buckets["unpaid:global"].balance, 19.1)

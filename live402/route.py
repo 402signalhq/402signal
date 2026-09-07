@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from live402 import admission
+
 from live402 import lab_traffic, route_observability as telemetry
 
 import sys
@@ -91,6 +93,15 @@ def _direct_url_result(body: dict, url: str, need: str, deadline: float) -> tupl
         return 503, result
     with telemetry.phase("candidate_probing"):
         result = probe.probe_url(url, catalog_item=item, deadline=deadline, record=False)
+    if result.get("miss_reason") == "probe_capacity":
+        result.update(need=need or None, objective=objective, source="url", tried=0,
+                      selected_payment=None, retryable=True)
+        probe._attach_route_funnel(result, discovery_matches=0, candidates_discovered=0,
+                                  candidates_considered=1, candidates_probed=0,
+                                  probe_ceiling=1, probe_budget_exhausted=False,
+                                  candidate_evaluation_complete=False, stop_reason="probe_capacity")
+        policy_mod.attach_policy(result, body)
+        return 503, result
     result = probe.attach_catalog_fields(result, item)
     try:
         from live402 import history as history_mod
@@ -491,6 +502,9 @@ def _paid_execute(
         _log_settle_skipped(rail)
         # Free misses remain tentative history and create no PQ route leaf.
         # Classify only after the independent winner gate has skipped settlement.
+        if result.get("miss_reason") == "probe_capacity":
+            result["retryable"] = True
+            return 503, result, {"Retry-After": "60", "Cache-Control": "no-store"}
         if code == 503 and is_normal_miss(result):
             code = 200
         return code, result, None
@@ -648,6 +662,14 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
             return waited[0], waited[1], waited[2]
         return _unknown_outcome(payment.rail_of_accept(accept), attempted=None)
 
+    # Replay hits return before reserving new economic work. Denials precede
+    # facilitator verification, durable identity admission and target probes.
+    try:
+        work_lease = admission.reserve(headers)
+    except admission.Unavailable:
+        out = admission.rejected()
+        replay.finish(fp, out, cache=False)
+        return out
     cache = False
     try:
         out = _paid_execute(body, parsed, accept, resource_url, bazaar, paid_deadline, fp)
@@ -661,6 +683,10 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
         out = telemetry.finish_current(out)
         replay.finish(fp, out, cache=True)
         return out
+    finally:
+        if work_lease is not None:
+            billing = out[1].get("billing", {}) if "out" in locals() and isinstance(out[1], dict) else {}
+            work_lease.finish(earned=billing.get("settled") is True)
 
 
 def handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = None):

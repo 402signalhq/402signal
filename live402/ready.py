@@ -74,7 +74,10 @@ def _storage_ok() -> bool:
 
 def readiness() -> dict:
     """Public /ready body. Booleans only. Never paths, never env, never keys."""
+    from live402 import admission
+
     checks = {
+        "admission": admission.ready(),
         "storage": _storage_ok(),
         "catalog": _catalog_ok(),
         "history": _history_ok(),

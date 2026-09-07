@@ -17,16 +17,18 @@
     "buyer:run": "node dist/src/cli.js run"
   },
   "dependencies": {
+    "@algorandfoundation/algokit-utils": "10.0.0-alpha.46",
+    "@solana/kit": "5.5.1",
+    "@x402/avm": "2.25.0",
     "@x402/core": "2.25.0",
     "@x402/evm": "2.25.0",
     "@x402/svm": "2.25.0",
-    "@x402/avm": "2.25.0",
-    "@solana/kit": "5.5.1",
-    "@algorandfoundation/algokit-utils": "10.0.0-alpha.46",
     "viem": "2.56.3"
   },
   "devDependencies": {
-    "typescript": "5.9.3",
-    "@types/node": "24.12.0"
+    "@types/node": "24.12.0",
+    "@types/pg": "8.23.1",
+    "pg": "8.23.0",
+    "typescript": "5.9.3"
   }
 }
