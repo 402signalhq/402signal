@@ -52,6 +52,8 @@ def validate_settings(environ, parse_dsn) -> tuple[dict, str]:
         # are still process-local in this release.
         if environ.get("LIVE402_ROUTER_WRITERS", "1") != "1":
             raise ValueError()
+        if environ.get("LIVE402_REPLAY_POSTGRES_API", "direct") not in {"direct", "functions-v1"}:
+            raise ValueError()
         return cfg, authority
     except Exception:
         raise StoreError("invalid PostgreSQL replay configuration") from None
@@ -76,6 +78,8 @@ class PostgresStore:
             raise
         except Exception:
             raise StoreError("PostgreSQL replay driver unavailable") from None
+        self.functions_api = (os.environ if environ is None else environ).get(
+            "LIVE402_REPLAY_POSTGRES_API", "direct") == "functions-v1"
         self.driver = driver
         self.conn = None
         self.connected_at = 0.0
@@ -122,11 +126,17 @@ class PostgresStore:
                                              "current_setting('fsync'), current_setting('full_page_writes')").fetchone()
                     if safe != (True, 'on', 'on'):
                         raise StoreError("replay authority is not durable primary")
-                    row = self.conn.execute(
-                        "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes "
-                        "FROM signal_replay.authority WHERE singleton = TRUE"
-                        + (" FOR UPDATE" if capacity or write_meta else " FOR SHARE")
-                    ).fetchone()
+                    if self.functions_api:
+                        row = self.conn.execute(
+                            "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes "
+                            "FROM signal_replay.api_authority(%s,%s,%s)",
+                            (self.authority,capacity,write_meta)).fetchone()
+                    else:
+                        row = self.conn.execute(
+                            "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes "
+                            "FROM signal_replay.authority WHERE singleton = TRUE"
+                            + (" FOR UPDATE" if capacity or write_meta else " FOR SHARE")
+                        ).fetchone()
                     if not row or row[:4] != (self.authority, 1, True, True):
                         raise StoreError("replay authority not activated")
                     if capacity and (row[4] >= row[5] or self.conn.execute(
@@ -153,6 +163,10 @@ class PostgresStore:
             self._key(scope)
         if isinstance(expires, bool) or not isinstance(expires, (int, float)) or not math.isfinite(expires):
             raise StoreError("invalid replay expiry")
+        if self.functions_api:
+            with self._transaction(capacity=True) as conn:
+                return conn.execute("SELECT signal_replay.api_reserve(%s,%s,%s,%s)",
+                                    (self.authority,key,scope,expires)).fetchone()[0]
         admitted = False
         with self._transaction(capacity=True) as conn:
             # Unique identity is authoritative even if an earlier read saw none.
@@ -178,6 +192,10 @@ class PostgresStore:
         if outcome is not None and (not isinstance(outcome, str) or len(outcome.encode()) > MAX_OUTCOME):
             raise StoreError("invalid replay outcome")
         with self._transaction(write_meta=not keep) as conn:
+            if self.functions_api:
+                conn.execute("SELECT signal_replay.api_finish(%s,%s,%s,%s,%s)",
+                             (self.authority,key,state,outcome,keep))
+                return
             if keep:
                 conn.execute(
                     "UPDATE signal_replay.entries SET state=%s, outcome_json="
@@ -195,6 +213,9 @@ class PostgresStore:
     def abandon(self, key):
         self._key(key)
         with self._transaction() as conn:
+            if self.functions_api:
+                conn.execute("SELECT signal_replay.api_abandon(%s,%s)",(self.authority,key))
+                return
             conn.execute("UPDATE signal_replay.entries SET state='unknown' WHERE fp_hash=%s "
                          "AND state IN ('settlement_pending','unknown')", (key,))
 
@@ -206,23 +227,29 @@ class PostgresStore:
             with self._transaction(capacity=True) as conn:
                 # Test write permissions without publishing another economic row.
                 with conn.transaction(force_rollback=True):
-                    conn.execute("UPDATE signal_replay.authority SET admitted=admitted WHERE singleton=TRUE")
+                    if self.functions_api:
+                        conn.execute("SELECT signal_replay.api_ready(%s)",(self.authority,))
+                    else:
+                        conn.execute("UPDATE signal_replay.authority SET admitted=admitted WHERE singleton=TRUE")
             return True
         except StoreError:
             return False
 
     def prune_outcomes(self):
-        # Bounded deletion of PRIVATE RESPONSE BODIES only; never identities.
+        # Expiry removes private bodies, never economic identities.
         now = time.monotonic()
         if now - self.last_prune < 30:
             return
         with self._transaction() as conn:
-            conn.execute(
-                "WITH expired AS (SELECT fp_hash FROM signal_replay.entries "
-                "WHERE outcome_json IS NOT NULL AND (expires_at IS NULL OR expires_at<=%s) "
-                "ORDER BY expires_at NULLS FIRST LIMIT 1000 FOR UPDATE SKIP LOCKED) "
-                "UPDATE signal_replay.entries e SET outcome_json=NULL FROM expired x WHERE e.fp_hash=x.fp_hash",
-                (time.time(),))
+            if self.functions_api:
+                conn.execute("SELECT signal_replay.api_prune(%s)",(self.authority,))
+            else:
+                conn.execute(
+                    "WITH expired AS (SELECT fp_hash FROM signal_replay.entries "
+                    "WHERE outcome_json IS NOT NULL AND (expires_at IS NULL OR expires_at<=%s) "
+                    "ORDER BY expires_at NULLS FIRST LIMIT 1000 FOR UPDATE SKIP LOCKED) "
+                    "UPDATE signal_replay.entries e SET outcome_json=NULL FROM expired x WHERE e.fp_hash=x.fp_hash",
+                    (time.time(),))
         self.last_prune = now
 
     @staticmethod

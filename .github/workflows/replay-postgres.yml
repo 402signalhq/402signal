@@ -48,7 +48,9 @@ jobs:
         env:
           LIVE402_PG_TEST_DESTRUCTIVE: isolated-ci-only
           LIVE402_PG_TEST_DSN: host=127.0.0.1 port=5432 dbname=402signal_ci user=postgres password=local-ci-only sslmode=disable
-        run: python -m unittest discover -s tests -p test_replay_storage.py -v
+        run: |
+          python -m unittest discover -s tests -p test_replay_storage.py -v
+          python -m unittest discover -s tests -p test_replay_managed_postgres.py -v
       - name: Default-backend compatibility and budget gates
         env:
           LIVE402_FIXTURE: "1"
