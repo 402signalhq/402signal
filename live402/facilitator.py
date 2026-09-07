@@ -9,7 +9,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
-from live402 import cdp_auth, payment
+from live402 import cdp_auth, payai_auth, payment
 from live402.io_deadline import DeadlineHTTPSHandler
 
 # Official x402 + CDP REST (2026):
@@ -124,13 +124,7 @@ def _auth_headers(rail: str, method: str, url: str) -> dict[str, str] | None:
             return None
         return {"Authorization": "Bearer " + token}
     if rail == "solana":
-        token = (
-            os.environ.get("PAYAI_ACCESS_TOKEN")
-            or os.environ.get("PAYAI_API_KEY")
-            or ""
-        ).strip()
-        if token:
-            return {"Authorization": "Bearer " + token}
+        return payai_auth.headers_for(method, url)
     return {}
 
 
@@ -198,7 +192,9 @@ def _call(rail: str, url: str, body: dict, timeout: float) -> FacilitatorResult:
         return FacilitatorResult(ok=False, error="invalid_facilitator_url", url=url)
     headers = _auth_headers(rail, "POST", url)
     if headers is None:
-        return FacilitatorResult(ok=False, error="cdp_auth_not_configured", url=url)
+        return FacilitatorResult(ok=False,
+                                 error="payai_auth_invalid" if rail == "solana" else "cdp_auth_not_configured",
+                                 url=url)
     status, payload = post_json(url, body, headers=headers, timeout=timeout)
     if status is None:
         return FacilitatorResult(ok=False, body=payload, error="facilitator_unavailable", url=url)

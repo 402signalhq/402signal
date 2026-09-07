@@ -181,7 +181,7 @@ Operator-classified self-tests remain in operational history, but V2 excludes th
 
 The routing authorization is **$0.003 USDC** (`3000` atomic, 6 decimals) on every rail. It settles only when a valid live eligible route is found. Normal typed misses return HTTP 200 with live:false, payable:false, selected_payment:null, and settlement_state:not_attempted. Operational failures retain HTTP 503. Seller payment is separate. Bazaar is echoed on successful settlement so catalogs can index. Inspect `billing.settlement_state` on every HTTP 503: `not_attempted` is an unpaid operational failure (or a cached legacy miss), `settled` can be a required-transparency failure after successful settlement, and `unknown` means settlement may have occurred and the authorization must not be reused.
 
-Base CDP calls need `CDP_API_KEY_ID` + `CDP_API_KEY_SECRET` (or `CDP_ACCESS_TOKEN`). PayAI is free-tier without a key; optional `PAYAI_API_KEY`. GoPlausible needs no auth. Never put a wallet private key in env.
+Base CDP calls need `CDP_API_KEY_ID` + `CDP_API_KEY_SECRET` (or `CDP_ACCESS_TOKEN`). PayAI free-tier calls can omit credentials; paid-tier authentication uses `PAYAI_API_KEY_ID` + `PAYAI_API_KEY_SECRET` to generate short-lived merchant JWTs. GoPlausible needs no auth. Never put a wallet private key in env.
 
 ## Env
 
@@ -195,7 +195,9 @@ Base CDP calls need `CDP_API_KEY_ID` + `CDP_API_KEY_SECRET` (or `CDP_ACCESS_TOKE
 | `PAYTO_ALGORAND` | Algorand payTo above | Algorand `payTo` |
 | `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` | unset | CDP JWT for Base verify/settle |
 | `CDP_ACCESS_TOKEN` | unset | pre-minted CDP Bearer (optional) |
-| `PAYAI_API_KEY` | unset | optional PayAI Bearer beyond the free tier |
+| `PAYAI_API_KEY_ID` / `PAYAI_API_KEY_SECRET` | unset | PayAI merchant ID and base64 PKCS#8 DER Ed25519 API key; optional `payai_sk_` secret prefix |
+| `PAYAI_ACCESS_TOKEN` | unset | explicit pre-minted PayAI bearer override; operator-managed rotation |
+| `PAYAI_API_KEY` | unset | legacy pre-minted PayAI bearer, used only without an ID/secret pair |
 | `LOCAL_FREE` | unset | `1` skips the paywall (tests only) |
 | `LIVE402_FIXTURE` | unset | `1` uses local JSON, no network |
 | `LIVE402_PROBE_TIMEOUT` | `4` | probe timeout seconds |
