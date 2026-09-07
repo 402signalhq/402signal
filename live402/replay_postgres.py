@@ -137,20 +137,18 @@ class PostgresStore:
                             raise StoreError("replay authority is not durable primary")
                         if self.functions_api:
                             row = self.conn.execute(
-                                "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes "
+                                "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes,outcome_bytes "
                                 "FROM signal_replay.api_authority(%s,%s,%s)",
                                 (self.authority,capacity,write_meta)).fetchone()
                         else:
                             row = self.conn.execute(
-                                "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes "
+                                "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes,outcome_bytes "
                                 "FROM signal_replay.authority WHERE singleton = TRUE"
                                 + (" FOR UPDATE" if capacity or write_meta else " FOR SHARE")
                             ).fetchone()
                         if not row or row[:4] != (self.authority, 1, True, True):
                             raise StoreError("replay authority not activated")
-                        if capacity and (row[4] >= row[5] or self.conn.execute(
-                                "SELECT pg_total_relation_size('signal_replay.entries')").fetchone()[0]
-                                         >= row[6] - MAX_OUTCOME):
+                        if capacity and (row[4] >= row[5] or (row[4]+1)*512+row[7] > row[6]):
                             raise StoreError("replay authority capacity exhausted")
                     yield self.conn
                 # Returning from the context means COMMIT was acknowledged.
@@ -200,24 +198,27 @@ class PostgresStore:
             raise StoreError("invalid replay state")
         if outcome is not None and (not isinstance(outcome, str) or len(outcome.encode()) > MAX_OUTCOME):
             raise StoreError("invalid replay outcome")
-        with self._transaction(write_meta=not keep, guarded_api=True) as conn:
+        with self._transaction(write_meta=True, guarded_api=True) as conn:
             if self.functions_api:
                 conn.execute("SELECT signal_replay.api_finish(%s,%s,%s,%s,%s)",
                              (self.authority,key,state,outcome,keep))
                 return
-            if keep:
-                conn.execute(
-                    "UPDATE signal_replay.entries SET state=%s, outcome_json="
-                    "CASE WHEN scope_hash IS NULL OR expires_at IS NULL OR expires_at <= %s THEN NULL ELSE %s END "
-                    "WHERE fp_hash=%s AND state IN ('settlement_pending','unknown')",
-                    (state, time.time(), outcome, key))
-            else:
-                # Only the existing pre-economic-action 400 path may release
-                # a pending reservation. Capacity GC never deletes identities.
-                removed = conn.execute("DELETE FROM signal_replay.entries WHERE fp_hash=%s "
-                                       "AND state='settlement_pending' RETURNING fp_hash", (key,)).fetchone()
-                if removed:
-                    conn.execute("UPDATE signal_replay.authority SET admitted=admitted-1 WHERE singleton=TRUE")
+            row = conn.execute(
+                "SELECT e.outcome_json,e.scope_hash,e.expires_at,a.admitted,a.outcome_bytes,a.max_bytes "
+                "FROM signal_replay.entries e CROSS JOIN signal_replay.authority a "
+                "WHERE e.fp_hash=%s AND e.state IN ('settlement_pending','unknown') AND a.singleton",
+                (key,)).fetchone()
+            if row is None:
+                raise StoreError("replay completion identity unavailable")
+            prior = len(row[0].encode()) if row[0] is not None else 0
+            wanted = outcome if keep and row[1] and row[2] and row[2] > time.time() else None
+            size = len(wanted.encode()) if wanted is not None else 0
+            if row[3]*512+row[4]-prior+size > row[5]:
+                wanted, size = None, 0
+            conn.execute("UPDATE signal_replay.entries SET state=%s,outcome_json=%s WHERE fp_hash=%s",
+                         (state,wanted,key))
+            conn.execute("UPDATE signal_replay.authority SET outcome_bytes=outcome_bytes-%s+%s WHERE singleton",
+                         (prior,size))
 
     def abandon(self, key):
         self._key(key)
@@ -249,16 +250,19 @@ class PostgresStore:
         now = time.monotonic()
         if now - self.last_prune < 30:
             return
-        with self._transaction(guarded_api=True) as conn:
+        with self._transaction(write_meta=True, guarded_api=True) as conn:
             if self.functions_api:
                 conn.execute("SELECT signal_replay.api_prune(%s)",(self.authority,))
             else:
-                conn.execute(
-                    "WITH expired AS (SELECT fp_hash FROM signal_replay.entries "
+                removed = conn.execute(
+                    "WITH expired AS (SELECT fp_hash,octet_length(outcome_json) AS bytes FROM signal_replay.entries "
                     "WHERE outcome_json IS NOT NULL AND (expires_at IS NULL OR expires_at<=%s) "
-                    "ORDER BY expires_at NULLS FIRST LIMIT 1000 FOR UPDATE SKIP LOCKED) "
-                    "UPDATE signal_replay.entries e SET outcome_json=NULL FROM expired x WHERE e.fp_hash=x.fp_hash",
-                    (time.time(),))
+                    "ORDER BY expires_at NULLS FIRST LIMIT 1000 FOR UPDATE SKIP LOCKED), "
+                    "cleared AS (UPDATE signal_replay.entries e SET outcome_json=NULL FROM expired x "
+                    "WHERE e.fp_hash=x.fp_hash RETURNING e.fp_hash) "
+                    "SELECT coalesce(sum(x.bytes),0) FROM expired x JOIN cleared c USING(fp_hash)",
+                    (time.time(),)).fetchone()[0]
+                conn.execute("UPDATE signal_replay.authority SET outcome_bytes=outcome_bytes-%s WHERE singleton",(removed,))
         self.last_prune = now
 
     @staticmethod

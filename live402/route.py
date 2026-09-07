@@ -169,20 +169,11 @@ def _direct_url_result(body: dict, url: str, need: str, deadline: float) -> tupl
 
 
 def run_probe(body: dict, deadline: float | None = None) -> tuple[int, dict]:
-    need = body.get("need")
-    url = body.get("url")
-    if need is not None and not isinstance(need, str):
-        return _invalid_need("need must be a string")
-    if url is not None and not isinstance(url, str):
-        return _invalid_need("url must be a string")
-    need = (need or "").strip()
-    url = (url or "").strip()
-    if not need and not url:
-        return _invalid_need("need or url is required")
-    try:
-        select.validate_explicit_constraints(body if isinstance(body, dict) else {})
-    except select.ConstraintError as exc:
-        return _invalid_need(str(exc))
+    bad = _bad_request(body)
+    if bad:
+        return bad
+    need = (body.get("need") or "").strip()
+    url = (body.get("url") or "").strip()
 
     if deadline is None:
         deadline = time.monotonic() + probe.PROBE_BUDGET_SECONDS
@@ -262,6 +253,10 @@ def _bad_request(body: dict) -> tuple[int, dict] | None:
         return 400, {"error": "need or url is required", "miss_reason": "invalid_need", "live": False, "invocable": False}
     if url_s and not url_s.lower().startswith("https://"):
         return 400, {"error": "url must be https", "miss_reason": "invalid_need", "live": False, "invocable": False}
+    try:
+        select.validate_explicit_constraints(body)
+    except select.ConstraintError as exc:
+        return _invalid_need(str(exc))
     return None
 
 
@@ -657,7 +652,7 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
     try:
         out = _paid_execute(body, parsed, accept, resource_url, bazaar, paid_deadline, fp)
         out = telemetry.finish_current(out)
-        # Cache terminal settled, not-settled, and rejected outcomes. A 400 may retry.
+        # Input 400s are validated before admission; admitted identities stay unique.
         cache = out[0] != 400
         replay.finish(fp, out, cache=cache)
         return out

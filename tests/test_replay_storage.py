@@ -114,10 +114,11 @@ class SQLiteContracts(unittest.TestCase):
         self.store.finish(KEY,'settled','private response',True)
         self.assertIsNone(self.store.lookup(KEY)[1])
 
-    def test_pre_economic_invalid_input_can_retry(self):
+    def test_admitted_identity_survives_uncached_finish(self):
         self.store.reserve(KEY,SCOPE,time.time()+120)
         self.store.finish(KEY,'rejected',None,False)
-        self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+        with self.assertRaises(sqlite3.IntegrityError): self.store.reserve(KEY,SCOPE,time.time()+120)
+        self.assertEqual(self.store.lookup(KEY)[0],'rejected')
 
     def test_expiry_clears_response_only(self):
         self.store.reserve(KEY,SCOPE,1)
@@ -373,10 +374,11 @@ class PostgreSQLContracts(unittest.TestCase):
         with self.assertRaises(StoreError):
             self.store.reserve('d'*64,SCOPE,time.time()+120)
 
-    def test_pre_economic_release_keeps_retry_contract(self):
-        self.store.reserve(KEY,SCOPE,time.time()+120)
-        self.store.finish(KEY,'rejected',None,False)
+    def test_admitted_identity_survives_uncached_finish(self):
         self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+        self.store.finish(KEY,'rejected',None,False)
+        self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+        self.assertEqual(self.store.lookup(KEY)[0],'rejected')
         self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
 
     def test_private_body_requires_scope_and_is_pruned(self):
@@ -428,9 +430,9 @@ class PostgreSQLContracts(unittest.TestCase):
         self.admin.execute('DROP ROLE IF EXISTS signal_replay_ci_runtime')
         self.admin.execute("CREATE ROLE signal_replay_ci_runtime LOGIN PASSWORD 'ci-role-only'")
         self.admin.execute('GRANT USAGE ON SCHEMA signal_replay TO signal_replay_ci_runtime')
-        self.admin.execute('GRANT SELECT,INSERT,UPDATE,DELETE ON signal_replay.entries TO signal_replay_ci_runtime')
+        self.admin.execute('GRANT SELECT,INSERT,UPDATE ON signal_replay.entries TO signal_replay_ci_runtime')
         self.admin.execute('GRANT SELECT ON signal_replay.authority TO signal_replay_ci_runtime')
-        self.admin.execute('GRANT UPDATE(admitted) ON signal_replay.authority TO signal_replay_ci_runtime')
+        self.admin.execute('GRANT UPDATE(admitted,outcome_bytes) ON signal_replay.authority TO signal_replay_ci_runtime')
         cfg=conninfo_to_dict(self.settings['LIVE402_REPLAY_POSTGRES_DSN'])
         cfg.update(user='signal_replay_ci_runtime',password='ci-role-only')
         store=PostgresStore(environ=dict(self.settings,LIVE402_REPLAY_POSTGRES_DSN=make_conninfo(**cfg)))
@@ -501,6 +503,33 @@ class PostgreSQLContracts(unittest.TestCase):
             self.assertFalse(self.store.ready())
             self.assertEqual(self.admin.execute('SELECT count(*) FROM signal_replay.entries').fetchone()[0],1)
 
+    def test_concurrent_outcomes_respect_logical_quota_and_prune_recovers(self):
+        import concurrent.futures
+        import os
+        self.admin.execute('UPDATE signal_replay.authority SET max_bytes=1048576')
+        self.admin.execute('ALTER TABLE signal_replay.entries SET (autovacuum_enabled=false)')
+        keys=[f'{i:064x}' for i in range(1,9)]
+        for key in keys: self.assertTrue(self.store.reserve(key,SCOPE,time.time()+120))
+        def finish(key):
+            own=PostgresStore(environ=self.settings)
+            try: own.finish(key,'settled',os.urandom(120000).hex(),True)
+            finally: own.close()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool: list(pool.map(finish,keys))
+        admitted,used,limit=self.admin.execute('SELECT admitted,outcome_bytes,max_bytes FROM signal_replay.authority').fetchone()
+        actual=self.admin.execute('SELECT coalesce(sum(octet_length(outcome_json)),0) FROM signal_replay.entries').fetchone()[0]
+        self.assertEqual(admitted,8);self.assertEqual(used,actual)
+        self.assertLessEqual(admitted*512+used,limit)
+        self.assertGreater(used,0)
+        self.assertLess(self.admin.execute('SELECT count(*) FROM signal_replay.entries WHERE outcome_json IS NOT NULL').fetchone()[0],8)
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM signal_replay.entries WHERE state='settled'").fetchone()[0],8)
+        self.admin.execute('UPDATE signal_replay.entries SET expires_at=0')
+        self.store.last_prune=0;self.store.prune_outcomes()
+        self.assertEqual(self.admin.execute('SELECT outcome_bytes FROM signal_replay.authority').fetchone()[0],0)
+        self.assertTrue(self.store.ready())
+        self.assertTrue(self.store.reserve('d'*64,SCOPE,time.time()+120))
+        self.assertFalse(self.store.reserve(keys[0],SCOPE,time.time()+120))
+
+
 
 if __name__ == '__main__':
     unittest.main()
@@ -536,6 +565,7 @@ def route_contender(settings, event, queue):
             result=handle_route({'need':'weather'},_headers(_payload('multiprocess-route')),RESOURCE)
             queue.put((result[0],settle.call_count))
         replay.reset_memory()
+
 
 class RuntimeSQLiteContracts(unittest.TestCase):
     def setUp(self):

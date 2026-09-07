@@ -146,10 +146,11 @@ def migrate(source, environ, *, apply=False, writers_stopped=False, max_rows=1_0
                 cursor.execute('SELECT ' + COLUMNS + ' FROM signal_replay.entries ORDER BY fp_hash')
                 if digest_rows(cursor) != (count, digest):
                     raise StoreError('destination digest mismatch')
-            if pg.execute("SELECT pg_total_relation_size('signal_replay.entries')").fetchone()[0] >= max_bytes - 262144:
-                raise StoreError('destination byte budget has no headroom')
-            pg.execute('INSERT INTO signal_replay.authority VALUES (TRUE,%s,1,FALSE,TRUE,%s,%s,%s,%s)',
-                       (authority,count,max_rows,max_bytes,digest))
+            cached_bytes=pg.execute("SELECT coalesce(sum(octet_length(outcome_json)),0) FROM signal_replay.entries").fetchone()[0]
+            if (count+1)*512+cached_bytes > max_bytes:
+                raise StoreError('destination logical byte budget has no headroom')
+            pg.execute('INSERT INTO signal_replay.authority VALUES (TRUE,%s,1,FALSE,TRUE,%s,%s,%s,%s,%s)',
+                       (authority,count,max_rows,max_bytes,digest,cached_bytes))
         if fault:
             fault('after_import_commit')
         conn.execute("INSERT INTO replay_meta(key,value) VALUES ('external_authority_id',?)", (authority,))

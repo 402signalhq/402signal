@@ -2,6 +2,7 @@
 
 A reservation returning True is a committed admission, never a queue promise.
 Backend errors must not trigger a retry against a different database.
+Every admitted identity is permanent; finish keep=False disables only its cached outcome.
 """
 from __future__ import annotations
 
@@ -84,16 +85,13 @@ class SQLiteStore:
     def finish(self, key: str, state: str, outcome: str | None, keep: bool) -> None:
         conn = self.connect()
         try:
-            if keep:
-                conn.execute("UPDATE settle_ledger SET state = ?, outcome_json = "
-                             "CASE WHEN scope_hash IS NULL OR expires_at IS NULL OR expires_at <= ? "
-                             "THEN NULL ELSE ? END WHERE fp_hash = ? "
-                             "AND state IN ('settlement_pending','unknown')",
-                             (state, time.time(), outcome, key))
-            else:
-                # Existing contract: only a 400 before any economic action.
-                conn.execute("DELETE FROM settle_ledger WHERE fp_hash = ? "
-                             "AND state = 'settlement_pending'", (key,))
+            updated = conn.execute("UPDATE settle_ledger SET state = ?, outcome_json = "
+                         "CASE WHEN scope_hash IS NULL OR expires_at IS NULL OR expires_at <= ? "
+                         "THEN NULL ELSE ? END WHERE fp_hash = ? "
+                         "AND state IN ('settlement_pending','unknown')",
+                         (state, time.time(), outcome if keep else None, key))
+            if updated.rowcount != 1:
+                raise StoreError("replay completion identity unavailable")
             conn.commit()
         except BaseException:
             conn.rollback()

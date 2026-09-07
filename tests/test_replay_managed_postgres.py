@@ -106,12 +106,15 @@ class ManagedPostgresContracts(unittest.TestCase):
         self.assertFalse(self.store.ready())
         with self.assertRaises(StoreError): self.store.reserve('d'*64,SCOPE,time.time()+120)
         self.assertEqual(self.admin.execute('SELECT count(*) FROM signal_replay.entries').fetchone()[0],1)
-    def test_release_is_only_pending_and_never_terminal(self):
-        self.store.reserve(KEY,SCOPE,time.time()+120);self.store.finish(KEY,'rejected',None,False)
-        self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
-        self.store.finish(KEY,'settled','done',True);self.store.finish(KEY,'rejected',None,False)
-        self.assertEqual(self.store.lookup(KEY)[0],'settled')
+    def test_runtime_cannot_remove_an_admitted_identity(self):
+        self.store.reserve(KEY,SCOPE,time.time()+120)
+        self.runtime.execute('SELECT signal_replay.api_finish(%s,%s,%s,%s,%s)',(AUTHORITY,KEY,'rejected',None,False))
+        with self.assertRaises(StoreError): self.store.finish(KEY,'settled','done',True)
+        self.store.close()
+        self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+        self.assertEqual(self.store.lookup(KEY)[0],'rejected')
         self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
+
     def test_forged_authority_direct_function_has_no_write(self):
         import psycopg
         with self.assertRaises(psycopg.Error):
@@ -188,3 +191,109 @@ class ManagedPostgresContracts(unittest.TestCase):
         self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
         with self.assertRaises(StoreError): self.store.reserve('d'*64,SCOPE,time.time()+120)
         self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
+
+    def test_entry_table_and_column_permission_drift_blocks_every_api(self):
+        import psycopg
+        for privilege in ['INSERT','UPDATE','DELETE','TRUNCATE','TRIGGER','INSERT(fp_hash)','UPDATE(state)']:
+            with self.subTest(privilege=privilege):
+                self.admin.execute('GRANT '+privilege+' ON signal_replay.entries TO managed_runtime')
+                self.store.close()
+                self.assertFalse(self.store.ready())
+                with self.assertRaises(StoreError): self.store.lookup(KEY)
+                with self.assertRaises(StoreError): self.store.reserve(KEY,SCOPE,time.time()+120)
+                with self.assertRaises(psycopg.Error):
+                    self.runtime.execute('SELECT signal_replay.api_finish(%s,%s,%s,%s,%s)',(AUTHORITY,KEY,'settled',None,True))
+                self.admin.execute('REVOKE '+privilege+' ON signal_replay.entries FROM managed_runtime')
+                self.assertTrue(self.store.ready())
+        self.assertEqual(self.admin.execute('SELECT count(*) FROM signal_replay.entries').fetchone()[0],0)
+
+    def test_noinherit_mutation_role_cannot_hide_set_role_path(self):
+        self.admin.execute('CREATE ROLE replay_mutation_drift NOLOGIN')
+        try:
+            self.admin.execute('GRANT DELETE ON signal_replay.entries TO replay_mutation_drift')
+            self.admin.execute('ALTER ROLE managed_runtime NOINHERIT')
+            self.admin.execute('GRANT replay_mutation_drift TO managed_runtime')
+            self.assertFalse(self.store.ready())
+        finally:
+            self.store.close()
+            self.admin.execute('REVOKE replay_mutation_drift FROM managed_runtime')
+            self.admin.execute('ALTER ROLE managed_runtime INHERIT')
+            self.admin.execute('DROP OWNED BY replay_mutation_drift')
+            self.admin.execute('DROP ROLE replay_mutation_drift')
+        self.assertTrue(self.store.ready())
+
+    def test_installed_trigger_and_schema_create_drift_block_readiness(self):
+        self.admin.execute('GRANT CREATE ON SCHEMA signal_replay TO managed_runtime')
+        self.assertFalse(self.store.ready())
+        self.admin.execute('REVOKE CREATE ON SCHEMA signal_replay FROM managed_runtime')
+        self.admin.execute("CREATE FUNCTION signal_replay.drift_trigger() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$")
+        self.admin.execute('CREATE TRIGGER drift BEFORE UPDATE ON signal_replay.entries FOR EACH ROW EXECUTE FUNCTION signal_replay.drift_trigger()')
+        self.assertFalse(self.store.ready())
+
+    def test_concurrent_outcomes_respect_logical_quota_and_prune_recovers(self):
+        import concurrent.futures
+        self.admin.execute('UPDATE signal_replay.authority SET max_bytes=1048576')
+        self.admin.execute('ALTER TABLE signal_replay.entries SET (autovacuum_enabled=false)')
+        keys=[f'{i:064x}' for i in range(1,9)]
+        for key in keys: self.assertTrue(self.store.reserve(key,SCOPE,time.time()+120))
+        def finish(key):
+            own=PostgresStore(environ=self.settings)
+            try: own.finish(key,'settled',os.urandom(120000).hex(),True)
+            finally: own.close()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool: list(pool.map(finish,keys))
+        admitted,used,limit=self.admin.execute('SELECT admitted,outcome_bytes,max_bytes FROM signal_replay.authority').fetchone()
+        actual=self.admin.execute('SELECT coalesce(sum(octet_length(outcome_json)),0) FROM signal_replay.entries').fetchone()[0]
+        self.assertEqual(admitted,8);self.assertEqual(used,actual)
+        self.assertLessEqual(admitted*512+used,limit)
+        self.assertGreater(used,0)
+        self.assertLess(self.admin.execute('SELECT count(*) FROM signal_replay.entries WHERE outcome_json IS NOT NULL').fetchone()[0],8)
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM signal_replay.entries WHERE state='settled'").fetchone()[0],8)
+        self.admin.execute('UPDATE signal_replay.entries SET expires_at=0')
+        self.store.last_prune=0;self.store.prune_outcomes()
+        self.assertEqual(self.admin.execute('SELECT outcome_bytes FROM signal_replay.authority').fetchone()[0],0)
+        self.assertTrue(self.store.ready())
+        self.assertTrue(self.store.reserve('d'*64,SCOPE,time.time()+120))
+        self.assertFalse(self.store.reserve(keys[0],SCOPE,time.time()+120))
+
+    def test_missing_identity_completion_is_an_error(self):
+        with self.assertRaises(StoreError): self.store.finish(KEY,'settled','result',True)
+        self.assertEqual(self.admin.execute('SELECT admitted,outcome_bytes FROM signal_replay.authority').fetchone(),(0,0))
+
+    def test_migration_initializes_utf8_outcome_accounting(self):
+        self.store.close();self.admin.execute('DROP SCHEMA signal_replay CASCADE')
+        with tempfile.TemporaryDirectory() as temp:
+            source=Path(temp)/'replay.sqlite';outcome='cached \u2713'
+            with sqlite3.connect(source) as conn:
+                conn.executescript(SCHEMA)
+                conn.execute('INSERT INTO settle_ledger VALUES(?,?,?,?,?,?,?)',(KEY,'settled',outcome,1,2,SCOPE,1))
+            env=dict(self.settings,LIVE402_REPLAY_POSTGRES_DSN=os.environ['LIVE402_PG_TEST_DSN'],LIVE402_REPLAY_POSTGRES_RUNTIME_LOGIN='managed_runtime')
+            result=migrate(source,env,apply=True,writers_stopped=True)
+            self.assertTrue(result['target_active'])
+            self.assertEqual(self.admin.execute('SELECT outcome_bytes FROM signal_replay.authority').fetchone()[0],0)
+            self.assertEqual(self.store.lookup(KEY)[:2],('settled',None))
+            self.assertTrue(self.store.reserve('d'*64,SCOPE,time.time()+120))
+            self.store.finish('d'*64,'settled',outcome,True)
+            self.assertEqual(self.admin.execute('SELECT outcome_bytes FROM signal_replay.authority').fetchone()[0],len(outcome.encode()))
+
+    def test_owner_upgrade_preserves_existing_rows_authority_and_instance_fence(self):
+        import psycopg
+        self.store.reserve(KEY,SCOPE,time.time()+120);self.store.finish(KEY,'settled','private',True)
+        before=self.admin.execute('SELECT * FROM signal_replay.entries ORDER BY fp_hash').fetchall()
+        authority=self.admin.execute('SELECT authority_id,active,legacy_ready,admitted,max_rows,max_bytes,migration_digest FROM signal_replay.authority').fetchall()
+        policy=self.admin.execute('SELECT * FROM signal_replay.runtime_policy').fetchall()
+        self.store.close()
+        self.admin.execute('ALTER TABLE signal_replay.authority DROP COLUMN outcome_bytes CASCADE')
+        sql=(Path(__file__).resolve().parents[1]/'ops/replay-postgres-accounting-upgrade.sql').read_text()
+        with self.assertRaises(psycopg.Error): self.admin.execute(sql)
+        self.admin.execute('ROLLBACK')
+        self.admin.execute("SET live402.upgrade_writers_stopped='1'")
+        self.admin.execute(sql)
+        self.admin.execute((Path(__file__).resolve().parents[1]/'ops/replay-postgres-functions.sql').read_text())
+        self.admin.execute('RESET live402.upgrade_writers_stopped')
+        self.assertEqual(self.admin.execute('SELECT * FROM signal_replay.entries ORDER BY fp_hash').fetchall(),before)
+        self.assertEqual(self.admin.execute('SELECT authority_id,active,legacy_ready,admitted,max_rows,max_bytes,migration_digest FROM signal_replay.authority').fetchall(),authority)
+        self.assertEqual(self.admin.execute('SELECT * FROM signal_replay.runtime_policy').fetchall(),policy)
+        self.assertEqual(self.admin.execute('SELECT outcome_bytes FROM signal_replay.authority').fetchone()[0],7)
+        self.assertTrue(self.store.ready())
+        self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+        self.assertEqual(self.store.lookup(KEY)[:2],('settled','private'))

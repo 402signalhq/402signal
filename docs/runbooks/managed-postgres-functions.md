@@ -43,3 +43,49 @@ provider TLS and permissions, instance-change rejection, migration interruption,
 and representative replay-throughput measurements. Storage throughput alone does
 not prove end-to-end MainNet throughput or horizontal catalog/history/PQ safety.
 Keep explicit capacity budgets; retained economic identities are not TTL data.
+
+
+## Admission and storage accounting
+
+All deterministic request validation runs after payment verification and before
+durable admission. Corrected invalid requests can retry because no identity was
+admitted. Once admitted, the economic identity is permanent, including when a
+caller requests an uncached finish. Missing or already terminal completion is
+an error; uncertainty never grants another admission.
+
+The managed guard checks mutation/column/trigger privileges, object ownership,
+schema CREATE and reachable member roles for entries, authority and policy.
+Unexpected non-internal triggers also block readiness. Inventory these rights
+and the complete role graph before activation; a normal Reader remains valid.
+
+`max_bytes` is a logical retained-data quota: 512 bytes per admitted identity
+plus the current UTF-8 bytes of cached outcomes. The owner-maintained
+`outcome_bytes` counter is initialized during migration. Admission, completion
+and pruning serialize its updates. An outcome that cannot fit is omitted while
+its economic state and identity are retained. Expiring a body returns logical
+quota immediately; no VACUUM is needed to restore that quota.
+
+This quota is not a physical disk-size ceiling. Monitor table/index/TOAST size,
+WAL, disk headroom and autovacuum separately, and provision headroom for them.
+Do not infer daily request capacity or a fixed cloud bill from this counter.
+Ten million retained identities is a lifetime count, not a daily allowance.
+The one-router guard remains until catalog, history and PQ ordering are shared.
+
+
+## Existing authority upgrade
+
+Fresh migrations create the accounting column automatically. For an existing
+PostgreSQL authority, drain and stop every writer, retain a recovery backup,
+and use the migration owner to set `live402.upgrade_writers_stopped='1'` in the
+operator session. Run `ops/replay-postgres-accounting-upgrade.sql`, followed by
+the current selected backend schema (`replay-postgres-functions.sql` for this
+mode, `replay-postgres.sql` for direct mode). Keep writers stopped until both
+steps succeed and the patched application's readiness is verified.
+
+The upgrade locks the authority and entries, adds the counter, verifies the
+retained identity count, initializes cached UTF-8 bytes and validates quota in
+one transaction. Insufficient quota or inconsistent counts abort the upgrade;
+resolve them explicitly rather than deleting identities or raising limits
+automatically. The existing activation, authority ID, migration digest, records
+and instance fence remain unchanged. A failed instance fence still requires
+the separate documented recovery procedure.
