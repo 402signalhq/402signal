@@ -23,10 +23,11 @@ function router(value, allowLoopback) {
   check((u.protocol==='https:'||loopback) && !u.username && !u.password && !u.search && !u.hash && u.pathname==='/route','invalid_router_url');
   return u.href;
 }
-function responseRecord(status,bodyText,paymentResponse,retryAfter) {
+function responseRecord(status,bodyText,paymentResponse,retryAfter,paymentRequired) {
   check(Number.isInteger(status)&&status>=100&&status<=599&&typeof bodyText==='string'&&Buffer.byteLength(bodyText)<=LIMIT,'invalid_response');
   check(paymentResponse===null || typeof paymentResponse==='string'&&paymentResponse.length<=16384,'invalid_response');
-  return {status,bodyText,paymentResponse,retryAfter:typeof retryAfter==='string'&&retryAfter.length<=128?retryAfter:null};
+  check(paymentRequired===null || typeof paymentRequired==='string'&&paymentRequired.length>0&&paymentRequired.length<=16384&&/^[\x21-\x7e]+$/.test(paymentRequired),'invalid_payment_challenge');
+  return {status,bodyText,paymentResponse,paymentRequired,retryAfter:typeof retryAfter==='string'&&retryAfter.length<=128?retryAfter:null};
 }
 /** Server billing claims are not independent chain confirmation or spending authority. */
 export function classifyRouteResponse(response) {
@@ -45,11 +46,13 @@ export function classifyRouteResponse(response) {
 }
 
 export class RouteClient {
-  #url;#store;#fetch;#timeout;#now;
-  constructor({store,routerUrl='https://402signal.com/route',recoveryProfile,fetch:fetchImpl=globalThis.fetch,timeoutMs=75000,allowInsecureLoopback=false,now=Date.now}) {
+  #url;#store;#fetch;#timeout;#now;#customerKey;
+  constructor({store,routerUrl='https://402signal.com/route',customerKey,recoveryProfile,fetch:fetchImpl=globalThis.fetch,timeoutMs=75000,allowInsecureLoopback=false,now=Date.now}) {
     check(recoveryProfile===PROFILE,'confirmed_recovery_profile_required');
     check(store&&typeof store.get==='function'&&typeof store.putOnce==='function','durable_store_required');
     check(typeof fetchImpl==='function'&&typeof now==='function'&&Number.isSafeInteger(timeoutMs)&&timeoutMs>=1&&timeoutMs<=90000,'invalid_client_options');
+    check(customerKey===undefined || typeof customerKey==='string'&&/^[A-Za-z0-9_-]{32,128}$/.test(customerKey),'invalid_customer_key');
+    this.#customerKey=customerKey;
     this.#url=router(routerUrl,allowInsecureLoopback);this.#store=store;this.#fetch=fetchImpl;this.#timeout=timeoutMs;this.#now=now;
   }
   async #get(id,part) {
@@ -69,7 +72,7 @@ export class RouteClient {
   async #request(bodyText,headers={},timeout=this.#timeout) {
     const controller=new AbortController();let timer;
     const work=(async()=>{
-      const r=await this.#fetch(this.#url,{method:'POST',body:bodyText,headers:{'Content-Type':'application/json',...headers},redirect:'error',credentials:'omit',cache:'no-store',signal:controller.signal});
+      const r=await this.#fetch(this.#url,{method:'POST',body:bodyText,headers:{'Content-Type':'application/json',...headers,...(this.#customerKey===undefined?{}:{'X-402Signal-Key':this.#customerKey})},redirect:'error',credentials:'omit',cache:'no-store',signal:controller.signal});
       check(!r.redirected && (!r.url||r.url===this.#url),'redirect_refused');
       const length=r.headers.get('content-length');check(length===null||/^\d+$/.test(length)&&Number(length)<=LIMIT,'response_too_large');
       const chunks=[];let size=0;const reader=r.body?.getReader();
@@ -77,14 +80,20 @@ export class RouteClient {
         for(;;){const x=await reader.read();if(x.done)break;size+=x.value.byteLength;check(size<=LIMIT,'response_too_large');chunks.push(x.value);}
       } catch(e) {await reader.cancel().catch(()=>{});throw e;}
       const raw=new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks));
-      return responseRecord(r.status,raw,r.headers.get('PAYMENT-RESPONSE'),r.headers.get('Retry-After'));
+      const required=r.headers.get('PAYMENT-REQUIRED'),legacy=r.headers.get('X-PAYMENT-REQUIRED');
+      check(required===null||legacy===null||required===legacy,'conflicting_payment_challenges');
+      return responseRecord(r.status,raw,r.headers.get('PAYMENT-RESPONSE'),r.headers.get('Retry-After'),required??legacy);
     })();
     try {
       return await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new RouteClientError('transport_ambiguous'));},timeout);})]);
+    } catch(error) {
+      // Caller transports can include credentials in their error text.
+      throw error instanceof RouteClientError ? error : new RouteClientError('transport_ambiguous');
     } finally {clearTimeout(timer);controller.abort();}
   }
   async #capability() {
-    // No payment or private request material is sent to an unconfirmed peer.
+    // Only the configured router receives the API access key. No payment or private
+    // request material is sent before confirming its recovery contract.
     let r;try {r=await this.#request('{}',{'Replay-Only':'1'},Math.min(this.#timeout,10000));} catch {throw new RouteClientError('recovery_compatibility_unconfirmed');}
     if(r.status===429){const error=new RouteClientError('recovery_rate_limited');error.retryAfter=r.retryAfter;throw error;}
     let b;try {b=json(r.bodyText);} catch {throw new RouteClientError('recovery_compatibility_unconfirmed');}

@@ -956,6 +956,8 @@ class _SSRFRedirectHandler(urllib.request.HTTPRedirectHandler):
     max_redirections = MAX_REDIRECTS
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if getattr(req, "no_probe_redirects", False):
+            raise ProbeBlocked("explicit probe redirects are not allowed")
         hops = getattr(req, "ssrf_hops", 0) + 1
         if hops > MAX_REDIRECTS:
             raise ProbeBlocked("too many redirects")
@@ -1605,6 +1607,7 @@ def _one_request(
     data: bytes | None = None,
     deadline: float | None = None,
     pinned_addrs: list[tuple] | None = None,
+    allow_redirects: bool = True,
 ) -> dict:
     """Single unpaid HTTP probe. Never pays. ProbeBlocked is ssrf, never live."""
     if remaining_timeout(deadline) is not None and remaining_timeout(deadline) <= 0:
@@ -1644,6 +1647,7 @@ def _one_request(
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
     req.ssrf_hops = 0
+    req.no_probe_redirects = not allow_redirects
     req.binding_root = req
     req.binding_redirected = False
     req.pinned_addrs = list(addrs)
@@ -1799,7 +1803,10 @@ def _fixture_probe(url: str, catalog_item: dict | None = None, batch_id: str | N
     return _finalize_probe(result, batch_id=batch_id, record=record)
 
 
-def probe_url(url: str, catalog_item: dict | None = None, deadline: float | None = None, batch_id: str | None = None, record: bool = True) -> dict:
+def probe_url(url: str, catalog_item: dict | None = None, deadline: float | None = None, batch_id: str | None = None, record: bool = True, request_profile=None) -> dict:
+    if request_profile is not None:
+        from live402 import probe_profile
+        probe_profile.validate(request_profile, url)
     try:
         work_lease = admission.reserve_probe(url)
     except Exception:
@@ -1808,11 +1815,55 @@ def probe_url(url: str, catalog_item: dict | None = None, deadline: float | None
                 "miss_reason": "probe_capacity", "retryable": True, "probes": []}
     result = None
     try:
-        result = _probe_url_unbudgeted(url, catalog_item, deadline, batch_id, record)
+        if request_profile is not None:
+            result = _probe_exact_request(url, request_profile, catalog_item, deadline, batch_id, record)
+        else:
+            result = _probe_url_unbudgeted(url, catalog_item, deadline, batch_id, record)
         return result
     finally:
         if work_lease is not None:
             work_lease.engine.probe_complete(work_lease, isinstance(result, dict) and result.get("live") is True)
+
+
+def _probe_exact_request(url, request_profile, catalog_item, deadline, batch_id, record):
+    """One admitted unpaid POST; no GET, fallback, redirect, or discovery fanout."""
+    from live402 import probe_profile
+    probe_profile.validate(request_profile, url)
+    deadline = deadline if deadline is not None else clock.monotonic() + PROBE_BUDGET_SECONDS
+    bid = batch_id or uuid.uuid4().hex
+    started = time.perf_counter()
+    pinned = None
+    if (remaining_timeout(deadline) or 0) > 0:
+        pinned = _pin_https_target(url)
+    if pinned:
+        # A normalized destination must still be the exact reviewed resource.
+        safe, addrs = pinned
+        if safe != url:
+            raise probe_profile.ProfileError("unsupported probe_request profile")
+        snap = _one_request(url, "POST", data=request_profile.body, deadline=deadline,
+                            pinned_addrs=addrs, allow_redirects=False)
+        probes = [_probe_entry("POST", snap)]
+    else:
+        snap = {"live": False, "status": None, "has_402_challenge": False, "payTo": None,
+                "miss_reason": "probe_timeout" if (remaining_timeout(deadline) or 0) <= 0 else "ssrf"}
+        probes = []
+    snap.update(latency_ms=int((time.perf_counter() - started) * 1000),
+                probed_at=now_iso(), probes=probes)
+    result = health_from_probe(url, snap)
+    env = snap.get("envelope")
+    result = attach_catalog_fields(result, catalog_item)
+    result = attach_invocable_target(result, catalog_item, env)
+    # Invocation shape is this explicit reviewed profile. Seller terms/prices
+    # still come only from the actual current unpaid response.
+    result["target"]["method"] = "POST"
+    result["target"]["inputSchema"] = probe_profile.input_schema()
+    if result.get("payable"):
+        result["invocable"] = True
+        result["schema_source"] = "probe_profile"
+        result["target"]["schema_source"] = "probe_profile"
+        if result.get("miss_reason") == "no_input_schema":
+            result.pop("miss_reason")
+    return _finalize_probe(result, batch_id=bid, record=record)
 
 
 def _probe_url_unbudgeted(url: str, catalog_item: dict | None = None, deadline: float | None = None, batch_id: str | None = None, record: bool = True) -> dict:

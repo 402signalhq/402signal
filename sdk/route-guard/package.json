@@ -1,6 +1,6 @@
 {
   "name": "@402signal/route-guard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": false,
   "type": "module",
   "description": "402Signal buyer-owned routing client, private response recovery and local evidence verifier.",

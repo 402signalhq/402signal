@@ -1,0 +1,444 @@
+{
+  "query": "x402 payment protocol",
+  "url": "https://parallelmpp.dev/api/search",
+  "request": {
+    "url": "https://parallelmpp.dev/api/search",
+    "require_route_binding": true,
+    "require_invocable": true,
+    "probe_request": {
+      "profile": "parallel-search-json-v1",
+      "method": "POST",
+      "body": "{\"query\":\"x402 payment protocol\",\"mode\":\"one-shot\"}"
+    },
+    "networks": [
+      "base"
+    ],
+    "max_price_usd": 0.01
+  },
+  "response": {
+    "live": true,
+    "url": "https://parallelmpp.dev/api/search",
+    "status": 402,
+    "latency_ms": 1,
+    "has_402_challenge": true,
+    "probed_at": "2026-09-07T20:11:42Z",
+    "payTo": "0x1111111111111111111111111111111111111111",
+    "health": {
+      "live": true,
+      "last_probe": "2026-09-07T20:11:42Z",
+      "latency_ms": 1,
+      "has_402_challenge": true,
+      "status": 402
+    },
+    "probes": [
+      {
+        "method": "POST",
+        "status": 402
+      }
+    ],
+    "traction": "unknown",
+    "envelope": {
+      "x402Version": 2,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "amount": "10000",
+          "payTo": "0x1111111111111111111111111111111111111111",
+          "maxTimeoutSeconds": 300,
+          "extra": {
+            "name": "USD Coin",
+            "version": "2"
+          }
+        }
+      ],
+      "resource": {
+        "url": "https://parallelmpp.dev/api/search",
+        "mimeType": "application/json"
+      }
+    },
+    "target": {
+      "method": "POST",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "query",
+          "mode"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "one-shot"
+            ]
+          }
+        }
+      },
+      "outputSchema": null,
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "amount": "10000",
+          "payTo": "0x1111111111111111111111111111111111111111",
+          "maxTimeoutSeconds": 300,
+          "extra": {
+            "name": "USD Coin",
+            "version": "2",
+            "facilitator": {
+              "caip2": "eip155:8453",
+              "scheme": "exact"
+            },
+            "caip2": "eip155:8453"
+          }
+        }
+      ],
+      "facilitator": null,
+      "amountAtomic": "10000",
+      "displayAmount": "$0.01",
+      "timeoutSeconds": 300,
+      "schema_source": "probe_profile"
+    },
+    "challenge_observed": true,
+    "payable": true,
+    "invocable": true,
+    "schema_source": "probe_profile",
+    "batch_id": "30bbc7a1837f49ca8f79fff50ac7c3df",
+    "verified_at": "2026-09-07T20:11:42Z",
+    "verified_seconds_ago": 0,
+    "readiness": "invocable",
+    "readiness_healthy": null,
+    "history": {
+      "success_24h": null,
+      "success_7d": null,
+      "n_24h": 0,
+      "n_7d": 0,
+      "p50_latency_ms": null,
+      "p95_latency_ms": null
+    },
+    "claimed": {
+      "payTo": null,
+      "amount": null,
+      "schema_present": null,
+      "facilitator": null,
+      "claimed_at": null,
+      "payment_options": null,
+      "accepts": null
+    },
+    "observed": {
+      "http_status": null,
+      "payTo": null,
+      "amount": null,
+      "latency_ms": null,
+      "schema_present": null,
+      "payable": null,
+      "invocable": null,
+      "observed_at": null
+    },
+    "reputation": {
+      "observed": {
+        "success_count": 0,
+        "observation_count": 0,
+        "distinct_days_observed": 0,
+        "freshness": {
+          "last_checked": null,
+          "last_success_402": null,
+          "provenance": "402signal_observed"
+        },
+        "outcome_stability": {
+          "window": "7d",
+          "provenance": "402signal_observed",
+          "success_7d": null,
+          "outcome_flips": 0
+        }
+      },
+      "usage": {
+        "settlement_count": {
+          "value": null,
+          "status": "unknown",
+          "reason": "no_settlement_ledger",
+          "label": "not_402signal_observed"
+        },
+        "unique_payer_count": {
+          "value": null,
+          "status": "unknown",
+          "reason": "no_payer_identities",
+          "label": "not_402signal_observed"
+        },
+        "scoring_probe_count": {
+          "value": 0,
+          "excluded_self_tests": 0,
+          "window": "7d",
+          "policy": "exclude_known_operator_tests"
+        },
+        "probe_count": {
+          "value": 0,
+          "window": "7d",
+          "label": "402signal_observed",
+          "note": "routing observations, not uptime and not reputation"
+        }
+      },
+      "tenure": {
+        "first_seen": "2026-09-07T20:11:42Z",
+        "first_seen_provenance": "402signal_observed",
+        "days_listed": null
+      },
+      "stability": {
+        "payTo_changes": {
+          "changed_at": null,
+          "count": 0
+        },
+        "price_changes": {
+          "changed_at": null,
+          "count": 0
+        },
+        "schema_changes": {
+          "changed_at": null,
+          "count": 0
+        },
+        "rail_changes": {
+          "changed_at": null,
+          "count": 0
+        }
+      },
+      "source_count": null,
+      "reputation_score": null,
+      "reputation_confidence": 0.0,
+      "scoring_model_id": "reputation-v2",
+      "scoring_model_hash": "d4e0e1fe865ff68fddc1bd74da773fb5541a23e3356b80e9dcb190b4e7407378",
+      "scoring_components": {
+        "present": [],
+        "dropped": [
+          "observed_performance",
+          "stability",
+          "tenure",
+          "usage",
+          "distribution"
+        ],
+        "values": {
+          "observed_performance": null,
+          "stability": null,
+          "tenure": null,
+          "usage": null,
+          "distribution": null
+        }
+      }
+    },
+    "need": null,
+    "objective": "best",
+    "tried": 1,
+    "source": "fixture",
+    "discovery_matches": 0,
+    "candidates_discovered": 0,
+    "candidates_considered": 1,
+    "candidates_probed": 1,
+    "probe_ceiling": 1,
+    "probe_budget_exhausted": false,
+    "candidate_evaluation_complete": true,
+    "evaluation_complete": true,
+    "discovered_count": 0,
+    "probed_count": 1,
+    "unprobed_count": 0,
+    "interpreted_constraints": {
+      "networks": [
+        "base"
+      ],
+      "max_price_usd": 0.01,
+      "require_invocable": true
+    },
+    "applied_constraints": {
+      "networks": [
+        "base"
+      ],
+      "max_price_usd": 0.01,
+      "require_invocable": true
+    },
+    "unresolved_constraints": [],
+    "selected_payment": {
+      "rail": "base",
+      "network": "eip155:8453",
+      "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "amount_atomic": 10000,
+      "display_amount": "$0.01",
+      "normalized_usd": 0.01,
+      "payTo": "0x1111111111111111111111111111111111111111",
+      "facilitator": null,
+      "economics": {
+        "rail": "base",
+        "merchant_price_usd": {
+          "value": 0.01,
+          "provenance": "402signal_observed"
+        },
+        "chain_fee_usd": {
+          "value": null,
+          "provenance": "unknown",
+          "reason": "variable_gas_no_usd_oracle",
+          "citation": null
+        },
+        "facilitator_fee_usd": {
+          "value": null,
+          "provenance": "unknown",
+          "reason": "facilitator_fee_not_documented"
+        },
+        "total_cost_usd": {
+          "value": null,
+          "provenance": "unknown",
+          "reason": "unknown_fee",
+          "note": "Merchant price is not total cost. Unknown fee fails closed for lowest_total_cost and max_total_cost_usd."
+        },
+        "settlement_latency_ms": {
+          "value": null,
+          "provenance": "unknown",
+          "reason": "no_settlement_ledger",
+          "note": "Not probe RTT and not service p50. Observed settlement is unknown."
+        },
+        "finality_ms": {
+          "value": 2000,
+          "provenance": "protocol_reference",
+          "stage": "l2_block_inclusion",
+          "citation": "https://docs.base.org/base-chain/network-information/transaction-finality",
+          "note": "Official Base docs: L2 block inclusion ~2s for ordinary L2 payments. Not L1 batch finality (~20m) and not a withdrawal."
+        },
+        "settlement_or_finality_ms": {
+          "value": 2000,
+          "provenance": "protocol_reference",
+          "note": "Observed settlement if present, else protocol_reference finality. Never probe RTT."
+        },
+        "fee_predictability": {
+          "value": null,
+          "provenance": "unknown",
+          "reason": "not_measured"
+        },
+        "settlement_success": {
+          "value": null,
+          "provenance": "unknown",
+          "reason": "no_settlement_ledger"
+        },
+        "facilitator_performance": {
+          "value": null,
+          "provenance": "unknown",
+          "reason": "not_mixed_with_rails_ping"
+        }
+      }
+    },
+    "stop_reason": "winner_selected",
+    "decision_binding": {
+      "model": "proof_carrying_route_v1",
+      "observed_at": 1788811902,
+      "expires_at": 1788811962,
+      "request": {
+        "url": "https://parallelmpp.dev/api/search",
+        "method": "POST",
+        "body_sha256": "09161814408d76a01e61dab3f906668d7158e1a45235c71adb1a398744f54006"
+      },
+      "quote_sha256": "8de6d9127fb91de269a1010244497eb714b881fd812b7c11f4e85b5da289e183",
+      "selected_index": 0
+    },
+    "billing": {
+      "model": "success_only_v1",
+      "condition": "live_eligible_route_found",
+      "asset": "USDC",
+      "amount_atomic": "3000",
+      "display_amount": "$0.003",
+      "rail": "base",
+      "settlement_attempted": true,
+      "settled": true,
+      "settlement_state": "settled"
+    },
+    "payment_authorization": {
+      "pq_native": false
+    },
+    "pq_trust": {
+      "transparency": {
+        "log_origin": "402signal.com/pq/log",
+        "leaf_type": "402signal.route_decision.v4",
+        "reveal": {
+          "type": "402signal.route_decision.v4",
+          "ts": "2026-09-07T20:11:00Z",
+          "nonce": "eab17c179aec2b1aade3ab626b5e830bd6e866e9974da46ad74bf3dbbba50cce",
+          "commitment": "0e66f641eea183428c5c9995c714bed0a5d14673f8649b59c93fe6985d5faef2",
+          "event_version": "402signal.route_decision.v4",
+          "evidence": {
+            "evidence_version": 2,
+            "routing_evidence_json": "{\"comparison\":{\"candidate_count\":1,\"candidate_set_digest\":null,\"observation_batch_hash\":\"0309ecb7e96a465c2ffac71931e4d40a50d0fffd120ec4453a74b1bf74721ab1\",\"probe_batch_id\":\"30bbc7a1837f49ca8f79fff50ac7c3df\"},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://parallelmpp.dev/api/search\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":1,\"live\":true,\"observed_at\":\"2026-09-07T20:11:42Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.01,\"networks\":[\"base\"],\"require_invocable\":true},\"objective\":\"best\",\"unresolved\":[]},\"request\":{\"need\":null,\"url\":\"https://parallelmpp.dev/api/search\"},\"scoring\":{\"model_hash\":\"d4e0e1fe865ff68fddc1bd74da773fb5541a23e3356b80e9dcb190b4e7407378\",\"model_id\":\"reputation-v2\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"network\":\"eip155:8453\",\"payTo\":\"0x1111111111111111111111111111111111111111\",\"rail\":\"base\",\"scheme\":null}}",
+            "request_json": "{\"max_price_usd\":0.01,\"networks\":[\"base\"],\"probe_request\":{\"body\":\"{\\\"query\\\":\\\"x402 payment protocol\\\",\\\"mode\\\":\\\"one-shot\\\"}\",\"method\":\"POST\",\"profile\":\"parallel-search-json-v1\"},\"require_invocable\":true,\"require_route_binding\":true,\"url\":\"https://parallelmpp.dev/api/search\"}",
+            "binding": {
+              "model": "proof_carrying_route_v1",
+              "observed_at": 1788811902,
+              "expires_at": 1788811962,
+              "request": {
+                "url": "https://parallelmpp.dev/api/search",
+                "method": "POST",
+                "body_sha256": "09161814408d76a01e61dab3f906668d7158e1a45235c71adb1a398744f54006"
+              },
+              "quote_sha256": "8de6d9127fb91de269a1010244497eb714b881fd812b7c11f4e85b5da289e183",
+              "selected_index": 0
+            }
+          },
+          "salt": "f082cf3696098225a027053a7de6ab79e1003964f44904e537362f11c274cdb7"
+        },
+        "status": "pending",
+        "state": "checkpoint_signed",
+        "index": 0,
+        "checkpoint_size": 1,
+        "receipt": {
+          "index": 0,
+          "inclusion_path": [],
+          "checkpoint": "402signal.com/pq/log\n1\n9ctDVJTZyTyodANLA2VVMePAUFvqh7xqxEQv+2YwXPs=\n\n\u2014 402signal.com/pq/log vTozD0z8f+XvolDseYtOYX4x8WjiIzo9Brrqu6n4V/qArYaYC2no7N8U5dItOil6QAcFJeRTUo3Kxq75+IU8izOBKw4=\n",
+          "leaf_hash": "f5cb435494d9c93ca874034b03655531e3c0505bea87bc6ac4442ffb66305cfb"
+        }
+      }
+    },
+    "timings_ms": {
+      "replay_lookup": 4.231,
+      "verification": 0.044,
+      "candidate_probing": 7.164,
+      "routing_probe": 9.146,
+      "binding_validation": 2.614,
+      "settlement": 0.032,
+      "history": 0.415,
+      "pq_receipt": 6.87,
+      "total": 26.085
+    },
+    "route_outcome": {
+      "version": 1,
+      "code": "route_settled",
+      "next_action": "verify_receipt",
+      "automatic_payment_retry": false,
+      "independent_confirmation": "not_checked",
+      "seller_execution": "buyer_managed"
+    },
+    "binding_remaining_seconds_at_issue": 60
+  },
+  "challenge": {
+    "x402Version": 2,
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "amount": "10000",
+        "payTo": "0x1111111111111111111111111111111111111111",
+        "maxTimeoutSeconds": 300,
+        "extra": {
+          "name": "USD Coin",
+          "version": "2"
+        }
+      }
+    ],
+    "resource": {
+      "url": "https://parallelmpp.dev/api/search",
+      "mimeType": "application/json"
+    }
+  },
+  "trusted_vkey": "402signal.com/pq/log+bd3a330f+ATHHULFr/1IjUTNP8xHbeY/iDxtVSngH0V0LwYpg9k8h",
+  "now": 1788811902
+}

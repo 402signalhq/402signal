@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from live402 import admission
+from live402 import admission, probe_profile
 
 from live402 import lab_traffic, route_observability as telemetry
 
@@ -92,7 +92,9 @@ def _direct_url_result(body: dict, url: str, need: str, deadline: float) -> tupl
         policy_mod.attach_policy(result, body)
         return 503, result
     with telemetry.phase("candidate_probing"):
-        result = probe.probe_url(url, catalog_item=item, deadline=deadline, record=False)
+        profile = probe_profile.parse(body)
+        extra = {"request_profile": profile} if profile is not None else {}
+        result = probe.probe_url(url, catalog_item=item, deadline=deadline, record=False, **extra)
     if result.get("miss_reason") == "probe_capacity":
         result.update(need=need or None, objective=objective, source="url", tried=0,
                       selected_payment=None, retryable=True)
@@ -252,6 +254,10 @@ def _bad_request(body: dict) -> tuple[int, dict] | None:
     if "lab_test" in body and (body.get("lab_test") != lab_traffic.PROTOCOL
                                   or not lab_traffic.is_lab_url(body.get("url"))):
         return 400, {"error": "lab target is not configured", "live": False}
+    try:
+        probe_profile.parse(body)
+    except probe_profile.ProfileError as exc:
+        return _invalid_need(str(exc))
     need = body.get("need")
     url = body.get("url")
     if need is not None and not isinstance(need, str):
@@ -646,6 +652,13 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
     """
     if replay.recovery_requested(headers):
         return recover_route(body, headers, resource_url)
+    # The new explicit outbound-body profile is rejected before payment work.
+    # Ordinary unpaid requests keep their established 402 discovery contract.
+    try:
+        probe_profile.parse(body)
+    except probe_profile.ProfileError as exc:
+        code, result = _invalid_need(str(exc))
+        return code, result, None
     if fixtures.local_free():
         code, result = run_probe(body if isinstance(body, dict) else {})
         try:

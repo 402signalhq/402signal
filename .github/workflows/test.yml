@@ -52,6 +52,15 @@ jobs:
           node --version
           npm --prefix sdk/route-guard run check
           npm --prefix sdk/route-guard test
+      - name: Qualify reference buyer and explicit MPP interoperability
+        # Synthetic accounts only; no wallet secrets, RPC or paid requests.
+        run: |
+          npm --prefix integration/reference-buyer ci --ignore-scripts --no-audit --no-fund
+          npm --prefix integration/mpp-client ci --ignore-scripts --no-audit --no-fund
+          npm --prefix integration/reference-buyer test
+          npm --prefix integration/mpp-client test
+          npm --prefix integration/reference-buyer audit --package-lock-only --ignore-scripts --audit-level=high
+          npm --prefix integration/mpp-client audit --package-lock-only --ignore-scripts --audit-level=high
       - name: Install locked buyer and seller fixture dependencies
         run: npm --prefix integration/lab ci --ignore-scripts --no-audit --no-fund
       - name: Qualify installable route client and packaged example (offline consumer)

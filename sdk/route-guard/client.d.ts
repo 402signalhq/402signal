@@ -4,7 +4,7 @@ export interface AttemptStore {
   /** Atomic create-if-absent, durable before resolving. Never reclaim claims. */
   putOnce(id: string, part: string, value: unknown): Promise<boolean>;
 }
-export interface RouteResponse {status:number; bodyText:string; paymentResponse:string|null; retryAfter:string|null}
+export interface RouteResponse {status:number; bodyText:string; paymentResponse:string|null; paymentRequired?:string|null; retryAfter:string|null}
 export interface RouteClassification {
   readonly settlementReport:'settled'|'not_attempted'|'unknown'|'unclassified';
   readonly normalMiss:boolean; readonly chainConfirmation:'not_checked';
@@ -19,6 +19,8 @@ export class RouteClientError extends Error {readonly code:string; readonly retr
 export function classifyRouteResponse(response:RouteResponse):RouteClassification;
 export class RouteClient {
   constructor(options:{store:AttemptStore; routerUrl?:string;
+    /** API access credential, not a wallet key. Sent only to routerUrl, never saved in the journal. */
+    customerKey?:string;
     /** Operator confirms all serving revisions retain PR117's HTTP recovery contract. */
     recoveryProfile:'http-route-v1';
     /** Raw non-payment-aware fetch only, honoring AbortSignal, without retry middleware. */

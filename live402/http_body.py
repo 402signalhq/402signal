@@ -133,16 +133,28 @@ def read_exactly(rfile, n: int, deadline: float | None = None) -> bytes:
 def loads_json_object(raw: bytes) -> dict:
     if not raw:
         return {}
+    duplicates = False
+    def track_pairs(pairs):
+        nonlocal duplicates
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                duplicates = True
+            value[key] = item
+        return value
     try:
         payload = json.loads(
             raw.decode("utf-8"),
             parse_constant=reject_json_constant,
             parse_float=_finite_float,
+            object_pairs_hook=track_pairs,
         )
     except (json.JSONDecodeError, UnicodeDecodeError, ValueError, TypeError):
         raise BodyReadError(400, "invalid JSON") from None
     if not isinstance(payload, dict) or isinstance(payload, bool):
         raise BodyReadError(400, "JSON object required")
+    if duplicates and "probe_request" in payload:
+        raise BodyReadError(400, "ambiguous probe_request JSON")
     return payload
 
 

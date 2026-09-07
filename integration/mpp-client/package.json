@@ -1,0 +1,13 @@
+{
+  "name": "402signal-mpp-client-qualification",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "mppx": "0.9.2",
+    "viem": "2.56.3"
+  }
+}

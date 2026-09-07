@@ -269,6 +269,13 @@ def build(result: dict, body: dict, *, now: int | None = None) -> dict:
     if not route._billable_winner(body, 200, result):
         _fail("invalid_winner")
     allowed = set(select.EXPLICIT_CONSTRAINT_KEYS) | {"need", "url", "policy"}
+    from live402 import probe_profile
+    try:
+        profile = probe_profile.parse(body)
+    except probe_profile.ProfileError:
+        _fail("unresolved_policy")
+    if profile is not None:
+        allowed.add("probe_request")
     # Operator provenance is committed in request_json, not an ignored constraint.
     from live402 import lab_traffic
     if body.get("lab_test") == lab_traffic.PROTOCOL and lab_traffic.is_lab_url(body.get("url")):
@@ -280,6 +287,8 @@ def build(result: dict, body: dict, *, now: int | None = None) -> dict:
         _fail("unproven_observation")
     ctx = obs["request"]
     validate_context(ctx)
+    if profile is not None and ctx != request_context(profile.url, "POST", profile.body):
+        _fail("resource_changed")
     if ctx["url"] != result.get("url"):
         _fail("resource_changed")
     env = result["envelope"]
