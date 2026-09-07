@@ -1,4 +1,4 @@
-# Local route guard (preview)
+# 402Signal routing client and local guard
 
 A Node.js module with TypeScript declarations and **zero runtime dependencies**.
 It verifies 402Signal's opt-in v4 route receipt, then compares the actual seller
@@ -6,8 +6,10 @@ request and fresh raw x402 challenge before the buyer's authorization callback.
 It makes no network requests, stores no keys and does not create, sign, submit,
 retry or execute payments.
 
-This package is distributed as source in this repository and is not published
-to npm. Do not assume a package with this name on a registry is this code.
+The package includes the optional `./client` HTTP lifecycle and `./file-store`
+private persistence modules described below. The root verifier stays offline.
+Release tarballs can be installed with npm; the package is not yet published to
+the npm registry. Do not assume a registry package with this name is this code.
 Request the server's opt-in v4 contract with `require_route_binding: true`;
 existing v3 receipts fail closed in this guard. See the
 [developer walkthrough](https://402signal.com/developers#route-binding).
@@ -142,3 +144,106 @@ False means unclassified, never permission to execute or retry. True does not
 release a spend reservation or replace chain reconciliation. Keep
 withVerifiedRoute as the seller-authorization gate; HTTP 200 alone is insufficient.
 See [the response contract](../../docs/route-miss-http-status.md).
+
+
+## Install the client
+
+Use the [v0.3.0 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.3.0) and verify its published digest before installing:
+
+```sh
+npm install ./402signal-route-guard-0.3.0.tgz
+```
+
+From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. The tarball includes TypeScript
+declarations, the local guard and HTTP client. Node 22 or newer is required.
+No install script or wallet dependency is included. Windows callers can supply
+their own durable store; the supplied filesystem adapter runs on POSIX, including WSL.
+
+```ts
+import { RouteClient } from '@402signal/route-guard/client';
+import { FileAttemptStore } from '@402signal/route-guard/file-store';
+
+const client = new RouteClient({
+  store: new FileAttemptStore('/private/buyer/route-attempts'),
+  recoveryProfile: 'http-route-v1',
+});
+const id = 'your-durable-job-id';
+await client.prepare(id, JSON.stringify({
+  need: 'web search', require_route_binding: true,
+}));
+const challenge = await client.challenge(id); // unpaid
+// Your wallet validates terms, reserves its own budget and signs once.
+const signedHeader = await yourWallet.prepareRoutingPayment(challenge);
+await client.setPaymentHeader(id, {value: signedHeader});
+const outcome = await client.submit(id);
+```
+
+`yourWallet` is the buyer's integration, not a signer supplied by this package.
+The client never holds wallet keys, signs payments, releases budget or executes a
+seller purchase. Use an official x402 client with your existing secured signer;
+validate actual effects, recipient, token, network, amount and lifetime against
+your durable intent. A payment header is sensitive authorization material.
+
+Preparation persists a fresh random private replay key and the exact request
+before the original challenge or paid request. Attaching a payment header is
+immutable. Submission atomically records an unreclaimed durable claim **before**
+ordinary paid HTTP. Repeating `submit(id)` can only enter recovery. An ambiguous
+transport failure also enters recovery once; it cannot call a signer or send a
+new ordinary payment request. Never create a fresh job ID to work around an
+uncertain result. Missing/corrupt persistence requires reconciliation, not restart
+with an empty store.
+
+After restart, use the same private store and `client.recover(id)`. The store keeps
+the original request, authorization and response evidence. `client.evidence(id)`
+returns saved raw responses without keys. Keep these private and use `verifyReceipt`
+for historical verification. Response classification reports server billing claims;
+it is not independent chain confirmation. All result authority flags remain false.
+Use `verifyRoute`/`withVerifiedRoute` with a fresh seller challenge before a buyer's
+own durable seller-payment flow. Recovery never resumes that flow automatically.
+
+### Compatibility and bounded recovery
+
+Deploy the server first. `recoveryProfile: 'http-route-v1'` is an operator assertion
+that every serving revision supports PR117's recovery contract and retains it
+through rolling deployments and rollback. The client also makes an unsigned probe
+and refuses legacy/unconfirmed responses before sending a payment header. A probe
+cannot eliminate a version change between two requests; do not mix old servers or
+roll back below that contract while client attempts exist. HTTP `/route` only;
+MCP recovery is not supported.
+
+Use plain Fetch with no payment middleware, cookie jar, retry or redirect wrapper.
+Injected Fetch must honor AbortSignal and must never sign, auto-pay, retry payments
+or follow redirects. The client requests redirect errors, bounded bodies and whole
+response deadlines. No request/query/authorization content appears in its errors.
+
+Recovery makes at most six retrieval attempts across restarts, within a conservative
+120 seconds from the first submission. Each uses a capability probe plus retrieval,
+so it consumes two server recovery allowances; six is a ceiling, not promised useful
+capacity. Honor `Retry-After`, which may outlast the retention window. Neither 429,
+503, timeout nor `recovery_unavailable` permits a fresh payment. The stored result's
+original quote validity and uncertainty remain unchanged.
+
+`AttemptStore.putOnce` must atomically create if absent and durably persist before
+resolving. Do not implement it using a non-atomic get/set pair. The supplied adapter
+uses private files, fsync and exclusive claims on local POSIX storage. Its parent
+directory must already be durable and trusted. It does not encrypt or clean up
+records. Do not restore stale backups, delete claims or share the private directory
+with another user while authorizations remain relevant. File ownership cannot
+protect a compromised same-user process. Use an equivalent caller-controlled store
+for other platforms; a transient Map is suitable only for synthetic tests.
+
+## Web-search integration example
+
+`examples/search.ts` shows one fully parameterized GET search against an independent
+seller, with the caller's wallet/budget/chain-verification callbacks. It binds the
+complete search URL before routing; adding query parameters afterward is rejected.
+The observed seller price was $0.001 USDC, plus the $0.003 qualifying route fee.
+This is not an all-in bound: independently account for applicable network/provider
+fees. Recheck current terms and do not infer free charges from missing fee evidence.
+
+The example retains routing evidence before seller execution, requires independent
+router-payment confirmation, and calls the buyer's one-shot seller executor only
+after fresh local proof/quote verification. A thrown callback is never retried.
+Observed unpaid compatibility and synthetic tests do not establish seller output
+quality, paid fulfillment, demand or ongoing availability. Keep model instructions
+and seller response data separated in the consuming agent application.

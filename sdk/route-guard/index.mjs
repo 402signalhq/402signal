@@ -1,3 +1,4 @@
+import {parse as parseJson, Fraction} from "./internal-json.mjs";
 /** Local evidence/quote guard. Keys, networking and economic actions stay external. */
 import {
   createHash,
@@ -54,115 +55,7 @@ const fail = (code = "invalid_binding") => {
   throw new RouteGuardError(code);
 };
 
-// Preserve fractional/exponent lexical tokens on signed surfaces. JS otherwise
-// turns JSON 1.0 into integer 1 while Python rejects it under the v4 profile.
-class Fraction {
-  constructor(value) {
-    this.value = value;
-  }
-}
-
-function parse(raw, { ordinaryNumbers = false, limit = LIMIT } = {}) {
-  if (typeof raw !== "string" || Buffer.byteLength(raw) > limit)
-    fail("invalid_json");
-  let i = 0;
-  const white = () => {
-    while (" \t\r\n".includes(raw[i]) && i < raw.length) i++;
-  };
-  const str = () => {
-    const start = i++;
-    while (i < raw.length) {
-      const c = raw[i++];
-      if (c === "\\") {
-        i++;
-        continue;
-      }
-      if (c === '"') {
-        let value;
-        try {
-          value = JSON.parse(raw.slice(start, i));
-        } catch {
-          fail("invalid_json");
-        }
-        for (const ch of value) {
-          const cp = ch.codePointAt(0);
-          if (cp >= 0xd800 && cp <= 0xdfff) fail("invalid_json");
-        }
-        return value;
-      }
-    }
-    fail("invalid_json");
-  };
-  function value(depth = 0) {
-    if (depth > 24) fail("invalid_json");
-    white();
-    if (raw[i] === '"') return str();
-    if (raw[i] === "{") {
-      i++;
-      white();
-      const out = Object.create(null);
-      if (raw[i] === "}") {
-        i++;
-        return out;
-      }
-      for (;;) {
-        white();
-        if (raw[i] !== '"') fail("invalid_json");
-        const key = str();
-        white();
-        if (Object.hasOwn(out, key) || raw[i++] !== ":") fail("invalid_json");
-        out[key] = value(depth + 1);
-        white();
-        if (raw[i] === "}") {
-          i++;
-          return out;
-        }
-        if (raw[i++] !== ",") fail("invalid_json");
-      }
-    }
-    if (raw[i] === "[") {
-      i++;
-      white();
-      const out = [];
-      if (raw[i] === "]") {
-        i++;
-        return out;
-      }
-      for (;;) {
-        out.push(value(depth + 1));
-        white();
-        if (raw[i] === "]") {
-          i++;
-          return out;
-        }
-        if (raw[i++] !== ",") fail("invalid_json");
-      }
-    }
-    for (const [text, v] of [
-      ["true", true],
-      ["false", false],
-      ["null", null],
-    ]) {
-      if (raw.startsWith(text, i)) {
-        i += text.length;
-        return v;
-      }
-    }
-    const token = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(
-      raw.slice(i),
-    );
-    if (!token) fail("invalid_json");
-    i += token[0].length;
-    const n = Number(token[0]);
-    if (!Number.isFinite(n) || Math.abs(n) > Number.MAX_SAFE_INTEGER)
-      fail("invalid_json");
-    return /[.eE]/.test(token[0]) && !ordinaryNumbers ? new Fraction(n) : n;
-  }
-  const out = value();
-  white();
-  if (i !== raw.length) fail("invalid_json");
-  return out;
-}
+const parse = (raw, options = {}) => parseJson(raw, {...options, fail});
 
 function canonical(value, ordinaryNumbers = false, depth = 0) {
   if (depth > 24) fail("invalid_json");
@@ -431,11 +324,31 @@ function challengeFrom(input) {
     (typeof env.resource !== "object" ||
       Array.isArray(env.resource) ||
       Object.keys(env.resource).some(
-        (k) => !["url", "description", "mimeType"].includes(k),
+        (k) => !["url", "description", "mimeType", "serviceName", "tags"].includes(k),
       ))
   )
     fail("unsupported_resource");
+  if (env.resource != null) {
+    const metadata = env.resource;
+    const boundedText = value => typeof value === "string" && value.length >= 1 && value.length <= 32 && !/[^ -~]/.test(value);
+    if ((Object.hasOwn(metadata, "serviceName") && !boundedText(metadata.serviceName)) ||
+        (Object.hasOwn(metadata, "tags") && (!Array.isArray(metadata.tags) ||
+          metadata.tags.length > 16 || metadata.tags.some(tag => !boundedText(tag)))))
+      fail("unsupported_resource");
+  }
   return env;
+}
+
+function resourceMatchesContext(resource, actual) {
+  if (resource == null || !Object.hasOwn(resource, "url")) return true;
+  const advertised = resource.url;
+  context(advertised, "GET", new Uint8Array());
+  if (advertised === actual.url) return true;
+  const queryAt = actual.url.indexOf("?");
+  return actual.method === "GET" &&
+    actual.body_sha256 === sha(new Uint8Array()).toString("hex") &&
+    queryAt >= 0 && queryAt < actual.url.length - 1 &&
+    advertised === actual.url.slice(0, queryAt);
 }
 
 function freeze(value) {
@@ -534,7 +447,7 @@ export function verifyRoute(options) {
             "extra",
           ].includes(k),
       ) ||
-      (env.resource?.url !== undefined && env.resource.url !== actual.url)
+      !resourceMatchesContext(env.resource, actual)
     )
       fail("unsupported_challenge");
     // Detached immutable data. Only this option may be passed to the caller's

@@ -51,6 +51,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p test_replay_storage.py -v
           python -m unittest discover -s tests -p test_replay_managed_postgres.py -v
+          python -m unittest discover -s tests -p test_route_recovery_postgres.py -v
       - name: Default-backend compatibility and budget gates
         env:
           LIVE402_FIXTURE: "1"
