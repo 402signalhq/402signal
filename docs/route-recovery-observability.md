@@ -27,9 +27,12 @@ All outcomes explicitly set automatic_payment_retry to false. Contradictory
 billing remains unknown. This advice is not independent chain confirmation.
 
 `binding_remaining_seconds_at_issue` is an unsigned issuance-time snapshot,
-never authority to extend the signed expiry. Replayed outcomes preserve their
-original JSON, timings and snapshot exactly. Cached legacy outcomes are not
-rewritten. Unpaid x402 challenge bodies and their encoded headers are unchanged.
+never authority to extend the signed expiry. During the private recovery window,
+eligible replay outcomes preserve their original JSON, timings and snapshot.
+The privacy migration removes older response payloads without a private retrieval
+credential while preserving economic identities and pending/unknown states.
+See [private response recovery](replay-recovery.md) for the 120-second lifetime.
+Unpaid x402 challenge bodies and their encoded headers are unchanged.
 
 ## Read-only recovery
 

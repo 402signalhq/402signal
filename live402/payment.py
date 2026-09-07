@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+from collections import Counter
 import json
 import os
 import re
@@ -753,6 +754,26 @@ def _accept_asset(accept: dict) -> str | None:
     return asset or currency
 
 
+def _observed_scheme(accept: dict, extra: dict) -> str | None:
+    """Resolve recognized scheme declarations without hiding conflicts.
+
+    None is reserved for absent display-only legacy metadata. Conflicting or
+    malformed declarations must remain non-fixed and never become payable.
+    """
+    facilitator = extra.get("facilitator")
+    sources = [accept, extra]
+    if isinstance(facilitator, dict):
+        sources.append(facilitator)
+    values = [source["scheme"] for source in sources if "scheme" in source]
+    if not values:
+        return None
+    if any(type(value) is not str or not value for value in values):
+        return "invalid"
+    if any(value != values[0] for value in values[1:]):
+        return "conflicting"
+    return values[0]
+
+
 def payment_option_from_accept(accept, fallback_network=None) -> dict | None:
     """Explicit payment option. USD only when the asset/value relationship is known."""
     if not isinstance(accept, dict):
@@ -766,6 +787,7 @@ def payment_option_from_accept(accept, fallback_network=None) -> dict | None:
         raw_amt = accept.get("maxAmountRequired")
     amount_atomic = _as_int(raw_amt)
     extra = accept.get("extra") if isinstance(accept.get("extra"), dict) else {}
+    scheme = _observed_scheme(accept, extra)
     seller_display = extra.get("displayAmount")
     if seller_display is not None:
         seller_display = str(seller_display).strip() or None
@@ -787,6 +809,15 @@ def payment_option_from_accept(accept, fallback_network=None) -> dict | None:
     elif amount_atomic is None and raw_amt is None and not asset and not network_s:
         return None
 
+    # A ceiling/channel authorization is not a comparable fixed purchase price.
+    # Unknown schemes remain visible as unclassified terms, never as exact.
+    if scheme not in (None, "exact"):
+        normalized_usd = None
+        if scheme == "upto":
+            display_amount = ("Up to " + display_amount) if display_amount else None
+        else:
+            display_amount = "Variable payment terms"
+
     fac = extra.get("facilitator")
     fac_url = None
     if isinstance(fac, str) and fac.strip().startswith("https://"):
@@ -806,7 +837,7 @@ def payment_option_from_accept(accept, fallback_network=None) -> dict | None:
         "normalized_usd": normalized_usd,
         "payTo": _text(accept.get("payTo")),
         "facilitator": fac_url,
-        "scheme": _text(accept.get("scheme") or extra.get("scheme")),
+        "scheme": scheme,
         "version": accept.get("x402Version", extra.get("version")),
     }
 
@@ -819,26 +850,6 @@ def payment_options_from_accepts(accepts, fallback_network=None) -> list[dict]:
         opt = payment_option_from_accept(acc, fallback_network)
         if opt:
             out.append(opt)
-    return out
-
-
-def _option_identity(opt: dict) -> tuple:
-    rail = opt.get("rail") or ""
-    asset = str(opt.get("asset") or "")
-    amt = opt.get("amount_atomic")
-    net = str(opt.get("network") or "")
-    return (rail, net, asset, amt)
-
-
-def _dedupe_options(opts: list[dict]) -> list[dict]:
-    seen: set[tuple] = set()
-    out: list[dict] = []
-    for opt in opts:
-        key = _option_identity(opt)
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(opt)
     return out
 
 
@@ -865,7 +876,7 @@ def _accepts_declared(blob) -> bool:
     return isinstance(blob, dict) and "accepts" in blob
 
 
-def payment_options_from_result(result) -> list[dict]:
+def payment_options_from_result(result, *, require_unique=False) -> list[dict]:
     """Observed payment options only. Catalog claims are never promoted.
 
     If accepts[] exists (even all-invalid or empty), return only valid entries.
@@ -883,11 +894,22 @@ def payment_options_from_result(result) -> list[dict]:
         if not isinstance(raw, list):
             return []
         opts: list[dict] = []
+        seen: set[tuple] = set()
         for acc in raw:
             opt = validate_observed_accept(acc, env)
             if opt:
+                identity = accept_identity(acc)
+                if identity[0] == "invalid" or identity in seen:
+                    continue
+                seen.add(identity)
                 opts.append(opt)
-        return _dedupe_options(opts)
+        if require_unique:
+            # Raw duplicates are already collapsed. Count full public projections
+            # once so ambiguous terms cannot hide an independently usable offer.
+            keys = [tuple(selected_payment_fields(opt).values()) for opt in opts]
+            counts = Counter(keys)
+            return [opt for opt, key in zip(opts, keys) if counts[key] == 1]
+        return opts
     fallback = result.get("network") or result.get("rail")
     extra = {}
     display = target.get("displayAmount") or result.get("displayAmount")
@@ -1102,13 +1124,9 @@ def _literal_timeout(raw) -> int | None:
 
 
 def _required_scheme(accept: dict, extra: dict) -> str | None:
-    scheme = accept.get("scheme")
-    extra_scheme = extra.get("scheme") if isinstance(extra, dict) else None
-    if type(scheme) is not str or scheme != "exact":
+    if type(accept.get("scheme")) is not str or accept["scheme"] != "exact":
         return None
-    if extra_scheme is not None and extra_scheme != "exact":
-        return None
-    return scheme
+    return "exact" if _observed_scheme(accept, extra) == "exact" else None
 
 
 def validate_observed_accept(accept, envelope=None) -> dict | None:
@@ -1166,6 +1184,7 @@ def validate_observed_accept(accept, envelope=None) -> dict | None:
     opt["rail"] = rail
     opt["network"] = accept.get("network")
     opt["scheme"] = "exact"
+    opt["version"] = version
     if not is_complete_payment_option(opt, env):
         return None
     return opt
@@ -1217,7 +1236,7 @@ def selected_payment_fields(opt) -> dict | None:
 
 
 def selected_payment_matches_current_envelope(selected, result) -> bool:
-    """Require selected_payment to equal one valid option in this response's envelope.
+    """Require selected_payment to identify one distinct full current-envelope offer.
 
     This is the settlement provenance boundary. Catalog, target.accepts, and
     legacy top-level fallbacks are intentionally excluded even though they
@@ -1243,6 +1262,7 @@ def selected_payment_matches_current_envelope(selected, result) -> bool:
     )
     if selected_asset is None:
         return False
+    matches: set[tuple] = set()
     for accept in accepts:
         opt = validate_observed_accept(accept, env)
         if opt is None or opt.get("rail") != rail or opt.get("network") != network:
@@ -1270,8 +1290,13 @@ def selected_payment_matches_current_envelope(selected, result) -> bool:
             )
         ):
             continue
-        return True
-    return False
+        identity = accept_identity(accept)
+        if identity[0] == "invalid":
+            return False
+        matches.add(identity)
+        if len(matches) > 1:
+            return False
+    return len(matches) == 1
 
 
 def asset_identity(opt: dict | None) -> str | None:
@@ -1296,21 +1321,26 @@ def asset_identity(opt: dict | None) -> str | None:
 
 
 def accept_identity(acc: dict) -> tuple:
-    """Dedupe key for catalog accepts: rail + asset + payTo + amount."""
-    if not isinstance(acc, dict):
-        return ("", "", "", "")
-    rail = rail_of_network(acc.get("network") or "") or ""
-    asset = _accept_asset(acc) or ""
-    pay = _text(acc.get("payTo")) or ""
-    amt = acc.get("amount")
-    if amt is None or amt == "":
-        amt = acc.get("maxAmountRequired")
-    return (rail, str(asset), pay, str(amt) if amt is not None else "")
+    """Deduplicate identical JSON offers, retaining every distinct term.
+
+    Scheme, exact network, recipient, timeout and extension terms all matter.
+    This is discovery deduplication, not the payment replay fingerprint.
+    """
+    try:
+        if not isinstance(acc, dict):
+            raise TypeError()
+        return (json.dumps(acc, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=True, allow_nan=False),)
+    except (TypeError, ValueError, RecursionError):
+        # Malformed helper input must not erase a different observed offer.
+        return ("invalid", id(acc))
 
 
 def prices_equivalent(left, right) -> bool:
     """True when two payment options are the same price. Incomparable → False."""
     if not isinstance(left, dict) or not isinstance(right, dict):
+        return False
+    if any(opt.get("scheme") not in (None, "exact") for opt in (left, right)):
         return False
     lu, ru = left.get("normalized_usd"), right.get("normalized_usd")
     if lu is not None and ru is not None:

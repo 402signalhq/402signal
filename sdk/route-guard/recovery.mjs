@@ -33,9 +33,11 @@ export async function reconcilePayment(options) {
     const remaining = timeout - (performance.now() - start);
     if (remaining <= 0) return result('unknown', 'confirmation_timeout');
     const controller = new AbortController();
-    let timer, onAbort;
+    let timer, onAbort, deadlineReached = false;
     const expired = new Promise(resolve => {
-      timer = setTimeout(() => { controller.abort(); resolve(null); }, remaining);
+      // Timers can round a fractional delay down. Once this deadline fires,
+      // cancellation is terminal even if the monotonic clock is just short.
+      timer = setTimeout(() => { deadlineReached = true; controller.abort(); resolve(null); }, remaining);
       onAbort = () => { controller.abort(); resolve(null); };
       signal?.addEventListener('abort', onAbort, {once: true});
     });
@@ -51,7 +53,7 @@ export async function reconcilePayment(options) {
       signal?.removeEventListener('abort', onAbort);
     }
     if (signal?.aborted) return result('unknown', 'aborted');
-    if (performance.now() - start >= timeout) {
+    if (deadlineReached || performance.now() - start >= timeout) {
       controller.abort();
       return result('unknown', 'confirmation_timeout');
     }

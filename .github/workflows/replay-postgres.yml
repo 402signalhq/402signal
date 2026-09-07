@@ -9,13 +9,19 @@ permissions:
   contents: read
 
 jobs:
-  postgres-contracts:
+  postgres-compatibility:
+    name: postgres-compatibility (PostgreSQL ${{ matrix.postgres }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # Fly's current MPG documentation references 16; retain the existing 17 coverage.
+        postgres: ["16", "17"]
     services:
       postgres:
         # Ephemeral CI only. Print the resolved digest below; not production provisioning.
-        image: postgres:17
+        image: postgres:${{ matrix.postgres }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: local-ci-only
@@ -31,7 +37,9 @@ jobs:
         with:
           python-version: "3.12.14"
       - name: Record ephemeral database image identity
-        run: docker image inspect postgres:17 --format '{{json .RepoDigests}}'
+        env:
+          POSTGRES_MAJOR: ${{ matrix.postgres }}
+        run: docker image inspect "postgres:$POSTGRES_MAJOR" --format '{{json .RepoDigests}}'
       - name: Install locked core and optional PostgreSQL dependencies
         run: |
           pip install --require-hashes -r requirements.txt
@@ -57,3 +65,16 @@ jobs:
         run: |
           docker build -f Dockerfile.postgres --build-arg GIT_SHA="$GITHUB_SHA" -t signal-postgres-ci .
           docker run --rm --entrypoint python signal-postgres-ci -c 'import os, psycopg; from live402.replay_store import backend_name; assert os.getuid() == 10001; assert backend_name() == "sqlite"'
+
+  # Retain the existing required-check name. A skipped/failed/cancelled matrix
+  # must not leave a successful aggregate gate.
+  postgres-contracts:
+    if: ${{ always() }}
+    needs: postgres-compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require every PostgreSQL version to pass
+        env:
+          CONTRACT_RESULT: ${{ needs.postgres-compatibility.result }}
+        run: test "$CONTRACT_RESULT" = success

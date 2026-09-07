@@ -374,7 +374,7 @@ def _amount_from_accepts(accepts) -> int | None:
 
 
 def payment_options(result) -> list[dict]:
-    return payment.payment_options_from_result(result)
+    return payment.payment_options_from_result(result, require_unique=True)
 
 
 def amount_atomic(result) -> int | None:
