@@ -41,6 +41,26 @@ than `bazaar` fail closed. Opaque `extra` data is bound without asserting its
 transaction semantics. The existing official rail validator/wallet must still
 validate all actual payment effects before signing.
 
+For a queryful GET with an empty body, `resource.url` may describe the endpoint:
+it must equal either the complete actual URL or its exact byte prefix before the
+first `?`. Both URLs must satisfy the existing HTTPS restrictions. No host, path,
+port, query, escaping or case normalization occurs. The signed `request.url`
+always retains the **complete** actual URL, and the buyer must use that exact URL,
+query order/encoding, method and body. Route the fully parameterized seller URL;
+adding parameters after routing invalidates the proof. This endpoint-metadata
+tolerance does not apply to POST or a GET body.
+
+Resource `serviceName` and `tags` are accepted as bounded untrusted observational
+metadata: a nonempty printable-ASCII name of at most 32 characters, and at most
+16 nonempty printable-ASCII tags of at most 32 characters each. Every value and
+tag position remains in the complete challenge hash. This tolerance is not a
+claim of strict x402 schema conformance; the protocol's five-tag limit is narrower.
+Metadata grants no trust or payment authority. Other resource fields remain
+limited to `url`, `description` and `mimeType`; unknown extensions, floating-point
+challenge values and disagreeing header/body challenges remain unsupported.
+Deploy a compatible server and guard together; older guards reject these newly
+accepted descriptions. There is no receipt-format or payment-authority change.
+
 The default freshness window is 60 seconds. `LIVE402_ROUTE_BINDING_TTL_S` accepts
 integers 1..120; invalid settings fail closed for opted-in requests. Receipt
 issuance, HTTP retries, and replay never reset observation time. The x402

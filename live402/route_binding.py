@@ -181,10 +181,44 @@ def validate_envelope(env: dict) -> None:
         if type(acc) is not dict:
             _fail("unsupported_challenge")
     resource = env.get("resource")
-    if resource is not None and (
-        type(resource) is not dict or set(resource) - {"url", "description", "mimeType"}
-    ):
-        _fail("unsupported_resource")
+    if resource is not None:
+        if type(resource) is not dict or set(resource) - {
+            "url", "description", "mimeType", "serviceName", "tags"
+        }:
+            _fail("unsupported_resource")
+        # Bounded observational metadata, not strict x402 schema certification.
+        # Preserve every value and array position in the full challenge hash.
+        if "serviceName" in resource and (
+            type(resource["serviceName"]) is not str
+            or re.fullmatch(r"[ -~]{1,32}", resource["serviceName"]) is None
+        ):
+            _fail("unsupported_resource")
+        if "tags" in resource and (
+            type(resource["tags"]) is not list
+            or len(resource["tags"]) > 16
+            or any(type(tag) is not str or re.fullmatch(r"[ -~]{1,32}", tag) is None
+                   for tag in resource["tags"])
+        ):
+            _fail("unsupported_resource")
+
+
+def _resource_matches_context(resource: dict, ctx: dict) -> bool:
+    """Allow endpoint metadata for queryful GET; never rewrite the actual URL."""
+    if "url" not in resource:
+        return True
+    advertised = resource["url"]
+    request_context(advertised, "GET")
+    actual = ctx["url"]
+    if advertised == actual:
+        return True
+    base, separator, query = actual.partition("?")
+    return (
+        ctx["method"] == "GET"
+        and ctx["body_sha256"] == hashlib.sha256(b"").hexdigest()
+        and separator == "?"
+        and bool(query)
+        and advertised == base
+    )
 
 
 def selected_index(env, selected) -> int:
@@ -253,7 +287,7 @@ def build(result: dict, body: dict, *, now: int | None = None) -> dict:
     if obs["quote_sha256"] != digest(env):
         _fail("quote_changed")
     resource = env.get("resource") or {}
-    if resource.get("url", ctx["url"]) != ctx["url"]:
+    if not _resource_matches_context(resource, ctx):
         _fail("resource_changed")
     current = int(time.time()) if now is None else now
     observed = obs["observed_at"]
@@ -333,6 +367,8 @@ def verify_challenge(
     if request_context(url, method, body) != binding["request"]:
         _fail("resource_changed")
     validate_envelope(envelope)
+    if not _resource_matches_context(envelope.get("resource") or {}, binding["request"]):
+        _fail("resource_changed")
     if digest(envelope) != binding["quote_sha256"]:
         _fail("quote_changed")
     index = binding["selected_index"]

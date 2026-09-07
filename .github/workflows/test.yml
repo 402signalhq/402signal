@@ -54,6 +54,8 @@ jobs:
           npm --prefix sdk/route-guard test
       - name: Install locked buyer and seller fixture dependencies
         run: npm --prefix integration/lab ci --ignore-scripts --no-audit --no-fund
+      - name: Qualify installable route client and packaged example (offline consumer)
+        run: node scripts/check_route_guard_package.mjs
       - name: Build and test buyer and seller (synthetic payments)
         env:
           LAB_BATCH_PG_DATABASE: lab_batch_ci
