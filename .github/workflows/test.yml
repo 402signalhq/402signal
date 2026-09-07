@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       batch-postgres:
-        image: postgres:15-bookworm
+        image: postgres:16.15-bookworm@sha256:1938c16e9d2f10a6a3623b344b64ae8d45f407f2c5f34f0979468bb689b9227a
         env:
           POSTGRES_DB: lab_batch_ci
           POSTGRES_USER: postgres
@@ -76,6 +76,8 @@ jobs:
         run: |
           npm --prefix integration/lab/solana-session-contracts ci --ignore-scripts --no-audit --no-fund
           npm --prefix integration/lab/solana-session-contracts test
+      - name: Qualify explicit owner campaigns and bounded recovery (synthetic only)
+        run: node --test integration/lab/owner-runtime/campaign-cli.test.mjs integration/lab/owner-runtime/owner-factory.test.mjs integration/batch-buyer/algorand/owner-hooks.test.mjs
       - name: Audit locked lab and Solana dependencies (no updates)
         run: |
           npm --prefix integration/lab audit --package-lock-only --ignore-scripts --audit-level=high

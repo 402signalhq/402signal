@@ -440,3 +440,19 @@ export async function registerOpenedSession({ ledger, send }) {
     return { state: "unknown", newPaymentAllowed: false };
   }
 }
+
+/** Recover merchant registration after its response was lost. Chain opening and
+ * original submission permit must already exist; no signer or broadcast. */
+export async function recoverOpenedSession({ledger,plan,recover}){
+ await ledger.require('open:confirmed');await ledger.require('merchant:open:send-permit');
+ const credential=await ledger.require('operator:open:credential');
+ const prior=await ledger.get('merchant:open:response');if(prior){check(prior.sessionOpened===true&&prior.reference===credential.payload.signature,'registration mismatch');return {state:'merchant_registered'};}
+ const authorizationDigest=sha(credential.authorization);let attempt;
+ for(let n=1;n<=6;n++)if(await ledger.once('merchant:open:recovery:'+n,{authorizationDigest})){attempt='merchant:open:recovery:'+n;break;}
+ check(attempt,'merchant recovery limit reached');
+ try{
+  const result=JSON.parse(JSON.stringify(await recover(JSON.parse(JSON.stringify(credential)))));
+  check(result.recoveryOnly===true&&result.url===plan.request.url&&result.authorizationDigest===authorizationDigest&&typeof result.bodyText==='string'&&result.evidenceDigest===sha(JSON.stringify({url:plan.request.url,status:200,bodyText:result.bodyText,authorizationDigest}))&&JSON.stringify(result.body)===JSON.stringify(JSON.parse(result.bodyText))&&result.body?.sessionOpened===true&&result.body.reference===credential.payload.signature,'registration recovery mismatch');
+  await ledger.once(attempt+':evidence',result);await ledger.once('merchant:open:response',result.body);return {state:'merchant_registered'};
+ }catch{return {state:'unknown',newPaymentAllowed:false};}
+}
