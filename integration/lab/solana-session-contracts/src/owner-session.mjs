@@ -75,7 +75,7 @@ export class OwnerSessionController {
  }
  async sendOpen(send){this.fresh();await this.ledger.transition('open-ready','open-inflight');const credential=freeze(await this.ledger.require('open:credential'));try{const result=await send(credential);check(typeof result.reference==='string'&&getBase58Encoder().encode(result.reference).length===64,'missing existing transaction');await this.ledger.once('open:ack',{transactionSignature:result.reference});return {state:'provider_ack'};}catch{return {state:'unknown',newPaymentAllowed:false};}}
  async confirmOpen(rpc,signature){
-  const existing=await this.ledger.get('open:confirmed');if(existing)return existing;
+  const existing=await this.ledger.get('open:confirmed');if(existing){check(existing.state==='chain_confirmed'&&(!signature||signature===existing.transactionSignature),'confirmation conflicts');if((await this.ledger.require('progress')).state==='open-inflight')await this.ledger.transition('open-inflight','active:0');return existing;}
   check((await this.ledger.require('progress')).state==='open-inflight','open not sent');
   signature??=(await this.ledger.require('open:ack')).transactionSignature;
   const observed=await observeSolanaOpen(rpc,this.plan,signature);if(observed.state!=='chain_confirmed')return observed;
@@ -92,8 +92,29 @@ export class OwnerSessionController {
   const payload={action:'voucher',voucher},credential={payload,authorization:serializeSessionCredential({challenge:p.challenge,payload})};await this.ledger.once('voucher:'+sequence+':credential',credential);
   try{const ack=await send(freeze(credential));check(ack.reference===p.open.channelId+':'+cap,'voucher acknowledgement mismatch');await this.ledger.once('voucher:'+sequence+':accepted',{cumulative:cap.toString()});await this.ledger.transition('voucher-inflight:'+sequence,'active:'+sequence);return {state:'voucher_accepted',chainSettled:false};}catch{return {state:'unknown',newPaymentAllowed:false};}
  }
+ async recoverVoucher(sequence,recover){
+  check(Number.isInteger(sequence)&&sequence>=1&&sequence<=64,'recovery sequence refused');
+  const stage='voucher:'+sequence,credential=await this.ledger.require(stage+':credential');
+  const intent=await this.ledger.require(stage+':sign-intent'),cap=intent.cumulativeAmount;
+  check(intent.channelId===this.plan.open.channelId&&credential.payload?.voucher?.data?.cumulativeAmount===cap&&BigInt(cap)<=BigInt(this.plan.policy.depositAtomic),'saved voucher mismatch');
+  const previous=sequence===1?'0':(await this.ledger.require('voucher:'+(sequence-1)+':accepted')).cumulative;check(BigInt(cap)>BigInt(previous),'recovery cumulative bounds');
+  const prior=await this.ledger.get(stage+':accepted'),state=(await this.ledger.require('progress')).state;
+  if(prior){check(prior.cumulative===cap,'accepted voucher mismatch');if(state==='voucher-inflight:'+sequence)await this.ledger.transition(state,'active:'+sequence);return {state:'voucher_accepted',chainSettled:false};}
+  check(state==='voucher-inflight:'+sequence,'voucher recovery requires unresolved send');
+  const authorizationDigest=sha(credential.authorization);let attempt;
+  for(let n=1;n<=6;n++)if(await this.ledger.once(stage+':recovery:'+n,{authorizationDigest})){attempt=stage+':recovery:'+n;break;}
+  check(attempt,'merchant recovery limit reached');
+  try{
+   const result=JSON.parse(json(await recover(JSON.parse(json(credential)))));
+   check(result.recoveryOnly===true&&result.url===this.plan.request.url&&result.authorizationDigest===authorizationDigest&&typeof result.bodyText==='string'&&result.evidenceDigest===sha(json({url:this.plan.request.url,status:200,bodyText:result.bodyText,authorizationDigest}))&&json(result.body)===json(JSON.parse(result.bodyText))&&result.body?.reference===this.plan.open.channelId+':'+cap&&result.body.chargedCumulativeAmount===cap&&result.body.chargedAmount===(BigInt(cap)-BigInt(previous)).toString()&&result.body.chainSettled===false,'recovery receipt mismatch');
+   await this.ledger.once(attempt+':evidence',result);await this.ledger.once(stage+':accepted',{cumulative:cap});
+   const current=(await this.ledger.require('progress')).state;if(current==='voucher-inflight:'+sequence)await this.ledger.transition(current,'active:'+sequence);
+   check((await this.ledger.get(stage+':accepted'))?.cumulative===cap,'recovery not retained');
+   return {state:'voucher_accepted',chainSettled:false};
+  }catch{return {state:'unknown',newPaymentAllowed:false};}
+ }
  async close(sequence,send){check(Number.isInteger(sequence)&&sequence>=1&&sequence<=64,'close sequence');await this.ledger.transition('active:'+sequence,'close-inflight');const prior=await this.ledger.require('voucher:'+sequence+':credential'),p=this.plan;const payload={action:'close',channelId:p.open.channelId,voucher:prior.payload.voucher};const credential={payload,authorization:serializeSessionCredential({challenge:p.challenge,payload})};await this.ledger.once('close:credential',credential);try{const ack=await send(freeze(credential));check(typeof ack.reference==='string'&&getBase58Encoder().encode(ack.reference).length===64,'close transaction missing');await this.ledger.once('close:ack',ack);return {state:'provider_ack',chainSettled:false};}catch{return {state:'unknown',newPaymentAllowed:false};}}
- async confirmClose(rpc,signature){const existing=await this.ledger.get('close:confirmed');if(existing)return existing;check((await this.ledger.require('progress')).state==='close-inflight','close not sent');const credential=await this.ledger.require('close:credential');const observed=await observeSolanaClose(rpc,this.plan,signature,credential.payload.voucher);if(observed.state==='chain_confirmed'){await this.ledger.once('close:confirmed',observed);await this.ledger.transition('close-inflight','closed');}return observed;}
+ async confirmClose(rpc,signature){const existing=await this.ledger.get('close:confirmed');if(existing){check(existing.state==='chain_confirmed'&&(!signature||signature===existing.transactionSignature),'confirmation conflicts');if((await this.ledger.require('progress')).state==='close-inflight')await this.ledger.transition('close-inflight','closed');return existing;}check((await this.ledger.require('progress')).state==='close-inflight','close not sent');const credential=await this.ledger.require('close:credential');const observed=await observeSolanaClose(rpc,this.plan,signature,credential.payload.voucher);if(observed.state==='chain_confirmed'){await this.ledger.once('close:confirmed',observed);await this.ledger.transition('close-inflight','closed');}return observed;}
 }
 /** Actual transaction bytes, token deltas and generated account decoder must
  * agree. A bare successful signature or local SDK session flag is insufficient.
