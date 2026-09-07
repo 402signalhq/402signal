@@ -1862,6 +1862,7 @@ class ProductBriefTests(unittest.TestCase):
             "no_input_schema",
             "constraints_unmet",
             "probe_budget_exhausted",
+            "probe_capacity",
             "probe_limit_reached",
             "unsafe_to_probe",
             "settlement_unknown",
@@ -1914,6 +1915,7 @@ class ProductBriefTests(unittest.TestCase):
                 "candidate_set_exhausted",
                 "probe_limit_reached",
                 "probe_budget_exhausted",
+                "probe_capacity",
                 "constraints_unmet",
             },
         )

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from live402 import admission
+
 import base64
 import http.client
 import ipaddress
@@ -65,8 +67,10 @@ MISS_REASONS = (
     "probe_limit_reached",
     "unsafe_to_probe",
     "settlement_unknown",
+    "probe_capacity",
 )
 STOP_REASONS = (
+    "probe_capacity",
     "winner_selected",
     "candidate_set_exhausted",
     "probe_limit_reached",
@@ -1796,6 +1800,22 @@ def _fixture_probe(url: str, catalog_item: dict | None = None, batch_id: str | N
 
 
 def probe_url(url: str, catalog_item: dict | None = None, deadline: float | None = None, batch_id: str | None = None, record: bool = True) -> dict:
+    try:
+        work_lease = admission.reserve_probe(url)
+    except Exception:
+        # No network call or history write for an admission denial.
+        return {"url": url, "live": False, "payable": False, "invocable": False,
+                "miss_reason": "probe_capacity", "retryable": True, "probes": []}
+    result = None
+    try:
+        result = _probe_url_unbudgeted(url, catalog_item, deadline, batch_id, record)
+        return result
+    finally:
+        if work_lease is not None:
+            work_lease.engine.probe_complete(work_lease, isinstance(result, dict) and result.get("live") is True)
+
+
+def _probe_url_unbudgeted(url: str, catalog_item: dict | None = None, deadline: float | None = None, batch_id: str | None = None, record: bool = True) -> dict:
     """Unpaid dual probe. Live = HTTP 402 with a parseable payment envelope."""
     if deadline is None:
         deadline = clock.monotonic() + PROBE_BUDGET_SECONDS
@@ -2208,7 +2228,7 @@ def _attach_selection(body: dict, probed: list, winner, objective: str, constrai
             except Exception:
                 pass
     body["compared"] = select.comparison(probed, winner if selected else None, objective, constraints)
-    body["tried"] = len(probed)
+    body["tried"] = sum(r.get("miss_reason") != "probe_capacity" for r in probed)
     return body
 
 
@@ -2216,7 +2236,7 @@ def _probed_urls(probed: list) -> set:
     return {
         (r or {}).get("url")
         for r in probed
-        if isinstance(r, dict) and (r or {}).get("url")
+        if isinstance(r, dict) and r.get("url") and r.get("miss_reason") != "probe_capacity"
     }
 
 
@@ -2241,6 +2261,8 @@ def _stop_reason(
 ) -> str:
     if winner:
         return "winner_selected"
+    if any(r.get("miss_reason") == "probe_capacity" for r in probed):
+        return "probe_capacity"
     complete = _candidate_evaluation_complete(ranked, probed)
     untested = not complete
     if probe_budget_exhausted and untested:
@@ -2686,7 +2708,7 @@ def route_need(
         "discovery_matches": discovery_matches,
         "candidates_discovered": discovered,
         "candidates_considered": discovery_matches,
-        "candidates_probed": len(probed),
+        "candidates_probed": sum(r.get("miss_reason") != "probe_capacity" for r in probed),
         "probe_ceiling": ceiling,
         "probe_budget_exhausted": bool(probe_budget_exhausted),
         "candidate_evaluation_complete": evaluation_complete,
@@ -2706,6 +2728,8 @@ def route_need(
             pass
         body["batch_id"] = batch_id
         return body
+    observed_rows = [r for r in probed if r.get("miss_reason") != "probe_capacity"]
+    last = observed_rows[-1] if observed_rows else None
     body = {
         "live": False,
         "invocable": False,
@@ -2730,7 +2754,13 @@ def route_need(
         },
     }
     untested = not evaluation_complete
-    if not ranked:
+    if any(r.get("miss_reason") == "probe_capacity" for r in probed):
+        body["miss_reason"] = "probe_capacity"
+        body["retryable"] = True
+        if not observed_rows:
+            body.pop("health", None)
+            body.pop("probed_at", None)
+    elif not ranked:
         body["miss_reason"] = "no_candidates"
     elif probe_budget_exhausted and untested:
         body["miss_reason"] = "probe_budget_exhausted"

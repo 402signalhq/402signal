@@ -898,7 +898,7 @@ def persist_route_batch(batch_id: str | None, results: list | None) -> dict:
             return metas
         rows = []
         for raw in results or []:
-            if not isinstance(raw, dict):
+            if not isinstance(raw, dict) or raw.get("miss_reason") == "probe_capacity":
                 continue
             dest = _text(raw.get("url"))
             if not dest:
