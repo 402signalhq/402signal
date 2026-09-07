@@ -4,7 +4,8 @@ import type { Seller } from "./seller.js";
 import type { BatchHttpMerchant } from "./http-server.js";
 import { BaseBatchMerchant } from "./base-batch-merchant.js";
 import { BaseBatchLedger } from "./base-batch-ledger.js";
-import { RemoteFacilitator, http } from "./transport.js";
+import { http } from "./transport.js";
+import { CdpBatchReadOnlyProvider } from "./base-batch-cdp-provider.js";
 import { assert, parseJson } from "./json.js";
 export const BASE_BATCH_OPT_IN = "reviewed-two-voucher-profile-v1";
 export const SOLANA_SESSION_OPT_IN = "reviewed-owner-open-push-v1";
@@ -60,10 +61,10 @@ export async function configuredBatchHttpMerchants(
             seller.config.rails.base.payTo.toLowerCase(),
         "base_batch_deployment_scope_refused",
       );
-      const provider = new RemoteFacilitator(
-        seller.config.rails.base.facilitatorUrl,
-        undefined,
-        env.LAB_BASE_FACILITATOR_AUTH,
+      assert(env.LAB_BASE_BATCH_CDP_TOKENS, "base_batch_cdp_tokens_required");
+      const provider = new CdpBatchReadOnlyProvider(
+        env.LAB_BASE_BATCH_CDP_TOKENS,
+        c.campaignId,
       );
       const merchant = new BaseBatchMerchant(pool, c, provider);
       await merchant.initialize({ migrateSchema: false });

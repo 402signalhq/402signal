@@ -108,10 +108,7 @@ for (const fixture of fixtures) {
       assert.throws(() =>
         verifyBatchRoute({
           ...opts,
-          routeRequestJson: opts.routeRequestJson.replace(
-            "{",
-            '{"merchant_profile":null,',
-          ),
+          routeRequestJson: ('{"merchant_profile":null,' + opts.routeRequestJson.slice(1)),
         }),
       );
       for (const change of [

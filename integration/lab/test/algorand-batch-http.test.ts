@@ -184,7 +184,7 @@ test("HTTP unsigned, malformed headers, methods and bodies never verify or reser
       get(instance.port, [], "POST"),
       get(instance.port, ["Content-Length", "2"], "GET", "{}"),
       get(instance.port, [], "GET", undefined, path + "&left=duplicate"),
-      get(instance.port, [], "GET", undefined, path.replace("alpha", "%FF")),
+      get(instance.port, [], "GET", undefined, path.replaceAll("alpha", "%FF")),
     ];
     for (const result of await Promise.all(bad))
       assert.ok(result.status >= 400);

@@ -14,6 +14,8 @@ test(
     const suffix = randomUUID().replaceAll("-", "");
     const database = "lab_batch_ready_" + suffix;
     const role = "lab_ready_" + suffix;
+    // Independent disposable login credential; never inherit the admin password.
+    const runtimePassword = randomUUID().replaceAll("-", "");
     const config = {
       host: process.env.LAB_BATCH_PG_HOST,
       port: Number(process.env.LAB_BATCH_PG_PORT),
@@ -28,7 +30,7 @@ test(
     let migration: Pool | undefined, runtime: Pool | undefined;
     try {
       await admin.query(
-        `CREATE ROLE ${role} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT`,
+        `CREATE ROLE ${role} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT PASSWORD '${runtimePassword}'`,
       );
       await admin.query(`CREATE DATABASE ${database}`);
       migration = new Pool({ ...config, database });
@@ -47,7 +49,38 @@ test(
       await migration.query(
         `GRANT SELECT, INSERT, UPDATE, DELETE ON public.lab_batch_channels_v1 TO ${role}`,
       );
-      runtime = new Pool({ ...config, user: role, database });
+      runtime = new Pool({
+        ...config,
+        user: role,
+        database,
+        password: runtimePassword,
+      });
+      if (config.host && !config.host.startsWith("/")) {
+        await t.test(
+          "TCP runtime login requires its own password",
+          async () => {
+            const wrongPassword = new Pool({
+              ...config,
+              user: role,
+              database,
+              password: runtimePassword + "invalid",
+            });
+            try {
+              await assert.rejects(
+                wrongPassword.query("SELECT 1"),
+                /password authentication failed/,
+              );
+            } finally {
+              await wrongPassword.end();
+            }
+            assert.equal(
+              (await runtime!.query("SELECT current_user AS role")).rows[0]
+                .role,
+              role,
+            );
+          },
+        );
+      }
       const statements: string[] = [];
       const checked = {
         query: async (sql: string, args?: unknown[]) => {
