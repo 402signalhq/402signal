@@ -81,7 +81,6 @@ class AuthorizedConfirmedTests(unittest.TestCase):
         received = []
 
         def serve(sock):
-            sock.listen(1)
             sock.settimeout(2)
             while not self._stop:
                 try:
@@ -108,6 +107,8 @@ class AuthorizedConfirmedTests(unittest.TestCase):
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("127.0.0.1", 0))
+        # Publish only a listening socket; thread scheduling is not readiness.
+        sock.listen(1)
         port = sock.getsockname()[1]
         self._socks.append(sock)
         thread = threading.Thread(target=serve, args=(sock,), daemon=True)

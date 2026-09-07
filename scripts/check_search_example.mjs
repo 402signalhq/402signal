@@ -18,6 +18,8 @@ let passed=0;
 
 async function scenario(name,options,check){
  const dir=await mkdtemp(join(tmpdir(),'signal-example-'));
+ // The journal uses real filesystem IO. Explicit lost-response tests provide ambiguity;
+ // a 100 ms wall-clock timer accidentally tests host contention instead of this flow.
  const oldFetch=globalThis.fetch,oldNow=Date.now;
  const counts={reserve:0,sign:0,confirm:0,sellerFetch:0,sellerExecute:0,ordinary:0,recovery:0};
  const requests=[];let intent;
@@ -42,7 +44,7 @@ async function scenario(name,options,check){
    else{counts.ordinary++;if(options.routingAmbiguous)throw Error('synthetic_lost_response');}
    return new Response(JSON.stringify(routeResponse),{status:options.unresolved?503:200,headers:{'PAYMENT-RESPONSE':'synthetic-router-receipt'}});
   };
-  const client=new RouteClient({store,routerUrl:'https://402signal.example/route',recoveryProfile:'http-route-v1',fetch:fetchRouter,now:()=>f.now*1000,timeoutMs:100});
+  const client=new RouteClient({store,routerUrl:'https://402signal.example/route',recoveryProfile:'http-route-v1',fetch:fetchRouter,now:()=>f.now*1000,timeoutMs:5000});
   globalThis.fetch=async(url,init)=>{
    counts.sellerFetch++;assert.equal(counts.confirm,1);assert.equal(url,f.url);
    assert.equal(init.method,'GET');assert.equal(init.body,undefined);assert.equal(init.redirect,'error');assert.equal(init.credentials,'omit');
@@ -58,7 +60,7 @@ async function scenario(name,options,check){
    async executeSellerOnce(id,action,challenge){counts.sellerExecute++;assert.equal(counts.confirm,1);assert.equal(action.request.url,f.url);assert.equal(action.request.method,'GET');assert.equal(action.accepted.amount,'1000');assert.equal(action.accepted.network,'eip155:8453');assert.equal(action.accepted.asset,f.challenge.accepts[0].asset);assert.equal(action.accepted.payTo,'0x'+'11'.repeat(20));assert.ok(Object.isFrozen(action));assert.equal(challenge.status,402);if(options.sellerAmbiguous)throw Error('synthetic_seller_result_unknown');return {synthetic:true,results:[{title:'Synthetic search result',url:'https://example.com/'}]};},
   };
   const run=()=>runSearch({id:'search-one',query:f.query,client,buyer,trustedLogVkey:f.trusted_vkey});
-  await check({run,counts,requests,client,store,restart:()=>new RouteClient({store:new FileAttemptStore(join(dir,'attempts')),routerUrl:'https://402signal.example/route',recoveryProfile:'http-route-v1',fetch:fetchRouter,now:()=>f.now*1000,timeoutMs:100})});
+  await check({run,counts,requests,client,store,restart:()=>new RouteClient({store:new FileAttemptStore(join(dir,'attempts')),routerUrl:'https://402signal.example/route',recoveryProfile:'http-route-v1',fetch:fetchRouter,now:()=>f.now*1000,timeoutMs:5000})});
   passed++;console.error('PASS '+name);
  }finally{globalThis.fetch=oldFetch;Date.now=oldNow;await rm(dir,{recursive:true,force:true});}
 }

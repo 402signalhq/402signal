@@ -1,0 +1,492 @@
+[
+  {
+    "request": {
+      "url": "https://merchant.example/batch",
+      "merchant_profile": "base-x402-batch-v1",
+      "buyer_limits": {
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "recipient": "0x2222222222222222222222222222222222222222",
+        "receiver_authorizer": "0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb",
+        "withdraw_delay_seconds": 900,
+        "max_call_amount_atomic": "1000",
+        "max_cumulative_amount_atomic": "4000",
+        "max_capital_atomic": "4000"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "{\"x402Version\":2,\"resource\":{\"url\":\"https://merchant.example/batch\",\"mimeType\":\"application/json\"},\"accepts\":[{\"scheme\":\"batch-settlement\",\"network\":\"eip155:8453\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"amount\":\"1000\",\"payTo\":\"0x2222222222222222222222222222222222222222\",\"maxTimeoutSeconds\":300,\"extra\":{\"name\":\"USD Coin\",\"version\":\"2\",\"assetTransferMethod\":\"eip3009\",\"receiverAuthorizer\":\"0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb\",\"withdrawDelay\":900}}]}",
+      "paymentRequired": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9tZXJjaGFudC5leGFtcGxlL2JhdGNoIiwibWltZVR5cGUiOiJhcHBsaWNhdGlvbi9qc29uIn0sImFjY2VwdHMiOlt7InNjaGVtZSI6ImJhdGNoLXNldHRsZW1lbnQiLCJuZXR3b3JrIjoiZWlwMTU1Ojg0NTMiLCJhc3NldCI6IjB4ODMzNTg5ZkNENmVEYjZFMDhmNGM3QzMyRDRmNzFiNTRiZEEwMjkxMyIsImFtb3VudCI6IjEwMDAiLCJwYXlUbyI6IjB4MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIsIm1heFRpbWVvdXRTZWNvbmRzIjozMDAsImV4dHJhIjp7Im5hbWUiOiJVU0QgQ29pbiIsInZlcnNpb24iOiIyIiwiYXNzZXRUcmFuc2Zlck1ldGhvZCI6ImVpcDMwMDkiLCJyZWNlaXZlckF1dGhvcml6ZXIiOiIweDM3MjE4MjRhMzExOTdkY0REMjk4NGNGNDNiOTJCNmNjOEE4N2MwRmIiLCJ3aXRoZHJhd0RlbGF5Ijo5MDB9fV19",
+      "wwwAuthenticate": null
+    },
+    "now": 1800000000,
+    "response": {
+      "url": "https://merchant.example/batch",
+      "merchant_profile": "base-x402-batch-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "recipient": "0x2222222222222222222222222222222222222222",
+        "receiver_authorizer": "0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb",
+        "withdraw_delay_seconds": 900,
+        "call_amount_atomic": "1000",
+        "max_timeout_seconds": 300,
+        "scheme": "batch-settlement"
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "base-x402-batch-v1",
+        "request": {
+          "url": "https://merchant.example/batch",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "eip155:8453",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "recipient": "0x2222222222222222222222222222222222222222",
+          "receiver_authorizer": "0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb",
+          "withdraw_delay_seconds": 900,
+          "max_call_amount_atomic": "1000",
+          "max_cumulative_amount_atomic": "4000",
+          "max_capital_atomic": "4000"
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "{\"x402Version\":2,\"resource\":{\"url\":\"https://merchant.example/batch\",\"mimeType\":\"application/json\"},\"accepts\":[{\"scheme\":\"batch-settlement\",\"network\":\"eip155:8453\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"amount\":\"1000\",\"payTo\":\"0x2222222222222222222222222222222222222222\",\"maxTimeoutSeconds\":300,\"extra\":{\"name\":\"USD Coin\",\"version\":\"2\",\"assetTransferMethod\":\"eip3009\",\"receiverAuthorizer\":\"0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb\",\"withdrawDelay\":900}}]}",
+          "paymentRequired": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9tZXJjaGFudC5leGFtcGxlL2JhdGNoIiwibWltZVR5cGUiOiJhcHBsaWNhdGlvbi9qc29uIn0sImFjY2VwdHMiOlt7InNjaGVtZSI6ImJhdGNoLXNldHRsZW1lbnQiLCJuZXR3b3JrIjoiZWlwMTU1Ojg0NTMiLCJhc3NldCI6IjB4ODMzNTg5ZkNENmVEYjZFMDhmNGM3QzMyRDRmNzFiNTRiZEEwMjkxMyIsImFtb3VudCI6IjEwMDAiLCJwYXlUbyI6IjB4MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIsIm1heFRpbWVvdXRTZWNvbmRzIjozMDAsImV4dHJhIjp7Im5hbWUiOiJVU0QgQ29pbiIsInZlcnNpb24iOiIyIiwiYXNzZXRUcmFuc2Zlck1ldGhvZCI6ImVpcDMwMDkiLCJyZWNlaXZlckF1dGhvcml6ZXIiOiIweDM3MjE4MjRhMzExOTdkY0REMjk4NGNGNDNiOTJCNmNjOEE4N2MwRmIiLCJ3aXRoZHJhd0RlbGF5Ijo5MDB9fV19",
+          "wwwAuthenticate": null
+        },
+        "challenge_sha256": "964f9366c0dacc4f0b50edcc5b4659e23bdf01d0e9ee9a6b5ce7ea4c3c53f1fd",
+        "terms": {
+          "network": "eip155:8453",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "recipient": "0x2222222222222222222222222222222222222222",
+          "receiver_authorizer": "0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb",
+          "withdraw_delay_seconds": 900,
+          "call_amount_atomic": "1000",
+          "max_timeout_seconds": 300,
+          "scheme": "batch-settlement"
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-07T20:35:00Z",
+            "nonce": "7a3a2828f840352e6dcbed92b8f57f14ac4646c76b02a4eb1fd5183b23852e1b",
+            "commitment": "0ea817530303e8ab1d4e5d62318345433db70aa497fc50f3b47742f0912c91a3",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"max_call_amount_atomic\":\"1000\",\"max_capital_atomic\":\"4000\",\"max_cumulative_amount_atomic\":\"4000\",\"network\":\"eip155:8453\",\"receiver_authorizer\":\"0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb\",\"recipient\":\"0x2222222222222222222222222222222222222222\",\"withdraw_delay_seconds\":900},\"merchant_profile\":\"base-x402-batch-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/batch\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "base-x402-batch-v1",
+                "request": {
+                  "url": "https://merchant.example/batch",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "eip155:8453",
+                  "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                  "recipient": "0x2222222222222222222222222222222222222222",
+                  "receiver_authorizer": "0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb",
+                  "withdraw_delay_seconds": 900,
+                  "max_call_amount_atomic": "1000",
+                  "max_cumulative_amount_atomic": "4000",
+                  "max_capital_atomic": "4000"
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "{\"x402Version\":2,\"resource\":{\"url\":\"https://merchant.example/batch\",\"mimeType\":\"application/json\"},\"accepts\":[{\"scheme\":\"batch-settlement\",\"network\":\"eip155:8453\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"amount\":\"1000\",\"payTo\":\"0x2222222222222222222222222222222222222222\",\"maxTimeoutSeconds\":300,\"extra\":{\"name\":\"USD Coin\",\"version\":\"2\",\"assetTransferMethod\":\"eip3009\",\"receiverAuthorizer\":\"0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb\",\"withdrawDelay\":900}}]}",
+                  "paymentRequired": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9tZXJjaGFudC5leGFtcGxlL2JhdGNoIiwibWltZVR5cGUiOiJhcHBsaWNhdGlvbi9qc29uIn0sImFjY2VwdHMiOlt7InNjaGVtZSI6ImJhdGNoLXNldHRsZW1lbnQiLCJuZXR3b3JrIjoiZWlwMTU1Ojg0NTMiLCJhc3NldCI6IjB4ODMzNTg5ZkNENmVEYjZFMDhmNGM3QzMyRDRmNzFiNTRiZEEwMjkxMyIsImFtb3VudCI6IjEwMDAiLCJwYXlUbyI6IjB4MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIsIm1heFRpbWVvdXRTZWNvbmRzIjozMDAsImV4dHJhIjp7Im5hbWUiOiJVU0QgQ29pbiIsInZlcnNpb24iOiIyIiwiYXNzZXRUcmFuc2Zlck1ldGhvZCI6ImVpcDMwMDkiLCJyZWNlaXZlckF1dGhvcml6ZXIiOiIweDM3MjE4MjRhMzExOTdkY0REMjk4NGNGNDNiOTJCNmNjOEE4N2MwRmIiLCJ3aXRoZHJhd0RlbGF5Ijo5MDB9fV19",
+                  "wwwAuthenticate": null
+                },
+                "challenge_sha256": "964f9366c0dacc4f0b50edcc5b4659e23bdf01d0e9ee9a6b5ce7ea4c3c53f1fd",
+                "terms": {
+                  "network": "eip155:8453",
+                  "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                  "recipient": "0x2222222222222222222222222222222222222222",
+                  "receiver_authorizer": "0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb",
+                  "withdraw_delay_seconds": 900,
+                  "call_amount_atomic": "1000",
+                  "max_timeout_seconds": 300,
+                  "scheme": "batch-settlement"
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "14768c25f4ea0e654774d8da50968daa696e75ebaabf8e26df341eac5130f6c6"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 0,
+          "checkpoint_size": 1,
+          "receipt": {
+            "index": 0,
+            "inclusion_path": [],
+            "checkpoint": "402signal.com/pq/log\n1\n1edHTNUJCtxqpQaE5sf/ZHh4/4BnHII/7LZ7tqQnQns=\n\n\u2014 402signal.com/pq/log v62lScfYGCR6zW0Ow/HqFEEu1nZyW4JNyWP1XdDoFSbjUjtRiiBADZhUJN8d1gzSpy9/C4uYvMh7sq6qd2NiQIyrmg0=\n",
+            "leaf_hash": "d5e7474cd5090adc6aa50684e6c7ff647878ff80671c823fecb67bb6a427427b"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+bfada549+AabPfevgQwq3KDD+AKAdgivQCnNTbU4F/nBgnqYF02y3"
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/session",
+      "merchant_profile": "solana-mpp-session-v1",
+      "buyer_limits": {
+        "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "recipient": "11111111111111111111111111111111",
+        "operator": "11111111111111111111111111111111",
+        "program_id": "CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX",
+        "max_session_cap_atomic": "10000"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-solana-session\", realm=\"merchant.example\", method=\"solana\", intent=\"session\", request=\"eyJjYXAiOiIxMDAwMCIsImN1cnJlbmN5IjoiRVBqRldkZDVBdWZxU1NxZU0ycU4xeHp5YmFwQzhHNHdFR0drWnd5VER0MXYiLCJkZWNpbWFscyI6NiwibWluVm91Y2hlckRlbHRhIjoiMTAwMCIsIm5ldHdvcmsiOiJtYWlubmV0Iiwib3BlcmF0b3IiOiIxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSIsInByb2dyYW1JZCI6IkNITkx4WXZWQTI4TUpQOVByRnVEWGNjdW9HWEF4N2pCYWNmTEVrYWh5R3NYIiwicmVjZW50QmxvY2toYXNoIjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiLCJyZWNlbnRTbG90IjoiNDQ0NDQ0IiwicmVjaXBpZW50IjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEifQ\", expires=\"2027-01-15T08:00:40Z\""
+    },
+    "now": 1800000000,
+    "response": {
+      "url": "https://merchant.example/session",
+      "merchant_profile": "solana-mpp-session-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "recipient": "11111111111111111111111111111111",
+        "operator": "11111111111111111111111111111111",
+        "program_id": "CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX",
+        "session_cap_atomic": "10000",
+        "min_voucher_delta_atomic": "1000",
+        "recent_blockhash": "11111111111111111111111111111111",
+        "recent_slot": "444444",
+        "mode": "push",
+        "per_call_amount_atomic": null
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "solana-mpp-session-v1",
+        "request": {
+          "url": "https://merchant.example/session",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "recipient": "11111111111111111111111111111111",
+          "operator": "11111111111111111111111111111111",
+          "program_id": "CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX",
+          "max_session_cap_atomic": "10000"
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": null,
+          "wwwAuthenticate": "Payment id=\"synthetic-solana-session\", realm=\"merchant.example\", method=\"solana\", intent=\"session\", request=\"eyJjYXAiOiIxMDAwMCIsImN1cnJlbmN5IjoiRVBqRldkZDVBdWZxU1NxZU0ycU4xeHp5YmFwQzhHNHdFR0drWnd5VER0MXYiLCJkZWNpbWFscyI6NiwibWluVm91Y2hlckRlbHRhIjoiMTAwMCIsIm5ldHdvcmsiOiJtYWlubmV0Iiwib3BlcmF0b3IiOiIxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSIsInByb2dyYW1JZCI6IkNITkx4WXZWQTI4TUpQOVByRnVEWGNjdW9HWEF4N2pCYWNmTEVrYWh5R3NYIiwicmVjZW50QmxvY2toYXNoIjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiLCJyZWNlbnRTbG90IjoiNDQ0NDQ0IiwicmVjaXBpZW50IjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEifQ\", expires=\"2027-01-15T08:00:40Z\""
+        },
+        "challenge_sha256": "9227a8707991b9d400cd1b8c6ad91bbd23a92e5bba6c5e74e9280cb3b6a30865",
+        "terms": {
+          "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+          "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "recipient": "11111111111111111111111111111111",
+          "operator": "11111111111111111111111111111111",
+          "program_id": "CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX",
+          "session_cap_atomic": "10000",
+          "min_voucher_delta_atomic": "1000",
+          "recent_blockhash": "11111111111111111111111111111111",
+          "recent_slot": "444444",
+          "mode": "push",
+          "per_call_amount_atomic": null
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000040
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-07T20:35:00Z",
+            "nonce": "ab551be729941a282e69a77be37a9e914754123662ccc92688b25cffdce7ef3c",
+            "commitment": "157304cadee6879ef5f72c2bd283ff9f1c966fb837dbb1ca92125ef92858cd5b",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v\",\"max_session_cap_atomic\":\"10000\",\"network\":\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp\",\"operator\":\"11111111111111111111111111111111\",\"program_id\":\"CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX\",\"recipient\":\"11111111111111111111111111111111\"},\"merchant_profile\":\"solana-mpp-session-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/session\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "solana-mpp-session-v1",
+                "request": {
+                  "url": "https://merchant.example/session",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                  "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                  "recipient": "11111111111111111111111111111111",
+                  "operator": "11111111111111111111111111111111",
+                  "program_id": "CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX",
+                  "max_session_cap_atomic": "10000"
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": "Payment id=\"synthetic-solana-session\", realm=\"merchant.example\", method=\"solana\", intent=\"session\", request=\"eyJjYXAiOiIxMDAwMCIsImN1cnJlbmN5IjoiRVBqRldkZDVBdWZxU1NxZU0ycU4xeHp5YmFwQzhHNHdFR0drWnd5VER0MXYiLCJkZWNpbWFscyI6NiwibWluVm91Y2hlckRlbHRhIjoiMTAwMCIsIm5ldHdvcmsiOiJtYWlubmV0Iiwib3BlcmF0b3IiOiIxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSIsInByb2dyYW1JZCI6IkNITkx4WXZWQTI4TUpQOVByRnVEWGNjdW9HWEF4N2pCYWNmTEVrYWh5R3NYIiwicmVjZW50QmxvY2toYXNoIjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiLCJyZWNlbnRTbG90IjoiNDQ0NDQ0IiwicmVjaXBpZW50IjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEifQ\", expires=\"2027-01-15T08:00:40Z\""
+                },
+                "challenge_sha256": "9227a8707991b9d400cd1b8c6ad91bbd23a92e5bba6c5e74e9280cb3b6a30865",
+                "terms": {
+                  "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                  "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                  "recipient": "11111111111111111111111111111111",
+                  "operator": "11111111111111111111111111111111",
+                  "program_id": "CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX",
+                  "session_cap_atomic": "10000",
+                  "min_voucher_delta_atomic": "1000",
+                  "recent_blockhash": "11111111111111111111111111111111",
+                  "recent_slot": "444444",
+                  "mode": "push",
+                  "per_call_amount_atomic": null
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000040
+              }
+            },
+            "salt": "b3413871f358a8b4fb921eab4fc75a74c7c9892f22606cb84ae5bbc8de3eeca2"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 1,
+          "checkpoint_size": 2,
+          "receipt": {
+            "index": 1,
+            "inclusion_path": [
+              "1edHTNUJCtxqpQaE5sf/ZHh4/4BnHII/7LZ7tqQnQns="
+            ],
+            "checkpoint": "402signal.com/pq/log\n2\nBbhUMOVxsgOsP8hjTkga8k0VvAbIYpb9Bg0t91UMy2A=\n\n\u2014 402signal.com/pq/log v62lSbQ586EITIzKpl43xOOfVK/kneeYDlY/YtYVd9ep0YDbyGxKv+LEMcFgU0Pd/L8xj77aNH9IuU6y8/fl0f+IqAc=\n",
+            "leaf_hash": "5469c6edd817992306fb1d4f8c9f9dd5795b64506d943873a5623c46633145dd"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+bfada549+AabPfevgQwq3KDD+AKAdgivQCnNTbU4F/nBgnqYF02y3"
+  },
+  {
+    "request": {
+      "url": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+      "merchant_profile": "algorand-atomic-batch-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+        "fee_payer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+        "max_total_amount_atomic": "2000",
+        "max_sponsor_fee_micro_algo": "15000"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "{\"x402Version\":2,\"resource\":{\"url\":\"https://batch.example/algorand/batch/sha256?left=alpha&right=beta\",\"mimeType\":\"application/json\",\"description\":\"Operator-owned two-item SHA256 batch. Each transfer is 1000 atomic USDC; whole group costs 2000. One submission returns both indexed results. No HTTP fulfillment atomicity guarantee.\"},\"accepts\":[{\"scheme\":\"exact\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"asset\":\"31566704\",\"amount\":\"1000\",\"payTo\":\"BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U\",\"maxTimeoutSeconds\":60,\"extra\":{\"feePayer\":\"AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI\"}}],\"extensions\":{\"402signal-atomic-batch\":{\"version\":1,\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"asset\":\"31566704\",\"recipient\":\"BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U\",\"resource\":\"https://batch.example/algorand/batch/sha256?left=alpha&right=beta\",\"requestHash\":\"d30bec2f8004ab72d9c2b539bb859f89f13bb74ada89a08493851c24329cca77\",\"itemCount\":2,\"itemAmount\":\"1000\",\"totalAmount\":\"2000\",\"paymentIndices\":[1,2],\"sponsorIndex\":0,\"feePayer\":\"AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI\",\"maxSponsorFeeMicroAlgo\":\"15000\",\"jobHashes\":[\"8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8\",\"f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753\"]}}}",
+      "paymentRequired": null,
+      "wwwAuthenticate": null
+    },
+    "now": 1800000000,
+    "response": {
+      "url": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+      "merchant_profile": "algorand-atomic-batch-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "version": 1,
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+        "resource": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+        "requestHash": "d30bec2f8004ab72d9c2b539bb859f89f13bb74ada89a08493851c24329cca77",
+        "itemCount": 2,
+        "itemAmount": "1000",
+        "totalAmount": "2000",
+        "paymentIndices": [
+          1,
+          2
+        ],
+        "sponsorIndex": 0,
+        "feePayer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+        "maxSponsorFeeMicroAlgo": "15000",
+        "jobHashes": [
+          "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8",
+          "f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753"
+        ]
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-atomic-batch-v1",
+        "request": {
+          "url": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+          "fee_payer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+          "max_total_amount_atomic": "2000",
+          "max_sponsor_fee_micro_algo": "15000"
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "{\"x402Version\":2,\"resource\":{\"url\":\"https://batch.example/algorand/batch/sha256?left=alpha&right=beta\",\"mimeType\":\"application/json\",\"description\":\"Operator-owned two-item SHA256 batch. Each transfer is 1000 atomic USDC; whole group costs 2000. One submission returns both indexed results. No HTTP fulfillment atomicity guarantee.\"},\"accepts\":[{\"scheme\":\"exact\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"asset\":\"31566704\",\"amount\":\"1000\",\"payTo\":\"BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U\",\"maxTimeoutSeconds\":60,\"extra\":{\"feePayer\":\"AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI\"}}],\"extensions\":{\"402signal-atomic-batch\":{\"version\":1,\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"asset\":\"31566704\",\"recipient\":\"BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U\",\"resource\":\"https://batch.example/algorand/batch/sha256?left=alpha&right=beta\",\"requestHash\":\"d30bec2f8004ab72d9c2b539bb859f89f13bb74ada89a08493851c24329cca77\",\"itemCount\":2,\"itemAmount\":\"1000\",\"totalAmount\":\"2000\",\"paymentIndices\":[1,2],\"sponsorIndex\":0,\"feePayer\":\"AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI\",\"maxSponsorFeeMicroAlgo\":\"15000\",\"jobHashes\":[\"8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8\",\"f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753\"]}}}",
+          "paymentRequired": null,
+          "wwwAuthenticate": null
+        },
+        "challenge_sha256": "ed1d376558a1fa85cb3933381535bac790d63bbcb1184124a757af3401396462",
+        "terms": {
+          "version": 1,
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+          "resource": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+          "requestHash": "d30bec2f8004ab72d9c2b539bb859f89f13bb74ada89a08493851c24329cca77",
+          "itemCount": 2,
+          "itemAmount": "1000",
+          "totalAmount": "2000",
+          "paymentIndices": [
+            1,
+            2
+          ],
+          "sponsorIndex": 0,
+          "feePayer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+          "maxSponsorFeeMicroAlgo": "15000",
+          "jobHashes": [
+            "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8",
+            "f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753"
+          ]
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-07T20:35:00Z",
+            "nonce": "e921afc09d4349eaf56652914d0de2f3def3c6479816b58a50af618e43968b69",
+            "commitment": "31b47970b15e1da2c48d37f5c150dc464564c49dbc58ff58caf1355f519b10e5",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":\"AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI\",\"max_sponsor_fee_micro_algo\":\"15000\",\"max_total_amount_atomic\":\"2000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"recipient\":\"BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U\"},\"merchant_profile\":\"algorand-atomic-batch-v1\",\"require_route_binding\":true,\"url\":\"https://batch.example/algorand/batch/sha256?left=alpha&right=beta\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-atomic-batch-v1",
+                "request": {
+                  "url": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+                  "fee_payer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+                  "max_total_amount_atomic": "2000",
+                  "max_sponsor_fee_micro_algo": "15000"
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "{\"x402Version\":2,\"resource\":{\"url\":\"https://batch.example/algorand/batch/sha256?left=alpha&right=beta\",\"mimeType\":\"application/json\",\"description\":\"Operator-owned two-item SHA256 batch. Each transfer is 1000 atomic USDC; whole group costs 2000. One submission returns both indexed results. No HTTP fulfillment atomicity guarantee.\"},\"accepts\":[{\"scheme\":\"exact\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"asset\":\"31566704\",\"amount\":\"1000\",\"payTo\":\"BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U\",\"maxTimeoutSeconds\":60,\"extra\":{\"feePayer\":\"AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI\"}}],\"extensions\":{\"402signal-atomic-batch\":{\"version\":1,\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"asset\":\"31566704\",\"recipient\":\"BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U\",\"resource\":\"https://batch.example/algorand/batch/sha256?left=alpha&right=beta\",\"requestHash\":\"d30bec2f8004ab72d9c2b539bb859f89f13bb74ada89a08493851c24329cca77\",\"itemCount\":2,\"itemAmount\":\"1000\",\"totalAmount\":\"2000\",\"paymentIndices\":[1,2],\"sponsorIndex\":0,\"feePayer\":\"AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI\",\"maxSponsorFeeMicroAlgo\":\"15000\",\"jobHashes\":[\"8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8\",\"f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753\"]}}}",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": null
+                },
+                "challenge_sha256": "ed1d376558a1fa85cb3933381535bac790d63bbcb1184124a757af3401396462",
+                "terms": {
+                  "version": 1,
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+                  "resource": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+                  "requestHash": "d30bec2f8004ab72d9c2b539bb859f89f13bb74ada89a08493851c24329cca77",
+                  "itemCount": 2,
+                  "itemAmount": "1000",
+                  "totalAmount": "2000",
+                  "paymentIndices": [
+                    1,
+                    2
+                  ],
+                  "sponsorIndex": 0,
+                  "feePayer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+                  "maxSponsorFeeMicroAlgo": "15000",
+                  "jobHashes": [
+                    "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8",
+                    "f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753"
+                  ]
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "0540adcd8397537089201860c4ca8de58225e56af2dc91f412930e77e4035d3e"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 2,
+          "checkpoint_size": 3,
+          "receipt": {
+            "index": 2,
+            "inclusion_path": [
+              "BbhUMOVxsgOsP8hjTkga8k0VvAbIYpb9Bg0t91UMy2A="
+            ],
+            "checkpoint": "402signal.com/pq/log\n3\nHOpZ1nr/oVSq1eDWwGKw+SxtGlh+6IvwAXvf7q2R5to=\n\n\u2014 402signal.com/pq/log v62lSWmeJ0o+t7H8C/OwOhzRTz213gKEyZ1vlHqqhfAnipoc4u2cge89wTDRpAekXGt8xwCz8+nQe+rDqFVNkLD/Wgs=\n",
+            "leaf_hash": "92a8826ced4d58ae6dee71e2e870d7583a3e25b8444b90bc4798bb333257d122"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+bfada549+AabPfevgQwq3KDD+AKAdgivQCnNTbU4F/nBgnqYF02y3"
+  }
+]

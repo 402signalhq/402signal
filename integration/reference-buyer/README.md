@@ -25,3 +25,7 @@ No automatic protocol fallback, new authorization after ambiguity, native gas pa
 `npm test` uses ephemeral synthetic test accounts, mocked HTTP/RPC and a public synthetic route proof. It does not access existing wallets or send transactions.
 
 The inspected September 7 seller offers were 0.001 USDC for AgentsTools and 0.01 USDC for Parallel, each with a 300-second authorization maximum. Adding the separate 0.003 router payment gives maximums of 0.004 and 0.013 USDC. These are observations, not permanent prices or claims of completed fulfillment. Reinspect each challenge and retain the configured cap; a price or recipient change requires a new reviewed campaign rather than silent policy expansion.
+
+## Live compatibility observation
+
+On September 7, 2026 the AgentsTools GET workflow completed independently confirmed routing and seller payments and returned a response. The Parallel gateway produced a different payment recipient on successive unsigned challenges; the current fixed-offer guard therefore refused seller signing. The Parallel example is a bounded protocol integration example, not a qualified live purchase path for rotating recipients. Do not replace a recipient pin or bypass a changed-offer refusal to make it pass. Check compatibility before committing a routing budget. These observations do not assess response quality or promise future availability.

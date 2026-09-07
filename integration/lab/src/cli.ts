@@ -1,3 +1,4 @@
+import {configuredBatchHttpMerchants} from './batch-http-config.js';
 import { readFileSync, mkdirSync, writeFileSync, mkdtempSync, rmSync, readdirSync, accessSync, constants, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,6 +8,7 @@ import { assert, LabError, parseJson } from './json.js';
 import { Ledger } from './ledger.js';
 import { Seller } from './seller.js';
 import { server } from './http-server.js';
+import {configuredAlgorandBatchSeller} from './algorand-batch-config.js';
 import { Buyer, validateBuyer } from './buyer.js';
 import { UTILITIES, type Utility } from './utilities.js';
 import { fixtureBuyerConfig, fixtureRouter, fixtureSigner } from './fixtures.js';
@@ -191,9 +193,10 @@ async function main() {
   if (command === 'serve') {
     const c = loadConfig(flag('config')), ledger = new Ledger(c.ledgerPath), seller = new Seller(c, ledger);
     try { await seller.initialize(); } catch { ledger.close(); throw new LabError('seller_initialization_failed', 503); }
-    const app = server(seller); app.listen(c.port, c.host); await once(app, 'listening');
+    const batches=await configuredBatchHttpMerchants(seller);
+    const app = server(seller, configuredAlgorandBatchSeller(seller),batches.merchants); app.listen(c.port, c.host); await once(app, 'listening');
     print({ listening: app.address(), mode: c.mode, traffic_class: 'self_test', public_directory_submission: false });
-    const stop = () => { app.close(() => { ledger.close(); process.exit(0); }); setTimeout(() => process.exit(1), 10000).unref(); };
+    const stop = () => { app.close(() => { void batches.close().finally(()=>{ledger.close();process.exit(0);}); }); setTimeout(() => process.exit(1), 10000).unref(); };
     process.once('SIGINT', stop); process.once('SIGTERM', stop); return;
   }
   if (command === 'faults') {

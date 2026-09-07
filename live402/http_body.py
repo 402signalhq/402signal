@@ -153,7 +153,7 @@ def loads_json_object(raw: bytes) -> dict:
         raise BodyReadError(400, "invalid JSON") from None
     if not isinstance(payload, dict) or isinstance(payload, bool):
         raise BodyReadError(400, "JSON object required")
-    if duplicates and "probe_request" in payload:
+    if duplicates and any(k in payload for k in ("probe_request", "merchant_profile", "buyer_limits")):
         raise BodyReadError(400, "ambiguous probe_request JSON")
     return payload
 

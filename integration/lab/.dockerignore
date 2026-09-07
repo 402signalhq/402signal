@@ -4,3 +4,8 @@ reports
 *.sqlite*
 work
 .git
+
+**/node_modules
+**/dist
+**/*.sqlite*
+solana-session-contracts/test

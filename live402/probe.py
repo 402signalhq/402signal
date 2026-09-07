@@ -1121,6 +1121,20 @@ def _has_402_challenge(status: int | None, headers: dict[str, str]) -> bool:
     return False
 
 
+def _batch_headers(headers):
+    # Do not let dict conversion hide repeated authentication/payment fields.
+    out = {}
+    for name in ("payment-required", "www-authenticate", "x-payment-required"):
+        values = [str(v) for k, v in headers.items() if str(k).lower() == name]
+        if len(values) > 1 or any(len(v) > 16384 for v in values):
+            raise ValueError("ambiguous batch challenge")
+        if values:
+            out[name] = values[0]
+    if "x-payment-required" in out:
+        raise ValueError("unsupported legacy batch challenge")
+    return out
+
+
 def _headers_map(hdrs) -> dict[str, str]:
     if not hdrs:
         return {}
@@ -1608,8 +1622,11 @@ def _one_request(
     deadline: float | None = None,
     pinned_addrs: list[tuple] | None = None,
     allow_redirects: bool = True,
+    capture_batch: bool = False,
 ) -> dict:
     """Single unpaid HTTP probe. Never pays. ProbeBlocked is ssrf, never live."""
+    if capture_batch and (method != "GET" or data is not None or allow_redirects):
+        raise ValueError("unsupported batch probe")
     if remaining_timeout(deadline) is not None and remaining_timeout(deadline) <= 0:
         return {
             "live": False,
@@ -1661,16 +1678,16 @@ def _one_request(
         try:
             with opener.open(req, timeout=timeout) as resp:
                 status = getattr(resp, "status", None) or resp.getcode()
-                hdrs = _headers_map(resp.headers)
+                hdrs = _batch_headers(resp.headers) if capture_batch else _headers_map(resp.headers)
                 final_url = resp.geturl()
-                body = _read_limited(resp)
+                body = resp.read(16385) if capture_batch else _read_limited(resp)
         except ProbeBlocked:
             raise
         except urllib.error.HTTPError as err:
             status = err.code
-            hdrs = _headers_map(err.headers)
+            hdrs = _batch_headers(err.headers) if capture_batch else _headers_map(err.headers)
             final_url = err.geturl()
-            body = _read_limited(err)
+            body = err.read(16385) if capture_batch else _read_limited(err)
     except ProbeBlocked:
         return {
             "live": False,
@@ -1696,6 +1713,19 @@ def _one_request(
             "miss_reason": reason,
             "envelope": None,
         }
+
+    if capture_batch:
+        from live402 import route_binding
+        observation = None
+        if status == 402 and final_url == url and not req.binding_redirected and len(body) <= 16384:
+            try:
+                observation = {"request": route_binding.request_context(url, "GET"), "observed_at": int(time.time()),
+                    "challenge": {"status": 402, "bodyText": body.decode("utf-8", errors="strict"),
+                        "paymentRequired": hdrs.get("payment-required"), "wwwAuthenticate": hdrs.get("www-authenticate")}}
+            except UnicodeError:
+                pass
+        return {"status": status, "live": False, "_batch_observation": observation,
+                "miss_reason": None if observation else _miss_from_status(status)}
 
     envelope, miss = parse_envelope(status, hdrs, body)
     live = envelope is not None and miss is None and status == 402

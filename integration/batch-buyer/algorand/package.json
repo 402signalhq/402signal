@@ -1,0 +1,32 @@
+{
+  "name": "@402signal/algorand-batch-buyer",
+  "version": "0.1.0",
+  "description": "Explicit buyer-owned two-item Algorand atomic batch reference adapter",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs"
+    }
+  },
+  "files": [
+    "index.mjs",
+    "index.d.ts",
+    "policy.mjs",
+    "json.mjs",
+    "README.md",
+    "LICENSE",
+    "generic-profile.mjs"
+  ],
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@algorandfoundation/algokit-utils": "10.0.0-alpha.46",
+    "@x402/core": "2.25.0"
+  }
+}
