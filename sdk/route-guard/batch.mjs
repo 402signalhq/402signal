@@ -1,0 +1,433 @@
+import { parse as parseJson, Fraction } from "./internal-json.mjs";
+/** Local evidence/quote guard. Keys, networking and economic actions stay external. */
+import {
+  createHash,
+  createPublicKey,
+  verify as verifySignature,
+} from "node:crypto";
+
+const TYPE = "402signal.route_decision.v5";
+const MODEL = "proof_carrying_batch_observation_v1";
+const HEX = /^[0-9a-f]{64}$/;
+const LIMIT = 64 * 1024;
+const sha = (...buffers) =>
+  createHash("sha256")
+    .update(Buffer.concat(buffers.map((b) => Buffer.from(b))))
+    .digest();
+
+export class RouteGuardError extends Error {
+  constructor(code) {
+    super(code);
+    this.name = "RouteGuardError";
+    this.code = code;
+  }
+}
+const fail = (code = "invalid_binding") => {
+  throw new RouteGuardError(code);
+};
+
+const parse = (raw, options = {}) => parseJson(raw, { ...options, fail });
+
+function canonical(value, ordinaryNumbers = false, depth = 0) {
+  if (depth > 24) fail("invalid_json");
+  if (value === null || typeof value === "boolean" || typeof value === "string")
+    return JSON.stringify(value);
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    (ordinaryNumbers || Number.isSafeInteger(value))
+  )
+    return JSON.stringify(value);
+  if (Array.isArray(value))
+    return (
+      "[" +
+      value.map((v) => canonical(v, ordinaryNumbers, depth + 1)).join(",") +
+      "]"
+    );
+  if (
+    value &&
+    (Object.getPrototypeOf(value) === null ||
+      Object.getPrototypeOf(value) === Object.prototype)
+  ) {
+    return (
+      "{" +
+      Object.keys(value)
+        .sort()
+        .map(
+          (k) =>
+            JSON.stringify(k) +
+            ":" +
+            canonical(value[k], ordinaryNumbers, depth + 1),
+        )
+        .join(",") +
+      "}"
+    );
+  }
+  fail("invalid_json");
+}
+const exactKeys = (obj, keys) => {
+  if (
+    !obj ||
+    typeof obj !== "object" ||
+    Array.isArray(obj) ||
+    Object.keys(obj).length !== keys.length ||
+    keys.some((k) => !Object.hasOwn(obj, k))
+  )
+    fail();
+};
+const decode64 = (s, size) => {
+  if (
+    typeof s !== "string" ||
+    s.length > LIMIT ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(s)
+  )
+    fail("invalid_encoding");
+  const b = Buffer.from(s, "base64");
+  if (b.toString("base64") !== s || (size !== undefined && b.length !== size))
+    fail("invalid_encoding");
+  return b;
+};
+const hex32 = (s) => {
+  if (typeof s !== "string" || !HEX.test(s)) fail();
+  return Buffer.from(s, "hex");
+};
+
+function authenticate(tr, vkey) {
+  if (typeof vkey !== "string") fail("untrusted_receipt");
+  const keyParts = /^([^+\s]+)\+([0-9a-f]{8})\+(.+)$/.exec(vkey);
+  if (!keyParts) fail("untrusted_receipt");
+  const [, origin, kidHex, key64] = keyParts;
+  const key = decode64(key64, 33);
+  if (
+    key[0] !== 1 ||
+    sha(origin + "\n", key)
+      .subarray(0, 4)
+      .toString("hex") !== kidHex
+  )
+    fail("untrusted_receipt");
+  const { receipt, reveal } = tr;
+  exactKeys(reveal, [
+    "type",
+    "event_version",
+    "ts",
+    "nonce",
+    "commitment",
+    "evidence",
+    "salt",
+  ]);
+  if (reveal.type !== TYPE || reveal.event_version !== TYPE)
+    fail("unsupported_receipt");
+  exactKeys(reveal.evidence, [
+    "evidence_version",
+    "request_json",
+    "batch_binding",
+  ]);
+  if (reveal.evidence.evidence_version !== 3) fail("unsupported_receipt");
+  const committed = sha(
+    TYPE + "\0",
+    canonical(reveal.evidence),
+    hex32(reveal.salt),
+  );
+  if (!committed.equals(hex32(reveal.commitment))) fail("commitment_mismatch");
+  hex32(reveal.nonce);
+  if (
+    typeof reveal.ts !== "string" ||
+    !/^\d{4}-\d\d-\d\dT\d\d:\d\d:00Z$/.test(reveal.ts)
+  )
+    fail();
+  const leaf = sha(
+    Buffer.from([0]),
+    canonical({
+      type: TYPE,
+      ts: reveal.ts,
+      nonce: reveal.nonce,
+      commitment: reveal.commitment,
+    }),
+  );
+  if (!leaf.equals(hex32(receipt.leaf_hash))) fail("leaf_mismatch");
+  if (
+    typeof receipt.checkpoint !== "string" ||
+    receipt.checkpoint.length > LIMIT
+  )
+    fail("invalid_checkpoint");
+  // v1 accepts the exact checkpoint shape issued by 402Signal, no extensions.
+  const note =
+    /^([^\n]+)\n([1-9][0-9]*)\n([^\n]+)\n\n— ([^\s]+) ([^\s]+)\n$/.exec(
+      receipt.checkpoint,
+    );
+  if (!note || note[1] !== origin || note[4] !== origin)
+    fail("untrusted_origin");
+  const size = Number(note[2]);
+  if (!Number.isSafeInteger(size)) fail("invalid_checkpoint");
+  const root = decode64(note[3], 32),
+    sig = decode64(note[5], 68);
+  if (sig.subarray(0, 4).toString("hex") !== kidHex) fail("untrusted_receipt");
+  const publicKey = createPublicKey({
+    key: Buffer.concat([
+      Buffer.from("302a300506032b6570032100", "hex"),
+      key.subarray(1),
+    ]),
+    format: "der",
+    type: "spki",
+  });
+  if (
+    !verifySignature(
+      null,
+      Buffer.from(`${origin}\n${note[2]}\n${note[3]}\n`),
+      publicKey,
+      sig.subarray(4),
+    )
+  )
+    fail("signature_mismatch");
+  const index = receipt.index;
+  if (
+    !Number.isSafeInteger(index) ||
+    index < 0 ||
+    index >= size ||
+    !Array.isArray(receipt.inclusion_path) ||
+    receipt.inclusion_path.length > 53
+  )
+    fail("invalid_inclusion");
+  const path = receipt.inclusion_path.map((p) => decode64(p, 32));
+  const fold = (m, n) => {
+    if (n === 1) {
+      if (path.length) fail("invalid_inclusion");
+      return leaf;
+    }
+    let k = 1;
+    while (k * 2 < n) k *= 2;
+    if (!path.length) fail("invalid_inclusion");
+    const sibling = path.pop();
+    return m < k
+      ? sha(Buffer.from([1]), fold(m, k), sibling)
+      : sha(Buffer.from([1]), sibling, fold(m - k, n - k));
+  };
+  if (!fold(index, size).equals(root)) fail("invalid_inclusion");
+  return reveal.evidence;
+}
+
+import { validateBaseBatchProfile } from "./batch-profiles/base.mjs";
+import { validateSolanaSessionProfile } from "./batch-profiles/solana.mjs";
+import { validateAlgorandBatchProfile } from "./batch-profiles/algorand.mjs";
+import { validateAlgorandGenericProfile } from "./batch-profiles/algorand-generic.mjs";
+const PROFILES = {
+  "base-x402-batch-v1": validateBaseBatchProfile,
+  "solana-mpp-session-v1": validateSolanaSessionProfile,
+  "algorand-atomic-batch-v1": validateAlgorandBatchProfile,
+  "algorand-atomic-two-item-v1": validateAlgorandGenericProfile,
+};
+const check = (x) => {
+  if (!x) fail("invalid_batch_binding");
+};
+function context(url) {
+  check(
+    typeof url === "string" &&
+      url.length <= 4096 &&
+      /^[\x21-\x7e]+$/.test(url) &&
+      !/[\\#]/.test(url),
+  );
+  const u = new URL(url);
+  check(
+    u.protocol === "https:" &&
+      u.hostname &&
+      !u.username &&
+      !u.password &&
+      !u.hash &&
+      !u.port,
+  );
+  return { url, method: "GET", body_sha256: sha("").toString("hex") };
+}
+function request(body) {
+  check(
+    body &&
+      Object.keys(body).every((k) =>
+        [
+          "url",
+          "merchant_profile",
+          "buyer_limits",
+          "require_route_binding",
+          "lab_test",
+        ].includes(k),
+      ) &&
+      body.require_route_binding === true &&
+      Object.hasOwn(PROFILES, body.merchant_profile) &&
+      body.buyer_limits &&
+      typeof body.buyer_limits === "object" &&
+      !Array.isArray(body.buyer_limits),
+  );
+  return context(body.url);
+}
+function wire(c, ctx, profile) {
+  exactKeys(c, ["status", "bodyText", "paymentRequired", "wwwAuthenticate"]);
+  check(
+    c.status === 402 &&
+      typeof c.bodyText === "string" &&
+      Buffer.byteLength(c.bodyText) <= 16384,
+  );
+  for (const k of ["paymentRequired", "wwwAuthenticate"])
+    check(
+      c[k] === null ||
+        (typeof c[k] === "string" &&
+          c[k].length > 0 &&
+          c[k].length <= 16384 &&
+          /^[\x20-\x7e]+$/.test(c[k])),
+    );
+  check(Buffer.byteLength(canonical(c)) <= 24576);
+  if (profile === "solana-mpp-session-v1") {
+    check(
+      c.bodyText === "" &&
+        c.paymentRequired === null &&
+        typeof c.wwwAuthenticate === "string" &&
+        c.wwwAuthenticate.startsWith("Payment "),
+    );
+    const p = {};
+    for (const item of c.wwwAuthenticate.slice(8).split(", ")) {
+      const m = /^([A-Za-z]+)="([^"\\]*)"$/.exec(item);
+      check(m && !Object.hasOwn(p, m[1]));
+      p[m[1]] = m[2];
+    }
+    exactKeys(p, ["id", "realm", "method", "intent", "request", "expires"]);
+    check(
+      p.id.length > 0 &&
+        p.id.length <= 256 &&
+        p.realm === new URL(ctx.url).hostname &&
+        p.method === "solana" &&
+        p.intent === "session",
+    );
+    check(/^[A-Za-z0-9_-]+$/.test(p.request));
+    const bytes = Buffer.from(p.request, "base64url");
+    check(bytes.toString("base64url") === p.request);
+    check(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(p.expires));
+    const milliseconds = Date.parse(p.expires),
+      expiry = Math.floor(milliseconds / 1000);
+    check(Number.isSafeInteger(expiry));
+    const normalized = p.expires.replace(
+      /(?:\.(\d{1,3}))?Z$/,
+      (_, fraction) => "." + (fraction ?? "").padEnd(3, "0") + "Z",
+    );
+    check(new Date(milliseconds).toISOString() === normalized);
+    return [
+      parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
+      expiry,
+    ];
+  }
+  check(c.wwwAuthenticate === null);
+  const values = [];
+  if (c.bodyText) values.push(parse(c.bodyText));
+  if (c.paymentRequired !== null)
+    values.push(
+      parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(
+          decode64(c.paymentRequired),
+        ),
+      ),
+    );
+  check(
+    values.length > 0 &&
+      values.every((x) => canonical(x) === canonical(values[0])),
+  );
+  return [values[0], null];
+}
+function validate(binding, body, now) {
+  exactKeys(binding, [
+    "model",
+    "profile",
+    "request",
+    "buyer_limits",
+    "challenge",
+    "challenge_sha256",
+    "terms",
+    "observed_at",
+    "expires_at",
+  ]);
+  const ctx = request(body);
+  check(Number.isSafeInteger(binding.observed_at) && binding.observed_at > 0);
+  const [envelope, expiry] = wire(
+    binding.challenge,
+    ctx,
+    body.merchant_profile,
+  );
+  const terms = PROFILES[body.merchant_profile](
+    JSON.parse(canonical(envelope)),
+    ctx,
+    JSON.parse(canonical(body.buyer_limits)),
+  );
+  const rebuilt = {
+    model: MODEL,
+    profile: body.merchant_profile,
+    request: ctx,
+    buyer_limits: body.buyer_limits,
+    challenge: binding.challenge,
+    challenge_sha256: sha(canonical(binding.challenge)).toString("hex"),
+    terms,
+    observed_at: binding.observed_at,
+    expires_at: Math.min(
+      binding.observed_at + 60,
+      expiry ?? binding.observed_at + 60,
+    ),
+  };
+  check(
+    rebuilt.expires_at > rebuilt.observed_at &&
+      canonical(binding) === canonical(rebuilt) &&
+      Number.isSafeInteger(now) &&
+      binding.observed_at <= now &&
+      now < binding.expires_at,
+  );
+  return rebuilt;
+}
+/** Verifies an observation only. Wallet policy and independent on-chain checks remain mandatory. */
+export function verifyBatchRoute(options) {
+  try {
+    exactKeys(
+      options,
+      Object.hasOwn(options, "now")
+        ? [
+            "routeResponseJson",
+            "routeRequestJson",
+            "trustedLogVkey",
+            "challenge",
+            "now",
+          ]
+        : [
+            "routeResponseJson",
+            "routeRequestJson",
+            "trustedLogVkey",
+            "challenge",
+          ],
+    );
+    const response = parse(options.routeResponseJson, { limit: 256 * 1024 }),
+      body = parse(options.routeRequestJson);
+    const evidence = authenticate(
+      response.pq_trust.transparency,
+      options.trustedLogVkey,
+    );
+    check(canonical(parse(evidence.request_json)) === canonical(body));
+    const binding = validate(
+      evidence.batch_binding,
+      body,
+      options.now ?? Math.floor(Date.now() / 1000),
+    );
+    check(
+      canonical(response.batch_binding) === canonical(binding) &&
+        canonical(options.challenge) === canonical(binding.challenge),
+    );
+    check(
+      response.live === true &&
+        response.payable === true &&
+        response.url === body.url &&
+        response.status === 402 &&
+        response.merchant_profile === body.merchant_profile &&
+        response.selected_payment === null &&
+        canonical(response.batch_terms) === canonical(binding.terms),
+    );
+    return JSON.parse(canonical(binding));
+  } catch (error) {
+    if (error instanceof RouteGuardError) throw error;
+    fail("invalid_batch_binding");
+  }
+}
+export async function withVerifiedBatchRoute(options, callback) {
+  const observation = verifyBatchRoute(options);
+  if (typeof callback !== "function") fail("invalid_callback");
+  return callback(observation);
+}

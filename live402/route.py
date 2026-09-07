@@ -185,6 +185,9 @@ def run_probe(body: dict, deadline: float | None = None) -> tuple[int, dict]:
     bad = _bad_request(body)
     if bad:
         return bad
+    from live402 import batch_binding, batch_probe
+    if batch_binding.requested(body):
+        return batch_probe.run(body, deadline if deadline is not None else time.monotonic() + probe.PROBE_BUDGET_SECONDS)
     need = (body.get("need") or "").strip()
     url = (body.get("url") or "").strip()
 
@@ -254,6 +257,13 @@ def _bad_request(body: dict) -> tuple[int, dict] | None:
     if "lab_test" in body and (body.get("lab_test") != lab_traffic.PROTOCOL
                                   or not lab_traffic.is_lab_url(body.get("url"))):
         return 400, {"error": "lab target is not configured", "live": False}
+    from live402 import batch_binding
+    if batch_binding.requested(body):
+        try:
+            batch_binding.parse_request(body, enabled=True)
+            return None
+        except (ValueError, TypeError, KeyError):
+            return _invalid_need("unsupported batch observation request")
     try:
         probe_profile.parse(body)
     except probe_profile.ProfileError as exc:
@@ -334,6 +344,9 @@ def _unknown_outcome(rail: str, *, attempted: bool | None) -> tuple[int, dict, N
 
 def _billable_winner(body: dict, code: int, result: dict) -> bool:
     """Independent final settlement gate over current observed wire evidence."""
+    from live402 import batch_binding
+    if batch_binding.requested(body):
+        return batch_binding.billable(body, code, result)
     if code != 200 or not isinstance(result, dict):
         return False
     if result.get("live") is not True or result.get("payable") is not True:
@@ -367,6 +380,8 @@ def _billable_winner(body: dict, code: int, result: dict) -> bool:
 def _downgrade_unbillable_result(result: dict) -> dict:
     """Turn a purported malformed winner into a typed fail-closed miss."""
     out = dict(result) if isinstance(result, dict) else {}
+    out.pop("_batch_observation", None)
+    out.pop("batch_binding", None)
     out["error"] = "route result failed billable winner validation"
     out["miss_reason"] = out.get("miss_reason") or "constraints_unmet"
     out["stop_reason"] = "constraints_unmet"
@@ -521,9 +536,16 @@ def _paid_execute(
 
         try:
             with telemetry.phase("binding_validation"):
-                result["decision_binding"] = route_binding.build(result, body)
-                # Prevalidate full evidence before an economic action.
-                route_v4.evidence_from_route(result, body)
+                from live402 import batch_binding
+                if batch_binding.requested(body):
+                    from live402.pq import route_v5
+                    result["batch_binding"] = batch_binding.build(body, result["_batch_observation"])
+                    batch_binding.validate(result["batch_binding"], body, now=int(time.time()))
+                    route_v5.evidence_from_route(result, body)
+                else:
+                    result["decision_binding"] = route_binding.build(result, body)
+                    # Prevalidate full evidence before an economic action.
+                    route_v4.evidence_from_route(result, body)
         except (ValueError, TypeError, KeyError) as exc:
             reason = result.get("binding_error_reason")
             if not isinstance(reason, str) or reason not in telemetry.BINDING_REASONS:
@@ -589,6 +611,7 @@ def _paid_execute(
     except Exception:
         pass
     result.pop("binding_observation", None)
+    result.pop("_batch_observation", None)
     with telemetry.phase("pq_receipt"):
         attached = _attach_pq_trust(code, result, body if isinstance(body, dict) else {})
     if _require_transparency(body) and not _transparency_ok(attached):

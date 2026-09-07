@@ -1,0 +1,17 @@
+# Optional operator-owned batch HTTP profiles
+
+All profiles default off. They reuse the existing lab HTTP process and admission limits; no automatic catalog registration, wallet creation, funding or chain-settlement scheduler is started.
+
+- Algorand: `LAB_ALGORAND_ATOMIC_BATCH=reviewed-two-item-profile-v1`; the existing mainnet exact seller and durable lab SQLite ledger back `/algorand/batch/sha256?left=alpha&right=beta`.
+- Base: `LAB_BASE_BATCH=reviewed-two-voucher-profile-v1`; `LAB_BASE_BATCH_CONFIG` points to reviewed public campaign JSON. `/base/batch/sha256` advertises actual SDK-generated batch terms and accepts only two pinned-channel cumulative vouchers. It returns off-chain `voucher_accepted` accounting; separate owner operations must claim, pay out and refund unused capital.
+- Native Solana: `LAB_SOLANA_PUSH_SESSION=reviewed-owner-open-push-v1`; `LAB_SOLANA_SESSION_CONFIG` points to reviewed public campaign JSON. `/solana/session/sha256` retains an empty unsigned 402 body and its native `WWW-Authenticate` header. The operator cosigns/broadcasts open and close transactions in WSL. Cloud code gets public policy and read-only RPC only.
+
+Base and native Solana need `LAB_BATCH_DATABASE_URL` pointing to a separate existing-cluster `lab_batch_*` PostgreSQL database and migration permission for their fixed lab tables. The URL is an operator secret and is never returned by the HTTP endpoints. Existing exact-only deployments do not connect to it. `pg@8.23.0` is a runtime dependency; native Solana's independently pinned `solana-session-contracts` package must also be installed in the lab image before enabling its flag. No extra service is needed, but a database and its runtime access must be prepared explicitly.
+
+Base campaign JSON is `{version:1,campaignId,url,channelConfig,perCallAtomic:'1000',maxCalls:2,expiresAt}`. `expiresAt` is milliseconds. `url` must equal the existing seller origin plus `/base/batch/sha256`. `channelConfig` is the full reviewed Base USDC channel including buyer/payer authorizer, receiver/delegated receiver authorizer, token, salt and withdrawDelay900. The receiver must equal the configured owned Base seller. The actual facilitator must advertise matching batch support and receiver authorizer during startup; an exact-only facilitator is insufficient. Reuse the provider authentication mechanism approved for the live campaign. Do not persist an expiring bearer token as a permanent solution.
+
+Native campaign JSON is `{campaignId,url,policy,rpcUrl,perCallAtomic,maxCalls}` with the policy defined by the owner-session module. Recipient must match the configured owned Solana seller. RPC transport allows only an explicit read-method list. It cannot submit a transaction, sign, close a channel, top up or delegate authority.
+
+All paid HTTP requests are GETs with no body. Base uses one `Payment-Signature`; native uses one `Authorization`. Duplicate, legacy, cross-protocol or ambiguous recovery headers are rejected before the merchant module runs. `Replay-Only: 1` reads an existing stage only and cannot create fresh payment work. A missing or uncertain stage remains blocked; no implicit retry or budget release follows. Repeated native challenge requests must retain the same reviewed campaign terms within their validity window.
+
+The returned SHA256 example is explicitly controlled self-test traffic. It is neither organic demand nor evidence of production throughput. Provider receipt, local voucher accounting, independent chain confirmation and application output are distinct evidence.

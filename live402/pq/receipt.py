@@ -278,7 +278,7 @@ def verify_route_receipt(receipt: dict, reveal: dict, vkey: str | None = None) -
     if not isinstance(receipt, dict) or not isinstance(reveal, dict):
         raise ReceiptError("invalid receipt")
     version = reveal.get("event_version") or reveal.get("type")
-    if version not in {events.TYPE_ROUTE_DECISION_V3, events.TYPE_ROUTE_DECISION_V4}:
+    if version not in {events.TYPE_ROUTE_DECISION_V3, events.TYPE_ROUTE_DECISION_V4, events.TYPE_ROUTE_DECISION_V5}:
         raise ReceiptError("unsupported event version")
     commitment = reveal.get("commitment")
     if not isinstance(commitment, str) or len(commitment) != 64:
@@ -289,9 +289,9 @@ def verify_route_receipt(receipt: dict, reveal: dict, vkey: str | None = None) -
     ts = reveal.get("ts")
     if not isinstance(evidence, dict) or not salt or not nonce or not ts:
         raise ReceiptError("missing reveal fields")
-    from live402.pq import route_v4
+    from live402.pq import route_v4, route_v5
 
-    verify_reveal = route_v4.verify_reveal if version == route_v4.TYPE else events.verify_reveal_v3
+    verify_reveal = route_v5.verify_reveal if version == route_v5.TYPE else route_v4.verify_reveal if version == route_v4.TYPE else events.verify_reveal_v3
     if not verify_reveal(commitment, reveal):
         raise ReceiptError("reveal mismatch")
     leaf_hex = receipt.get("leaf_hash")
@@ -311,7 +311,7 @@ def verify_route_receipt(receipt: dict, reveal: dict, vkey: str | None = None) -
     if expected_leaf != leaf_hex.lower():
         raise ReceiptError("leaf hash mismatch")
     checked = verify_receipt(receipt, vkey)
-    if version == events.TYPE_ROUTE_DECISION_V4:
+    if version in {events.TYPE_ROUTE_DECISION_V4, events.TYPE_ROUTE_DECISION_V5}:
         if not vkey or checked["body"]["origin"] != ckpt.vkey_parse(vkey)["name"]:
             raise ReceiptError("untrusted log origin")
         if type(receipt.get("index")) is not int:
@@ -377,7 +377,11 @@ def attach_to_route(result: dict, request_body: dict | None = None) -> dict:
         return _unavailable(result, origin)
     try:
         req = request_body if isinstance(request_body, dict) else {}
-        if req.get("require_route_binding") is True:
+        if "merchant_profile" in req:
+            from live402.pq import route_v5
+            evidence = route_v5.evidence_from_route(result, req)
+            ev, reveal = route_v5.event(evidence)
+        elif req.get("require_route_binding") is True:
             from live402.pq import route_v4
 
             evidence = route_v4.evidence_from_route(result, req)

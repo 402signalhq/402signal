@@ -85,7 +85,8 @@ observation-based expiry must match.
 
 This profile covers the existing Base, Solana and Algorand `exact` rails. Unknown
 extensions, lossy/malformed JSON, redirects and different bodies fail closed.
-The server probes GET or justified POST `{}` only. Arbitrary POST inputs and
+The server supports GET, justified POST `{}`, and the explicit bounded
+`parallel-search-json-v1` POST profile. Arbitrary POST inputs and
 rotating/personalized quotes are outside the profile. Opaque `extra` is hashed,
 not interpreted as proof an arbitrary transaction is safe. Default TTL is 60
 seconds, maximum 120; it is not a promise the seller will honor a quote that long.
@@ -148,10 +149,10 @@ See [the response contract](../../docs/route-miss-http-status.md).
 
 ## Install the client
 
-Use the [v0.3.0 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.4.0) and verify its published digest before installing:
+Use the [v0.5.0 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0) and verify its published digest before installing:
 
 ```sh
-npm install ./402signal-route-guard-0.4.0.tgz
+npm install ./402signal-route-guard-0.5.0.tgz
 ```
 
 From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. The tarball includes TypeScript
@@ -262,3 +263,9 @@ The reference buyer in `integration/reference-buyer` demonstrates caller-owned
 Base signing, a durable spending cap and independently checked payment receipts.
 `integration/mpp-client` adds explicit mppx interoperability with Base x402; it does
 not enable native MPP routing-fee collection or automatic payment retries.
+
+## Batch and session observations (0.5.0)
+
+Import `verifyBatchRoute` or `withVerifiedBatchRoute` from `@402signal/route-guard/batch` for the separate v5 observation contract. It binds an exact supported GET, raw challenge, merchant profile and independent buyer limits to signed evidence. Base batch settlement, native Solana MPP push sessions and Algorand two-item same-payee USDC grouping have separate explicit profiles. Availability depends on the server enabling a qualified profile. See [the profile contract](../../docs/batch-observation-v1.md).
+
+The fee is $0.003 for a qualifying API observation. Merchant requests, cumulative vouchers, deposits, network/provider charges and refunds are separate. A session cap is never treated as its unit price. This guard does not fund a channel, authorize an entire batch, guarantee a refund, or assess delivery quality. The caller must still validate and durably reserve each actual wallet action. Native Solana cross-channel batching, arbitrary Algorand groups and generic POST batches are outside these profiles. The original v4 exact-payment guard remains separate.

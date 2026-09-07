@@ -1,0 +1,82 @@
+{
+  "envelope": {
+    "x402Version": 2,
+    "resource": {
+      "url": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+      "mimeType": "application/json",
+      "description": "Operator-owned two-item SHA256 batch. Each transfer is 1000 atomic USDC; whole group costs 2000. One submission returns both indexed results. No HTTP fulfillment atomicity guarantee."
+    },
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "amount": "1000",
+        "payTo": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+        "maxTimeoutSeconds": 60,
+        "extra": {
+          "feePayer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI"
+        }
+      }
+    ],
+    "extensions": {
+      "402signal-atomic-batch": {
+        "version": 1,
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+        "resource": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+        "requestHash": "d30bec2f8004ab72d9c2b539bb859f89f13bb74ada89a08493851c24329cca77",
+        "itemCount": 2,
+        "itemAmount": "1000",
+        "totalAmount": "2000",
+        "paymentIndices": [
+          1,
+          2
+        ],
+        "sponsorIndex": 0,
+        "feePayer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+        "maxSponsorFeeMicroAlgo": "15000",
+        "jobHashes": [
+          "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8",
+          "f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753"
+        ]
+      }
+    }
+  },
+  "context": {
+    "url": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+    "method": "GET",
+    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "limits": {
+    "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+    "asset": "31566704",
+    "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+    "fee_payer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+    "max_total_amount_atomic": "2000",
+    "max_sponsor_fee_micro_algo": "15000"
+  },
+  "expected": {
+    "version": 1,
+    "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+    "asset": "31566704",
+    "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+    "resource": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+    "requestHash": "d30bec2f8004ab72d9c2b539bb859f89f13bb74ada89a08493851c24329cca77",
+    "itemCount": 2,
+    "itemAmount": "1000",
+    "totalAmount": "2000",
+    "paymentIndices": [
+      1,
+      2
+    ],
+    "sponsorIndex": 0,
+    "feePayer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+    "maxSponsorFeeMicroAlgo": "15000",
+    "jobHashes": [
+      "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8",
+      "f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753"
+    ]
+  }
+}

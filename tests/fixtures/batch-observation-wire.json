@@ -1,0 +1,67 @@
+[
+  {
+    "request": {
+      "url": "https://merchant.example/batch",
+      "merchant_profile": "base-x402-batch-v1",
+      "buyer_limits": {
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "recipient": "0x2222222222222222222222222222222222222222",
+        "receiver_authorizer": "0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb",
+        "withdraw_delay_seconds": 900,
+        "max_call_amount_atomic": "1000",
+        "max_cumulative_amount_atomic": "4000",
+        "max_capital_atomic": "4000"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "{\"x402Version\":2,\"resource\":{\"url\":\"https://merchant.example/batch\",\"mimeType\":\"application/json\"},\"accepts\":[{\"scheme\":\"batch-settlement\",\"network\":\"eip155:8453\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"amount\":\"1000\",\"payTo\":\"0x2222222222222222222222222222222222222222\",\"maxTimeoutSeconds\":300,\"extra\":{\"name\":\"USD Coin\",\"version\":\"2\",\"assetTransferMethod\":\"eip3009\",\"receiverAuthorizer\":\"0x3721824a31197dcDD2984cF43b92B6cc8A87c0Fb\",\"withdrawDelay\":900}}]}",
+      "paymentRequired": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cHM6Ly9tZXJjaGFudC5leGFtcGxlL2JhdGNoIiwibWltZVR5cGUiOiJhcHBsaWNhdGlvbi9qc29uIn0sImFjY2VwdHMiOlt7InNjaGVtZSI6ImJhdGNoLXNldHRsZW1lbnQiLCJuZXR3b3JrIjoiZWlwMTU1Ojg0NTMiLCJhc3NldCI6IjB4ODMzNTg5ZkNENmVEYjZFMDhmNGM3QzMyRDRmNzFiNTRiZEEwMjkxMyIsImFtb3VudCI6IjEwMDAiLCJwYXlUbyI6IjB4MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMiIsIm1heFRpbWVvdXRTZWNvbmRzIjozMDAsImV4dHJhIjp7Im5hbWUiOiJVU0QgQ29pbiIsInZlcnNpb24iOiIyIiwiYXNzZXRUcmFuc2Zlck1ldGhvZCI6ImVpcDMwMDkiLCJyZWNlaXZlckF1dGhvcml6ZXIiOiIweDM3MjE4MjRhMzExOTdkY0REMjk4NGNGNDNiOTJCNmNjOEE4N2MwRmIiLCJ3aXRoZHJhd0RlbGF5Ijo5MDB9fV19",
+      "wwwAuthenticate": null
+    }
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/session",
+      "merchant_profile": "solana-mpp-session-v1",
+      "buyer_limits": {
+        "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "recipient": "11111111111111111111111111111111",
+        "operator": "11111111111111111111111111111111",
+        "program_id": "CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX",
+        "max_session_cap_atomic": "10000"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-solana-session\", realm=\"merchant.example\", method=\"solana\", intent=\"session\", request=\"eyJjYXAiOiIxMDAwMCIsImN1cnJlbmN5IjoiRVBqRldkZDVBdWZxU1NxZU0ycU4xeHp5YmFwQzhHNHdFR0drWnd5VER0MXYiLCJkZWNpbWFscyI6NiwibWluVm91Y2hlckRlbHRhIjoiMTAwMCIsIm5ldHdvcmsiOiJtYWlubmV0Iiwib3BlcmF0b3IiOiIxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSIsInByb2dyYW1JZCI6IkNITkx4WXZWQTI4TUpQOVByRnVEWGNjdW9HWEF4N2pCYWNmTEVrYWh5R3NYIiwicmVjZW50QmxvY2toYXNoIjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiLCJyZWNlbnRTbG90IjoiNDQ0NDQ0IiwicmVjaXBpZW50IjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEifQ\", expires=\"2026-09-07T20:12:52.874Z\""
+    }
+  },
+  {
+    "request": {
+      "url": "https://batch.example/algorand/batch/sha256?left=alpha&right=beta",
+      "merchant_profile": "algorand-atomic-batch-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U",
+        "fee_payer": "AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI",
+        "max_total_amount_atomic": "2000",
+        "max_sponsor_fee_micro_algo": "15000"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "{\"x402Version\":2,\"resource\":{\"url\":\"https://batch.example/algorand/batch/sha256?left=alpha&right=beta\",\"mimeType\":\"application/json\",\"description\":\"Operator-owned two-item SHA256 batch. Each transfer is 1000 atomic USDC; whole group costs 2000. One submission returns both indexed results. No HTTP fulfillment atomicity guarantee.\"},\"accepts\":[{\"scheme\":\"exact\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"asset\":\"31566704\",\"amount\":\"1000\",\"payTo\":\"BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U\",\"maxTimeoutSeconds\":60,\"extra\":{\"feePayer\":\"AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI\"}}],\"extensions\":{\"402signal-atomic-batch\":{\"version\":1,\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"asset\":\"31566704\",\"recipient\":\"BIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFFYMVL4U\",\"resource\":\"https://batch.example/algorand/batch/sha256?left=alpha&right=beta\",\"requestHash\":\"d30bec2f8004ab72d9c2b539bb859f89f13bb74ada89a08493851c24329cca77\",\"itemCount\":2,\"itemAmount\":\"1000\",\"totalAmount\":\"2000\",\"paymentIndices\":[1,2],\"sponsorIndex\":0,\"feePayer\":\"AMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMB5DBBASI\",\"maxSponsorFeeMicroAlgo\":\"15000\",\"jobHashes\":[\"8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8\",\"f44e64e75f3948e9f73f8dfa94721c4ce8cbb4f265c4790c702b2d41cfbf2753\"]}}}",
+      "paymentRequired": null,
+      "wwwAuthenticate": null
+    }
+  }
+]
