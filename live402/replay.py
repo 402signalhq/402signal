@@ -908,9 +908,9 @@ def wait_result(entry: _Entry, deadline: float | None) -> tuple | None:
 def finish(fp: str, result: tuple, cache: bool) -> None:
     """Publish the result to waiters. Cache settled/rejected fingerprints only.
 
-    Only verified, durably reserved requests write to sqlite. Private output
+    Only verified, durably reserved requests write to storage. Private output
     expires in both caches; economic uniqueness remains after expiry.
-    cache=False is only for input rejected before any economic action.
+    cache=False suppresses response caching; an admitted identity is never deleted.
     """
     now = clock.monotonic()
     fp_hash = durable_hash(fp)

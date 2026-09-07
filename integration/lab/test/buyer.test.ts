@@ -127,3 +127,38 @@ test('buyer config cannot target the known production router or production repla
     assert.throws(() => validateBuyer({ ...c, ledgerPath: '/data/live402-replay.sqlite' }), /separate_ledger_required/);
   } finally { await l.close(); }
 });
+
+for (const rail of RAILS) for (const status of [200, 503]) {
+  test(`${rail}: HTTP ${status} free-miss classification rejects contradictory evidence`, async () => {
+    for (const mutation of ['none', 'receipt', 'selected', 'billing', 'raw-json'] as const) {
+      const l = await lab(true), spend = new Ledger(':memory:');
+      try {
+        const c = fixtureBuyerConfig(l.config); c.capAtomicPerRail[rail] = '4000';
+        const send = fixtureRouter(l.seller, c, 'free_miss');
+        const sign = fixtureSigner('miss-contract'); let signatures = 0, requests = 0;
+        const buyer = new Buyer(c, spend, async (r, ch) => { signatures++; return sign(r, ch); },
+          async (url, method, body, headers) => {
+            requests++;
+            const response = await send(url, method, body, headers);
+            if (headers?.['PAYMENT-SIGNATURE']) {
+              response.status = status;
+              if (mutation === 'receipt') response.headers.set('PAYMENT-RESPONSE', 'contradiction');
+              if (mutation === 'selected') response.body.selected_payment = {rail};
+              if (mutation === 'billing') response.body.billing.settlement_attempted = true;
+              if (mutation === 'raw-json') response.rawBody = '{"live":false,"live":true}';
+            }
+            return response;
+          });
+        const report = await buyer.run('miss', rail, 'payload/sha256');
+        assert.equal(report.routing, mutation === 'none' ? 'free_miss' : 'unknown');
+        assert.equal(report.error, mutation === 'none' ? undefined : 'router_phase_stopped');
+        assert.equal(report.delivery, 'not_attempted');
+        assert.equal(l.facilitators[rail].settles, 0);
+        assert.equal(signatures, 1); assert.equal(requests, 2);
+        await assert.rejects(buyer.run('miss', rail, 'payload/sha256'), /run_already_reserved/);
+        await assert.rejects(buyer.run('fresh', rail, 'payload/sha256'), /spend_cap_exceeded/);
+        assert.equal(signatures, 1); assert.equal(requests, 2);
+      } finally { spend.close(); await l.close(); }
+    }
+  });
+}

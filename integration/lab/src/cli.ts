@@ -209,11 +209,15 @@ async function main() {
     const path = flag('config') ?? 'config/buyer.example.json';
     const c = validateBuyer(parseJson(readFileSync(path, 'utf8')));
     if (command === 'plan') {
-      print({ mode: c.mode, traffic_class: 'self_test', max_per_run_atomic: ((c.mode === 'mainnet' ? 0n : 3000n) + BigInt(c.sellerMaxAtomic)).toString(),
+      const routes = c.mode !== 'mainnet' || !!c.routePilot;
+      print({ mode: c.mode, traffic_class: 'self_test', workflow: routes ? 'route_and_execute' : 'seller_only',
+        run_command: c.mode === 'mainnet' ? (routes ? 'run-route' : 'run-seller') : 'run',
+        router_max_atomic: routes ? '3000' : '0', seller_max_atomic: c.sellerMaxAtomic,
+        max_per_run_atomic: ((routes ? 3000n : 0n) + BigInt(c.sellerMaxAtomic)).toString(),
         cap_atomic_per_rail: c.capAtomicPerRail, cap_scope: 'lifetime ledger, including failed and unknown attempts; gas excluded',
-        signs_or_sends: false, blockers: c.mode === 'mainnet' ? ['Seller-only mainnet pilot; production router is blocked.',
+        signs_or_sends: false, blockers: c.mode === 'mainnet' ? [routes ? 'Mainnet route pilot; verify advertised production processing and pinned router terms.' : 'Seller-only mainnet pilot; router payment is bypassed.',
           'Fill dedicated public addresses, seller origin, RPCs and fee-payer pins. Run preflight.',
-          'Caps start at zero; set a small explicit cap. Acknowledgements are required for each paid invocation.',
+          'Set a small reviewed cap that covers the full reservation. Acknowledgements are required for each paid invocation.',
           'Buyer native fees must be zero. Account setup costs are separate. Unknown runs block the rail until reconciled.'] : ['Fill staging URLs and recipient/fee-payer allowlists.',
           'Use dedicated disposable testnet buyer keys in your own environment.', 'Router must explicitly support testnet; production 402Signal currently does not.',
           'Set nonzero reviewed caps and testnet-only execution acknowledgements.'] }); return;

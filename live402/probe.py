@@ -1121,6 +1121,19 @@ def _headers_map(hdrs) -> dict[str, str]:
     return {str(k).lower(): str(v) for k, v in hdrs.items()}
 
 
+class _AmbiguousEnvelope(ValueError):
+    """Duplicate wire fields cannot be discarded before payment validation."""
+
+
+def _unique_envelope_fields(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise _AmbiguousEnvelope("duplicate envelope field")
+        result[key] = value
+    return result
+
+
 def _decode_envelope_blob(raw: str) -> dict | None:
     text = (raw or "").strip()
     if not text:
@@ -1136,7 +1149,9 @@ def _decode_envelope_blob(raw: str) -> dict | None:
 
     for item in candidates:
         try:
-            payload = json.loads(item, parse_constant=reject_json_constant)
+            payload = json.loads(item, parse_constant=reject_json_constant, object_pairs_hook=_unique_envelope_fields)
+        except _AmbiguousEnvelope:
+            raise
         except (json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
             continue
         if isinstance(payload, dict):
@@ -1179,9 +1194,12 @@ def parse_envelope(status: int | None, headers: dict[str, str], body: bytes) -> 
     for key in ("payment-required", "x-payment-required"):
         val = headers.get(key)
         if val:
-            header_env = _decode_envelope_blob(val)
-            if header_env:
-                break
+            try:
+                decoded_env = _decode_envelope_blob(val)
+            except _AmbiguousEnvelope:
+                return None, "no_402_envelope"
+            if header_env is None and decoded_env:
+                header_env = decoded_env
 
     body_env = None
     raw = body or b""
@@ -1189,9 +1207,11 @@ def parse_envelope(status: int | None, headers: dict[str, str], body: bytes) -> 
         try:
             from live402.http_body import reject_json_constant
 
-            parsed = json.loads(raw.decode("utf-8"), parse_constant=reject_json_constant)
+            parsed = json.loads(raw.decode("utf-8"), parse_constant=reject_json_constant, object_pairs_hook=_unique_envelope_fields)
             if isinstance(parsed, dict):
                 body_env = parsed
+        except _AmbiguousEnvelope:
+            return None, "no_402_envelope"
         except (json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
             body_env = None
 

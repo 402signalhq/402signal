@@ -114,10 +114,11 @@ class SQLiteContracts(unittest.TestCase):
         self.store.finish(KEY,'settled','private response',True)
         self.assertIsNone(self.store.lookup(KEY)[1])
 
-    def test_pre_economic_invalid_input_can_retry(self):
+    def test_admitted_identity_survives_uncached_finish(self):
         self.store.reserve(KEY,SCOPE,time.time()+120)
         self.store.finish(KEY,'rejected',None,False)
-        self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+        with self.assertRaises(sqlite3.IntegrityError): self.store.reserve(KEY,SCOPE,time.time()+120)
+        self.assertEqual(self.store.lookup(KEY)[0],'rejected')
 
     def test_expiry_clears_response_only(self):
         self.store.reserve(KEY,SCOPE,1)
@@ -273,6 +274,79 @@ class PostgreSQLContracts(unittest.TestCase):
         self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
         self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
 
+
+    def test_repeated_queries_do_not_create_named_prepared_statements(self):
+        self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+        for _ in range(12):
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+        self.assertEqual(self.store.conn.execute(
+            'SELECT count(*) FROM pg_prepared_statements').fetchone()[0],0)
+
+    def test_connection_age_recycles_busy_connection_without_reopening_identity(self):
+        with patch('live402.replay_postgres.time.monotonic',return_value=1000.0) as clock:
+            self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+            first = self.store.conn
+            first_pid = first.info.backend_pid
+            for now in (1299.0,1598.0,1599.0):
+                clock.return_value = now
+                self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+                self.assertIs(self.store.conn,first)
+            clock.return_value = 1600.0
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+            self.assertTrue(first.closed)
+            self.assertNotEqual(self.store.conn.info.backend_pid,first_pid)
+            self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+
+    def test_idle_connection_recycles_before_reuse(self):
+        with patch('live402.replay_postgres.time.monotonic',return_value=1000.0) as clock:
+            self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+            first = self.store.conn
+            clock.return_value = 1299.0
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+            self.assertIs(self.store.conn,first)
+            clock.return_value = 1599.0
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+            self.assertTrue(first.closed)
+            self.assertIsNot(self.store.conn,first)
+            self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+
+    def test_failed_connection_renewal_is_not_retried(self):
+        import psycopg
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        with patch('live402.replay_postgres.time.monotonic',return_value=1000.0) as clock:
+            self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+            first = self.store.conn
+            clock.return_value = 1300.0
+            connect = Mock(side_effect=psycopg.OperationalError('PRIVATE_DSN_DETAIL'))
+            self.store.driver = SimpleNamespace(connect=connect)
+            with self.assertRaisesRegex(StoreError,'^replay authority unavailable$'):
+                self.store.reserve('d'*64,SCOPE,time.time()+120)
+            self.assertEqual(connect.call_count,1)
+            self.assertTrue(first.closed)
+            self.assertIsNone(self.store.conn)
+            self.assertIsNone(self.admin.execute(
+                'SELECT fp_hash FROM signal_replay.entries WHERE fp_hash=%s',('d'*64,)).fetchone())
+            # A later independent lookup can reconnect; it cannot repeat the
+            # previously acknowledged admission or recover an uncertain write.
+            self.store.driver = psycopg
+            self.assertEqual(self.store.lookup(KEY)[0],'settlement_pending')
+            self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+
+    def test_connection_is_not_recycled_inside_transaction(self):
+        with patch('live402.replay_postgres.time.monotonic',return_value=1000.0) as clock:
+            self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+            first = self.store.conn
+            with self.store._transaction() as conn:
+                clock.return_value = 1601.0
+                conn.execute("UPDATE signal_replay.entries SET state='unknown' WHERE fp_hash=%s",(KEY,))
+                self.assertIs(conn,first)
+                self.assertFalse(first.closed)
+            self.assertFalse(first.closed)
+            self.assertEqual(self.store.lookup(KEY)[0],'unknown')
+            self.assertTrue(first.closed)
+            self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+
     def test_unknown_never_reopens_after_expiry(self):
         self.store.reserve(KEY,SCOPE,1)
         self.store.abandon(KEY)
@@ -300,10 +374,11 @@ class PostgreSQLContracts(unittest.TestCase):
         with self.assertRaises(StoreError):
             self.store.reserve('d'*64,SCOPE,time.time()+120)
 
-    def test_pre_economic_release_keeps_retry_contract(self):
-        self.store.reserve(KEY,SCOPE,time.time()+120)
-        self.store.finish(KEY,'rejected',None,False)
+    def test_admitted_identity_survives_uncached_finish(self):
         self.assertTrue(self.store.reserve(KEY,SCOPE,time.time()+120))
+        self.store.finish(KEY,'rejected',None,False)
+        self.assertFalse(self.store.reserve(KEY,SCOPE,time.time()+120))
+        self.assertEqual(self.store.lookup(KEY)[0],'rejected')
         self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
 
     def test_private_body_requires_scope_and_is_pruned(self):
@@ -355,9 +430,9 @@ class PostgreSQLContracts(unittest.TestCase):
         self.admin.execute('DROP ROLE IF EXISTS signal_replay_ci_runtime')
         self.admin.execute("CREATE ROLE signal_replay_ci_runtime LOGIN PASSWORD 'ci-role-only'")
         self.admin.execute('GRANT USAGE ON SCHEMA signal_replay TO signal_replay_ci_runtime')
-        self.admin.execute('GRANT SELECT,INSERT,UPDATE,DELETE ON signal_replay.entries TO signal_replay_ci_runtime')
+        self.admin.execute('GRANT SELECT,INSERT,UPDATE ON signal_replay.entries TO signal_replay_ci_runtime')
         self.admin.execute('GRANT SELECT ON signal_replay.authority TO signal_replay_ci_runtime')
-        self.admin.execute('GRANT UPDATE(admitted) ON signal_replay.authority TO signal_replay_ci_runtime')
+        self.admin.execute('GRANT UPDATE(admitted,outcome_bytes) ON signal_replay.authority TO signal_replay_ci_runtime')
         cfg=conninfo_to_dict(self.settings['LIVE402_REPLAY_POSTGRES_DSN'])
         cfg.update(user='signal_replay_ci_runtime',password='ci-role-only')
         store=PostgresStore(environ=dict(self.settings,LIVE402_REPLAY_POSTGRES_DSN=make_conninfo(**cfg)))
@@ -428,6 +503,33 @@ class PostgreSQLContracts(unittest.TestCase):
             self.assertFalse(self.store.ready())
             self.assertEqual(self.admin.execute('SELECT count(*) FROM signal_replay.entries').fetchone()[0],1)
 
+    def test_concurrent_outcomes_respect_logical_quota_and_prune_recovers(self):
+        import concurrent.futures
+        import os
+        self.admin.execute('UPDATE signal_replay.authority SET max_bytes=1048576')
+        self.admin.execute('ALTER TABLE signal_replay.entries SET (autovacuum_enabled=false)')
+        keys=[f'{i:064x}' for i in range(1,9)]
+        for key in keys: self.assertTrue(self.store.reserve(key,SCOPE,time.time()+120))
+        def finish(key):
+            own=PostgresStore(environ=self.settings)
+            try: own.finish(key,'settled',os.urandom(120000).hex(),True)
+            finally: own.close()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool: list(pool.map(finish,keys))
+        admitted,used,limit=self.admin.execute('SELECT admitted,outcome_bytes,max_bytes FROM signal_replay.authority').fetchone()
+        actual=self.admin.execute('SELECT coalesce(sum(octet_length(outcome_json)),0) FROM signal_replay.entries').fetchone()[0]
+        self.assertEqual(admitted,8);self.assertEqual(used,actual)
+        self.assertLessEqual(admitted*512+used,limit)
+        self.assertGreater(used,0)
+        self.assertLess(self.admin.execute('SELECT count(*) FROM signal_replay.entries WHERE outcome_json IS NOT NULL').fetchone()[0],8)
+        self.assertEqual(self.admin.execute("SELECT count(*) FROM signal_replay.entries WHERE state='settled'").fetchone()[0],8)
+        self.admin.execute('UPDATE signal_replay.entries SET expires_at=0')
+        self.store.last_prune=0;self.store.prune_outcomes()
+        self.assertEqual(self.admin.execute('SELECT outcome_bytes FROM signal_replay.authority').fetchone()[0],0)
+        self.assertTrue(self.store.ready())
+        self.assertTrue(self.store.reserve('d'*64,SCOPE,time.time()+120))
+        self.assertFalse(self.store.reserve(keys[0],SCOPE,time.time()+120))
+
+
 
 if __name__ == '__main__':
     unittest.main()
@@ -463,6 +565,7 @@ def route_contender(settings, event, queue):
             result=handle_route({'need':'weather'},_headers(_payload('multiprocess-route')),RESOURCE)
             queue.put((result[0],settle.call_count))
         replay.reset_memory()
+
 
 class RuntimeSQLiteContracts(unittest.TestCase):
     def setUp(self):

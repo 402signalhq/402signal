@@ -1,3 +1,4 @@
+-- Existing authorities: run replay-postgres-accounting-upgrade.sql with writers stopped first.
 -- Apply only with the migration/admin role. Runtime never executes DDL.
 CREATE SCHEMA IF NOT EXISTS signal_replay;
 REVOKE ALL ON SCHEMA signal_replay FROM PUBLIC;
@@ -10,7 +11,9 @@ CREATE TABLE IF NOT EXISTS signal_replay.authority (
     admitted BIGINT NOT NULL CHECK (admitted >= 0),
     max_rows BIGINT NOT NULL CHECK (max_rows > 0 AND admitted <= max_rows),
     max_bytes BIGINT NOT NULL CHECK (max_bytes >= 1048576),
-    migration_digest TEXT NOT NULL CHECK (migration_digest ~ '^[0-9a-f]{64}$')
+    migration_digest TEXT NOT NULL CHECK (migration_digest ~ '^[0-9a-f]{64}$'),
+    outcome_bytes BIGINT NOT NULL DEFAULT 0 CHECK (outcome_bytes >= 0),
+    CONSTRAINT replay_logical_byte_quota CHECK (admitted * 512 + outcome_bytes <= max_bytes)
 );
 CREATE TABLE IF NOT EXISTS signal_replay.entries (
     fp_hash TEXT PRIMARY KEY CHECK (fp_hash ~ '^[0-9a-f]{64}$'),
@@ -27,9 +30,10 @@ CREATE INDEX IF NOT EXISTS replay_expiring_outcomes
 REVOKE ALL ON ALL TABLES IN SCHEMA signal_replay FROM PUBLIC;
 -- Create a separate runtime role out of band. Grant only:
 -- GRANT USAGE ON SCHEMA signal_replay TO <runtime_role>;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON signal_replay.entries TO <runtime_role>;
+-- GRANT SELECT, INSERT, UPDATE ON signal_replay.entries TO <runtime_role>;
 -- GRANT SELECT ON signal_replay.authority TO <runtime_role>;
--- GRANT UPDATE (admitted) ON signal_replay.authority TO <runtime_role>;
+-- GRANT UPDATE (admitted,outcome_bytes) ON signal_replay.authority TO <runtime_role>;
 -- No ownership, DDL, TRUNCATE, or authority activation/identity/cap changes.
--- DELETE is solely for an invalid-input 400 before any economic action;
--- no retention/TTL job deletes economic identities.
+-- Every admitted identity is permanent. Input errors must precede admission.
+-- max_bytes counts 512 bytes per identity plus live UTF-8 outcome bytes;
+-- physical relation/WAL size and vacuum health are separate operator signals.

@@ -55,8 +55,11 @@ export function fixtureRouter(seller: Seller, c: BuyerConfig, scenario: RouterSc
     const req = { ...sellerReq, amount: '3000', payTo: c.routerPayTo[rail] };
     const ch: PaymentRequired = { x402Version: 2, resource: { url, description: 'SYNTHETIC ROUTER', mimeType: 'application/json' }, accepts: [req] };
     if (!headers['PAYMENT-SIGNATURE']) return { status: 402, body: ch, headers: new Headers({ 'PAYMENT-REQUIRED': encode64(ch) }) };
-    if (scenario === 'free_miss') return { status: 503, headers: new Headers(), body: { live: false, miss_reason: 'no_candidates', billing: {
-      settled: false, settlement_attempted: false, settlement_state: 'not_attempted' } } };
+    if (scenario === 'free_miss') return { status: 200, headers: new Headers(), body: {
+      live: false, payable: false, selected_payment: null, miss_reason: 'no_candidates', billing: {
+        model: 'success_only_v1', condition: 'live_eligible_route_found', asset: 'USDC',
+        amount_atomic: '3000', display_amount: '$0.003', rail,
+        settled: false, settlement_attempted: false, settlement_state: 'not_attempted' } } };
     if (scenario === 'unknown') throw new Error('fixture_lost_router_reply');
     const receipt = { success: true, network: req.network, amount: '3000', transaction: rail === 'base' ? '0x' + 'a'.repeat(64) : rail === 'solana' ? '2'.repeat(88) : 'A'.repeat(52) };
     return { status: scenario === 'settled_transparency_failure' ? 503 : 200,

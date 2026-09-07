@@ -78,10 +78,13 @@ duplicate keys, lone surrogates, unsafe integers, excessive size/depth, unknown
 binding/evidence fields, and unsupported versions. Public leaves still contain
 only `type`, minute-rounded `ts`, nonce and salted commitment. The producer does not copy seller response bodies or buyer payment headers,
 keys, authorizations or wallet signatures into this new evidence. Retain the private receipt/reveal securely, outside public
-logs. The private SQLite replay ledger retains completed response objects,
-including private reveals; its in-memory cache TTL is not a durable deletion
-policy. No new retention or deletion mechanism is added. Do not include
-credentials in routing prompts, policy, or resource URLs.
+logs. Private response recovery requires the original client-generated `Replay-Key`
+and exact request values. Responses, including private reveals, expire 120 seconds
+after the original request begins; admission and readiness maintenance remove
+expired stored payloads. Permanent authorization identities do not expire. This
+is not a promise of immediate physical erasure from SQLite pages or backups.
+Keep your own receipt/reveal copy and follow [private recovery](replay-recovery.md).
+Do not include credentials in routing prompts, policy, or resource URLs.
 
 Before comparing the seller challenge, verify the reveal/commitment, public leaf
 hash, Merkle inclusion, Ed25519 checkpoint signature, and expected log origin with

@@ -123,7 +123,19 @@ def migrate(source, environ, *, apply=False, writers_stopped=False, max_rows=1_0
             pg.execute("SET LOCAL lock_timeout='2000ms'")
             if pg.execute("SELECT NOT pg_is_in_recovery(),current_setting('fsync'),current_setting('full_page_writes')").fetchone() != (True,'on','on'):
                 raise StoreError('destination is not a durable primary')
-            pg.execute(SCHEMA.read_text())
+            functions_api = environ.get('LIVE402_REPLAY_POSTGRES_API','direct') == 'functions-v1'
+            if functions_api:
+                runtime_login = environ.get('LIVE402_REPLAY_POSTGRES_RUNTIME_LOGIN','')
+                if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,62}',runtime_login):
+                    raise StoreError('invalid runtime login')
+                pg.execute(SCHEMA.with_name('replay-postgres-functions.sql').read_text())
+                # Plain INSERT intentionally refuses an existing policy. Never
+                # learn/refresh a different database instance during a retry.
+                pg.execute("INSERT INTO signal_replay.runtime_policy VALUES(TRUE,%s,%s,"
+                           "(extract(epoch FROM pg_catalog.pg_postmaster_start_time())*1000000)::bigint,pg_catalog.inet_server_addr())",
+                           (authority,runtime_login))
+            else:
+                pg.execute(SCHEMA.read_text())
             if pg.execute('SELECT 1 FROM signal_replay.authority').fetchone() or pg.execute('SELECT 1 FROM signal_replay.entries LIMIT 1').fetchone():
                 raise StoreError('destination not empty; never overwrite or automatically retry import')
             iterator = iter(rows(conn, now))
@@ -134,10 +146,11 @@ def migrate(source, environ, *, apply=False, writers_stopped=False, max_rows=1_0
                 cursor.execute('SELECT ' + COLUMNS + ' FROM signal_replay.entries ORDER BY fp_hash')
                 if digest_rows(cursor) != (count, digest):
                     raise StoreError('destination digest mismatch')
-            if pg.execute("SELECT pg_total_relation_size('signal_replay.entries')").fetchone()[0] >= max_bytes - 262144:
-                raise StoreError('destination byte budget has no headroom')
-            pg.execute('INSERT INTO signal_replay.authority VALUES (TRUE,%s,1,FALSE,TRUE,%s,%s,%s,%s)',
-                       (authority,count,max_rows,max_bytes,digest))
+            cached_bytes=pg.execute("SELECT coalesce(sum(octet_length(outcome_json)),0) FROM signal_replay.entries").fetchone()[0]
+            if (count+1)*512+cached_bytes > max_bytes:
+                raise StoreError('destination logical byte budget has no headroom')
+            pg.execute('INSERT INTO signal_replay.authority VALUES (TRUE,%s,1,FALSE,TRUE,%s,%s,%s,%s,%s)',
+                       (authority,count,max_rows,max_bytes,digest,cached_bytes))
         if fault:
             fault('after_import_commit')
         conn.execute("INSERT INTO replay_meta(key,value) VALUES ('external_authority_id',?)", (authority,))
@@ -148,6 +161,12 @@ def migrate(source, environ, *, apply=False, writers_stopped=False, max_rows=1_0
             fault('after_source_fence')
         with pg.transaction():
             pg.execute("SET LOCAL synchronous_commit='on'")
+            if functions_api:
+                policy = pg.execute("SELECT authority_id,instance_server_addr=pg_catalog.inet_server_addr() AND instance_start_us="
+                    "(extract(epoch FROM pg_catalog.pg_postmaster_start_time())*1000000)::bigint "
+                    "FROM signal_replay.runtime_policy WHERE singleton=TRUE FOR SHARE").fetchone()
+                if policy != (authority,True):
+                    raise StoreError('database instance changed; preserve fenced state for reconciliation')
             changed = pg.execute('UPDATE signal_replay.authority SET active=TRUE WHERE singleton=TRUE '
                                  'AND authority_id=%s AND migration_digest=%s AND active=FALSE RETURNING active',
                                  (authority,digest)).fetchone()

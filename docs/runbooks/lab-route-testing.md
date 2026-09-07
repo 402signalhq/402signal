@@ -1,10 +1,12 @@
 # Operator tests through normal production routing
 
-PR #100 uses the normal probe history, reputation, settlement, replay and PQ paths
-for operator-owned test sellers. There is no lab exclusion or alternate database.
-Self-test provenance does not suppress persistence, promotion, scoring or log append.
-Real successful test purchases count as production activity; they do not establish
-independent customer adoption. Catalog enrollment is separate from direct URL tests.
+Operator-owned test sellers use the normal production settlement, replay, history
+and PQ storage paths introduced in PR #100. Reputation V2 (PR #103) retains their
+operational observations but excludes operator-classified self-tests from scoring
+usage, performance and confidence samples. Successful test purchases remain real
+production activity; they do not establish independent customer adoption. Catalog
+enrollment is separate from direct URL tests. See
+[recovery and observability](../route-recovery-observability.md#reputation-v2-traffic-policy).
 
 Set `LIVE402_LAB_ORIGINS=https://402signal-lab-ross.fly.dev` on the reviewed router
 revision to advertise the exact origin under `lab_testing`:
