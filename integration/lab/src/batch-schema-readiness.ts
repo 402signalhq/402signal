@@ -37,6 +37,8 @@ export async function assertBatchSchemaReady(
   kind: keyof typeof schemas,
 ): Promise<void> {
   const expected = schemas[kind];
+  // Catalog text ordering must match JavaScript code-point ordering, independent
+  // of the database locale. Definitions and privilege sets remain byte-exact.
   const result = await pool.query(
     `SELECT
     current_database() AS database_name,
@@ -53,12 +55,12 @@ export async function assertBatchSchemaReady(
       AND NOT pg_has_role(current_user, c.relowner, 'MEMBER') AS ordinary_table,
     ARRAY(SELECT a.attname || ':' || format_type(a.atttypid,a.atttypmod) || ':' || a.attnotnull::text
       FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum) AS columns,
-    ARRAY(SELECT pg_get_constraintdef(k.oid) FROM pg_constraint k WHERE k.conrelid = c.oid ORDER BY pg_get_constraintdef(k.oid)) AS constraints,
+    ARRAY(SELECT pg_get_constraintdef(k.oid) FROM pg_constraint k WHERE k.conrelid = c.oid ORDER BY pg_get_constraintdef(k.oid) COLLATE "C") AS constraints,
     NOT EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conrelid = c.oid AND (NOT k.convalidated OR k.condeferrable)) AS immediate_constraints,
     NOT EXISTS (SELECT 1 FROM pg_trigger t WHERE t.tgrelid = c.oid AND NOT t.tgisinternal) AS no_user_triggers,
     NOT EXISTS (SELECT 1 FROM pg_rewrite w WHERE w.ev_class = c.oid) AS no_rules,
     ARRAY(SELECT privilege FROM unnest(ARRAY['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) privilege
-      WHERE has_table_privilege(current_user, c.oid, privilege) ORDER BY privilege) AS grants
+      WHERE has_table_privilege(current_user, c.oid, privilege) ORDER BY privilege COLLATE "C") AS grants
     FROM pg_roles r JOIN pg_database d ON d.datname = current_database()
     LEFT JOIN pg_class c ON c.oid = to_regclass($1)
     WHERE r.rolname = current_user`,
