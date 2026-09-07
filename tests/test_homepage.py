@@ -1018,7 +1018,8 @@ class HomepageProductTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("must securely retain the complete paid `/route` response", readme)
-        self.assertIn("not a recovery service", readme)
+        self.assertIn("not long-term evidence storage", readme)
+        self.assertIn("docs/route-recovery.md", readme)
 
     def test_seo_titles(self):
         self.assertIn("<title>402Signal · Find a paid API that works right now</title>", self.home)
