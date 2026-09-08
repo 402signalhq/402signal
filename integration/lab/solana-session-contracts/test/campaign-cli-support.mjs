@@ -128,7 +128,7 @@ function rpcFixture(plan) {
     deposit: 4000n,
     settlement: {
       settled: BigInt(cumulative),
-      payoutWatermark: BigInt(cumulative),
+      payoutWatermark: 0n,
     },
     closureStartedAt: 0n,
     payerWithdrawnAt: 0n,

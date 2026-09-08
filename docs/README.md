@@ -2,7 +2,7 @@
 
 Start with the [developer guide](https://402signal.com/developers) or [repository overview](../README.md). This index separates buyer contracts, operating procedures and historical release evidence. Source availability, a passing fixture and a deployed live qualification are different states.
 
-Current published client and guard: [route-guard v0.5.0](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0). Supported profiles cover Base batch settlement, Solana MPP push sessions and Algorand two-item atomic groups. Live paid qualification is still in progress. Keep buyer wallets and private operator policy outside the public repository.
+Current published client and guard: [route-guard v0.5.0](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0). Supported profiles cover Base batch settlement, Solana MPP push sessions and Algorand two-item atomic groups. Controlled MainNet tests are complete for these profiles; this qualification covers owner-operated lab endpoints and explicit limits. Keep buyer wallets and private operator policy outside the public repository.
 
 ## Integrate a buyer
 

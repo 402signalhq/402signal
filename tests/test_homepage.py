@@ -245,7 +245,7 @@ class HomepageProductTests(unittest.TestCase):
         for phrase in ("Illustrative x402 weather request", "Within your rules", "$0.030",
                        "earlier qualifying check still costs $0.003", "See a check in action",
                        "Developer quickstart", "Your app keeps the wallet.", "Seller payment is separate.",
-                       "Base batch and native Solana session paid qualification remain in progress",
+                       "Live payment tests cover all three profiles.",
                        "Checkpoints are anchored on Algorand MainNet.", "Awaiting anchor", "PQ Trust"):
             self.assertIn(phrase, html)
         self.assertIn('aria-labelledby="offer-caption"', html)
@@ -269,7 +269,7 @@ class HomepageProductTests(unittest.TestCase):
             'they are not customer wallet keys',
             'parallel-search-json-v1',
             'It is not a general POST proxy',
-            'live paid qualification is still in progress.',
+            'Controlled MainNet tests are complete for these profiles',
             'Native MPP push sessions',
             'does not claim cross-channel batch settlement',
             'two USDC payments to the same recipient',

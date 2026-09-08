@@ -128,7 +128,7 @@ function rpcFixture(plan) {
     deposit: 4000n,
     settlement: {
       settled: BigInt(cumulative),
-      payoutWatermark: BigInt(cumulative),
+      payoutWatermark: 0n,
     },
     closureStartedAt: 0n,
     payerWithdrawnAt: 0n,
@@ -730,4 +730,27 @@ test("SDK-encoded Channel discriminator one confirms open and unused refund; zer
     assert.equal(await s.ownerLedger.get('voucher:1:sign-intent'), undefined);
     assert.deepEqual({ opens: s.counts().openCalls, closes: s.counts().closeCalls }, { opens: 1, closes: 1 });
   } finally { await s.close(); }
+});
+
+
+test("SEALED final distribution retains zero OPEN payout watermark and rejects other accounting", async () => {
+  const s = await setup();
+  try {
+    await s.controller.signOpen(payer, s.rpc);
+    await s.controller.sendOpen(credential => openSessionLocally({ledger:s.ownerLedger,plan:s.merchant.plan,credential,operator,rpc:s.rpc}));
+    await s.controller.confirmOpen(s.rpc);
+    await registerOpenedSession({ledger:s.ownerLedger,send:s.sender});
+    for (let n=1;n<=2;n++) await s.controller.voucher(payer,n,'1000',s.sender);
+    await s.controller.close(2,credential => {s.setClosing(credential);return closeSessionLocally({ledger:s.ownerLedger,plan:s.merchant.plan,credential,operator,rpc:s.rpc,maximumCloseFeeLamports:'10000'});});
+    const signature=(await s.ownerLedger.require('operator:close:signed')).signature;
+    const {observeSolanaClose}=await import('../src/owner-session.mjs');
+    assert.equal((await observeSolanaClose(s.rpc,s.merchant.plan,signature,(await s.ownerLedger.require('close:credential')).payload.voucher)).state,'chain_confirmed');
+    for (const watermark of [1n,1000n,2000n,4001n]) {
+      const altered=async(method,params)=>{const result=await s.rpc(method,params);if(method==='getAccountInfo'&&params[0]===s.merchant.plan.open.channelId&&result.value){const c=codecs.getChannelDecoder().decode(Buffer.from(result.value.data[0],'base64'));assert.equal(c.status,3);assert.equal(c.settlement.settled,2000n);assert.equal(c.settlement.payoutWatermark,0n);result.value.data[0]=Buffer.from(codecs.getChannelEncoder().encode({...c,settlement:{...c.settlement,payoutWatermark:watermark}})).toString('base64');}return result;};
+      assert.equal((await s.controller.confirmClose(altered,signature)).state,'unknown');
+      assert.equal(await s.ownerLedger.get('close:confirmed'),undefined);
+    }
+    const result=await s.controller.confirmClose(s.rpc,signature);
+    assert.equal(result.state,'chain_confirmed');assert.equal(result.merchantAtomic,'2000');assert.equal(result.returnedBuyerAtomic,'2000');assert.equal(result.channelRent,'reclaim_pending');
+  } finally {await s.close();}
 });

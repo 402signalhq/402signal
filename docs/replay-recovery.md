@@ -38,10 +38,13 @@ The migration preserves every existing economic identity and pending/unknown
 state. Old response payloads are removed because they have no private retrieval
 credential. New invalid authorizations consume only a bounded memory cache;
 durable admission occurs after successful verification. Permanent identities
-do not expire. New admission fails closed at 100,000 rows, a 256 MiB database
-budget, or less than 64 MiB free disk space. Individual stored responses are
-capped at 256 KiB; excess content does not reopen the authorization. Readiness
-checks exercise a write and remove expired stored response payloads.
+do not expire. With the SQLite backend, new admission fails closed at 100,000
+rows, a 256 MiB database budget, or less than 64 MiB free disk space. With the
+PostgreSQL backend, admission follows the activated authority's row and byte
+limits; see the [PostgreSQL authority contract](runbooks/managed-postgres-functions.md).
+Individual stored responses are capped at 256 KiB; excess content does not
+reopen the authorization. Readiness checks exercise a write and remove expired
+stored response payloads.
 
 Back up the replay database as part of the complete recovery bundle. Never
 delete it to clear an error, migrate between hosts without it, or restore a
