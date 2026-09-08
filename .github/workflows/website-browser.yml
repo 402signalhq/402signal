@@ -35,16 +35,6 @@ jobs:
       - name: Record exact qualification revision
         if: always()
         run: |
-          mkdir -p website-evidence
-          git rev-parse HEAD | tee website-evidence/revision.txt
-          git archive --format=tar.gz HEAD > website-evidence/source.tar.gz
+          git rev-parse HEAD
           if [ -f website-evidence/results.json ]; then cat website-evidence/results.json; fi
           if [ -f website-evidence/summary.md ]; then cat website-evidence/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
-      - name: Retain synthetic browser evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: website-evidence
-          path: website-evidence/
-          retention-days: 3
-          if-no-files-found: error
