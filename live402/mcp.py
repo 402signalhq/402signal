@@ -1,4 +1,4 @@
-"""Stdlib JSON-RPC MCP over HTTP. Paid tool: route. Cached preflight: preview."""
+"""Stdlib JSON-RPC MCP over HTTP with live routing and free catalog preflight."""
 
 from __future__ import annotations
 
@@ -6,14 +6,52 @@ import json
 from live402 import payment, pulse, replay, schema_fields, validate
 from live402.route import handle_route
 
-ROUTE_DESCRIPTION = payment.CATALOG_DESCRIPTION
+ROUTE_DESCRIPTION = (
+    "Use route when you need a live paid-API selection that satisfies spending and readiness "
+    "rules. Use preview instead for free catalog discovery without probing, or validate for a "
+    "free readiness check of one catalog-listed URL without constraint-based selection or signed "
+    "routing evidence. Route does not buy the seller's service.\n\n"
+    "Start with need (a capability such as weather), or url (one concrete HTTPS endpoint). If "
+    "both are supplied, url selects the endpoint; need can still supply policy context. Add only "
+    "the rules you require: networks is a hard allowlist, while prefer_network only ranks within "
+    "it. Omit networks for all supported rails; [] permits none. objective defaults to best "
+    "among eligible candidates actually probed. search_depth defaults to standard; "
+    "max_candidates_to_probe sets a ceiling capped at 20, not a promise to probe that many. "
+    "Direct URL requests check one endpoint.\n\n"
+    "Price bounds concern the seller, not the separate routing fee: max_price_usd bounds its "
+    "price; max_total_cost_usd also requires known fees. Required unknown price, latency or "
+    "history measurements fail the constraint. max_probe_latency_ms takes precedence over its "
+    "max_latency_ms alias; neither is service latency nor settlement latency. Structured "
+    "constraints override constraints interpreted from policy (or need when policy is absent); "
+    "inspect unresolved_constraints rather than assuming prose was enforced.\n\n"
+    "For buyer-side comparison before merchant signing, set require_route_binding=true; it also "
+    "requires transparency even if require_transparency=false. A later expired or changed seller "
+    "offer does not reverse an already settled routing fee.\n\n"
+    "The first unsigned call returns an HTTP 402 routing-fee challenge; completing it requires "
+    "an x402-capable HTTP client, not a wallet key or payment argument. The credential-free "
+    "Glama stdio adapter cannot complete paid route calls. The $0.003 USDC routing fee settles "
+    "only for a qualifying live result; completed misses are not settled. Inspect billing, not "
+    "just HTTP status; on an unknown outcome stop and reconcile rather than creating another "
+    "authorization. MCP does not provide recovery-only requests. Seller payment remains "
+    "separate."
+)
 PROTOCOL_VERSION = "2025-06-18"
 SUPPORTED_PROTOCOLS = ("2025-03-26", PROTOCOL_VERSION)
 
 PREVIEW_DESCRIPTION = (
-    "Request-time catalog preflight over upstream catalogs plus a local shadow. "
-    "Returns discovery_matches, displayed hits, claimed vs observed, not_probed:true. "
-    "Does not probe and does not charge. Pay tools/call route for a live probe."
+    "Use preview first when you need to discover paid APIs by capability without paying or "
+    "contacting seller endpoints. It searches upstream catalogs plus the local catalog; returned "
+    "claims and any earlier observations are not a new live check (not_probed=true). The "
+    "freshness timestamp describes this search response, not when each seller was last probed. "
+    "Results can be limited or non-exhaustive.\n\n"
+    "Pass a nonblank need describing the capability, not a URL to test. Omit networks to search "
+    "all supported rails; an empty list searches none. networks is a hard allowlist; "
+    "prefer_network only ranks results and cannot add an excluded rail. A chain mentioned in "
+    "need can influence ranking when prefer_network is omitted.\n\n"
+    "Use validate next for an unpaid readiness check of one concrete catalog-listed URL. Use "
+    "route instead when you need fresh selection against price, network or readiness rules, or "
+    "signed routing evidence. Preview does not enforce a purchase budget, reserve a price or "
+    "authorize payment."
 )
 
 INPUT_SCHEMA = schema_fields.route_body_schema()
@@ -151,7 +189,7 @@ OUTPUT_SCHEMA = {
 PREVIEW_INPUT_SCHEMA = {
     "type": "object",
     "properties": {
-        "need": {"type": "string", "description": "What to look up in the cache."},
+        "need": {"type": "string", "description": "Nonblank capability to search for, such as weather or web search. Searches catalogs; does not probe a URL."},
         "prefer_network": {
             "type": "string",
             "enum": list(schema_fields.RAILS),
@@ -189,14 +227,26 @@ PREVIEW_OUTPUT_SCHEMA = {
 }
 
 VALIDATE_DESCRIPTION = (
-    "Unpaid probe: is this seller URL agent-ready? Fail-closed SSRF. "
-    "Returns readiness, claimed vs observed, flags. Does not charge."
+    "Use validate for an unpaid readiness check of one concrete HTTPS seller endpoint already "
+    "listed in the local catalog, for example a URL returned by preview. It compares claimed and "
+    "observed payment/readiness information and returns flags; it does not purchase the service "
+    "or add a routing observation to history.\n\n"
+    "Supply the exact listed URL, including its query string. The URL must be nonblank HTTPS; "
+    "private/local destinations and unresolved path templates are refused. An unknown or "
+    "modified URL can return miss_reason=no_candidates without any seller probe; this means not "
+    "listed, not proven offline. Inspect live, readiness, observed and miss_reason rather than "
+    "treating HTTP 200 as success.\n\n"
+    "Use preview instead to find endpoints by capability. Use route for live constraint-based "
+    "selection or signed routing evidence, including when you need to evaluate a direct URL "
+    "outside the catalog subject to routing safety checks. Validate has no price or network "
+    "filter, produces no signed route receipt, and is not proof that a paid call will deliver "
+    "the desired result."
 )
 
 VALIDATE_INPUT_SCHEMA = {
     "type": "object",
     "properties": {
-        "url": {"type": "string", "description": "https URL of the seller endpoint to probe."},
+        "url": {"type": "string", "description": "Exact concrete HTTPS URL already listed in the local catalog, including its query string. Unlisted URLs are not probed."},
     },
     "required": ["url"],
 }
@@ -243,7 +293,7 @@ def manifest() -> dict:
     return {
         "name": "402Signal",
         "version": "0.5.0",
-        "description": ROUTE_DESCRIPTION,
+        "description": payment.CATALOG_DESCRIPTION,
         "tools": TOOLS,
     }
 

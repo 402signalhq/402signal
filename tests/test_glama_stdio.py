@@ -34,6 +34,30 @@ class GlamaStdioTests(unittest.TestCase):
                                      lambda request, timeout: io.BytesIO(json.dumps(remote).encode()))
             self.assertEqual(result, remote)
 
+    def test_hosted_tool_guidance_survives_both_protocols_and_stdio(self):
+        from live402 import mcp, payment
+
+        request = {"jsonrpc": "2.0", "id": "definitions", "method": "tools/list"}
+        for version in mcp.SUPPORTED_PROTOCOLS:
+            with self.subTest(version=version):
+                def opener(http_request, timeout):
+                    status, response, _ = mcp.handle_mcp(
+                        json.loads(http_request.data),
+                        {"MCP-Protocol-Version": version},
+                        adapter.ENDPOINT,
+                    )
+                    self.assertEqual(status, 200)
+                    return io.BytesIO(json.dumps(response).encode())
+
+                actual = adapter.forward(request, opener)["result"]["tools"]
+                self.assertEqual([tool["name"] for tool in actual], ["route", "preview", "validate"])
+                for source, forwarded in zip(mcp.TOOLS, actual):
+                    self.assertEqual(forwarded["description"], source["description"])
+                    self.assertEqual(forwarded["inputSchema"], source["inputSchema"])
+                    self.assertEqual("outputSchema" in forwarded, version == mcp.PROTOCOL_VERSION)
+                self.assertNotEqual(actual[0]["description"], payment.CATALOG_DESCRIPTION)
+                self.assertEqual(mcp.manifest()["description"], payment.CATALOG_DESCRIPTION)
+
     def test_negotiated_protocol_is_sent_on_subsequent_http_requests(self):
         headers = []
         def opener(request, timeout):

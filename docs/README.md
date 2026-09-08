@@ -58,7 +58,7 @@ These documents preserve decisions and safety requirements from specific release
 - [Node/TypeScript client and offline guard](../sdk/route-guard/README.md)
 - [Reference buyer](../integration/reference-buyer/README.md)
 - [x402 mppx gateway adapter](../integration/mpp-client/README.md)
-- [MCP adapter](../integration/mcp/README.md)
+- [MCP adapter](../integration/mcp/README.md), [Glama release procedure](glama-release.md), and [tool-description contributor guidance](mcp-tool-descriptions.md)
 - [Controlled lab](../integration/lab/README.md), [batch qualification](../integration/lab/BATCH_QUALIFICATION.md), and [independently gated HTTP profiles](../integration/lab/BATCH_HTTP.md)
 - [Buyer-owned Algorand two-item adapter](../integration/batch-buyer/algorand/README.md)
 - [Owner-operated session and batch campaigns](../integration/lab/owner-runtime/README.md)

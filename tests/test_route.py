@@ -824,10 +824,10 @@ class PaywallTests(unittest.TestCase):
         self.assertTrue(spec["info"]["description"].startswith(catalog))
         self.assertIn("payment envelope", spec["info"]["description"])
         self.assertIn("MCP: GET /mcp.json.", spec["info"]["description"])
-        self.assertEqual(mcp_mod.ROUTE_DESCRIPTION, catalog)
+        self.assertNotEqual(mcp_mod.ROUTE_DESCRIPTION, catalog)
         self.assertEqual(mcp_mod.manifest()["description"], catalog)
         route = next(t for t in mcp_mod.manifest()["tools"] if t["name"] == "route")
-        self.assertEqual(route["description"], catalog)
+        self.assertEqual(route["description"], mcp_mod.ROUTE_DESCRIPTION)
         self.assertTrue(discover.LLMS_TXT.startswith("# 402Signal\n\n" + catalog))
         readme = Path(__file__).resolve().parent.parent.joinpath("README.md").read_text(
             encoding="utf-8"
