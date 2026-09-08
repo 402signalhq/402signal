@@ -52,24 +52,22 @@
   const boundedText = (value, max = 400) => typeof value === "string" ? value.slice(0, max) : "";
   function httpsURL(value) {
     try {
-      if (typeof value !== "string" || value.length > 4096 || /[\s\u0000-\u001f\u007f]/.test(value)) return false;
+      if (typeof value !== "string" || value.length > 4096 || /[\\\s\u0000-\u001f\u007f]/.test(value)) return false;
       const u = new URL(value);
-      return u.protocol === "https:" && !u.username && !u.password && !u.hash;
+      return value.startsWith("https://") && u.protocol === "https:" && !u.username && !u.password && !u.hash;
     } catch (_) { return false; }
   }
   function mode() { return document.querySelector('input[name="target-mode"]:checked').value; }
   function fieldError(id, error) {
-    const input = $(id);
-    input.setAttribute("aria-invalid", error ? "true" : "false");
+    $(id).setAttribute("aria-invalid", error ? "true" : "false");
     setText(id === "endpoint-url" ? "endpoint-error" : id + "-error", error || "");
   }
   function numberValue(id, integer) {
     const raw = $(id).value.trim();
     if (!raw) { fieldError(id, ""); return { absent: true }; }
     const pattern = integer ? /^\d+$/ : /^(?:\d+(?:\.\d{1,6})?|\.\d{1,6})$/;
-    let ok = pattern.test(raw);
     const n = Number(raw);
-    ok = ok && Number.isFinite(n) && n >= 0 && (integer ? Number.isSafeInteger(n) : n <= Number.MAX_SAFE_INTEGER / 1000000);
+    const ok = pattern.test(raw) && Number.isFinite(n) && n >= 0 && (integer ? Number.isSafeInteger(n) : n <= Number.MAX_SAFE_INTEGER / 1000000);
     fieldError(id, ok ? "" : (integer ? "Use a whole number of zero or more. Do not use exponents." : "Use a nonnegative amount with up to 6 decimals. Do not use exponents."));
     return ok ? { value: n } : { error: true };
   }
@@ -80,9 +78,9 @@
     if (mode() === "url") {
       const url = $("endpoint-url").value.trim();
       const ok = httpsURL(url);
-      fieldError("endpoint-url", ok || !url ? "" : "Use an exact HTTPS URL without credentials, spaces or a fragment.");
+      fieldError("endpoint-url", ok || !url ? "" : "Use an exact HTTPS URL without credentials, spaces, backslashes or a fragment.");
       valid = ok;
-      if (ok) body.url = url; // Do not normalize the request URL or its encoding.
+      if (ok) body.url = url; // Never normalize query order or encoding.
     } else {
       fieldError("endpoint-url", "");
       valid = q.length > 0 && q.length <= 300;
@@ -102,10 +100,14 @@
     return { body, valid };
   }
   function shellSingleQuote(value) { return "'" + String(value).replace(/'/g, "'\\''") + "'"; }
-  function routeCurl(body) { return "curl -sS -D - https://402signal.com/route -H 'Content-Type: application/json' --data " + shellSingleQuote(JSON.stringify(body)); }
+  function routeCurl(body) {
+    const compact = JSON.stringify(body);
+    return "curl -sS -D - https://402signal.com/route -H 'Content-Type: application/json' --data " + shellSingleQuote(compact);
+  }
   function syncBuilder() {
     $("endpoint-field").hidden = mode() !== "url";
-    $("search-btn").disabled = !$("need").value.trim();
+    const needLength = $("need").value.trim().length;
+    $("search-btn").disabled = !needLength || needLength > 300;
     const { body, valid } = buildRouteBody();
     $("copy-route-json").disabled = !valid;
     $("copy-route-curl").disabled = !valid;
@@ -159,7 +161,7 @@
   }
   function observation(hit) {
     const obs = hit.observation;
-    return obs && typeof obs === "object" && obs.status !== "not_yet_observed" ? obs : null;
+    return obs && typeof obs === "object" && !Array.isArray(obs) && obs.status === "observed" ? obs : null;
   }
   function observedTime(hit) {
     const obs = observation(hit);
@@ -182,17 +184,34 @@
     const n = Number(raw.replace(/^\$/, "").replace(/ USD$/, ""));
     return Number.isFinite(n) && n <= Number.MAX_SAFE_INTEGER / 1000000 ? n : null;
   }
-  function hasSchema(hit) { return hit.inputSchema_present === true || (hit.claimed && hit.claimed.schema_present === true); }
+  function hasSchema(hit) {
+    if (typeof hit.inputSchema_present === "boolean") return hit.inputSchema_present;
+    return Boolean(hit.claimed && hit.claimed.schema_present === true);
+  }
+  function safeLabel(hit) {
+    let host = "Endpoint";
+    try { host = new URL(hit.url).hostname || host; } catch (_) {}
+    const label = boundedText(hit.label || hit.serviceName || hit.name || hit.need, 160).trim();
+    return !label || /^(recommended|verified|live|payable now|best for|live now|verified now|best)$/i.test(label) ? host : label;
+  }
   function fact(dl, label, value) {
-    const row = el("div", ""); row.append(el("dt", "", label), el("dd", "", value)); dl.appendChild(row);
+    const row = el("div", "");
+    const dd = el("dd", "");
+    const span = el("span", "");
+    span.textContent = value;
+    dd.appendChild(span);
+    row.append(el("dt", "", label), dd);
+    dl.appendChild(row);
   }
   function renderHit(hit) {
     const card = el("article", "panel result-row");
-    let hostname = "Endpoint";
-    try { hostname = new URL(hit.url).hostname; } catch (_) {}
-    const label = boundedText(hit.label || hit.serviceName || hit.name || hit.need, 160) || hostname;
-    card.appendChild(el("h2", "result-name", label));
-    const url = el("p", "result-url mono wrap", boundedText(hit.url, 4096)); card.appendChild(url);
+    const name = el("h2", "result-name");
+    name.textContent = safeLabel(hit);
+    card.appendChild(name);
+    const urlP = el("p", "result-url mono wrap");
+    if (typeof hit.url === "string" && hit.url.length <= 4096) urlP.textContent = String(hit.url);
+    else urlP.textContent = "Endpoint missing or too long to construct a supported request.";
+    card.appendChild(urlP);
     const sides = el("div", "result-sides");
     const claims = el("section", "result-side"); claims.appendChild(el("h3", "result-side-label", "Seller says"));
     const dl = el("dl", "checks compact");
@@ -203,13 +222,10 @@
     fact(dl, "Input schema listed", hasSchema(hit) ? "Yes; seller-supplied metadata" : "Not listed or unknown");
     claims.appendChild(dl);
     const seen = el("section", "result-side"); seen.appendChild(el("h3", "result-side-label", "Previously observed"));
-    const obs = observation(hit);
+    const obs = observation(hit), time = observedTime(hit);
     if (!obs) seen.appendChild(el("p", "", "No prior 402Signal observation"));
     else {
-      const t = observedTime(hit);
-      const stamp = el("p", "", ageLabel(t));
-      if (t != null) stamp.title = new Date(t).toISOString();
-      seen.appendChild(stamp);
+      seen.appendChild(el("p", "", ageLabel(time)));
       const previous = el("dl", "checks compact");
       fact(previous, "Payment offer", obs.payable === true ? "Payable at that check" : obs.payable === false ? "Not payable at that check" : "Unknown");
       fact(previous, "Invocation metadata", obs.invocable === true ? "Sufficient at that check" : obs.invocable === false ? "Insufficient at that check" : "Unknown");
@@ -221,6 +237,11 @@
     sides.append(claims, seen); card.appendChild(sides);
     const details = el("details", "policy-advanced"); details.appendChild(el("summary", "", "Listing source and limitations"));
     details.appendChild(el("p", "", "Source: " + (boundedText(hit.source || (hit.claimed && hit.claimed.source), 180) || "Not provided in this response")));
+    if (time != null) {
+      const line = el("p", "mono wrap", "Observation timestamp: ");
+      const stamp = el("time", "", new Date(time).toISOString()); stamp.dateTime = new Date(time).toISOString();
+      line.appendChild(stamp); details.appendChild(line);
+    }
     if (hit.facilitator) details.appendChild(el("p", "mono wrap", "Listed facilitator: " + boundedText(hit.facilitator, 500)));
     details.appendChild(el("p", "policy-hint", "Seller names, terms and schemas are untrusted catalog data. A current constrained check can return a different result. Capability matches do not guarantee interchangeable outputs."));
     card.appendChild(details);
@@ -252,21 +273,40 @@
     if (!hits.length) results.appendChild(el("p", "empty-state", state.hits.length ? "No returned listings meet this display filter. Change the filter; your spending rules have not changed." : "No catalog matches found. Try a broader capability."));
     for (const hit of hits) results.appendChild(renderHit(hit));
   }
+  function invalidateSearch(message) {
+    ++state.sequence;
+    if (state.controller) state.controller.abort();
+    state.hits = []; state.result = null;
+    $("search-results").replaceChildren(); $("result-controls").hidden = true;
+    $("search-results").setAttribute("aria-busy", "false");
+    setText("search-status", message);
+  }
   async function runSearch() {
-    if (!$("need").value.trim()) return;
+    const query = $("need").value.trim();
+    if (!query || query.length > 300) return;
     const sequence = ++state.sequence;
     if (state.controller) state.controller.abort();
     const controller = new AbortController(); state.controller = controller;
     const timer = window.setTimeout(() => controller.abort(), 20000);
+    const options = { cache: "no-store", credentials: "omit", redirect: "error", signal: controller.signal };
     state.hits = []; state.result = null;
     $("search-results").replaceChildren(); $("result-controls").hidden = true;
     $("search-results").setAttribute("aria-busy", "true");
     setText("search-status", "Searching catalog...");
     try {
-      const response = await fetch(previewUrl(), { cache: "no-store", credentials: "omit", redirect: "error", signal: controller.signal });
+      const response = await fetch(previewUrl(), options);
       if (sequence !== state.sequence) return;
       if (!response.ok) {
-        const message = response.status === 429 ? "Too many searches. Wait before trying again; your filters are preserved." : response.status === 400 ? "The catalog could not accept this search. Check the capability and network." : response.status === 502 || response.status === 503 ? "Catalog data is unavailable or refreshing. No payment was made." : "Catalog request failed (HTTP " + response.status + "). No payment was made.";
+        let message = response.status === 429 ? "Too many searches. Wait before trying again; your filters are preserved." : response.status === 400 ? "The catalog could not accept this search. Check the capability and network." : response.status === 502 || response.status === 503 ? "Catalog data is unavailable or refreshing. No payment was made." : "Catalog request failed (HTTP " + response.status + "). No payment was made.";
+        if (response.status === 502 || response.status === 503) {
+          // Consult public index status only after a transient discovery failure.
+          // This is a bounded read, not a retry of the search or a seller check.
+          try {
+            const pulseResponse = await fetch("/pulse", options);
+            const pulse = pulseResponse.ok ? await readJSON(pulseResponse) : null;
+            if (pulse && ["pending", "refreshing"].includes(pulse.index_status)) message = "Catalog data is refreshing. Try again shortly. No payment was made.";
+          } catch (_) { /* Keep the explicit unavailable state. */ }
+        }
         throw new Error(message);
       }
       const parsed = await readJSON(response);
@@ -293,11 +333,7 @@
       state[key] = value;
       for (const item of $(id).querySelectorAll("button")) { item.classList.toggle("active", item === button); item.setAttribute("aria-pressed", item === button ? "true" : "false"); }
       syncBuilder();
-      if (key === "network" || key === "prefer") {
-        ++state.sequence; if (state.controller) state.controller.abort();
-        state.hits = []; state.result = null; $("search-results").replaceChildren(); $("result-controls").hidden = true;
-        setText("search-status", "Network selection changed. Search again to refresh listings.");
-      }
+      if (key === "network" || key === "prefer") invalidateSearch("Network selection changed. Search again to refresh listings.");
     });
   }
   group("network-chips", "data-network", "network", ["any", "base", "solana", "algorand"]);
@@ -306,13 +342,14 @@
   group("depth-chips", "data-depth", "depth", ["standard", "thorough"]);
   $("search-form").addEventListener("submit", event => { event.preventDefault(); runSearch(); });
   $("need-chips").addEventListener("click", event => { const button = event.target.closest("button[data-need]"); if (button) { $("need").value = button.dataset.need; syncBuilder(); runSearch(); } });
-  for (const id of ["need", "endpoint-url", "require-invocable", "require-binding", ...numericFields.map(row => row[0])]) $(id).addEventListener("input", syncBuilder);
+  $("need").addEventListener("input", () => { invalidateSearch("Search terms changed. Submit to refresh listings."); syncBuilder(); });
+  for (const id of ["endpoint-url", "require-invocable", "require-binding", ...numericFields.map(row => row[0])]) $(id).addEventListener("input", syncBuilder);
   for (const radio of document.querySelectorAll('input[name="target-mode"]')) radio.addEventListener("change", syncBuilder);
   for (const id of ["display-filter", "display-sort"]) $(id).addEventListener("change", renderResults);
   for (const [id, format, label] of [["copy-route-json", "json", "Copy JSON"], ["copy-route-curl", "curl", "Copy curl"]]) $(id).addEventListener("click", () => { const { body, valid } = buildRouteBody(); syncBuilder(); if (valid) copy(format === "json" ? JSON.stringify(body, null, 2) : routeCurl(body), $(id), label); });
   const query = new URLSearchParams(window.location.search);
   const initialNeed = query.get("need");
-  // Only a capability is accepted from a share link. Never import spending limits or credentials.
+  // A share link may prefill a capability, never policies or credentials.
   if (initialNeed && initialNeed.length <= 300) $("need").value = initialNeed;
   syncBuilder();
 })();

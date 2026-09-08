@@ -24,16 +24,13 @@ jobs:
           test -n "$node_dir"
           "$node_dir/node" -e 'if (Number(process.versions.node.split(".")[0]) !== 24) process.exit(1)'
           printf '%s\n' "$node_dir" >> "$GITHUB_PATH"
-      - name: Install isolated browser-test tooling
+      - name: Install locked isolated browser tooling
         working-directory: integration/website
         run: |
-          npm install --ignore-scripts --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
           npm audit --package-lock-only --ignore-scripts --audit-level=high
-          echo 'BROWSER_TEST_LOCK_BEGIN'
-          cat package-lock.json
-          echo 'BROWSER_TEST_LOCK_END'
           ./node_modules/.bin/playwright install --with-deps chromium webkit
-      - name: Test customer flows and mobile layout with synthetic data
+      - name: Test customer flows and mobile layouts with synthetic data
         run: node integration/website/browser.mjs
       - name: Record exact qualification revision
         if: always()
