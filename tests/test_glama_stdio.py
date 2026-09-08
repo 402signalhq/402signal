@@ -34,6 +34,18 @@ class GlamaStdioTests(unittest.TestCase):
                                      lambda request, timeout: io.BytesIO(json.dumps(remote).encode()))
             self.assertEqual(result, remote)
 
+    def test_negotiated_protocol_is_sent_on_subsequent_http_requests(self):
+        headers = []
+        def opener(request, timeout):
+            headers.append(request.get_header("Mcp-protocol-version"))
+            message = json.loads(request.data)
+            result = {"protocolVersion": "2025-06-18"} if message["method"] == "initialize" else {"tools": []}
+            return io.BytesIO(json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": result}).encode())
+        client = adapter.HostedClient(opener)
+        client({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+        client({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        self.assertEqual(headers, [None, "2025-06-18"])
+
     def test_payment_required_is_tool_error_and_next_request_still_works(self):
         count = 0
         def opener(request, timeout):
