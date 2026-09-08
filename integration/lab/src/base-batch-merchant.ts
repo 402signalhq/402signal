@@ -116,10 +116,12 @@ export class BaseBatchMerchant {
         payTo: this.config.channelConfig.receiver,
         price: "$0.001",
         maxTimeoutSeconds: 300,
+        extra: { assetTransferMethod: "eip3009" },
       })
     )[0];
     assert(
       r?.amount === "1000" &&
+        r.extra?.assetTransferMethod === "eip3009" &&
         getAddress(r.asset) === getAddress(BASE_USDC) &&
         getAddress(String(r.extra?.receiverAuthorizer)) ===
           getAddress(this.config.channelConfig.receiverAuthorizer) &&
