@@ -1,0 +1,28 @@
+name: customer site review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Record review source
+        run: |
+          mkdir -p customer-site-evidence
+          git archive --format=tar.gz HEAD > customer-site-evidence/source.tar.gz
+          git rev-parse HEAD > customer-site-evidence/revision.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: customer-site-source
+          path: customer-site-evidence/
+          retention-days: 3
+          if-no-files-found: error
