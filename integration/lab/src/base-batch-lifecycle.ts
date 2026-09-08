@@ -43,7 +43,11 @@ export class BaseBatchController {
   const code=await this.rpc('eth_getCode',[BASE_BATCH,block.number]),collector=await this.rpc('eth_getCode',[BASE_COLLECTOR,block.number]);
   check(code!=='0x'&&collector!=='0x'&&keccak256(code)===this.plan.contractCodeHash&&keccak256(collector)===this.plan.collectorCodeHash,'contract deployment changed');
   const baseline=await readBatchState(this.rpc,this.plan.config,block.number);
-  check(Object.values(baseline).every(v=>v==='0'),'isolated fresh channel and receiver required');
+  // Channel-local fields must be unused. Receiver totals are lifetime counters:
+  // prior completed channels may leave equal, nonzero claimed/settled values.
+  // An outstanding receiver payout is outside this serialized owner profile.
+  check(['balance','claimed','withdrawAmount','withdrawAt','refundNonce'].every(k=>baseline[k as keyof typeof baseline]==='0'),'fresh channel required');
+  check(baseline.receiverClaimed===baseline.receiverSettled,'receiver has an outstanding payout; serialized owner profile required');
   await this.ledger.once('baseline',baseline);await this.ledger.once('progress',{state:'new'});
  }
  /** One explicitly paid post-finalization observation may authorize delivery.
@@ -184,7 +188,7 @@ export class BaseBatchController {
   check(await this.rpc('eth_chainId',[])==='0x2105','wrong chain');
   const block=await this.rpc('eth_getBlockByNumber',['finalized',false]);
   const current=await readBatchState(this.rpc,this.plan.config,block.number);
-  check(canonical(current)===canonical(deposit.after)&&current.balance===this.plan.depositAtomic&&current.claimed==='0'&&current.receiverClaimed==='0'&&current.receiverSettled==='0'&&current.withdrawAmount==='0'&&current.withdrawAt==='0','unused deposit chain state changed');
+  check(canonical(current)===canonical(deposit.after)&&current.balance===this.plan.depositAtomic&&current.claimed==='0'&&current.receiverClaimed===current.receiverSettled&&current.withdrawAmount==='0'&&current.withdrawAt==='0','unused deposit chain state changed');
   await this.ledger.transition('active:0','refund-inflight');
   check(await this.ledger.once('refund:mode',{kind:'unused-deposit',preflightBlockHash:block.hash,preflightBlockNumber:block.number,refundNonce:current.refundNonce}),'refund already claimed');
   const voucher=(await this.ledger.require('deposit:payload')).payload.voucher;

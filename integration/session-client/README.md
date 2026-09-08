@@ -28,7 +28,7 @@ final chain settlement or a guarantee that an API delivered useful work.
 
 ## Install and runtime
 
-Install a reviewed package archive with `npm install ./402signal-session-client-0.1.0.tgz`.
+Install a reviewed package archive with `npm install ./402signal-session-client-0.1.1.tgz`.
 The archive includes the guard and funding/settlement primitives it uses; an
 installed customer does not need the 402Signal repository or lab checkout.
 `PROVENANCE.json` records the copied source hashes. Node24 is required.
@@ -180,3 +180,12 @@ provenance. Tests use synthetic signing keys and receipts, including an actual
 native SDK server and a 3-call lab HTTP path with finalized-effect fixtures.
 The private funding fixtures used by the volume tests are labeled as fixtures;
 they are not evidence of a new live payment campaign.
+
+
+### Base receiver reuse and concurrent channels
+
+A fresh Base channel may reuse a receiver whose earlier claims are fully paid. Channel-local balance, claimed amount, withdrawal fields and refund nonce must still be zero; the receiver's cumulative claimed and settled counters may be equal and nonzero. The controller retains those exact historical values as its baseline. Reopening a campaign never resets that baseline or creates another send permit.
+
+This owner controller still serializes activity for a receiver/token pair. An outstanding receiver payout is refused at initialization, and unrelated receiver activity between operation baselines or within an observed block leaves confirmation unknown. Do not retry an economic operation to resolve that uncertainty. Finalized receipts, exact channel effects, receiver deltas, refund nonce and token-transfer accounting remain required. This is a bounded qualification workflow, not a high-throughput multi-channel settlement coordinator.
+
+General concurrent receiver support requires separate receiver-level claim/settlement coordination and durable per-channel allocation: the contract's `settle(receiver, token)` pays the receiver-wide outstanding total. Per-channel receipt checks cannot simply treat another channel's payout as this campaign's revenue. No concurrency relaxation or additional authority is included here.
