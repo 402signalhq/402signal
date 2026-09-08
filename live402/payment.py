@@ -104,7 +104,7 @@ BAZAAR_EXTENSION = {
                             },
                             "require_transparency": {
                                 "type": "boolean",
-                                "description": "Require a durable leaf and signed checkpoint receipt on HTTP 200. Default false; require_route_binding=true also requires transparency. Receipt failure after settlement remains billed. Private replay records can retain the reveal; they are not a recovery service. Keep your own copy outside public logs.",
+                                "description": "Require a durable leaf and signed checkpoint receipt on HTTP 200. Default false; require_route_binding=true also requires transparency. Receipt failure after settlement remains billed. Private replay records support bounded recovery of the original response; they are not long-term evidence storage. Keep your own copy outside public logs.",
                             },
                         },
                         "anyOf": [{"required": ["need"]}, {"required": ["url"]}],
@@ -216,8 +216,8 @@ BAZAAR_MCP = {
                             "cannot be produced. HTTP 200 requires evidence delivery, not server-side "
                             "recovery. Securely retain the complete paid /route response, "
                             "especially pq_trust.transparency.receipt and "
-                            "pq_trust.transparency.reveal. Private replay outcomes can retain "
-                            "the reveal; they are not a recovery service. Keep your own copy. Default false "
+                            "pq_trust.transparency.reveal. Private replay outcomes support bounded recovery "
+                            "of the original response; they are not long-term evidence storage. Keep your own copy. Default false "
                             "(SEC-ROUTER-004 / A-14): "
                             "a settled winner does not require a durable signed leaf; "
                             "free typed misses create no route-decision leaf. "
