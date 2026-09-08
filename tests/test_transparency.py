@@ -91,6 +91,8 @@ class TransparencyPageTests(unittest.TestCase):
         self.assertIn("connect-src 'self'", csp)
         self.assertIn("Routing history you can verify", html)
         self.assertIn("402Signal records routing evidence in an append-only Merkle log.", html)
+        self.assertIn('<a href="/developers#quickstart">402Signal client SDK</a>', html)
+        self.assertIn("with durable storage to keep the original request and response in your own system.", html)
         self.assertNotIn("See the check-first flow on the", html)
         self.assertNotIn('class="signal-flow"', html)
         self.assertIn("It is not a merchant payment.", html)

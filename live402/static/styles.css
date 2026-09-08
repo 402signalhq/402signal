@@ -200,6 +200,7 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
 .home-page .pq-trust { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 40px; }
 .pq-trust p { color: var(--muted); }
 .pq-status-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.pq-status-row > p { margin: 0; }
 .pq-badge, .pq-chip, .tag, .status-chip { display: inline-block; padding: 6px 10px; border: 1px solid var(--line); border-radius: 5px; font-size: 13px; overflow-wrap: anywhere; }
 .pq-chip { color: var(--teal); }
 .pq-kicker { font-size: 12px; color: var(--muted); letter-spacing: .05em; }
@@ -208,6 +209,8 @@ pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
 .status-card { padding: 20px; border: 1px solid var(--line); border-radius: 6px; }
 .confirm-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .confirm-card .hero-actions, .confirm-card .note { grid-column: 1 / -1; }
+#latest-confirmed .confirm-card > p { margin: 0; }
+#anchor-boundary { margin-bottom: 32px; }
 .tech-details { background: var(--panel); padding: 16px 20px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 28px; }
 .tech-body { margin-top: 14px; }
 .pq-decode > div { display: grid; grid-template-columns: minmax(0, 10rem) minmax(0, 1fr); gap: 10px; margin: 10px 0; }
@@ -225,6 +228,10 @@ td { color: var(--muted); }
 .support-table { table-layout: fixed; }
 .anchor-table { font-size: 13px; }
 .history-cards { display: none; }
+.history-card { padding: 16px 0; border-top: 1px solid var(--line); }
+.history-card + .history-card { margin-top: 16px; }
+.history-card p { margin: 0 0 8px; }
+.history-card p:last-child { margin-bottom: 0; }
 .desktop-only { display: block; }
 .mobile-only { display: none; }
 .ext-hint { font-size: 12px; color: var(--muted); }
@@ -299,6 +306,8 @@ td { color: var(--muted); }
   .hero-copy, .lede { font-size: 17px; }
   .policy-grid.pair, .status-grid, .pq-summary, .stats-grid, .decision-grid, .confirm-card { grid-template-columns: minmax(0, 1fr); }
   .confirm-card .hero-actions, .confirm-card .note { grid-column: auto; }
+  #latest-confirmed .confirm-card { row-gap: 6px; }
+  #latest-confirmed .confirm-card > .pq-kicker:not(:first-child) { margin-top: 12px; }
   .search-row { flex-direction: column; }
   .search-row input { flex: auto; }
   .search-row .btn { width: 100%; }
