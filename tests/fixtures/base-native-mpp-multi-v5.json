@@ -1,0 +1,136 @@
+{
+  "request": {
+    "url": "https://merchant.example?contact=a@b",
+    "merchant_profile": "base-mpp-charge-v1",
+    "buyer_limits": {
+      "network": "eip155:8453",
+      "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "recipient": "0x1111111111111111111111111111111111111111",
+      "max_call_amount_atomic": "1000",
+      "realm": "merchant.example"
+    },
+    "require_route_binding": true
+  },
+  "response": {
+    "url": "https://merchant.example?contact=a@b",
+    "merchant_profile": "base-mpp-charge-v1",
+    "live": true,
+    "payable": true,
+    "invocable": false,
+    "status": 402,
+    "selected_payment": null,
+    "batch_terms": {
+      "network": "eip155:8453",
+      "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "recipient": "0x1111111111111111111111111111111111111111",
+      "per_call_amount_atomic": "1000",
+      "credential_type": "authorization",
+      "intent": "charge"
+    },
+    "batch_binding": {
+      "model": "proof_carrying_batch_observation_v1",
+      "profile": "base-mpp-charge-v1",
+      "request": {
+        "url": "https://merchant.example?contact=a@b",
+        "method": "GET",
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "buyer_limits": {
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "recipient": "0x1111111111111111111111111111111111111111",
+        "max_call_amount_atomic": "1000",
+        "realm": "merchant.example"
+      },
+      "challenge": {
+        "status": 402,
+        "bodyText": "{\"altPayment\":{\"type\":\"proof-of-work\",\"difficulty\":4}}",
+        "paymentRequired": "eyJ4NDAyVmVyc2lvbiI6Mn0=",
+        "wwwAuthenticate": "Payment id=\"tempo\", realm=\"merchant.example\", method=\"tempo\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\", description=\"comma, and \\\"quoted\\\" text\", Payment id=\"other-chain-or-price\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjQyMjIwLCJjcmVkZW50aWFsVHlwZXMiOlsiYXV0aG9yaXphdGlvbiJdLCJkZWNpbWFscyI6Nn0sInJlY2lwaWVudCI6IjB4MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSJ9\", expires=\"2026-09-08T17:01:00.000Z\", Payment id=\"base-native-synthetic\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\", description=\"original, chosen\", Payment id=\"other-realm\", realm=\"other.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\""
+      },
+      "challenge_sha256": "65be89b407386e5f63d95432811fc253aa528c8ed54a64e64dd9fbe5734d2ba8",
+      "terms": {
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "recipient": "0x1111111111111111111111111111111111111111",
+        "per_call_amount_atomic": "1000",
+        "credential_type": "authorization",
+        "intent": "charge"
+      },
+      "observed_at": 1788886800,
+      "expires_at": 1788886860
+    },
+    "payment_authorization": {
+      "pq_native": false
+    },
+    "pq_trust": {
+      "transparency": {
+        "log_origin": "402signal.com/pq/log",
+        "leaf_type": "402signal.route_decision.v5",
+        "reveal": {
+          "type": "402signal.route_decision.v5",
+          "ts": "2026-09-08T18:41:00Z",
+          "nonce": "097778228fc762bb826bf62aea8367a21745a7f0025c24e51b401a28d4a2ad8c",
+          "commitment": "57d3cf728971ddf3333b97f7e86f297f651fc77cf171dcb4c62ed33d563076fd",
+          "event_version": "402signal.route_decision.v5",
+          "evidence": {
+            "evidence_version": 3,
+            "request_json": "{\"buyer_limits\":{\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"max_call_amount_atomic\":\"1000\",\"network\":\"eip155:8453\",\"realm\":\"merchant.example\",\"recipient\":\"0x1111111111111111111111111111111111111111\"},\"merchant_profile\":\"base-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example?contact=a@b\"}",
+            "batch_binding": {
+              "model": "proof_carrying_batch_observation_v1",
+              "profile": "base-mpp-charge-v1",
+              "request": {
+                "url": "https://merchant.example?contact=a@b",
+                "method": "GET",
+                "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "buyer_limits": {
+                "network": "eip155:8453",
+                "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "recipient": "0x1111111111111111111111111111111111111111",
+                "max_call_amount_atomic": "1000",
+                "realm": "merchant.example"
+              },
+              "challenge": {
+                "status": 402,
+                "bodyText": "{\"altPayment\":{\"type\":\"proof-of-work\",\"difficulty\":4}}",
+                "paymentRequired": "eyJ4NDAyVmVyc2lvbiI6Mn0=",
+                "wwwAuthenticate": "Payment id=\"tempo\", realm=\"merchant.example\", method=\"tempo\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\", description=\"comma, and \\\"quoted\\\" text\", Payment id=\"other-chain-or-price\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjQyMjIwLCJjcmVkZW50aWFsVHlwZXMiOlsiYXV0aG9yaXphdGlvbiJdLCJkZWNpbWFscyI6Nn0sInJlY2lwaWVudCI6IjB4MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSJ9\", expires=\"2026-09-08T17:01:00.000Z\", Payment id=\"base-native-synthetic\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\", description=\"original, chosen\", Payment id=\"other-realm\", realm=\"other.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\""
+              },
+              "challenge_sha256": "65be89b407386e5f63d95432811fc253aa528c8ed54a64e64dd9fbe5734d2ba8",
+              "terms": {
+                "network": "eip155:8453",
+                "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "recipient": "0x1111111111111111111111111111111111111111",
+                "per_call_amount_atomic": "1000",
+                "credential_type": "authorization",
+                "intent": "charge"
+              },
+              "observed_at": 1788886800,
+              "expires_at": 1788886860
+            }
+          },
+          "salt": "521aeb68eaf35d569ce68e0966e57790c3675a03aefa6d176c10c9e06103154e"
+        },
+        "status": "pending",
+        "state": "checkpoint_signed",
+        "index": 0,
+        "checkpoint_size": 1,
+        "receipt": {
+          "index": 0,
+          "inclusion_path": [],
+          "checkpoint": "402signal.com/pq/log\n1\nNIuvX7hQ8ghFiuOLHBZN+N4/62EvEE8hKcV+/Im/q7c=\n\n\u2014 402signal.com/pq/log LBM7B1vT4Yf+jRu9NdmV9IgUjci30bGEWREF+rBcJFPr2JdTU/eNT63MCeeU5yF+OxlzUcknVmJiVx8NYNAX2awZlQI=\n",
+          "leaf_hash": "348baf5fb850f208458ae38b1c164df8de3feb612f104f2129c57efc89bfabb7"
+        }
+      }
+    }
+  },
+  "challenge": {
+    "status": 402,
+    "bodyText": "{\"altPayment\":{\"type\":\"proof-of-work\",\"difficulty\":4}}",
+    "paymentRequired": "eyJ4NDAyVmVyc2lvbiI6Mn0=",
+    "wwwAuthenticate": "Payment id=\"tempo\", realm=\"merchant.example\", method=\"tempo\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\", description=\"comma, and \\\"quoted\\\" text\", Payment id=\"other-chain-or-price\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjQyMjIwLCJjcmVkZW50aWFsVHlwZXMiOlsiYXV0aG9yaXphdGlvbiJdLCJkZWNpbWFscyI6Nn0sInJlY2lwaWVudCI6IjB4MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSJ9\", expires=\"2026-09-08T17:01:00.000Z\", Payment id=\"base-native-synthetic\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\", description=\"original, chosen\", Payment id=\"other-realm\", realm=\"other.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\""
+  },
+  "trusted_vkey": "402signal.com/pq/log+2c133b07+AfrcXaL+OuoyVnu/HoG+MaFqqKP0S4yxZUabVrUCjJvD",
+  "now": 1788886800
+}

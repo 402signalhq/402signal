@@ -17,6 +17,7 @@ fixtures.push(
     ),
   ),
 );
+fixtures.push(JSON.parse(fs.readFileSync(new URL("../../../tests/fixtures/base-native-mpp-v5.json", import.meta.url))));
 const options = (v) => ({
   routeResponseJson: JSON.stringify(v.response),
   routeRequestJson: JSON.stringify(v.request),

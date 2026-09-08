@@ -27,6 +27,8 @@ GENERIC = json.loads(
     (Path(__file__).parent / "fixtures/algorand-generic-v5.json").read_text()
 )
 VECTORS.append({"request": GENERIC["request"], "challenge": GENERIC["challenge"]})
+NATIVE_BASE = json.loads((Path(__file__).parent / "fixtures/base-native-mpp-v5.json").read_text())
+VECTORS.append({"request": NATIVE_BASE["request"], "challenge": NATIVE_BASE["challenge"]})
 
 
 def vector(index, now=None):
@@ -95,7 +97,7 @@ class BatchTests(unittest.TestCase):
         return receipt.attach_to_route(result, v["request"])
 
     def test_all_three_signed_roundtrips_commitment_only_leaf(self):
-        for i in range(4):
+        for i in range(len(VECTORS)):
             v = vector(i)
             result = self.issue(v)
             tr = result["pq_trust"]["transparency"]
@@ -113,7 +115,7 @@ class BatchTests(unittest.TestCase):
             self.assertNotIn(v["request"]["url"], json.dumps(public))
 
     def test_profile_limits_and_raw_terms_tamper_rejected(self):
-        for i in range(4):
+        for i in range(len(VECTORS)):
             v = vector(i)
             b = bb.build(v["request"], v["observation"])
             for key, value in [
@@ -189,7 +191,7 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(route._bad_request({**v["request"], **change})[0], 400)
 
     def test_full_verify_raw_probe_settle_pq_replay_all_three(self):
-        for i in range(4):
+        for i in range(len(VECTORS)):
             replay.reset()
             v = vector(i)
             calls = []

@@ -58,6 +58,8 @@ These documents preserve decisions and safety requirements from specific release
 
 ## Integration packages
 
+- [Native MPP charge offer selection and full-response binding](../integration/mpp-client/NATIVE_SELECTION.md)
+- [Explicit native Algorand MPP charge adapter](../integration/mpp-algorand/README.md)
 - [Node/TypeScript client and offline guard](../sdk/route-guard/README.md)
 - [Reference buyer](../integration/reference-buyer/README.md)
 - [x402 mppx gateway adapter](../integration/mpp-client/README.md)
@@ -72,3 +74,5 @@ These documents preserve decisions and safety requirements from specific release
 Operating runbooks describe mechanisms, not live secrets or private customer policy. Retain recovery contracts, independent signer specifications and historical proof formats even when simplifying the public entry points. The public observation model is distinct from private hosted admission policy. Removing prose does not make previously public code or git history confidential.
 
 Report security-sensitive issues through the [private security contact](https://402signal.com/contact#security). The [license](../LICENSE) governs the source.
+
+- [Native Base MPP charge client](../integration/mpp-client/NATIVE.md): signed observation, buyer-owned authorization, durable attempt and separate transport.
