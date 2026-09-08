@@ -5,10 +5,20 @@ on the public router or widen the existing MainNet buyer signer.
 
 ## Running in an isolated cloud environment
 
-Use Node 24, the committed npm lock, and an empty synthetic PostgreSQL 15 database.
+Use Node 24 and the committed npm lock with an empty synthetic PostgreSQL database.
+The isolated cloud qualification uses PostgreSQL 15; CI uses pinned PostgreSQL 16.15.
 Set `LAB_BATCH_PG_DATABASE` to a name beginning `lab_batch_`, and optionally
-`LAB_BATCH_PG_HOST`, `LAB_BATCH_PG_USER` and the standard PostgreSQL authentication
-environment. Run `npm ci --ignore-scripts` and `npm test` in this directory.
+`LAB_BATCH_PG_HOST`, `LAB_BATCH_PG_PORT`, `LAB_BATCH_PG_USER` and the standard
+PostgreSQL authentication environment. Run from this directory:
+
+```sh
+npm ci --ignore-scripts
+npm run build
+node --test --test-concurrency=1 dist/test/*.test.js
+```
+
+Files share a synthetic database, so setup runs one file at a time. Deliberate
+concurrent operations and competing processes within each test remain enabled.
 Database tests skip without explicit opt-in; CI supplies its own disposable database.
 Run the separately locked `solana-session-contracts` package for its SDK fixtures.
 Public deterministic fixture keys are never suitable for funded wallets.
