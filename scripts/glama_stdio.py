@@ -25,7 +25,7 @@ def _error(request_id, code, message):
             "error": {"code": code, "message": message}}
 
 
-def forward(message, opener=urlopen):
+def forward(message, opener=urlopen, protocol_version=None):
     """Forward one MCP message and translate HTTP failures into MCP responses."""
     if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or not isinstance(message.get("method"), str):
         return _error(None, -32600, "Invalid Request")
@@ -38,6 +38,8 @@ def forward(message, opener=urlopen):
         "Accept": "application/json, text/event-stream",
         "User-Agent": "402Signal-Glama-stdio/0.1.0",
     }, method="POST")
+    if protocol_version is not None:
+        request.add_header("MCP-Protocol-Version", protocol_version)
     try:
         with opener(request, timeout=25) as response:
             body = response.read(MAX_RESPONSE_BYTES + 1)
@@ -68,8 +70,26 @@ def forward(message, opener=urlopen):
         return _error(request_id, -32000, "Hosted service unavailable or returned invalid JSON")
 
 
-def serve(input_stream, output_stream, forwarder=forward):
+class HostedClient:
+    """Keep the negotiated HTTP protocol version for one stdio connection."""
+
+    def __init__(self, opener=urlopen):
+        self.opener = opener
+        self.protocol_version = None
+
+    def __call__(self, message):
+        result = forward(message, self.opener, self.protocol_version)
+        if isinstance(message, dict) and message.get("method") == "initialize" and isinstance(result, dict):
+            initialized = result.get("result")
+            if isinstance(initialized, dict) and isinstance(initialized.get("protocolVersion"), str):
+                self.protocol_version = initialized["protocolVersion"]
+        return result
+
+
+def serve(input_stream, output_stream, forwarder=None):
     """Read and write newline-delimited MCP JSON; stdout is protocol-only."""
+    if forwarder is None:
+        forwarder = HostedClient()
     while True:
         line = input_stream.readline(MAX_MESSAGE_BYTES + 1)
         if not line:
