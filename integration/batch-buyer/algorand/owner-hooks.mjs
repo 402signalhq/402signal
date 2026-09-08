@@ -35,6 +35,33 @@ const { ed25519Verifier } = await import(
 
 const copy = (x) => JSON.parse(canonical(x));
 const encoded = (x) => Buffer.from(canonical(x)).toString("base64");
+// The SDK represents an absent optional extension as an own undefined property.
+// Normalize that one wire-only omission before checking or persisting the signed
+// envelope. All other values must survive strict JSON serialization unchanged.
+export function normalizeRouterPaymentPayload(payload) {
+  check(
+    payload && typeof payload === "object" && !Array.isArray(payload),
+    "router_payment_json_refused",
+  );
+  const source = { ...payload };
+  if (source.extensions === undefined) delete source.extensions;
+  const raw = JSON.stringify(source, (_key, value) => {
+    check(
+      value !== undefined &&
+        !["function", "symbol", "bigint"].includes(typeof value) &&
+        (typeof value !== "number" || Number.isFinite(value)),
+      "router_payment_json_refused",
+    );
+    return value;
+  });
+  const snapshot = strictJson(raw, 262144);
+  check(
+    canonical(snapshot) === canonical(source),
+    "router_payment_json_refused",
+  );
+  return snapshot;
+}
+
 const bytes = (s) => {
   check(typeof s === "string" && s.length <= 8192, "signed_group_refused");
   const b = Buffer.from(s, "base64");
@@ -300,10 +327,12 @@ export function createAlgorandOwnerHooks(
       journal.put(id, "router_sign_claim", { requestJson, challenge });
       // Existing lab sdkSigner strips informational hints and independently guards
       // the two-transaction group before its buyer-side wallet callback.
-      const payload = await owner.routerSigner("algorand", {
-        ...copy(challenge),
-        accepts: [copy(requirement)],
-      });
+      const payload = normalizeRouterPaymentPayload(
+        await owner.routerSigner("algorand", {
+          ...copy(challenge),
+          accepts: [copy(requirement)],
+        }),
+      );
       await routerGroup(payload, requirement, policy);
       journal.put(id, "router_signed", { payload, requirement });
       await client.setPaymentHeader(id, { value: encoded(payload) });
