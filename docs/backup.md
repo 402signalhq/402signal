@@ -1,8 +1,19 @@
-# SQLite backup and recovery
+# SQLite component backup and recovery
 
-Production recovery requires a complete bundle of catalog, history, MainNet
-transparency log and the payment replay ledger. The archived TestNet log remains
-separate and must also be retained; never merge its leaves into MainNet.
+The hosted service uses PostgreSQL as its payment replay authority. This guide
+covers the SQLite components: catalog, history and the MainNet transparency log,
+plus the retained, fenced SQLite replay source. A SQLite bundle is not a complete
+backup of the PostgreSQL authority and cannot establish continuity of its
+acknowledged payment identities. The archived TestNet log remains separate and
+must also be retained; never merge its leaves into MainNet.
+
+Production recovery also requires separately preserved PostgreSQL recovery
+material and continuity evidence. Keep paid admission stopped until every
+acknowledged economic identity and pending or unknown settlement is reconciled.
+Follow the [PostgreSQL authority and instance-fence contract](runbooks/managed-postgres-functions.md)
+before any deliberate authority reactivation. Do not promote the fenced SQLite
+source, clear the instance fence, or treat a stale backup as current authority.
+The separate lab accounting database is not the router's replay authority.
 
 ```bash
 PYTHONPATH=. python3 scripts/backup_sqlite.py --dest /operator/backup-staging
@@ -11,12 +22,13 @@ PYTHONPATH=. python3 scripts/restore_bundle.py --bundle /operator/backup-staging
   --expected-vkey-file /operator/trusted-public-log-vkey.txt
 ```
 
-Use the exact configured database paths. Defaults match the production `/data`
-paths. The tool acquires every SQLite writer lock, replay first, before copying
-any database through SQLite's backup API. No database is rewritten. Existing
-inflight settlements have a pending replay record; new reservations cannot
-proceed during the snapshot. Locks time out after five seconds if a writer
-cannot quiesce. A failed or partial backup produces no complete manifest.
+Use the exact configured SQLite paths; the defaults use `/data`. The tool
+acquires every SQLite writer lock, replay first, before copying through SQLite's
+backup API. It does not lock, copy or pause PostgreSQL, so these locks do not
+establish a consistent recovery point across PostgreSQL and SQLite. Coordinate
+the stopped writers and recovery boundary separately. No source database is
+rewritten. Locks time out after five seconds if a SQLite writer cannot quiesce.
+A failed or partial SQLite backup produces no complete manifest.
 
 Each bundle contains role/schema metadata, file hashes, integrity checks and
 the public log identity. Verification requires origin and vkey from an
@@ -29,12 +41,14 @@ Rehearse restore by adding `--dest /operator/new-restore-directory` to
 `restore_bundle.py`. The directory must not already exist. The tool checks the
 entire bundle before creating it and checks the resulting files again. Output
 names are `catalog.sqlite`, `history.sqlite`, `pq_log.sqlite`, `replay.sqlite`;
-they are intentionally not installed over live paths. With the service stopped,
-the operator promotes the complete verified set to its configured filenames,
-preserving the archived TestNet shard separately. Do not partially restore or
-overwrite newer payment records with an older replay ledger. Reconcile all
-post-snapshot activity and preserve pending/unknown economic records before
-resuming paid admission.
+they are intentionally not installed over live paths. Restore verification must
+use an isolated, explicitly approved destination. For a PostgreSQL-backed
+deployment, the emitted `replay.sqlite` is retained source evidence, not an
+authority to activate. Promotion of the SQLite components requires stopped
+writers and a reviewed recovery point consistent with the PostgreSQL authority;
+this command does not perform that reconciliation. Preserve the archived
+TestNet shard separately. Do not overwrite newer payment records with an older
+ledger or resume paid admission while post-snapshot activity is unresolved.
 
 Never delete `live402-replay.sqlite` to resolve capacity or readiness failures.
 Economic identities do not expire. Individual `restore_sqlite.py` replacement

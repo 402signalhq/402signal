@@ -67,4 +67,4 @@ These documents preserve decisions and safety requirements from specific release
 
 Operating runbooks describe mechanisms, not live secrets or private customer policy. Retain recovery contracts, independent signer specifications and historical proof formats even when simplifying the public entry points. The public observation model is distinct from private hosted admission policy. Removing prose does not make previously public code or git history confidential.
 
-Report security-sensitive issues through the [private security contact](https://402signal.com/.well-known/security.txt). The [license](../LICENSE) governs the source.
+Report security-sensitive issues through the [private security contact](https://402signal.com/contact#security). The [license](../LICENSE) governs the source.

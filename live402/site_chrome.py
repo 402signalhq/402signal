@@ -28,7 +28,7 @@ FOOTER = (
 )
 
 LISTED_ON = (
-    ("https://glama.ai/mcp/servers/402signal/402signal", "Glama"),
+    ("https://glama.ai/mcp/servers/402signalhq/402signal", "Glama"),
     ("https://registry.modelcontextprotocol.io/?q=402signal", "MCP Registry"),
     ("https://github.com/Haustorium12/gold-402/blob/main/directory/aggregators.md", "Gold-402"),
     ("https://smithery.ai/servers/live402/signal", "Smithery"),

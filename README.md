@@ -25,7 +25,7 @@ curl -sS -D - https://402signal.com/route \
 
 An unpaid call returns HTTP 402 with the current routing payment requirements. Validate those requirements and your budget in the buyer, then authorize the $0.003 USDC fee with your own wallet. Submit the identical request with the resulting payment header. Never send a wallet private key to the service.
 
-For an existing integration, use `url` instead of discovery. `networks` is a required filter; `prefer_network` only affects ranking. Unknown measurements do not satisfy required limits. The [developer guide](https://402signal.com/developers#request) and [OpenAPI schema](https://402signal.com/openapi.json) define supported fields and response semantics.
+For an existing integration, use `url` instead of discovery. `networks` is a hard filter when supplied; omit it to search all supported rails. `prefer_network` only affects ranking within that filter. Unknown measurements do not satisfy required limits. The [developer guide](https://402signal.com/developers#request) and [OpenAPI schema](https://402signal.com/openapi.json) define supported fields and response semantics.
 
 ## Install the buyer client
 
@@ -103,4 +103,4 @@ The [documentation index](docs/README.md) separates current contracts from histo
 | `tests/` | Synthetic functional and security regressions |
 | `docs/`, `ops/`, `scripts/` | Protocol contracts and reviewed operating tools |
 
-[MIT license](LICENSE) · [Private security contact](https://402signal.com/.well-known/security.txt) · [ross@402signal.com](mailto:ross@402signal.com)
+[MIT license](LICENSE) · [Private security contact](https://402signal.com/contact#security) · [ross@402signal.com](mailto:ross@402signal.com)

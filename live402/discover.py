@@ -1340,7 +1340,7 @@ MCP example:
 
 These links are discovery locations, not endorsements or service guarantees.
 
-- Glama: https://glama.ai/mcp/servers/402signal/402signal
+- Glama: https://glama.ai/mcp/servers/402signalhq/402signal
 - MCP Registry: https://registry.modelcontextprotocol.io/?q=402signal
 - Smithery: https://smithery.ai/servers/live402/signal
 - Agentic Market: https://agentic.market/services/402signal-com
