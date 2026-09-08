@@ -120,7 +120,7 @@ function rpcFixture(plan) {
     uiTokenAmount: { amount: String(amount) },
   });
   const channel = (status, cumulative) => ({
-    discriminator: 0,
+    discriminator: 1,
     version: 1,
     bump: 1,
     status,
@@ -700,4 +700,34 @@ test("unused native deposit can be fully refunded without creating a payable vou
   } finally {
     await s.close();
   }
+});
+
+test("SDK-encoded Channel discriminator one confirms open and unused refund; zero and closed-account tags refuse", async () => {
+  const { observeSolanaOpen, observeSolanaClose } = await import('../src/owner-session.mjs');
+  const s = await setup();
+  const withTag = (tag) => async (method, params) => {
+    const result = await s.rpc(method, params);
+    if (method === 'getAccountInfo' && params[0] === s.merchant.plan.open.channelId && result.value) {
+      const value = codecs.getChannelDecoder().decode(Buffer.from(result.value.data[0], 'base64'));
+      assert.equal(value.discriminator, 1);
+      result.value.data[0] = Buffer.from(codecs.getChannelEncoder().encode({ ...value, discriminator: tag })).toString('base64');
+    }
+    return result;
+  };
+  try {
+    await s.controller.signOpen(payer, s.rpc);
+    await s.controller.sendOpen((credential) => openSessionLocally({ ledger: s.ownerLedger, plan: s.merchant.plan, credential, operator, rpc: s.rpc }));
+    const opening = (await s.ownerLedger.require('operator:open:signed')).signature;
+    for (const tag of [0, 2, 255]) assert.equal((await observeSolanaOpen(withTag(tag), s.merchant.plan, opening)).state, 'unknown');
+    assert.equal((await s.controller.confirmOpen(s.rpc)).state, 'chain_confirmed');
+    s.setClosing({ payload: { action: 'close' } });
+    const close = await closeUnspentSessionLocally({ ledger: s.ownerLedger, plan: s.merchant.plan, operator, rpc: s.rpc, maximumCloseFeeLamports: '10000' });
+    for (const tag of [0, 2, 255]) assert.equal((await observeSolanaClose(withTag(tag), s.merchant.plan, close.reference)).state, 'unknown');
+    const observed = await s.controller.confirmClose(s.rpc, close.reference);
+    assert.equal(observed.state, 'chain_confirmed');
+    assert.equal(observed.merchantAtomic, '0');
+    assert.equal(observed.returnedBuyerAtomic, '4000');
+    assert.equal(await s.ownerLedger.get('voucher:1:sign-intent'), undefined);
+    assert.deepEqual({ opens: s.counts().openCalls, closes: s.counts().closeCalls }, { opens: 1, closes: 1 });
+  } finally { await s.close(); }
 });
