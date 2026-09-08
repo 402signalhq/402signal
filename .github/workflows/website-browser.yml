@@ -2,12 +2,14 @@ name: website browser evidence
 
 on:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: website-browser-${{ github.event.pull_request.number }}
+  group: website-browser-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -31,14 +33,11 @@ jobs:
           test -n "$node_dir"
           "$node_dir/node" -e 'if (Number(process.versions.node.split(".")[0]) !== 24) process.exit(1)'
           printf '%s\n' "$node_dir" >> "$GITHUB_PATH"
-      - name: Resolve added schema-test dependency for lock review
+      - name: Install locked browser and schema-test dependencies
         working-directory: integration/website
         run: |
-          npm install --ignore-scripts --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
           npm audit --package-lock-only --ignore-scripts --audit-level=high
-          echo SCHEMA_TEST_LOCK_BEGIN
-          cat package-lock.json
-          echo SCHEMA_TEST_LOCK_END
           ./node_modules/.bin/playwright install --with-deps chromium webkit > /tmp/browser-install.log 2>&1 || { tail -80 /tmp/browser-install.log; exit 1; }
       - name: Validate published examples and unchanged MCP scope
         run: node integration/website/schema-check.mjs
