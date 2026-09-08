@@ -40,3 +40,20 @@ test('mainnet RPC genesis is full hash, distinct from CAIP-2 chain reference',()
 test('original SDK preflight refuses spend-covered wallet below retained rent floor, accepts exact boundary',async()=>{const p=await prepareSolanaSession(args()),chain=rpcFixture(p);let balance=4390000,reserve=890880;const calls=[];const rpc=async(m,a)=>{calls.push(m);if(m==='getMinimumBalanceForRentExemption')return a[0]===0?reserve:a[0]===165?2039280:2331600;if(m==='getBalance')return{value:balance};return chain.rpc(m,a)};await assert.rejects(verifySolanaSessionDeployment(rpc,p),/retained reserve/);balance=2331600+2039280+5000+reserve-1;await assert.rejects(verifySolanaSessionDeployment(rpc,p),/retained reserve/);balance++;const out=await verifySolanaSessionDeployment(rpc,p);assert.equal(out.operatorOpenLamports,'4375880');assert.equal(out.operatorRetainedReserveLamports,'890880');assert.equal(out.operatorMinimumBalanceLamports,'5266760');assert.equal(out.buyerNativeLamports,'0');assert(!calls.includes('sendTransaction'));reserve=null;await assert.rejects(verifySolanaSessionDeployment(rpc,p),/reserve unavailable/);});
 test('insufficient reserve fails controller before buyer signing authority or journal stage claim',async()=>{const p=await prepareSolanaSession(args()),chain=rpcFixture(p);let signs=0,transitions=0;const ledger={transition:async()=>transitions++,once:async()=>true};const controller=new OwnerSessionController(ledger,p);const rpc=async(m,a)=>m==='getBalance'?{value:4400000}:m==='getMinimumBalanceForRentExemption'?(a[0]===0?890880:a[0]===165?2039280:2331600):chain.rpc(m,a);await assert.rejects(controller.signOpen({address:p.policy.payer,signTransactions:async()=>{signs++;return[]}},rpc),/retained reserve/);assert.equal(signs,0);assert.equal(transitions,0);});
 test('operator spending cap remains binding even with ample reserve and balance',async()=>{const input=args();input.policy.maximumOperatorOpenLamports='4000000';const p=await prepareSolanaSession(input),chain=rpcFixture(p);await assert.rejects(verifySolanaSessionDeployment(async(m,a)=>m==='getBalance'?{value:99999999}:m==='getMinimumBalanceForRentExemption'?(a[0]===0?890880:a[0]===165?2039280:2331600):chain.rpc(m,a),p),/operator budget exceeded/);});
+
+
+test('fee preflight accepts a confirmed quote while finalized bank is behind, with all account reads finalized',async()=>{
+ const p=await prepareSolanaSession(args()),chain=rpcFixture(p),reads=[];
+ const rpc=async(method,params)=>{reads.push({method,params});if(method==='getFeeForMessage')return {context:{slot:params[1].commitment==='confirmed'?444444:444412},value:params[1].commitment==='confirmed'?10000:null};return chain.rpc(method,params)};
+ assert.equal((await verifySolanaSessionDeployment(rpc,p)).state,'ready');
+ const feeReads=reads.filter(x=>x.method==='getFeeForMessage');assert.equal(feeReads.length,1);assert.equal(feeReads[0].params[0],p.messageBase64);assert.equal(feeReads[0].params[1].commitment,'confirmed');
+ for(const {method,params}of reads)if(['getAccountInfo','getTokenAccountBalance','getBalance','getMinimumBalanceForRentExemption'].includes(method))assert.equal(params[1].commitment,'finalized',method);
+ assert(!reads.some(x=>x.method==='sendTransaction'));
+});
+test('unavailable confirmed fee still refuses before signer and durable signing claim',async()=>{
+ const p=await prepareSolanaSession(args()),chain=rpcFixture(p);let signs=0,transitions=0,claims=0;
+ const controller=new OwnerSessionController({transition:async()=>transitions++,once:async()=>{claims++;return true}},p);
+ const rpc=async(method,params)=>method==='getFeeForMessage'?{value:null}:chain.rpc(method,params);
+ await assert.rejects(controller.signOpen({address:p.policy.payer,signTransactions:async()=>{signs++;return[]}},rpc),/current blockhash\/fee required/);
+ assert.equal(signs,0);assert.equal(transitions,0);assert.equal(claims,0);
+});

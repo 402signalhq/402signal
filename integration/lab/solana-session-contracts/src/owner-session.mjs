@@ -176,7 +176,9 @@ export async function verifySolanaSessionDeployment(rpc,plan){
  check(raw.length===36&&raw.readUInt32LE(0)===2&&getBase58Decoder().decode(raw.subarray(4))===plan.policy.programDataAddress&&programData.length>=45&&programData.readUInt32LE(0)===3&&sha(programData)===plan.policy.programDataSha256,'deployment pin mismatch');
  const message=getCompiledTransactionMessageDecoder().decode(Buffer.from(plan.messageBase64,'base64')),payerAta=message.staticAccounts[message.instructions[0].accountIndices[6]];
  const balance=await rpc('getTokenAccountBalance',[payerAta,{commitment:'finalized'}]);check(balance?.value?.decimals===6&&BigInt(balance.value.amount)>=BigInt(plan.policy.depositAtomic),'payer USDC balance insufficient');
- const rent=await quoteSolanaSessionRent(rpc),fee=await rpc('getFeeForMessage',[plan.messageBase64,{commitment:'finalized'}]);check(Number.isSafeInteger(fee?.value)&&fee.value>=0,'current blockhash/fee required');
+ // The quote embeds a confirmed blockhash; a finalized bank may not know it yet.
+  // This fee estimate does not relax finalized account or settlement checks.
+  const rent=await quoteSolanaSessionRent(rpc),fee=await rpc('getFeeForMessage',[plan.messageBase64,{commitment:'confirmed'}]);check(Number.isSafeInteger(fee?.value)&&fee.value>=0,'current blockhash/fee required');
  const cost=BigInt(rent.operatorRentLamports)+BigInt(fee.value);check(cost<=BigInt(plan.policy.maximumOperatorOpenLamports),'operator budget exceeded');
  // The operator's remaining system-account balance must stay rent exempt.
  // This retained reserve is not a fee and does not expand the spending cap.
