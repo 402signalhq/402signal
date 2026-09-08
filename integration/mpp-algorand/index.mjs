@@ -541,3 +541,8 @@ export function executeVerifiedNativeAlgorandCharge(
     },
   });
 }
+
+/** Exact retained credential inspection for the independently gated lab merchant. */
+export async function inspectNativeAlgorandChargeCredential(plan, value) {
+  return inspectCredential(rebuild(plan), value);
+}
