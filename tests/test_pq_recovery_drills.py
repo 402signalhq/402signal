@@ -100,8 +100,6 @@ class RecoveryDrillsAFTests(unittest.TestCase):
         received = []
 
         def serve(sock):
-            sock.listen(1)
-            sock.settimeout(2)
             while not self._stop:
                 try:
                     conn, _addr = sock.accept()
@@ -138,6 +136,8 @@ class RecoveryDrillsAFTests(unittest.TestCase):
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("127.0.0.1", 0))
+        sock.listen(1)
+        sock.settimeout(2)
         port = sock.getsockname()[1]
         self._socks.append(sock)
         thread = threading.Thread(target=serve, args=(sock,), daemon=True)
@@ -322,6 +322,16 @@ class RecoveryDrillsAFTests(unittest.TestCase):
         self.assertEqual(sent, [])
         body = payment.payment_required("https://402signal.com/route")
         self.assertTrue(body.get("accepts"))
+
+
+    def test_signer_listener_is_ready_before_worker_thread_can_run(self):
+        start = threading.Thread.start
+        with patch.object(threading.Thread, "start", return_value=None):
+            self._serve([_SIGNED_A])
+        try:
+            self.assertEqual(self._socks[-1].getsockopt(socket.SOL_SOCKET, socket.SO_ACCEPTCONN), 1)
+        finally:
+            start(self._threads[-1])
 
 
 if __name__ == "__main__":
