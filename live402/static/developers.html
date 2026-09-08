@@ -136,8 +136,8 @@ await withVerifiedRoute({
       </section>
       <section class="block" id="batch-support">
         <p class="eyebrow">Release qualification</p><h2>Batch offers need their own evidence</h2>
-        <p class="scope-note"><strong>Supported profiles:</strong> Base batch settlement, Solana MPP push sessions and Algorand two-item atomic groups. Live paid qualification is still in progress. An ordinary exact-payment receipt does not authorize a batch or session.</p>
-        <div class="table-scroll"><table class="support-table"><caption>Bounded profiles; lab examples use controlled merchants</caption><thead><tr><th scope="col">Network</th><th scope="col">Profile being qualified</th><th scope="col">Scope</th></tr></thead><tbody>
+        <p class="scope-note"><strong>Supported profiles:</strong> Base batch settlement, Solana MPP push sessions and Algorand two-item atomic groups. The owner-operated Algorand two-item MainNet paid test is complete. Base batch and native Solana session live paid qualification is still in progress. An ordinary exact-payment receipt does not authorize a batch or session.</p>
+        <div class="table-scroll"><table class="support-table"><caption>Bounded profiles; lab examples use controlled merchants</caption><thead><tr><th scope="col">Network</th><th scope="col">Payment profile</th><th scope="col">Scope</th></tr></thead><tbody>
           <tr><th scope="row">Base</th><td>EVM batch settlement</td><td>Explicit channel terms and buyer caps. A voucher acceptance is distinct from an on-chain payout.</td></tr>
           <tr><th scope="row">Solana</th><td>Native MPP push sessions</td><td>Buyer-owned opening, signed vouchers and closing. This does not claim cross-channel batch settlement.</td></tr>
           <tr><th scope="row">Algorand</th><td>Two-item atomic grouping</td><td>One exact HTTPS GET endpoint, two USDC payments to the same recipient, explicit item and total caps and job hashes.</td></tr>
@@ -150,7 +150,7 @@ await withVerifiedRoute({
         <p>Use <code>"require_transparency": true</code> when evidence is required without the exact-request guard. Bound routes require their own signed evidence. Inspect <code>pq_trust.transparency</code> rather than treating an HTTP success as proof of log inclusion.</p>
         <p><strong>Keep the verification record:</strong> retain the full paid response, including <code>pq_trust.transparency.receipt</code> and <code>pq_trust.transparency.reveal</code>, plus your original request. Store it privately; do not put it in public logs.</p>
         <p>The immediate log receipt uses Ed25519. Cumulative checkpoints use native Falcon-1024 authorization on Algorand MainNet. The route call does not wait for chain confirmation. A pending anchor is not confirmed evidence.</p>
-        <p>The public log commits a fingerprint of the private record. Private replay outcomes can retain the reveal, but are not a recovery service. Retain your own copy and a trusted verification key.</p>
+        <p>The public log commits a fingerprint of the private record. Private replay outcomes can retain the reveal for bounded attempt recovery, but are not a long-term evidence backup. Retain your own copy and a trusted verification key.</p>
         <p>Checkpoint verification establishes evidence integrity. It does not authorize or secure the seller payment.</p>
         <p><a href="/transparency">Inspect the transparency log</a></p>
       </section>
@@ -178,7 +178,7 @@ await withVerifiedRoute({
         <a href="/mcp.json">MCP</a>
         <a href="/transparency">Transparency</a>
         <a href="/contact">Contact</a>
-        <a href="/.well-known/security.txt">Security</a>
+        <a href="/contact#security">Security reporting</a>
         <a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a>
         <a href="mailto:ross@402signal.com">ross@402signal.com</a>
       </p>

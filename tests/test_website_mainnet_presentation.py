@@ -155,20 +155,14 @@ class COPY_EXPLORER_ISOLATION(unittest.TestCase):
 
     def test_how_page_documents_http_200_completed_unpaid_miss(self):
         how = self._html("/how")
-        self.assertIn("A completed normal miss returns HTTP 200 with", how)
-        self.assertIn("live:false", how)
-        self.assertIn("payable:false", how)
-        self.assertIn("selected_payment:null", how)
-        self.assertIn("billing.settlement_state=not_attempted", how)
-        self.assertIn("it is not settled", how)
-        self.assertIn("HTTP 503 is for operational failures", how)
-        self.assertIn("incomplete evaluation", how)
-        self.assertIn("required transparency failure after settlement", how)
-        self.assertIn("unknown settlement", how)
-        self.assertIn("Inspect <code>billing.settlement_state</code>", how)
-        self.assertIn("never reuse an authorization marked", how)
-        self.assertNotIn("Normal typed misses are not settled. On HTTP 503", how)
-        self.assertNotIn("typed miss returns HTTP 503", how.lower())
+        self.assertIn('href="/developers#recovery"', how)
+        devs = self._html("/developers")
+        for phrase in ("A completed normal miss returns HTTP 200 with", "live:false", "payable:false",
+                       "selected_payment:null", "billing.settlement_state=not_attempted", "HTTP 503",
+                       "incomplete evaluation", "evidence failure after settlement", "unknown settlement",
+                       "Inspect <code>billing.settlement_state</code>", "Do not reuse an unknown authorization"):
+            self.assertIn(phrase, devs)
+        self.assertNotIn("typed miss returns HTTP 503", devs.lower())
         _assert_no_banned_copy(self, how, "/how")
 
     def test_static_homepage_retired_live_testnet_copy(self):
@@ -180,14 +174,7 @@ class COPY_EXPLORER_ISOLATION(unittest.TestCase):
         self.assertNotIn("Currently Algorand TestNet", home)
         self.assertIn("Algorand MainNet", home)
         self.assertIn("Awaiting anchor", home)
-        self.assertIn("What happens during a route check", how)
-        self.assertIn("A completed normal miss returns HTTP 200 with", how)
-        self.assertIn("live:false", how)
-        self.assertIn("payable:false", how)
-        self.assertIn("selected_payment:null", how)
-        self.assertIn("billing.settlement_state=not_attempted", how)
-        self.assertIn("HTTP 503 is for operational failures", how)
-        self.assertIn("Inspect <code>billing.settlement_state</code>", how)
+        self.assertIn("Check the terms. Then choose to pay.", how)
         self.assertNotIn("Normal typed misses are not settled. On HTTP 503", how)
         self.assertNotIn("typed miss returns HTTP 503", how.lower())
         self.assertNotIn("Algorand MainNet log · awaiting first confirmed checkpoint", home)

@@ -241,81 +241,25 @@ class HomepageProductTests(unittest.TestCase):
 
     def test_homepage_is_concise_product_landing(self):
         html = self.home
-        parsed = _parse(html)
-        self.assertEqual(parsed.h1, ["Check the deal before your agent pays."])
-        self.assertNotIn("<h1>402Signal</h1>", html)
-        self.assertEqual(html.count("<h1"), 1)
-        self.assertIn("402Signal · Check before your agent pays", html)
-        self.assertIn("x402 lets software pay for APIs.", html)
-        self.assertIn("Your app keeps the wallet.", html)
-        self.assertIn("Base · Solana · Algorand", html)
-        self.assertIn("View the quick start", html)
-        self.assertIn("Search the free catalog", html)
-        self.assertIn('href="/catalog"', html)
-        self.assertIn('href="/developers"', html)
-        self.assertIn("Your agent finds a weather API for 2 cents.", html)
-        self.assertIn("One check before choosing. Another before signing.", html)
-        self.assertIn("Pay for a qualifying route.", html)
-        self.assertIn("It does not guarantee delivery", html)
-        self.assertIn("Authorize $0.003 USDC.", html)
-        self.assertIn("Normal misses have no routing charge", html)
-        self.assertIn("Seller payment is separate.", html)
-        self.assertIn("Connect through HTTP or MCP.", html)
-        self.assertNotIn('<pre class="code">', html)
-
-        css = Path("live402/static/styles.css").read_text(encoding="utf-8")
-        self.assertIn("overflow-wrap: break-word", css)
-        self.assertRegex(css, r"\.flow-box\s*\{[^}]*height:\s*auto")
-        self.assertIn(".signal-row.flow-four", css)
-        # Mobile stack must beat desktop .signal-row.flow-four (2-class) rule.
-        self.assertRegex(
-            css,
-            r"@media \(max-width: 720px\)[\s\S]*?\.signal-row\.flow-four\s*\{[^}]*grid-template-columns:\s*1fr",
-        )
-        self.assertIn("Algorand MainNet", html)
-        self.assertIn("Awaiting anchor", html)
-        self.assertIn('class="pq-badge"', html)
+        self.assertEqual(_parse(html).h1, ["Check paid APIs before your agent spends."])
+        for phrase in ("Illustrative x402 weather request", "Within your rules", "$0.030",
+                       "earlier qualifying check still costs $0.003", "See a check in action",
+                       "Developer quickstart", "Your app keeps the wallet.", "Seller payment is separate.",
+                       "Base batch and native Solana session paid qualification remain in progress",
+                       "Checkpoints are anchored on Algorand MainNet.", "Awaiting anchor", "PQ Trust"):
+            self.assertIn(phrase, html)
+        self.assertIn('aria-labelledby="offer-caption"', html)
         self.assertIn('class="pq-chip"', html)
-        self.assertNotIn("Signed checkpoints are periodically anchored to Algorand MainNet.", html)
-        self.assertNotIn("periodically anchored to Algorand TestNet", html)
-        self.assertNotIn("Currently Algorand TestNet", html)
-        self.assertNotIn("Latest confirmed Tree", html)
-        self.assertNotIn("Algorand MainNet log · awaiting first confirmed checkpoint", html)
-        self.assertIn("A record of what was checked.", html)
-        self.assertIn("Check later whether that record has changed.", html)
-        self.assertIn("Store your verification record securely.", html)
-        self.assertIn('class="pq-trust"', html)
-        self.assertNotIn("pq-testnet", html)
-        self.assertIn('href="/transparency">transparency page</a>', html)
-        self.assertIn("Algorand MainNet", html)
-        self.assertNotIn('class="signal-flow"', html)
-        self.assertNotIn('class="trust-rail"', html)
-        self.assertNotIn("e6b81414", html)
-        self.assertNotIn("C2SP", html)
-        self.assertNotIn('id="decision"', html)
-        self.assertNotIn("A decision, with evidence", html)
-        self.assertNotIn(">ROUTE<", html)
-        self.assertNotIn(">MISS<", html)
-        self.assertNotIn(">HISTORY<", html)
-        self.assertIn('id="why"', html)
-        self.assertNotIn("comparison-grid", html)
-        self.assertIn("route-steps", html)
         self.assertIn('property="og:image" content="https://402signal.com/og.png"', html)
-        self.assertIn('rel="icon" href="/favicon.svg"', html)
-        self.assertIn('class="hero hero-with-visual"', html)
-        self.assertIn('src="/hero-routing.png"', html)
-        self.assertIn('alt="A highlighted route selected from a network of possible API paths."', html)
-        self.assertIn("PQ Trust", html)
-        self.assertIn("Checkpoints are anchored on Algorand MainNet.", html)
-        self.assertNotIn('class="hero-trust-note"', html)
-        self.assertNotIn("Falcon", _parse(html).h1[0])
+        self.assertNotIn('src="/hero-routing.png"', html)
+        self.assertNotIn('<pre class="code">', html)
 
     def test_refresh_preserves_buyer_control_and_qualification_boundaries(self):
         for snippet in (
-            'per qualifying API observation',
-            'Normal misses have no routing charge',
+            'per successful API check',
+            'Completed checks with no match are free',
             'Your app keeps the wallet.',
-            'A later guard rejection does not reverse a settled routing fee',
+            'The check remains paid if you later decline or the buyer guard rejects changed terms',
         ):
             self.assertIn(snippet, self.home)
         for snippet in (
@@ -325,7 +269,7 @@ class HomepageProductTests(unittest.TestCase):
             'they are not customer wallet keys',
             'parallel-search-json-v1',
             'It is not a general POST proxy',
-            'Live paid qualification is still in progress.',
+            'live paid qualification is still in progress.',
             'Native MPP push sessions',
             'does not claim cross-channel batch settlement',
             'two USDC payments to the same recipient',
@@ -335,19 +279,13 @@ class HomepageProductTests(unittest.TestCase):
         self.assertIn('rel="canonical" href="https://402signal.com/"', self.home)
         self.assertIn('property="og:url" content="https://402signal.com/"', self.home)
         for path, text in self.pages.items():
-            self.assertIn('href="/.well-known/security.txt"', text, path)
+            self.assertIn('href="/contact#security"', text, path)
             self.assertIn('href="https://github.com/402signalhq/402signal/blob/main/LICENSE"', text, path)
 
     def test_plain_language_home_preserves_v4_boundaries(self):
-        for phrase in (
-            "$0.023 combined, before any network fees",
-            "Integrate the optional buyer guard",
-            "compare a fresh seller offer",
-            "Your wallet still validates and signs the actual transaction",
-            "Pending records are not yet confirmed on-chain",
-            "It does not guarantee delivery or the quality of the weather data",
-            "Store your verification record securely",
-        ):
+        for phrase in ("$0.023 combined, before any network fees", "compare it again before your wallet signs",
+                       "Pending records are not yet confirmed on-chain", "does not guarantee the paid output",
+                       "Store your verification record securely", "it is not a per-call price"):
             self.assertIn(phrase, self.home)
         self.assertNotIn("payment/data never passes through", self.home)
 
@@ -364,9 +302,9 @@ class HomepageProductTests(unittest.TestCase):
 
     def test_exactly_one_h1_per_human_page(self):
         expected = {
-            "/": "Check the deal before your agent pays.",
+            "/": "Check paid APIs before your agent spends.",
             "/catalog": "Explore paid APIs",
-            "/how": "What happens during a route check",
+            "/how": "Check the terms. Then choose to pay.",
             "/developers": "Check an offer before your buyer signs.",
             "/contact": "Contact 402Signal",
             "/transparency": "Routing history you can verify",
@@ -586,53 +524,17 @@ class HomepageProductTests(unittest.TestCase):
         self.assertNotIn("Pay $0.01 on Base", html)
 
     def test_how_page_renders(self):
-        html = self.how
-        self.assertIn("What happens during a route check", html)
-        self.assertIn("Start with a capability or a specific URL.", html)
-        self.assertIn(">1. Verify authorization<", html)
-        self.assertIn(">2. Find candidates<", html)
-        self.assertIn(">3. Check endpoints<", html)
-        self.assertIn(">4. Apply your rules<", html)
-        self.assertIn(">5. Settle only a winner<", html)
-        self.assertIn(">6. Caller executes<", html)
-        self.assertIn("402Signal searches supported x402 sources", html)
-        self.assertIn("It is not a guarantee about the seller's paid output.", html)
-        self.assertIn("$0.003 only when a valid live route is found.", html)
-        self.assertIn("A completed normal miss returns HTTP 200 with", html)
-        self.assertIn("live:false", html)
-        self.assertIn("payable:false", html)
-        self.assertIn("selected_payment:null", html)
-        self.assertIn("billing.settlement_state=not_attempted", html)
-        self.assertIn("it is not settled", html)
-        self.assertIn("HTTP 503 is for operational failures", html)
-        self.assertIn("incomplete evaluation", html)
-        self.assertIn("required transparency failure after settlement", html)
-        self.assertIn("unknown settlement", html)
-        self.assertIn("Inspect <code>billing.settlement_state</code>", html)
-        self.assertIn("never reuse an authorization marked", html)
-        self.assertIn("<code>unknown</code>", html)
-        self.assertIn("Seller payment is separate.", html)
-        self.assertIn("A valid live eligible route settles the routing authorization.", html)
-        self.assertIn("A normal typed miss is not settled", html)
-        self.assertNotIn("Normal typed misses are not settled. On HTTP 503", html)
-        self.assertNotIn("typed misses are HTTP 503", html.lower())
-        self.assertNotIn("typed miss returns HTTP 503", html.lower())
-        self.assertNotIn("Find candidates across supported x402 discovery sources.", html)
-        self.assertNotIn("Call candidate endpoints and read the payment requirements they return now.", html)
-        self.assertNotIn("Apply your network, price, latency, and invocation constraints.", html)
-        self.assertNotIn("Get the best qualifying route, or a typed reason nothing matched.", html)
-        self.assertNotIn("402Signal returns a typed miss instead of guessing.", html)
-        self.assertNotIn("See the flow on the", html)
-        self.assertNotIn('class="signal-flow"', html)
-        self.assertNotIn("Trust path", html)
-        self.assertIn('href="/transparency"', html)
-        self.assertNotIn("Where it fits", html)
-        self.assertNotIn("HEALTHY", html)
-        self.assertNotIn("honest", html.lower())
-        self.assertNotIn("periodically anchored to Algorand MainNet", html)
-        self.assertNotIn("periodically anchored to Algorand TestNet", html)
-        self.assertNotIn("Currently Algorand TestNet", html)
-        self.assertNotIn("may later be anchored", html)
+        for phrase in ("Check the terms. Then choose to pay.", "The check and the purchase are separate",
+                       "Direct payment", "Signs the seller payment", "402Signal does not hold the seller payment",
+                       "The earlier check remains paid if you stop", "completed initial check with no match is free",
+                       "The cap is not a per-call price", "does not guarantee the seller"):
+            self.assertIn(phrase, self.how)
+        self.assertIn('aria-labelledby="payment-map-caption"', self.how)
+        self.assertIn('href="/developers#recovery"', self.how)
+        # Operational billing and recovery states belong in the linked developer guide.
+        self.assertIn("billing.settlement_state=not_attempted", self.devs)
+        self.assertIn("HTTP 503", self.devs)
+        self.assertIn("Do not reuse an unknown authorization", self.devs)
 
     def test_developers_page_renders(self):
         html = self.devs
@@ -808,11 +710,14 @@ class HomepageProductTests(unittest.TestCase):
         )
         self.assertIn("<title>Contact 402Signal</title>", html)
         self.assertEqual(_parse(html).h1, ["Contact 402Signal"])
-        self.assertIn("Questions, integration help, feedback, and bug reports are welcome.", html)
+        self.assertIn("Building an integration, reporting a bug, or sharing an idea?", html)
         self.assertIn("mailto:ross@402signal.com", html)
         self.assertIn("https://x.com/402Signal", html)
         self.assertIn("https://github.com/402signalhq/402signal", html)
-        self.assertIn("Send security-sensitive reports by email, not as public posts.", html)
+        self.assertIn("Please keep sensitive details out of public issues.", html)
+        self.assertIn("Machine-readable security contact (security.txt)", html)
+        self.assertIn("mailto:ross@402signal.com?subject=402Signal%20security%20report", html)
+        self.assertNotIn("security contact details</a>", html)
         self.assertNotIn("<form", html)
         self.assertNotIn("402signal@gmail.com", html)
         parsed = _parse(html)
@@ -970,20 +875,10 @@ class HomepageProductTests(unittest.TestCase):
             self.assertNotIn("\N{EM DASH}", html, path)
 
     def test_how_it_works_cards_are_homepage_only(self):
-        html = self.pages["/"]
-        self.assertIn('id="how-it-works"', html)
-        self.assertIn("Find an API", html)
-        self.assertIn("Check it against your rules", html)
-        self.assertIn("Verify the offer before signing", html)
-        self.assertNotIn("YOUR AGENT", html)
-        self.assertNotIn("What catalogs claim", html)
-        self.assertNotIn("Check it now", html)
-        self.assertNotIn("Decide whether to spend", html)
-        self.assertNotIn('class="signal-flow"', html)
-        for path in ("/how", "/transparency"):
-            other = self.pages[path]
-            self.assertNotIn('class="signal-flow"', other, path)
-            self.assertNotIn("<figure class=\"signal-flow\"", other, path)
+        self.assertIn('class="offer-preview"', self.home)
+        self.assertIn('class="payment-map"', self.how)
+        self.assertNotIn('class="payment-map"', self.home)
+        self.assertNotIn('class="offer-preview"', self.how)
 
     def test_transparency_privacy_copy_and_no_customer_ui(self):
         html = self.transparency
@@ -1005,17 +900,17 @@ class HomepageProductTests(unittest.TestCase):
         from live402 import discover, mcp, payment, schema_fields
 
         self.assertIn("Store your verification record securely", self.home)
-        self.assertIn('href="/transparency">transparency page</a>', self.home)
+        self.assertIn('href="/transparency">check its integrity later</a>', self.home)
         self.assertNotIn("does not retain the private evidence", self.home)
         self.assertIn("Private replay records can retain", self.insight)
-        self.assertIn("securely retain the complete paid", self.how)
+        self.assertIn("Keep the full verification record privately", self.how)
         self.assertIn("Keep the verification record", self.devs)
         self.assertIn("pq_trust.transparency.receipt", self.devs)
         self.assertIn("pq_trust.transparency.reveal", self.devs)
         self.assertIn("Private replay outcomes can retain", self.devs)
         self.assertIn("do not put it in public logs", self.devs)
         self.assertIn("Keep your verification record", self.transparency)
-        self.assertIn("not a recovery service", self.transparency)
+        self.assertIn("not long-term evidence storage", self.transparency)
         self.assertIn("changed evidence will fail verification", self.transparency)
 
         spec = discover.openapi_spec()
@@ -1023,7 +918,7 @@ class HomepageProductTests(unittest.TestCase):
         request_schema = request_props["application/json"]["schema"]
         request_desc = request_schema["properties"]["require_transparency"]["description"]
         self.assertIn("not server-side recovery", request_desc)
-        self.assertIn("Private replay outcomes can retain", request_desc)
+        self.assertIn("Private replay outcomes support bounded recovery", request_desc)
         response_schema = spec["paths"]["/route"]["post"]["responses"]["200"]
         response_props = response_schema["content"]["application/json"]["schema"]["properties"]
         transparency = response_props["pq_trust"]["properties"]["transparency"]
@@ -1034,12 +929,12 @@ class HomepageProductTests(unittest.TestCase):
         mcp_input_desc = route_tool["inputSchema"]["properties"]["require_transparency"]["description"]
         self.assertEqual(mcp_input_desc, schema_fields.REQUIRE_TRANSPARENCY_DESC)
         mcp_transparency = route_tool["outputSchema"]["properties"]["pq_trust"]["properties"]["transparency"]
-        self.assertIn("Private replay outcomes can retain", mcp_transparency["description"])
+        self.assertIn("Private replay outcomes support bounded recovery", mcp_transparency["description"])
         self.assertIn("reveal", mcp_transparency["properties"])
 
         bazaar_desc = payment.BAZAAR_MCP["info"]["input"]["inputSchema"]["properties"]
-        self.assertIn("Private replay outcomes can retain", bazaar_desc["require_transparency"]["description"])
-        self.assertIn("Private replay outcomes can retain", discover.GUIDANCE)
+        self.assertIn("Private replay outcomes support bounded recovery", bazaar_desc["require_transparency"]["description"])
+        self.assertIn("Private replay outcomes support bounded recovery", discover.GUIDANCE)
         self.assertIn("do not put it in public logs", discover.LLMS_TXT)
 
         readme = Path(__file__).resolve().parent.parent.joinpath("README.md").read_text(
