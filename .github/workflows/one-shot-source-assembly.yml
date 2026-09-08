@@ -1,0 +1,115 @@
+name: one-shot source assembly
+# Temporary development-only helper. It creates unattached Git blobs only.
+# It never checks out or executes repository code and never writes a ref.
+# Remove this file when adopting the reviewed output blobs.
+on:
+  push:
+    branches: [feat/customer-experience-mobile]
+permissions: {}
+jobs:
+  assemble:
+    if: github.repository == '402signalhq/402signal' && github.actor == 'ross402signal' && github.event.before == '9d7f9c25581e6e8466a4159208609a5326daef51'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - name: Assemble five explicitly pinned source edits as unattached blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import ast, base64, hashlib, json, os, urllib.request
+          REPO = '402signalhq/402signal'
+          BASE = 'https://api.github.com/repos/' + REPO
+          assert os.environ['GITHUB_REPOSITORY'] == REPO
+          assert os.environ['GITHUB_REF'] == 'refs/heads/feat/customer-experience-mobile'
+          assert os.environ['GITHUB_ACTOR'] == 'ross402signal'
+          assert os.environ['GITHUB_EVENT_NAME'] == 'push'
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  raise RuntimeError('Redirect refused')
+          opener = urllib.request.build_opener(NoRedirect())
+          def api(path, payload=None):
+              # The only write permitted by this helper is an unattached blob.
+              assert path.startswith('/git/blobs/') or path.startswith('/git/commits/') or path == '/git/blobs'
+              assert payload is None or path == '/git/blobs'
+              data = None if payload is None else json.dumps(payload).encode()
+              request = urllib.request.Request(BASE + path, data=data, headers={
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json', 'User-Agent': '402signal-source-assembly'})
+              with opener.open(request, timeout=20) as response:
+                  return json.loads(response.read(1048576))
+          commit = api('/git/commits/' + os.environ['GITHUB_SHA'])
+          assert [p['sha'] for p in commit['parents']] == ['9d7f9c25581e6e8466a4159208609a5326daef51']
+          pins = {
+              'tests/test_route.py': '5ff63f8afffbedcf78022d5dbb782144d760c202',
+              'tests/test_pq_testnet_d.py': 'dd4ddcd96b3d6deab0b7065bceec87a8780f4d4f',
+              'tests/test_transparency.py': '5d4efbf7ab706244653b724d16695854e34d5d5b',
+              'live402/schema_fields.py': 'c0d556fb5c613ab8a1c676fba9a83644b1dbefa6',
+              'live402/mcp.py': '8bf02992b6fcc133e640b021826f2ed9d2f11bd5',
+          }
+          sources = {}
+          for path, sha in pins.items():
+              blob = api('/git/blobs/' + sha)
+              assert blob['encoding'] == 'base64'
+              raw = base64.b64decode(blob['content'])
+              assert hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == sha
+              sources[path] = raw.decode('utf-8')
+          def replace(path, old, new, count=1):
+              assert sources[path].count(old) == count, (path, old, sources[path].count(old))
+              sources[path] = sources[path].replace(old, new)
+          old = 'Check paid APIs before your agent spends.'
+          new = 'Check the offer before your agent pays.'
+          for path, count in [('tests/test_route.py', 1), ('tests/test_pq_testnet_d.py', 2), ('tests/test_transparency.py', 1)]:
+              replace(path, old, new, count)
+          replace('tests/test_route.py', '$0.003 USDC per successful API check.', '$0.003 USDC when a supported offer qualifies under your rules.')
+          replace('tests/test_route.py', 'For agents buying API access', 'Pre-spend checks for paid APIs', 2)
+          replace('tests/test_route.py', 'q.get("need")', 'query.get("need")')
+          replace('tests/test_route.py', 'chips.addEventListener("click"', '$("need-chips").addEventListener("click"')
+          for old, new in [('#2a2a32', '#25252d'), ('#c8ad88', '#c8b698'), ('#14141a', '#17171d')]:
+              replace('tests/test_route.py', old, new)
+          old_function = '''def route_body_schema() -> dict:
+              props = need_or_url_schema()
+              props.update(route_constraint_properties())
+              return {
+                  "type": "object",
+                  "properties": props,
+                  "anyOf": list(NEED_OR_URL_ANYOF),
+                  "additionalProperties": False,
+              }
+          '''
+          new_function = '''def route_body_schema(*, surface: str = "http") -> dict:
+              """Advertise HTTP profiles separately from the existing MCP contract."""
+              props = need_or_url_schema()
+              props.update(route_constraint_properties())
+              result = {
+                  "type": "object",
+                  "properties": props,
+                  "anyOf": list(NEED_OR_URL_ANYOF),
+                  "additionalProperties": False,
+              }
+              if surface == "mcp":
+                  return result
+              if surface != "http":
+                  raise ValueError("unknown schema surface")
+              from live402.schema_http import extend_http_route_schema
+              return extend_http_route_schema(result)
+          '''
+          replace('live402/schema_fields.py', old_function, new_function)
+          replace('live402/mcp.py', 'INPUT_SCHEMA = schema_fields.route_body_schema()', 'INPUT_SCHEMA = schema_fields.route_body_schema(surface="mcp")')
+          # Syntax-check all proposed files before creating any objects.
+          for path, source in sources.items():
+              ast.parse(source, filename=path)
+          outputs = []
+          for path, source in sources.items():
+              raw = source.encode('utf-8')
+              expected = hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+              blob = api('/git/blobs', {'content': source, 'encoding': 'utf-8'})
+              assert blob['sha'] == expected
+              outputs.append({'path': path, 'mode': '100644', 'type': 'blob', 'sha': expected})
+          print('ASSEMBLED_BLOBS=' + json.dumps(outputs, separators=(',', ':')))
+          print('No branch, main, production setting, payment or repository protection was changed.')
+          PY
