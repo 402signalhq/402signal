@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "description": "Isolated browser and schema tests; synthetic listings and no wallet or payment calls.",
-  "devDependencies": {"playwright": "1.63.0", "ajv": "8.17.1"},
-  "scripts": {"test": "node schema-check.mjs && node browser.mjs"}
+  "devDependencies": {"playwright": "1.63.0", "ajv": "8.20.0"},
+  "scripts": {"test": "node schema-check.mjs && node browser.mjs && node extended.mjs"}
 }

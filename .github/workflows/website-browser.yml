@@ -23,7 +23,7 @@ jobs:
           python-version: '3.12.14'
       - name: Export actual pages and schemas using isolated fixtures
         run: |
-          pip install --require-hashes -r requirements.txt
+          pip install --require-hashes -r requirements.txt > /tmp/website-python.log 2>&1 || { tail -60 /tmp/website-python.log; exit 1; }
           python integration/website/export_fixture.py
       - name: Select runner-provided Node 24
         run: |
@@ -43,7 +43,9 @@ jobs:
       - name: Validate published examples and unchanged MCP scope
         run: node integration/website/schema-check.mjs
       - name: Test customer flows and mobile layouts with synthetic data
-        run: node integration/website/browser.mjs
+        run: |
+          node integration/website/browser.mjs
+          node integration/website/extended.mjs
       - name: Record exact qualification revision
         if: always()
         run: |
