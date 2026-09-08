@@ -8,6 +8,8 @@ Current published client and guard: [route-guard v0.5.0](https://github.com/402s
 
 - [Exact x402 request binding and the v4 guard contract](proof-carrying-route-v1.md)
 - [v5 batch and session observation contracts](batch-observation-v1.md)
+- [Explicit continuation budgets and recovery for Base and Solana](../integration/session-client/README.md)
+- [Larger Algorand groups and aggregate invoices](algorand-manifests-v2.md)
 - [HTTP recovery-only request contract](route-recovery.md)
 - [Private recovery scope, retention and permanent economic identity](replay-recovery.md)
 - [Completed unpaid misses versus operational failures](route-miss-http-status.md)
@@ -28,6 +30,7 @@ Current published client and guard: [route-guard v0.5.0](https://github.com/402s
 - [Managed PostgreSQL authority, runtime privileges and instance fence](runbooks/managed-postgres-functions.md)
 - [Liveness and readiness](fly-ready-check.md)
 - [Complete SQLite recovery component and restore procedure](backup.md)
+- [Incremental transparency publication and explicit repair](transparency-storage.md)
 - [Dependency locks, runtime identity and volume migration](docker.md)
 - [Facilitator API authentication](payai-auth.md)
 - [Durable automatic MainNet anchoring, kill switch and recovery](pq-automatic-anchoring.md)
@@ -60,7 +63,8 @@ These documents preserve decisions and safety requirements from specific release
 - [x402 mppx gateway adapter](../integration/mpp-client/README.md)
 - [MCP adapter](../integration/mcp/README.md), [Glama release procedure](glama-release.md), and [tool-description contributor guidance](mcp-tool-descriptions.md)
 - [Controlled lab](../integration/lab/README.md), [batch qualification](../integration/lab/BATCH_QUALIFICATION.md), and [independently gated HTTP profiles](../integration/lab/BATCH_HTTP.md)
-- [Buyer-owned Algorand two-item adapter](../integration/batch-buyer/algorand/README.md)
+- [Buyer-owned Algorand payment adapters](../integration/batch-buyer/algorand/README.md)
+- [Installable Base and Solana continuation clients](../integration/session-client/README.md)
 - [Owner-operated session and batch campaigns](../integration/lab/owner-runtime/README.md)
 
 ## Scope and privacy

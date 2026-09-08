@@ -421,4 +421,4 @@ async function setup(originalChallenge) {
     },
   };
 }
-export { setup, payer, operator, args };
+export { setup, payer, operator, args, rpcFixture };

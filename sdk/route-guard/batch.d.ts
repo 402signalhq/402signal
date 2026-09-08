@@ -18,7 +18,9 @@ export interface BatchObservation {
     | "base-x402-batch-v1"
     | "solana-mpp-session-v1"
     | "algorand-atomic-batch-v1"
-    | "algorand-atomic-two-item-v1";
+    | "algorand-atomic-two-item-v1"
+    | "algorand-atomic-multi-item-v1"
+    | "algorand-aggregate-invoice-v1";
   request: { url: string; method: "GET"; body_sha256: string };
   buyer_limits: Record<string, string | number | string[]>;
   challenge: BatchChallenge;

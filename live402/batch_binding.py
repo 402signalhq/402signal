@@ -7,7 +7,7 @@ import re
 import time
 from urllib.parse import urlsplit
 from live402 import route_binding as rb
-from live402.batch_profiles import base, solana, algorand, algorand_generic
+from live402.batch_profiles import base, solana, algorand, algorand_generic, algorand_manifest
 
 MODEL = "proof_carrying_batch_observation_v1"
 PROFILES = {
@@ -15,6 +15,8 @@ PROFILES = {
     "solana-mpp-session-v1": solana.validate,
     "algorand-atomic-batch-v1": algorand.validate,
     "algorand-atomic-two-item-v1": algorand_generic.validate,
+    algorand_manifest.ATOMIC: algorand_manifest.validate_atomic,
+    algorand_manifest.INVOICE: algorand_manifest.validate_invoice,
 }
 RAW_LIMIT = 24576
 
@@ -51,6 +53,11 @@ def parse_request(body, *, enabled=False):
     ctx = rb.request_context(body["url"], "GET")
     profile = body["merchant_profile"]
     limits = body["buyer_limits"]
+    if profile in algorand_manifest.PROFILES:
+        algorand_manifest.validate_limits(profile, limits)
+        if enabled:
+            check(profile in os.environ.get("BATCH_OBSERVATION_PROFILES", "").split(","))
+        return ctx
     module = {
         "base-x402-batch-v1": base,
         "solana-mpp-session-v1": solana,
@@ -188,6 +195,10 @@ def build(body, observation):
     check(type(observed) is int and observed > 0)
     env, native_expiry = wire(observation["challenge"], ctx, body["merchant_profile"])
     terms = PROFILES[body["merchant_profile"]](env, ctx, body["buyer_limits"])
+    if body["merchant_profile"] in algorand_manifest.PROFILES:
+        quote = terms["feeQuote"]
+        check(quote["observedAt"] <= observed < quote["expiresAt"])
+        native_expiry = quote["expiresAt"]
     expires = min(observed + 60, native_expiry or observed + 60)
     check(expires > observed)
     result = {

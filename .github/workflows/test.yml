@@ -62,7 +62,9 @@ jobs:
           npm --prefix integration/reference-buyer audit --package-lock-only --ignore-scripts --audit-level=high
           npm --prefix integration/mpp-client audit --package-lock-only --ignore-scripts --audit-level=high
       - name: Install locked buyer and seller fixture dependencies
-        run: npm --prefix integration/lab ci --ignore-scripts --no-audit --no-fund
+        run: |
+          npm --prefix integration/lab ci --ignore-scripts --no-audit --no-fund
+          npm --prefix integration/lab/solana-session-contracts ci --ignore-scripts --no-audit --no-fund
       - name: Qualify installable route client and packaged example (offline consumer)
         run: node scripts/check_route_guard_package.mjs
       - name: Build and test buyer and seller (synthetic payments)
@@ -78,11 +80,19 @@ jobs:
           npm run build
           node --test --test-concurrency=1 dist/test/*.test.js
       - name: Test isolated Solana session SDK contracts (no RPC or funds)
-        run: |
-          npm --prefix integration/lab/solana-session-contracts ci --ignore-scripts --no-audit --no-fund
-          npm --prefix integration/lab/solana-session-contracts test
+        run: npm --prefix integration/lab/solana-session-contracts test
       - name: Qualify explicit owner campaigns and bounded recovery (synthetic only)
         run: node --test integration/lab/owner-runtime/campaign-cli.test.mjs integration/lab/owner-runtime/owner-factory.test.mjs integration/batch-buyer/algorand/owner-hooks.test.mjs
+      - name: Qualify installable continuation clients (synthetic payments)
+        run: |
+          npm --prefix integration/session-client ci --ignore-scripts --no-audit --no-fund
+          npm --prefix integration/session-client run build
+          npm --prefix integration/session-client test
+          npm --prefix integration/session-client run test:package
+          npm --prefix integration/session-client run test:types
+          npm --prefix integration/session-client audit --package-lock-only --ignore-scripts --audit-level=high
+      - name: Qualify larger Algorand manifests and packaged consumer
+        run: node scripts/check_algorand_manifest_package.mjs
       - name: Audit locked lab and Solana dependencies (no updates)
         run: |
           npm --prefix integration/lab audit --package-lock-only --ignore-scripts --audit-level=high

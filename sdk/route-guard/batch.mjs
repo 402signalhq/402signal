@@ -210,11 +210,14 @@ import { validateBaseBatchProfile } from "./batch-profiles/base.mjs";
 import { validateSolanaSessionProfile } from "./batch-profiles/solana.mjs";
 import { validateAlgorandBatchProfile } from "./batch-profiles/algorand.mjs";
 import { validateAlgorandGenericProfile } from "./batch-profiles/algorand-generic.mjs";
+import { validateAlgorandAtomicMultiProfile, validateAlgorandInvoiceProfile, ATOMIC as ALGO_MULTI, INVOICE as ALGO_INVOICE } from "./batch-profiles/algorand-manifest.mjs";
 const PROFILES = {
   "base-x402-batch-v1": validateBaseBatchProfile,
   "solana-mpp-session-v1": validateSolanaSessionProfile,
   "algorand-atomic-batch-v1": validateAlgorandBatchProfile,
   "algorand-atomic-two-item-v1": validateAlgorandGenericProfile,
+  [ALGO_MULTI]: validateAlgorandAtomicMultiProfile,
+  [ALGO_INVOICE]: validateAlgorandInvoiceProfile,
 };
 const check = (x) => {
   if (!x) fail("invalid_batch_binding");
@@ -342,7 +345,7 @@ function validate(binding, body, now) {
   ]);
   const ctx = request(body);
   check(Number.isSafeInteger(binding.observed_at) && binding.observed_at > 0);
-  const [envelope, expiry] = wire(
+  let [envelope, expiry] = wire(
     binding.challenge,
     ctx,
     body.merchant_profile,
@@ -352,6 +355,10 @@ function validate(binding, body, now) {
     ctx,
     JSON.parse(canonical(body.buyer_limits)),
   );
+  if ([ALGO_MULTI, ALGO_INVOICE].includes(body.merchant_profile)) {
+    check(terms.feeQuote.observedAt <= binding.observed_at && binding.observed_at < terms.feeQuote.expiresAt);
+    expiry = terms.feeQuote.expiresAt;
+  }
   const rebuilt = {
     model: MODEL,
     profile: body.merchant_profile,
