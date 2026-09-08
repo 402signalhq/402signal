@@ -1,0 +1,13 @@
+{
+  "name": "402signal-website-qualification",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Isolated browser tests with synthetic listings and no wallet or payment calls.",
+  "devDependencies": {
+    "playwright": "1.63.0"
+  },
+  "scripts": {
+    "test": "node browser.mjs"
+  }
+}
