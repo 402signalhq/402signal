@@ -243,7 +243,10 @@ def append_event(event: dict) -> dict:
     idx = int(rec["idx"])
     if store.leaf_at(idx) is None:
         raise ReceiptError("leaf not durable")
-    store.publish_up_to(int(rec["size"]))
+    # Append already publishes new tails. Duplicate/crash recovery may still
+    # need reconstruction, but a ready log does not need a second full scan.
+    if not store.ready_to_checkpoint(int(rec["size"])):
+        store.publish_up_to(int(rec["size"]))
     return rec
 
 

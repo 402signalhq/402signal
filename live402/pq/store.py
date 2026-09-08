@@ -595,7 +595,7 @@ def append(body: bytes) -> dict:
         _chmod_db_files(_conn_path or db_path())
         for hook in list(_after_durable_hooks):
             hook(idx, raw)
-        publish_up_to(new_size)
+        _publish_append_unlocked(conn, idx, new_size)
         return {
             "idx": idx,
             "leaf_hash": digest,
@@ -604,24 +604,78 @@ def append(body: bytes) -> dict:
         }
 
 
+def _publish_append_unlocked(conn: sqlite3.Connection, previous: int, target: int) -> None:
+    """Publish only changed tails after the leaf transaction is durable.
+
+    A missing prior object selects the full repair path. Existing objects are
+    not re-audited for corruption here; publish_up_to remains the explicit
+    full reconstruction path. The checkpoint gate still checks object presence.
+    """
+    if target != previous + 1 or not _ready_unlocked(conn, previous):
+        _publish_unlocked(conn, target)
+        return
+    n, tail = divmod(previous, tilemod.TILE_WIDTH)
+    width = tail + 1
+    bodies = _bodies_unlocked(conn, n * tilemod.TILE_WIDTH, n * tilemod.TILE_WIDTH + width)
+    conn.execute(
+        "INSERT INTO entry_bundles(n, width, data) VALUES (?, ?, ?) "
+        "ON CONFLICT(n, width) DO UPDATE SET data=excluded.data "
+        "WHERE entry_bundles.data <> excluded.data",
+        (n, width, tilemod.encode_entry_bundle(bodies)),
+    )
+    level, span = 0, 1
+    while span <= target:
+        nodes = target // span
+        if nodes != previous // span:
+            n, tail = divmod(nodes - 1, tilemod.TILE_WIDTH)
+            width = tail + 1
+            hashes = []
+            for i in range(width):
+                start = (n * tilemod.TILE_WIDTH + i) * span
+                hashes.append(
+                    merkle.mth_range(
+                        start, start + span,
+                        lambda a, b: _cached_range(conn, a, b),
+                        lambda a, b, h: _store_range(conn, a, b, h),
+                        lambda index: _leaf_hash_at_unlocked(conn, index),
+                    )
+                )
+            conn.execute(
+                "INSERT INTO tiles(level, n, width, data) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(level, n, width) DO UPDATE SET data=excluded.data "
+                "WHERE tiles.data <> excluded.data",
+                (level, n, width, tilemod.encode_hash_tile(hashes)),
+            )
+        level += 1
+        span *= tilemod.TILE_WIDTH
+    conn.commit()
+    _chmod_db_files(_conn_path or db_path())
+
+
 def _publish_unlocked(conn: sqlite3.Connection, tree_size: int) -> None:
     have = _size_unlocked(conn)
     if tree_size < 0 or tree_size > have:
         raise ValueError("publish size out of range")
+    # Existing C2SP objects are immutable. Avoid WAL writes for identical bytes,
+    # while preserving reconstruction of missing or damaged derived objects.
     hashes = _leaf_hashes_unlocked(conn, tree_size)
     for n, width in tilemod.bundles_required(tree_size):
         start = n * tilemod.TILE_WIDTH
         bodies = _bodies_unlocked(conn, start, start + width)
         data = tilemod.encode_entry_bundle(bodies)
         conn.execute(
-            "INSERT OR REPLACE INTO entry_bundles(n, width, data) VALUES (?, ?, ?)",
+            "INSERT INTO entry_bundles(n, width, data) VALUES (?, ?, ?) "
+            "ON CONFLICT(n, width) DO UPDATE SET data=excluded.data "
+            "WHERE entry_bundles.data <> excluded.data",
             (n, width, data),
         )
     for level, n, width in tilemod.tiles_required(tree_size):
         th = tilemod.tile_hashes_for_level(hashes, level, n, width)
         data = tilemod.encode_hash_tile(th)
         conn.execute(
-            "INSERT OR REPLACE INTO tiles(level, n, width, data) VALUES (?, ?, ?, ?)",
+            "INSERT INTO tiles(level, n, width, data) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(level, n, width) DO UPDATE SET data=excluded.data "
+            "WHERE tiles.data <> excluded.data",
             (level, n, width, data),
         )
     conn.commit()
@@ -640,20 +694,35 @@ def _ready_unlocked(conn: sqlite3.Connection, target: int) -> bool:
         return False
     if target == 0:
         return True
-    for n, width in tilemod.bundles_required(target):
-        row = conn.execute(
-            "SELECT 1 FROM entry_bundles WHERE n = ? AND width = ?",
-            (n, width),
-        ).fetchone()
-        if not row:
+    # Primary-key uniqueness makes these exact indexed range counts equivalent
+    # to checking every full object individually. A hole still fails closed.
+    full, part = divmod(target, tilemod.TILE_WIDTH)
+    count = conn.execute(
+        "SELECT count(*) FROM entry_bundles WHERE width=? AND n>=0 AND n<?",
+        (tilemod.TILE_WIDTH, full),
+    ).fetchone()[0]
+    if count != full:
+        return False
+    if part and not conn.execute(
+        "SELECT 1 FROM entry_bundles WHERE n=? AND width=?", (full, part)
+    ).fetchone():
+        return False
+    level, span = 0, 1
+    while span <= target:
+        full, part = divmod(target // span, tilemod.TILE_WIDTH)
+        count = conn.execute(
+            "SELECT count(*) FROM tiles WHERE level=? AND width=? AND n>=0 AND n<?",
+            (level, tilemod.TILE_WIDTH, full),
+        ).fetchone()[0]
+        if count != full:
             return False
-    for level, n, width in tilemod.tiles_required(target):
-        row = conn.execute(
-            "SELECT 1 FROM tiles WHERE level = ? AND n = ? AND width = ?",
-            (level, n, width),
-        ).fetchone()
-        if not row:
+        if part and not conn.execute(
+            "SELECT 1 FROM tiles WHERE level=? AND n=? AND width=?",
+            (level, full, part),
+        ).fetchone():
             return False
+        level += 1
+        span *= tilemod.TILE_WIDTH
     return True
 
 
