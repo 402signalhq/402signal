@@ -40,6 +40,29 @@ for (const [value, valid] of [
     request: {...algoRequest, buyer_limits: {...algoRequest.buyer_limits,
       max_sponsor_fee_micro_algo: value}}});
 }
+// Limits can overlap across versioned profiles. The outer request variant
+// must bind the selected profile while allowing any matching limits shape.
+for (const [profile, count, valid] of [
+  ['algorand-atomic-two-item-v1', 2, true],
+  ['algorand-atomic-two-item-v1', 3, false],
+  ['algorand-atomic-multi-item-v1', 2, true],
+  ['algorand-atomic-multi-item-v1', 15, true],
+  ['algorand-atomic-multi-item-v1', 16, false],
+  ['algorand-aggregate-invoice-v1', 2, true],
+  ['algorand-aggregate-invoice-v1', 64, true],
+  ['algorand-aggregate-invoice-v1', 65, false],
+]) {
+  const request = structuredClone(algoRequest);
+  request.merchant_profile = profile;
+  request.buyer_limits.job_hashes = Array.from({length: count}, (_, i) => i.toString(16).padStart(64, '0'));
+  if (profile === 'algorand-aggregate-invoice-v1') delete request.buyer_limits.max_item_amount_atomic;
+  cases.push({name: profile + '-jobs-' + count, request, valid});
+  if (profile === 'algorand-aggregate-invoice-v1' && valid) {
+    const withItemCap = structuredClone(request);
+    withItemCap.buyer_limits.max_item_amount_atomic = '1000';
+    cases.push({name: 'invoice-item-cap-' + count, request: withItemCap, valid: false});
+  }
+}
 for (const item of cases) {
   const result = validate(item.request);
   assert.equal(result, item.valid, item.name + ': ' + JSON.stringify(validate.errors));

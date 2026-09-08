@@ -135,7 +135,8 @@ def extend_http_route_schema(ordinary: dict) -> dict:
     result["properties"].update({
         "probe_request": deepcopy(post),
         "merchant_profile": {"type": "string", "enum": list(limits)},
-        "buyer_limits": {"oneOf": [deepcopy(v) for v in limits.values()]},
+        # Limits may overlap; the outer oneOf binds each to its profile.
+        "buyer_limits": {"anyOf": [deepcopy(v) for v in limits.values()]},
     })
     result["oneOf"] = variants
     result["description"] = "Choose one closed HTTP request profile. Required evidence, payment, supported-method, byte, identity, economic and enabled-profile checks still apply on the server. The advertised MCP schema is separate."
