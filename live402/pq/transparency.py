@@ -1236,6 +1236,8 @@ def _customer_verification_record() -> str:
     return (
         '<section class="block transparency-explainer" id="keep-verification-record">\n'
         "  <h2>Keep your verification record</h2>\n"
+        '  <p>Use the <a href="/developers#quickstart">402Signal client SDK</a> '
+        "with durable storage to keep the original request and response in your own system.</p>\n"
         "  <p>To verify a specific decision later, securely retain the complete paid "
         "<code>/route</code> response, including <code>compared[]</code>. At minimum, "
         "keep <code>pq_trust.transparency.receipt</code> and "

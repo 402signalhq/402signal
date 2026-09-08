@@ -4,12 +4,14 @@ import {readFile, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {chromium, webkit} from 'playwright';
 import {checkDashboardSpacing} from './dashboard-checks.mjs';
+import {checkTransparencySpacing} from './transparency-checks.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const out = resolve(root, 'website-evidence');
 const results = JSON.parse(await readFile(resolve(out, 'results.json'), 'utf8'));
 const exported = new Map([
-  ['/transparency', 'transparency.html'], ['/dashboard', 'dashboard.html'],
+  ['/transparency', 'transparency.html'], ['/transparency-confirmed', 'transparency-confirmed.html'],
+  ['/dashboard', 'dashboard.html'],
   ['/route', 'route.html'], ['/pulse', 'pulse.json'],
 ]);
 const statics = new Map([
@@ -79,6 +81,11 @@ try {
             assert.equal(await page.locator('nav[aria-label="Primary"] a').count(), 4);
             await layout(page);
             if (width === 390) await page.screenshot({fullPage: true, path: resolve(out, `${engine}-390-${path.slice(1)}.png`)});
+          });
+        }
+        if ([320, 375, 390, 1440].includes(width)) {
+          await check(`${tag} transparency status and evidence spacing`, async () => {
+            await checkTransparencySpacing({page, origin, out, engine, width});
           });
         }
         if ([320, 390, 1440].includes(width)) {

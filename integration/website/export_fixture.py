@@ -48,9 +48,12 @@ def algo_address(byte):
     return base64.b32encode(raw + hashlib.new('sha512_256', raw).digest()[-4:]).decode().rstrip('=')
 
 with tempfile.TemporaryDirectory(prefix='website-fixture-') as directory:
-    for key, filename in [('LIVE402_PQ_LOG_DB', 'pq.sqlite'), ('LIVE402_HISTORY_DB', 'history.sqlite'),
+    for key, filename in [('LIVE402_PQ_LOG_DB', 'pq-log-mainnet.sqlite'), ('LIVE402_HISTORY_DB', 'history.sqlite'),
                           ('LIVE402_CATALOG_DB', 'catalog.sqlite'), ('LIVE402_REPLAY_DB', 'replay.sqlite')]:
         os.environ[key] = str(Path(directory)/filename)
+    os.environ['LIVE402_PQ_FALCON_NETWORK'] = 'mainnet'
+    os.environ['LIVE402_PQ_LOG_EPOCH'] = 'mainnet-v1'
+    os.environ['LIVE402_PQ_LOG_ORIGIN'] = '402signal.com/pq/log/mainnet-v1'
     from live402.server import Handler, CSP
     from live402 import schema_fields, batch_binding
     from live402.batch_profiles import base, solana, algorand_generic as algo
@@ -93,6 +96,24 @@ with tempfile.TemporaryDirectory(prefix='website-fixture-') as directory:
             connection.close()
             (OUT/name).write_bytes(raw)
             exports[path] = name
+        # Populated read-model fixture only: synthetic leaves and checkpoint
+        # records, without signatures, broadcasting or external chain queries.
+        from live402.pq import store, ORIGIN_MAINNET
+        for leaf in (b'website-one', b'website-two', b'website-three'):
+            store.append(leaf)
+        for size, txid, block, at in ((1, 'B' * 52, 100, 1788868800),
+                                      (3, 'C' * 52, 200, 1788868860)):
+            store.save_confirmed_checkpoint(tree_size=size, origin=ORIGIN_MAINNET,
+                root=store.root(size), txid=txid, confirmed_round=block, at=at,
+                network='mainnet', genesis_id='mainnet-v1.0')
+        connection = HTTPConnection('127.0.0.1', server.server_address[1], timeout=10)
+        connection.request('GET', '/transparency', headers={'Accept': 'text/html'})
+        response = connection.getresponse()
+        assert response.status == 200
+        assert response.getheader('Content-Security-Policy') == CSP
+        (OUT/'transparency-confirmed.html').write_bytes(response.read())
+        connection.close()
+        exports['/transparency-confirmed'] = 'transparency-confirmed.html'
     finally:
         dashboard_fixture.stop()
         server.shutdown()
