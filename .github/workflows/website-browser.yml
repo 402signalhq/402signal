@@ -1,0 +1,31 @@
+name: website browser evidence
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-browser-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Retain the exact public source used for website qualification
+        run: |
+          mkdir -p website-evidence
+          git archive --format=tar.gz HEAD > website-evidence/source.tar.gz
+          git rev-parse HEAD > website-evidence/revision.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: website-evidence
+          path: website-evidence/
+          retention-days: 3
+          if-no-files-found: error
