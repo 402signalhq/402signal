@@ -1,12 +1,8 @@
 name: customer site review
-
 on:
   pull_request:
-    branches: [main]
-
 permissions:
   contents: read
-
 jobs:
   source:
     runs-on: ubuntu-latest
@@ -15,14 +11,12 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Record review source
+      - name: Inspect exact public review files
         run: |
-          mkdir -p customer-site-evidence
-          git archive --format=tar.gz HEAD > customer-site-evidence/source.tar.gz
-          git rev-parse HEAD > customer-site-evidence/revision.txt
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: customer-site-source
-          path: customer-site-evidence/
-          retention-days: 3
-          if-no-files-found: error
+          python3 - <<'PY'
+          import base64,gzip,hashlib,pathlib
+          paths=['live402/static/styles.css','live402/static/app.js','live402/static/contact.html','live402/static/pre-spend-routing.html','live402/discover.py','integration/website/browser.mjs','integration/website/extended.mjs','tests/test_homepage.py']
+          for name in paths:
+              data=pathlib.Path(name).read_bytes()
+              print('SOURCE',name,hashlib.sha256(data).hexdigest(),base64.b64encode(gzip.compress(data,mtime=0)).decode())
+          PY
