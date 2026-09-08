@@ -3,6 +3,22 @@
 These opt-in fixtures qualify building blocks; they do not enable batch payments
 on the public router or widen the existing MainNet buyer signer.
 
+## Controlled MainNet tests
+
+Owner-operated MainNet campaigns completed the supported Base batch, Solana MPP
+push-session and Algorand two-item atomic-group paths. Base and Solana tests
+covered two merchant calls, independent settlement checks and return of unused
+capital. The Algorand test covered both indexed payments in one atomic group.
+These are correctness tests of specific profiles and controlled endpoints;
+they do not measure production throughput or certify other merchants.
+
+The current buyer and lab voucher flows require the delivery observation to
+remain within its original short validity window; long-running or high-count
+sessions are not yet qualified.
+
+The isolated tests below use synthetic provider responses and remain separate
+from these live results.
+
 ## Running in an isolated cloud environment
 
 Use Node 24 and the committed npm lock with an empty synthetic PostgreSQL database.
@@ -23,7 +39,7 @@ Database tests skip without explicit opt-in; CI supplies its own disposable data
 Run the separately locked `solana-session-contracts` package for its SDK fixtures.
 Public deterministic fixture keys are never suitable for funded wallets.
 
-## Qualified boundaries
+## Qualified synthetic boundaries
 
 - Base uses the pinned x402 SDK's actual voucher verification, reservation,
   cancellation, cumulative accounting and claim/payout hooks. Provider responses
@@ -43,8 +59,8 @@ Public deterministic fixture keys are never suitable for funded wallets.
   stable cycle IDs and serialize overlapping payout cycles. Channel storage alone
   does not supply that controller or its durable payout schedule.
 - Algorand fixtures validate complete atomic groups, indexed payment identities,
-  sponsorship and buyer-authorized bounds. Live facilitator acceptance of the
-  expanded group profile remains a separate qualification step.
+  sponsorship and buyer-authorized bounds. Any profile beyond the supported
+  two-item scope requires separate live qualification.
 - Solana fixtures validate the separately pinned session SDK and distinguish
   accepted vouchers from settled funds. They do not open or fund channels.
 

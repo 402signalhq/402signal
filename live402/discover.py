@@ -1298,7 +1298,7 @@ Optional customer access keys identify a workload class; they are not wallet pri
 
 ## Batch and session support
 
-Supported profiles cover Base batch settlement, Solana MPP push sessions and Algorand two-item atomic groups. Live paid qualification is still in progress. The published v0.5 client provides separate exact-payment and v5 batch/session guards. Controlled lab examples demonstrate specific contracts and limits. An ordinary v4 receipt does not authorize a batch or session.
+Supported profiles cover Base batch settlement, Solana MPP push sessions and Algorand two-item atomic groups. Controlled MainNet tests are complete for these profiles, including merchant payments and independently confirmed settlement at owner-operated lab endpoints. The published v0.5 client provides separate exact-payment and v5 batch/session guards. Controlled lab examples demonstrate specific contracts and limits. An ordinary v4 receipt does not authorize a batch or session.
 
 The separate v5 proof binds one exact HTTPS GET API, merchant_profile, all buyer_limits and the raw observed challenge. It is a short-lived observation, not permission to deposit, issue vouchers or sign an arbitrary transaction. The router fee remains $0.003 per qualifying API observation; merchant charges, capital, fees and rent remain separate.
 
