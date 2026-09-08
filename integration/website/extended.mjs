@@ -3,6 +3,7 @@ import {createServer} from 'node:http';
 import {readFile, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {chromium, webkit} from 'playwright';
+import {checkDashboardSpacing} from './dashboard-checks.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const out = resolve(root, 'website-evidence');
@@ -78,6 +79,11 @@ try {
             assert.equal(await page.locator('nav[aria-label="Primary"] a').count(), 4);
             await layout(page);
             if (width === 390) await page.screenshot({fullPage: true, path: resolve(out, `${engine}-390-${path.slice(1)}.png`)});
+          });
+        }
+        if ([320, 390, 1440].includes(width)) {
+          await check(`${tag} initial and refreshed dashboard rows stay readable`, async () => {
+            await checkDashboardSpacing({page, origin, out, engine, width});
           });
         }
         await check(`${tag} focus and readable mobile inputs`, async () => {

@@ -3,7 +3,8 @@ from copy import deepcopy
 import json
 import re
 import unittest
-from live402 import schema_fields, schema_http, mcp, probe_profile
+from live402 import batch_binding, route_binding, schema_fields, schema_http, mcp, probe_profile
+from pathlib import Path
 from live402.batch_profiles import base, solana, algorand_generic
 
 
@@ -79,6 +80,63 @@ class HttpSchemaTests(unittest.TestCase):
             altered['probe_request']['body'] = body
             with self.assertRaises(probe_profile.ProfileError):
                 probe_profile.parse(altered)
+
+
+class HttpSchemaRuntimeParityTests(unittest.TestCase):
+    def setUp(self):
+        fixtures = Path(__file__).parent / "fixtures"
+        self.base = json.loads((fixtures / "batch-observation-wire.json").read_text())[0]["request"]
+        self.algo = json.loads((fixtures / "algorand-generic-v5.json").read_text())["request"]
+
+    def assert_runtime(self, request, expected):
+        if expected:
+            batch_binding.parse_request(request, enabled=False)
+        else:
+            with self.assertRaises(route_binding.BindingError):
+                batch_binding.parse_request(request, enabled=False)
+
+    def test_exact_get_url_query_and_userinfo_parity(self):
+        branch = schema_fields.route_body_schema()["oneOf"][2]
+        pattern = branch["properties"]["url"]["pattern"]
+        for url, expected in (
+            ("https://merchant.example?contact=a@b", True),
+            ("https://merchant.example/?contact=a@b", True),
+            ("https://merchant.example/path@name?first=a%2Bb&next=x@y", True),
+            ("https://user@merchant.example/path", False),
+            ("https://user:pass@merchant.example?contact=a@b", False),
+        ):
+            with self.subTest(url=url):
+                request = deepcopy(self.base)
+                request["url"] = url
+                self.assertEqual(re.search(pattern, url) is not None, expected)
+                self.assert_runtime(request, expected)
+                if expected:
+                    self.assertEqual(batch_binding.parse_request(request)["url"], url)
+
+    def test_base_recipient_zero_and_nonzero_parity(self):
+        item = schema_http.batch_limit_schemas()["base-x402-batch-v1"]["properties"]["recipient"]
+        for value, expected in (("0x" + "0" * 40, False), ("0x" + "0" * 39 + "1", True), (self.base["buyer_limits"]["recipient"], True)):
+            with self.subTest(recipient=value):
+                accepted = re.search(item["pattern"], value) is not None
+                if "not" in item:
+                    accepted = accepted and value != item["not"]["const"]
+                self.assertEqual(accepted, expected)
+                request = deepcopy(self.base)
+                request["buyer_limits"]["recipient"] = value
+                self.assert_runtime(request, expected)
+
+    def test_algorand_sponsor_string_minimum_and_uint64_parity(self):
+        item = schema_http.batch_limit_schemas()["algorand-atomic-two-item-v1"]["properties"]["max_sponsor_fee_micro_algo"]
+        self.assertNotIn("minimum", item)  # A numeric keyword cannot bound a string.
+        for value, expected in (("14999", False), ("15000", True), ("15001", True), (str(2**64 - 1), True), (str(2**64), False), (15000, False), (True, False), ("015000", False), ("+15000", False), ("1.5e4", False), ("15000 ", False), ("0", False)):
+            with self.subTest(value=value):
+                accepted = type(value) is str and re.search(item["pattern"], value) is not None
+                if accepted and "not" in item:
+                    accepted = re.search(item["not"]["pattern"], value) is None
+                self.assertEqual(accepted, expected)
+                request = deepcopy(self.algo)
+                request["buyer_limits"]["max_sponsor_fee_micro_algo"] = value
+                self.assert_runtime(request, expected)
 
 
 if __name__ == '__main__':

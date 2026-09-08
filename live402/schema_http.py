@@ -37,10 +37,19 @@ def batch_limit_schemas() -> dict:
     from live402.batch_profiles import base, solana, algorand_generic as algo
     amount = {"type": "string", "pattern": uint64_pattern(), "maxLength": 20,
               "description": "Positive canonical atomic amount, at most uint64. Cross-field limits are checked by the runtime."}
-    evm = {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"}
+    evm = {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$",
+           "not": {"const": "0x" + "0" * 40}}
     sol = {"type": "string", "minLength": 32, "maxLength": 44,
            "pattern": "^[1-9A-HJ-NP-Za-km-z]+$"}
     alg = {"type": "string", "pattern": "^[A-Z2-7]{58}$"}
+    sponsor = deepcopy(amount)
+    # Numeric minimum does not apply to decimal strings. Exclude canonical
+    # positive values below the existing profile's 15,000 microALGO floor.
+    sponsor["not"] = {"pattern": r"^(?:[1-9][0-9]{0,3}|1[0-4][0-9]{3})$"}
+    sponsor["description"] = (
+        "Canonical decimal sponsor fee ceiling, 15000 through uint64 maximum. "
+        "This buyer limit is not an actual fee quote or sponsorship promise."
+    )
     def constant(value):
         return {"type": "string", "const": value}
     return {
@@ -63,7 +72,7 @@ def batch_limit_schemas() -> dict:
             "recipient": deepcopy(alg), "fee_payer": deepcopy(alg),
             "max_item_amount_atomic": deepcopy(amount),
             "max_total_amount_atomic": deepcopy(amount),
-            "max_sponsor_fee_micro_algo": deepcopy(amount),
+            "max_sponsor_fee_micro_algo": deepcopy(sponsor),
             "job_hashes": {"type": "array", "minItems": 2, "maxItems": 2,
                            "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
         }),
@@ -96,7 +105,7 @@ def extend_http_route_schema(ordinary: dict) -> dict:
     limits = batch_limit_schemas()
     variants = [exact, search]
     endpoint = {"type": "string", "format": "uri", "minLength": 9, "maxLength": 4096,
-                "pattern": r"^https://[^\s/@#\\]+(?:/[^\s#\\]*)?$",
+                "pattern": r"^https://[^\s/?@#\\]+(?:/[^\s?#\\]*)?(?:\?[^\s#\\]*)?$",
                 "description": "Exact HTTPS GET URL. Preserve query ordering and encoding. Runtime SSRF and request-context checks remain authoritative."}
     for profile, limit_schema in limits.items():
         branch = _closed({

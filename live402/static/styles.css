@@ -110,6 +110,13 @@ summary { cursor: pointer; min-height: 44px; padding: 10px 0; color: var(--ink);
 .result-bits { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--muted); }
 .results-heading { font-size: 17px; color: var(--muted); margin: 20px 0; }
 .empty-state { padding: 20px 0; color: var(--muted); }
+/* The dashboard uses the same rows in initial HTML and periodic updates. */
+.lookups { display: grid; gap: 12px; margin: 16px 0 32px; }
+.lookup { display: block; min-width: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.lookup-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 16px; font-size: 15px; }
+.lookup-row > span { min-width: 0; overflow-wrap: anywhere; }
+.lookup-row > span:last-child { max-width: 10rem; text-align: right; }
+.lookup-host { margin-top: 6px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 .checks, .decision-lines, .model-lines { margin: 18px 0; }
 .checks > div, .decision-lines > div, .model-lines > div { padding: 12px 0; border-top: 1px solid var(--line); }
 .checks.compact > div { display: grid; grid-template-columns: minmax(0, 12rem) minmax(0, 1fr); gap: 8px 20px; margin: 0; }

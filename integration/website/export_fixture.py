@@ -16,6 +16,7 @@ from pathlib import Path
 import sys
 import tempfile
 import threading
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -56,7 +57,28 @@ with tempfile.TemporaryDirectory(prefix='website-fixture-') as directory:
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
+    # Both initial HTML and refreshed data use the real dashboard renderer.
+    # Include wrapping labels, an unbroken label, and a declared unknown price.
+    def dashboard_snapshot(prefix):
+        return {
+            'updated_at': '2026-09-08T12:00:00Z',
+            'chains': {chain: {
+                'source': {'ok': True, 'host': 'synthetic catalog'},
+                'samples': [
+                    {'label': prefix + ' weather', 'need': 'weather', 'price': '$0.001',
+                     'url': 'https://seller.example/weather'},
+                    {'label': prefix + ' detailed multi-region weather forecast with hourly precipitation and temperature observations',
+                     'need': 'forecast', 'price': 'unknown', 'url': 'https://seller.example/forecast'},
+                    {'label': prefix + ' ' + 'LongUnbrokenSyntheticLabel' * 4,
+                     'need': 'search', 'price': '$0.020',
+                     'url': 'https://' + 'long-synthetic-host-' * 3 + 'seller.example/search'},
+                ],
+            } for chain in ('base', 'solana', 'algorand')},
+        }
+    (OUT/'dashboard-refresh.json').write_text(json.dumps(dashboard_snapshot('Updated')))
     exports = {}
+    dashboard_fixture = patch('live402.pulse.get_pulse', return_value=dashboard_snapshot('Initial'))
+    dashboard_fixture.start()
     try:
         for path, name in [('/transparency', 'transparency.html'), ('/dashboard', 'dashboard.html'),
                            ('/route', 'route.html'), ('/openapi.json', 'openapi.json'),
@@ -72,6 +94,7 @@ with tempfile.TemporaryDirectory(prefix='website-fixture-') as directory:
             (OUT/name).write_bytes(raw)
             exports[path] = name
     finally:
+        dashboard_fixture.stop()
         server.shutdown()
         server.server_close()
     (OUT/'exports.json').write_text(json.dumps(exports))
