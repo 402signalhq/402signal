@@ -1,4 +1,4 @@
-/** Private bounded owner/merchant journal. No callbacks, expiry renewal or retries. */
+/** Private bounded owner/merchant journal. No callbacks or payment retries. */
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync, chmodSync, lstatSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
@@ -7,6 +7,13 @@ import { assert, canonical, parseJson } from "./json.js";
 export interface AlgorandManifestJournal {
   get(key: string): any | undefined;
   once(key: string, value: unknown): boolean;
+  /** Atomic merchant quote/attempt transition; existing once records stay immutable. */
+  compareExchange?(
+    key: string,
+    expected: unknown,
+    value: unknown,
+    guards: { key: string; value: unknown }[],
+  ): boolean;
 }
 export class AlgorandManifestStore implements AlgorandManifestJournal {
   private db: DatabaseSync;
@@ -84,6 +91,59 @@ export class AlgorandManifestStore implements AlgorandManifestJournal {
       this.db
         .prepare("INSERT INTO manifest_records VALUES(?,?)")
         .run(key, text);
+      this.db.exec("COMMIT");
+      return true;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+  compareExchange(
+    key: string,
+    expected: unknown,
+    value: unknown,
+    guards: { key: string; value: unknown }[],
+  ): boolean {
+    assert(/^[0-9a-f]{64}$/.test(key), "journal_key_refused");
+    assert(
+      Array.isArray(guards) && guards.length <= 2,
+      "journal_guards_refused",
+    );
+    const text = canonical(value);
+    parseJson(text, 49152);
+    const equal = (a: unknown, b: unknown) =>
+      a === undefined || b === undefined
+        ? a === b
+        : canonical(a) === canonical(b);
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const old = this.get(key);
+      if (
+        !equal(old, expected) ||
+        guards.some((g) => !equal(this.get(g.key), g.value))
+      ) {
+        this.db.exec("COMMIT");
+        return false;
+      }
+      if (old === undefined) {
+        assert(
+          Number(
+            (
+              this.db
+                .prepare("SELECT count(*) AS n FROM manifest_records")
+                .get() as any
+            ).n,
+          ) < 10000,
+          "journal_capacity_reached",
+        );
+        this.db
+          .prepare("INSERT INTO manifest_records VALUES(?,?)")
+          .run(key, text);
+      } else {
+        this.db
+          .prepare("UPDATE manifest_records SET value=? WHERE key=?")
+          .run(text, key);
+      }
       this.db.exec("COMMIT");
       return true;
     } catch (error) {

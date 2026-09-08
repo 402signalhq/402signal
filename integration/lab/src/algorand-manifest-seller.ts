@@ -59,8 +59,13 @@ export class AlgorandManifestSeller {
   }
   async challenge(url: string): Promise<ManifestOutcome> {
     assert(url === this.config.url, "manifest_url_refused");
+    // A payment attempt permanently fences this campaign, including unknown outcomes.
+    if (this.store.get(this.key("payment-scope"))) return unavailable();
     let envelope = this.store.get(this.key("offer"));
-    if (!envelope) {
+    const prior = envelope;
+    const previousQuote =
+      envelope?.extensions["402signal-atomic-batch"].feeQuote;
+    if (!previousQuote || this.clock() >= previousQuote.expiresAt) {
       const payments =
         this.config.profile === "algorand-atomic-multi-item-v1"
           ? this.config.limits.job_hashes.length
@@ -77,8 +82,16 @@ export class AlgorandManifestSeller {
         this.config.limits,
         quote,
       );
-      this.store.once(this.key("offer"), envelope);
+      assert(this.store.compareExchange, "atomic_merchant_journal_required");
+      // Retain one current quote. Rotation and payment claims contend on the same
+      // SQLite transaction guard; a losing GET returns the stored winner.
+      this.store.compareExchange(this.key("offer"), prior, envelope, [
+        { key: this.key("payment-scope"), value: undefined },
+      ]);
+      envelope = this.store.get(this.key("offer"));
     }
+    if (!envelope || this.store.get(this.key("payment-scope")))
+      return unavailable();
     const q = envelope.extensions["402signal-atomic-batch"].feeQuote;
     if (!(q.observedAt <= this.clock() && this.clock() < q.expiresAt))
       return {
@@ -165,13 +178,18 @@ export class AlgorandManifestSeller {
       );
       return saved;
     }
-    if (recoveryOnly) return unavailable();
+    if (this.store.get(this.key("payment-scope"))) return unavailable();
     checkCurrentAlgorandManifestQuote(
       plan.manifest.feeQuote,
       await this.readParams(),
       this.clock(),
     );
-    if (!this.store.once(this.key("payment-scope"), scope))
+    assert(this.store.compareExchange, "atomic_merchant_journal_required");
+    if (
+      !this.store.compareExchange(this.key("payment-scope"), undefined, scope, [
+        { key: this.key("offer"), value: envelope },
+      ])
+    )
       return unavailable();
     this.store.once(this.key("credential"), payment);
     this.store.once(this.key("recovery-scope"), {

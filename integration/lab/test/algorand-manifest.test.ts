@@ -1,4 +1,5 @@
 import test from "node:test";
+import { DatabaseSync } from "node:sqlite";
 import assert from "node:assert/strict";
 import {
   generateKeyPairSync,
@@ -856,5 +857,343 @@ test("merchant restart pins immutable buyer limits and recipient before provider
   } finally {
     db.close();
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function quotedPlan(s: ReturnType<typeof setup>, envelope: any) {
+  envelope = JSON.parse(canonical(envelope));
+  return prepareAlgorandManifest({
+    profile: s.profile,
+    envelope,
+    limits: s.limits,
+    buyer: buyer.address,
+    raw: buildAlgorandManifestTransactions(
+      s.profile,
+      envelope,
+      s.limits,
+      buyer.address,
+    ),
+  });
+}
+
+test("unsigned quote expiry rotates one record; old signed authority is rejected and fresh actual SDK payment succeeds", async () => {
+  for (const profile of [ATOMIC, INVOICE] as const) {
+    const s = setup(profile),
+      db = new AlgorandManifestStore(":memory:"),
+      f = provider(profile === ATOMIC ? 4 : 2);
+    let clock = NOW,
+      verifies = 0,
+      settles = 0;
+    const seller = new AlgorandManifestSeller(
+      s.config,
+      db,
+      {
+        verify: async (...args) => {
+          verifies++;
+          return f.adapter.verify(...args);
+        },
+        settle: async (...args) => {
+          settles++;
+          return f.adapter.settle(...args);
+        },
+      },
+      async () => params,
+      () => clock,
+    );
+    try {
+      const first = await seller.challenge(url),
+        oldPlan = quotedPlan(s, first.body);
+      const oldPayment = await signAlgorandManifest(oldPlan, signer, clock);
+      assert.equal(first.status, 402);
+      assert.equal(
+        first.body.extensions["402signal-atomic-batch"].feeQuote.expiresAt,
+        NOW + 45,
+      );
+      clock += 46;
+      const second = await seller.challenge(url);
+      assert.equal(second.status, 402);
+      assert.notDeepEqual(second.body, first.body);
+      await assert.rejects(
+        seller.request(url, encode64(oldPayment)),
+        /manifest_payment_scope_refused/,
+      );
+      assert.deepEqual({ verifies, settles }, { verifies: 0, settles: 0 });
+      const plan = quotedPlan(s, second.body),
+        payment = await signAlgorandManifest(plan, signer, clock);
+      const result = await seller.request(url, encode64(payment));
+      assert.equal(result.status, 200);
+      assert.deepEqual({ verifies, settles }, { verifies: 1, settles: 1 });
+      clock += 46;
+      assert.equal((await seller.challenge(url)).status, 503);
+      assert.equal(
+        (await seller.recover(recoveryRequest(plan, payment))).status,
+        200,
+      );
+    } finally {
+      db.close();
+    }
+  }
+});
+
+test("unpaid quote rotation stays bounded across restart and concurrent SQLite connections", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "manifest-quote-")),
+    path = join(dir, "journal.sqlite"),
+    s = setup();
+  const a = new AlgorandManifestStore(path),
+    b = new AlgorandManifestStore(path),
+    f = provider(4);
+  let clock = NOW;
+  try {
+    const seller = new AlgorandManifestSeller(
+      s.config,
+      a,
+      f.adapter,
+      async () => params,
+      () => clock,
+    );
+    for (let i = 0; i < 100; i++) {
+      assert.equal((await seller.challenge(url)).status, 402);
+      clock += 46;
+    }
+    const releases: ((p: any) => void)[] = [];
+    const read = () => new Promise<any>((resolve) => releases.push(resolve));
+    const left = new AlgorandManifestSeller(
+      s.config,
+      a,
+      f.adapter,
+      read,
+      () => clock,
+    );
+    const right = new AlgorandManifestSeller(
+      s.config,
+      b,
+      f.adapter,
+      read,
+      () => clock,
+    );
+    const one = left.challenge(url),
+      two = right.challenge(url);
+    assert.equal(releases.length, 2);
+    releases[0]!({ ...params, "last-round": 1100 });
+    const first = await one;
+    releases[1]!({ ...params, "last-round": 1200 });
+    const second = await two;
+    assert.equal(first.status, 402);
+    assert.deepEqual(second, first);
+    const restarted = new AlgorandManifestSeller(
+      s.config,
+      b,
+      f.adapter,
+      async () => {
+        throw Error("fresh quote must not refetch");
+      },
+      () => clock,
+    );
+    assert.deepEqual(await restarted.challenge(url), first);
+    const inspect = new DatabaseSync(path, { readOnly: true });
+    try {
+      assert.equal(
+        (
+          inspect
+            .prepare("SELECT count(*) AS n FROM manifest_records")
+            .get() as any
+        ).n,
+        2,
+      );
+    } finally {
+      inspect.close();
+    }
+  } finally {
+    a.close();
+    b.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("atomic quote rotation and attempt claims exclude each other across SQLite connections", () => {
+  const dir = mkdtempSync(join(tmpdir(), "manifest-quote-race-")),
+    path = join(dir, "journal.sqlite");
+  const a = new AlgorandManifestStore(path),
+    b = new AlgorandManifestStore(path);
+  const offer = digest("offer"),
+    attempt = digest("attempt"),
+    first = { quote: 1 },
+    next = { quote: 2 };
+  try {
+    assert.equal(
+      a.compareExchange(offer, undefined, first, [
+        { key: attempt, value: undefined },
+      ]),
+      true,
+    );
+    assert.equal(
+      b.compareExchange(offer, first, next, [
+        { key: attempt, value: undefined },
+      ]),
+      true,
+    );
+    assert.equal(
+      a.compareExchange(attempt, undefined, { scope: 1 }, [
+        { key: offer, value: first },
+      ]),
+      false,
+    );
+    assert.equal(a.get(attempt), undefined);
+    assert.equal(
+      a.compareExchange(attempt, undefined, { scope: 2 }, [
+        { key: offer, value: next },
+      ]),
+      true,
+    );
+    assert.equal(
+      b.compareExchange(offer, next, { quote: 3 }, [
+        { key: attempt, value: undefined },
+      ]),
+      false,
+    );
+    assert.equal(canonical(b.get(offer)), canonical(next));
+    assert.equal(
+      b.compareExchange(attempt, undefined, { scope: 2 }, [
+        { key: offer, value: next },
+      ]),
+      false,
+    );
+  } finally {
+    a.close();
+    b.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a payment claim during unsigned quote fetch wins and permanently fences renewal", async () => {
+  const s = setup(),
+    db = new AlgorandManifestStore(":memory:"),
+    f = provider(4);
+  let clock = NOW,
+    release!: (x: any) => void;
+  try {
+    const seller = new AlgorandManifestSeller(
+      s.config,
+      db,
+      f.adapter,
+      async () => params,
+      () => clock,
+    );
+    await seller.challenge(url);
+    clock += 46;
+    const waiting = new AlgorandManifestSeller(
+      s.config,
+      db,
+      f.adapter,
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+      () => clock,
+    );
+    const get = waiting.challenge(url);
+    const stage = (name: string) =>
+      digest(canonical(["merchant-manifest-v2", s.config.offerId, name]));
+    db.once(stage("payment-scope"), {
+      id: "existing-attempt",
+      scope: "existing-scope",
+    });
+    release(params);
+    assert.equal((await get).status, 503);
+    assert.equal((await seller.challenge(url)).status, 503);
+    assert.equal(
+      db.get(stage("offer")).extensions["402signal-atomic-batch"].feeQuote
+        .observedAt,
+      NOW,
+    );
+  } finally {
+    db.close();
+  }
+});
+
+test("unknown provider outcome locks quote after expiry; recovery never re-verifies or settles", async () => {
+  const s = setup(),
+    db = new AlgorandManifestStore(":memory:");
+  let clock = NOW,
+    verifies = 0,
+    settles = 0,
+    reads = 0;
+  const seller = new AlgorandManifestSeller(
+    s.config,
+    db,
+    {
+      verify: async () => {
+        verifies++;
+        throw Error("lost verification acknowledgment");
+      },
+      settle: async () => {
+        settles++;
+        throw Error("must not settle");
+      },
+    },
+    async () => {
+      reads++;
+      return params;
+    },
+    () => clock,
+  );
+  try {
+    const offer = await seller.challenge(url),
+      plan = quotedPlan(s, offer.body);
+    const payment = await signAlgorandManifest(plan, signer, clock);
+    assert.equal((await seller.request(url, encode64(payment))).status, 503);
+    const readCount = reads;
+    clock += 46;
+    assert.equal((await seller.challenge(url)).status, 503);
+    assert.equal(
+      (await seller.recover(recoveryRequest(plan, payment))).status,
+      503,
+    );
+    assert.equal((await seller.request(url, encode64(payment))).status, 503);
+    assert.deepEqual(
+      { verifies, settles, reads },
+      { verifies: 1, settles: 0, reads: readCount },
+    );
+  } finally {
+    db.close();
+  }
+});
+
+test("actual HTTP unsigned preview can expire without disabling the unpaid campaign", async () => {
+  const s = setup(),
+    db = new AlgorandManifestStore(":memory:"),
+    f = provider(4);
+  let clock = NOW;
+  const seller = new AlgorandManifestSeller(
+    s.config,
+    db,
+    f.adapter,
+    async () => params,
+    () => clock,
+  );
+  const server = createServer(algorandManifestHttpHandler(seller, url));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address() as { port: number };
+    const endpoint = `http://127.0.0.1:${address.port}/v2/jobs?order=original&value=%61`;
+    const first = await fetch(endpoint),
+      old = first.headers.get("payment-required");
+    assert.equal(first.status, 402);
+    await first.arrayBuffer();
+    clock += 46;
+    const second = await fetch(endpoint);
+    assert.equal(second.status, 402);
+    assert.notEqual(second.headers.get("payment-required"), old);
+    const wire = JSON.parse(
+      Buffer.from(second.headers.get("payment-required")!, "base64").toString(),
+    );
+    assert.equal(
+      wire.extensions["402signal-atomic-batch"].feeQuote.expiresAt,
+      clock + 45,
+    );
+    await second.arrayBuffer();
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    db.close();
   }
 });
