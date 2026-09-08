@@ -14,7 +14,7 @@ function run(command, args, cwd) {
 }
 try {
   let archive = process.argv[2] ? resolve(process.argv[2]) : undefined;
-  if (!archive) { run('npm', ['pack', '--pack-destination', root], source); archive = join(root, '402signal-session-client-0.1.0.tgz'); }
+  if (!archive) { run('npm', ['pack', '--pack-destination', root], source); archive = join(root, '402signal-session-client-0.1.1.tgz'); }
   const installed = join(root, 'installed'); mkdirSync(installed);
   writeFileSync(join(installed, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
   run('npm', ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', archive], installed);

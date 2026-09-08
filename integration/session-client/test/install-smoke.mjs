@@ -26,7 +26,7 @@ try {
   let archive = process.argv[2] ? resolve(process.argv[2]) : undefined;
   if (!archive) {
     console.log(run("npm", ["pack", "--pack-destination", root], source));
-    archive = join(root, "402signal-session-client-0.1.0.tgz");
+    archive = join(root, "402signal-session-client-0.1.1.tgz");
   }
   const target = join(root, "installed");
   mkdirSync(target, { mode: 0o700 });
