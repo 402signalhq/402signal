@@ -71,7 +71,12 @@ jobs:
           LAB_BATCH_PG_HOST: 127.0.0.1
           LAB_BATCH_PG_USER: postgres
           PGPASSWORD: lab-fixture-password
-        run: npm --prefix integration/lab test
+        # Files share the synthetic PostgreSQL schema. Serialize file setup;
+        # explicit concurrent operations inside each test still run unchanged.
+        working-directory: integration/lab
+        run: |
+          npm run build
+          node --test --test-concurrency=1 dist/test/*.test.js
       - name: Test isolated Solana session SDK contracts (no RPC or funds)
         run: |
           npm --prefix integration/lab/solana-session-contracts ci --ignore-scripts --no-audit --no-fund
