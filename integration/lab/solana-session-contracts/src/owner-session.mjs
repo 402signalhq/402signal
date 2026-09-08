@@ -119,6 +119,9 @@ export class OwnerSessionController {
 /** Actual transaction bytes, token deltas and generated account decoder must
  * agree. A bare successful signature or local SDK session flag is insufficient.
  */
+// AccountDiscriminator::Channel in payment-channels state/common.rs (3ffa4d6728ad88e4a9667a76ad9ccd68a302c696).
+const CHANNEL_ACCOUNT_DISCRIMINATOR = 1;
+
 export async function observeSolanaOpen(rpc,plan,signature){
  try{
   check(getBase58Encoder().encode(signature).length===64,'signature');check(await rpc('getGenesisHash',[])===SOLANA_GENESIS,'chain');
@@ -133,7 +136,7 @@ export async function observeSolanaOpen(rpc,plan,signature){
   const response=await rpc('getAccountInfo',[plan.open.channelId,{encoding:'base64',commitment:'finalized',minContextSlot:tx.slot}]);
   check(response?.context?.slot>=tx.slot&&response.value?.owner===SOLANA_SESSION_PROGRAM&&!response.value.executable,'channel owner');
   const raw=Buffer.from(response.value.data[0],'base64');check(raw.length===codecs.getChannelDecoder().fixedSize,'channel size');const c=codecs.getChannelDecoder().decode(raw),p=plan.policy;
-  check(c.discriminator===0&&c.status===0&&c.payer===p.payer&&c.payee===p.recipient&&c.authorizedSigner===p.payer&&c.rentPayer===p.operator&&c.mint===SOLANA_USDC&&c.deposit===BigInt(p.depositAtomic)&&c.salt===BigInt(p.salt)&&c.openSlot===BigInt(plan.open.openSlot)&&c.gracePeriod===900&&c.settlement.settled===0n&&c.settlement.payoutWatermark===0n,'channel fields');
+  check(c.discriminator===CHANNEL_ACCOUNT_DISCRIMINATOR&&c.status===0&&c.payer===p.payer&&c.payee===p.recipient&&c.authorizedSigner===p.payer&&c.rentPayer===p.operator&&c.mint===SOLANA_USDC&&c.deposit===BigInt(p.depositAtomic)&&c.salt===BigInt(p.salt)&&c.openSlot===BigInt(plan.open.openSlot)&&c.gracePeriod===900&&c.settlement.settled===0n&&c.settlement.payoutWatermark===0n,'channel fields');
   return {state:'chain_confirmed',transactionSignature:signature,slot:tx.slot,evidenceDigest:sha(json({planDigest:plan.intentDigest,tx,channel:response})),channel:JSON.parse(json(c))};
  }catch{return {state:'unknown',newPaymentAllowed:false};}
 }
@@ -158,7 +161,7 @@ export async function observeSolanaClose(rpc,plan,signature,voucher){
   check(delta(plan.policy.payer)===refund&&delta(plan.policy.recipient)===cumulative&&delta(plan.open.channelId)===-BigInt(plan.open.deposit),'payout/refund mismatch');
   const payerIndex=message.staticAccounts.indexOf(plan.policy.payer);check(tx.meta.preBalances[payerIndex]===tx.meta.postBalances[payerIndex],'unexpected buyer native debit');
   const response=await rpc('getAccountInfo',[plan.open.channelId,{encoding:'base64',commitment:'finalized',minContextSlot:tx.slot}]);check(response?.context?.slot>=tx.slot,'state lag');
-  if(response.value){check(response.value.owner===SOLANA_SESSION_PROGRAM&&!response.value.executable,'channel owner');const raw=Buffer.from(response.value.data[0],'base64');check(raw.length===codecs.getChannelDecoder().fixedSize,'channel size');const c=codecs.getChannelDecoder().decode(raw);check(c.status===3&&c.payer===plan.policy.payer&&c.payee===plan.policy.recipient&&c.authorizedSigner===plan.policy.payer&&c.mint===SOLANA_USDC&&c.settlement.settled===cumulative&&c.settlement.payoutWatermark===cumulative,'channel not distributed');}
+  if(response.value){check(response.value.owner===SOLANA_SESSION_PROGRAM&&!response.value.executable,'channel owner');const raw=Buffer.from(response.value.data[0],'base64');check(raw.length===codecs.getChannelDecoder().fixedSize,'channel size');const c=codecs.getChannelDecoder().decode(raw);check(c.discriminator===CHANNEL_ACCOUNT_DISCRIMINATOR&&c.status===3&&c.payer===plan.policy.payer&&c.payee===plan.policy.recipient&&c.authorizedSigner===plan.policy.payer&&c.mint===SOLANA_USDC&&c.settlement.settled===cumulative&&c.settlement.payoutWatermark===cumulative,'channel not distributed');}
   return {state:'chain_confirmed',transactionSignature:signature,slot:tx.slot,merchantAtomic:cumulative.toString(),returnedBuyerAtomic:refund.toString(),channelRent:response.value?'reclaim_pending':'account_deallocated',evidenceDigest:sha(json({planDigest:plan.intentDigest,tx,channel:response}))};
  }catch{return {state:'unknown',newPaymentAllowed:false};}
 }

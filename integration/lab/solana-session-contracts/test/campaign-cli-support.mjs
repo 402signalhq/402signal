@@ -120,7 +120,7 @@ function rpcFixture(plan) {
     uiTokenAmount: { amount: String(amount) },
   });
   const channel = (status, cumulative) => ({
-    discriminator: 0,
+    discriminator: 1,
     version: 1,
     bump: 1,
     status,
