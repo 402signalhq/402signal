@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Before an agent pays, someone should check the quote · 402Signal</title>
-  <meta name="description" content="Why I built 402Signal to check live x402 offers before an agent signs." />
+  <meta name="description" content="Why a current offer check belongs between API discovery and an agent payment." />
   <link rel="canonical" href="https://402signal.com/insights/pre-spend-routing" />
-  <meta property="og:title" content="Before an agent pays, someone should check the quote" />
-  <meta property="og:description" content="Why I built 402Signal to check live x402 offers before an agent signs." />
+  <meta property="og:title" content="Before an agent pays, someone should check the quote · 402Signal" />
+  <meta property="og:description" content="Why a current offer check belongs between API discovery and an agent payment." />
   <meta property="og:url" content="https://402signal.com/insights/pre-spend-routing" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="402Signal" />
@@ -15,14 +15,15 @@
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Before an agent pays, someone should check the quote" />
-  <meta name="twitter:description" content="Why I built 402Signal to check live x402 offers before an agent signs." />
+  <meta name="twitter:title" content="Before an agent pays, someone should check the quote · 402Signal" />
+  <meta name="twitter:description" content="Why a current offer check belongs between API discovery and an agent payment." />
   <meta name="twitter:image" content="https://402signal.com/og.png" />
   <meta name="twitter:site" content="@402Signal" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <div class="page article-page">
     <header class="site">
       <a class="brand" href="/">
@@ -37,58 +38,41 @@
       </nav>
     </header>
 
-    <main class="article">
-      <p class="eyebrow">A note from the builder</p>
-      <h1>Before an agent pays, someone should check the quote.</h1>
-      <p class="article-meta">September 5, 2026 · Ross</p>
-
-      <figure class="article-hero">
-        <img src="/og.png" width="1200" height="630" alt="402Signal highlights one route through a network of possible paid API paths across Base, Solana, and Algorand." />
-      </figure>
-
-      <p>A developer sent me his x402 endpoint this week. I caught myself asking the same questions a buying agent should ask: Is it live? Is the listed price still right? Can the agent actually call it? Does it use a rail the buyer allows?</p>
-
-      <p>A directory gets the agent to the endpoint. That is useful. It still does not make the buying decision.</p>
-
-      <p>That gap is why I built 402Signal.</p>
-
-      <p>The buyer sends a capability or URL and its limits. 402Signal checks the strongest candidates during that request, reads the payment terms they return now, and applies the buyer's rules. It returns one route or a specific reason to stop.</p>
-
-      <p>It is not a wallet. The agent keeps its keys, signing authority, seller payment, and final decision.</p>
-
-      <p>A successful route costs $0.003 USDC. A normal typed miss costs $0. If 402Signal cannot find something the buyer can use, that should not be the billable result.</p>
-
-      <p>The other piece I care about is the record. A payment receipt proves that money moved. It does not explain what the agent saw or why one route passed its rules.</p>
-
-      <p>For buyers that require transparency, 402Signal commits routing evidence to an append-only log. Falcon-1024 authorizes the checkpoint transaction anchored on Algorand MainNet. That makes later changes to committed history detectable.</p>
-
-      <p>The boundary matters: this does not make the seller payment or API response post-quantum secure. Keep the private verification record returned with the route. Private replay records can retain it, but they are not a recovery service.</p>
-
-      <p>There is now an optional check for the gap between finding a route and paying the seller. Ask for a bound route, then have your app compare the seller's current request with the signed terms. A changed price or recipient, a different request, or expired evidence stops the handoff to your payment code. Your wallet still validates and signs the transaction.</p>
-
-      <p>The immediate receipt uses the log's Ed25519 signature; the cumulative Falcon anchor comes later. This checks observed terms, not the quality of what the seller delivers. <a href="/developers#route-binding">The integration guide covers the supported requests and limits</a>.</p>
-
-      <p>If you are building an x402 buyer, try it with a real request. I want to hear where it stops, where the evidence is thin, and what you would need before letting an agent use it repeatedly.</p>
-
-      <p class="scope-note"><a href="/catalog">Search the free catalog</a> · <a href="/developers">Read the developer guide</a> · <a href="/transparency">Inspect PQ Trust</a></p>
+    <main id="main">
+<article class="article"><p class="eyebrow">A note from the builder</p><h1>Before an agent pays, someone should check the quote.</h1><p class="article-meta">September 5, 2026 · Ross</p>
+        <p class="lede">Finding an API is a useful first step. Before a buyer spends, it also needs to know what the endpoint is offering now.</p>
+        <figure class="article-hero"><img src="/og.png" width="1200" height="630" alt="402Signal highlights one route through a network of possible paid API paths across Base, Solana, and Algorand." /></figure>
+        <h2>A listing is the start of a decision</h2>
+        <p>Is the endpoint responding? Does it return a payment offer on a network the buyer supports? Is the price within budget, and can the buyer form the request? These are concrete questions to answer before signing.</p>
+        <p>That is the role of 402Signal. Send a capability or URL and your constraints. It checks candidate offers during that request, applies those constraints and returns a qualifying route or a reason to stop.</p>
+        <h2>Keep the last decision with the buyer</h2>
+        <p>An offer can change between discovery and purchase. With bound evidence and the optional local guard integrated, the buyer compares the seller's current offer and exact request with the signed observation. A changed recipient, price or request, or expired evidence, stops the payment handoff.</p>
+        <p>The buyer still validates the actual transaction, controls its budget and signs in its own wallet. The check does not guarantee that the answer will be useful, operate escrow or decide whether a refund is owed.</p>
+        <h2>Pay for the observation; keep its record</h2>
+        <p>A qualifying observation costs $0.003 USDC. A normal typed miss costs $0. The seller's charge and any network fees are separate. The routing fee pays for the check even if the buyer then decides not to purchase.</p>
+        <p>A payment receipt records money moving. Routing evidence records what was observed and why the offer passed the buyer's rules. Commitments in the public log make changes to a saved private record detectable.</p>
+        <p>The immediate receipt uses an Ed25519 log signature. Falcon-1024 authorizes the checkpoint transaction anchored on Algorand MainNet. Confirmation of that later checkpoint is separate from the route response and from the seller's payment.</p>
+        <p>Keep your verification record privately. Private replay records can retain it, but they are not a recovery service. The public commitment cannot reconstruct your private record.</p>
+        <p>If you are building an agent buyer, an SDK or a payment policy, start with a request your app already makes. The useful test is whether a current observation and a reason to stop improve that purchase decision.</p>
+        <p><a class="btn" href="/developers">Read the integration guide</a> <a class="btn secondary" href="/catalog">Explore the free catalog</a></p>
+      </article>
     </main>
-
     <footer class="foot">
       <p>402Signal</p>
       <p>
-        <a href="/">Home</a>
+        <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
+        <a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a>
         <a href="/how">How it works</a>
-        <a href="/developers">Developers</a>
-        <a href="/catalog">Catalog</a>
         <a href="/openapi.json">OpenAPI</a>
         <a href="/mcp.json">MCP</a>
         <a href="/transparency">Transparency</a>
         <a href="/contact">Contact</a>
-        <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-        <a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a>
+        <a href="/.well-known/security.txt">Security</a>
+        <a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a>
         <a href="mailto:ross@402signal.com">ross@402signal.com</a>
       </p>
     </footer>
   </div>
+
 </body>
 </html>

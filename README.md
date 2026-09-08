@@ -1,285 +1,106 @@
 # 402Signal
 
-402Signal checks x402 routes across Base, Solana, and Algorand before spending. $0.003 only when a valid live route is found. Normal typed misses are not settled. Seller payment is separate. Your agent keeps the wallet. Routing evidence enters the PQ Trust log on Algorand MainNet. Optional require_route_binding=true adds a signed v4 receipt for buyer-side comparison with current seller terms before signing. Guide: https://402signal.com/developers#route-binding Falcon authorizes a checkpoint transaction, not a merchant payment. This is not a PQ payment rail and not a claim that the product is fully quantum-proof.
+402Signal checks x402 routes across Base, Solana, and Algorand before spending. $0.003 only when a valid live route is found. Normal typed misses are not settled. Seller payment is separate. Your agent keeps the wallet. Routing evidence enters the PQ Trust log on Algorand MainNet. Optional require_route_binding=true adds a signed v4 receipt for buyer-side comparison with current seller terms before signing. Guide: https://402signal.com/developers#route-binding
 
-- **Live site:** https://402signal.com
-- **Paid API:** `POST /route` — authorize $0.003 USDC; settlement is success-only
-- **MCP:** https://402signal.com/mcp.json
-- **OpenAPI:** https://402signal.com/openapi.json
+[Website](https://402signal.com/) · [Developer guide](https://402signal.com/developers) · [Free catalog](https://402signal.com/catalog) · [OpenAPI](https://402signal.com/openapi.json) · [MCP](https://402signal.com/mcp.json)
 
-Production verifies authorizations and settles only eligible winners. The router holds no buyer payment keys and never pays upstream sellers.
+## Check an offer before signing
 
-## Run locally
+Send a capability or an exact API URL with your buyer's constraints. 402Signal observes the endpoint's current payment offer, applies those constraints, and returns a qualifying route or a typed miss. Your application keeps its wallet, validates the actual transaction and decides whether to purchase from the seller.
 
-Python 3.12 (stdlib plus pinned `cryptography` for Coinbase CDP JWTs and Ed25519 log signatures). Local default is **127.0.0.1:8081**. Fly / Docker bind **0.0.0.0:$PORT** (default 8080).
+- **Explore:** catalog search and preview are free. They do not perform a new live endpoint check.
+- **Observe:** a qualifying API observation costs $0.003 USDC. Completed normal misses are not settled.
+- **Verify:** request bound evidence and integrate the buyer guard to compare the exact request and fresh offer before your own payment code signs.
+- **Keep evidence:** retain the private verification record so you can check its integrity later.
 
-```bash
-PYTHONPATH=. python3 -m live402
+Seller payment, network fees and any channel funding are separate. The routing fee pays for the observation even if you decline the seller's offer afterward. A later guard rejection does not reverse a settled routing fee. An observation does not guarantee delivery or output quality; 402Signal does not hold buyer funds, operate escrow or decide disputes.
+
+## Start with an unpaid request
+
+```sh
+curl -sS -D - https://402signal.com/route \
+  -H 'Content-Type: application/json' \
+  --data '{"need":"web search","networks":["base"],"max_price_usd":0.02,"require_route_binding":true}'
 ```
 
-Then open http://127.0.0.1:8081
+An unpaid call returns HTTP 402 with the current routing payment requirements. Validate those requirements and your budget in the buyer, then authorize the $0.003 USDC fee with your own wallet. Submit the identical request with the resulting payment header. Never send a wallet private key to the service.
 
-Unpaid `POST /route` returns HTTP 402. Local operator loop (skip the paywall, still probe):
+For an existing integration, use `url` instead of discovery. `networks` is a required filter; `prefer_network` only affects ranking. Unknown measurements do not satisfy required limits. The [developer guide](https://402signal.com/developers#request) and [OpenAPI schema](https://402signal.com/openapi.json) define supported fields and response semantics.
 
-```bash
-LOCAL_FREE=1 PYTHONPATH=. python3 -m live402
+## Install the buyer client
+
+The [v0.5.0 release](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0) contains the Node/TypeScript client, private attempt store and offline guard. Download the [verified archive](https://github.com/402signalhq/402signal/releases/download/route-guard-v0.5.0/402signal-route-guard-0.5.0.tgz) and check its published digest before installing. Node.js 22 or newer is required; this is a release tarball, not an npm registry publication.
+
+```sh
+npm install ./402signal-route-guard-0.5.0.tgz
 ```
 
-`LOCAL_FREE=1` is tests-only. Production must not set it.
+Use `RouteClient` to retain an attempt before submission, then `withVerifiedRoute` immediately before the buyer's own signing callback. The guard checks signed evidence, exact request identity, current seller terms and expiry against an independently trusted log key. It does not sign transactions or implement a wallet.
 
-Offline / tests (no network, fixture catalog):
+- [Client, guard and recovery API](sdk/route-guard/README.md)
+- [Reference buyer and useful external workflows](integration/reference-buyer/README.md)
+- [x402 gateway adapter for mppx](integration/mpp-client/README.md)
+- [MCP adapter](integration/mcp/README.md)
 
-```bash
-LIVE402_FIXTURE=1 LOCAL_FREE=1 PYTHONPATH=. python3 -m live402
-```
+Customer access keys identify a 402Signal integration or workload class. They are not wallet private keys. Keep access credentials, payment authorizations and attempt stores private.
 
-Tests:
+## Supported requests and batch scope
 
-```bash
+Exact x402 observations cover Base, Solana and Algorand. The ordinary request path uses GET, with a narrowly justified empty-object POST fallback. The opt-in `parallel-search-json-v1` profile accepts an exact, bounded JSON search request only at `https://parallelmpp.dev/api/search`. Its body is bound to the observation and is not broadcast through discovery. This is not an arbitrary POST proxy. See the [exact-request contract](docs/proof-carrying-route-v1.md).
+
+**Batch and session support:** the published v0.5 client includes a separate v5 guard for the profiles below. Live paid qualification is still in progress. Controlled lab examples demonstrate specific contracts and limits.
+
+| Profile | Supported scope | Buyer responsibility |
+|---|---|---|
+| Base EVM batch settlement | Explicit channel terms, recipient and buyer caps | Validate funding, vouchers and eventual payout independently; voucher acceptance is not on-chain settlement |
+| Solana native MPP push sessions | A supported channel, operator and recipient | Own opening, voucher signing, fees/rent and closing; no claim of cross-channel batch settlement |
+| Algorand two-item atomic grouping | One exact HTTPS GET API, two USDC payments to one recipient, explicit item/total caps and job hashes | Validate the full group and sponsor terms; atomic chain execution does not promise atomic HTTP delivery |
+
+The router observes one explicitly requested API; it does not aggregate seller payments, deposit capital or issue vouchers. The $0.003 observation fee is separate from merchant economics. The [batch contract](docs/batch-observation-v1.md), [Algorand buyer adapter](integration/batch-buyer/algorand/README.md) and [lab qualification guide](integration/lab/BATCH_QUALIFICATION.md) describe the bounded mechanisms and their remaining live evidence. The x402 mppx gateway adapter is separate from native MPP sessions.
+
+## Outcomes, recovery and evidence
+
+Read `live`, `payable`, `selected_payment` and `billing` together. HTTP 200 alone does not authorize a seller payment.
+
+| Result | Meaning |
+|---|---|
+| HTTP 402 before authorization | The routing payment requirements; no paid check yet |
+| Completed normal miss, HTTP 200 | `live:false`, `payable:false`, `selected_payment:null`, `billing.settlement_state=not_attempted`; no routing settlement |
+| Qualifying result, HTTP 200 | Current eligible offer and explicit routing billing outcome; the buyer still decides and validates before seller payment |
+| Operational or uncertain failure, HTTP 503 | Inspect `billing.settlement_state`; settlement may be unattempted, settled before an evidence failure, or unknown |
+
+Never interpret a lost response as proof that no payment occurred. Recover the original attempt before considering a new authorization. The [private response recovery contract](docs/route-recovery.md) uses the same request, payment authorization and private replay credential; recovery preserves the original outcome and expiry. It does not retry an uncertain payment.
+
+Clients that need later verification must securely retain the complete paid `/route` response, including `pq_trust.transparency.receipt`, `pq_trust.transparency.reveal` and the original request. Private replay outcomes are short-term recovery, not long-term evidence storage. The reveal contains private request and decision evidence; do not put it in public logs.
+
+Immediate signed receipts and later cumulative MainNet anchors are distinct. The public log contains commitments rather than full private records. Falcon-1024 authorizes the checkpoint transaction; it does not secure seller payments. Inspect [Transparency](https://402signal.com/transparency) and the [evidence contracts](docs/README.md#protocol-and-evidence).
+
+## Develop and operate
+
+Use an isolated development environment with Python 3.12 and the hash-locked dependencies. Fixture mode keeps the catalog and seller responses synthetic.
+
+```sh
+python3 -m pip install --require-hashes -r requirements.txt
+LIVE402_FIXTURE=1 PYTHONPATH=. python3 -m live402
 LIVE402_FIXTURE=1 PYTHONPATH=. python3 -m unittest discover -s tests -v
 ```
 
-## POST /route
+The development server defaults to `127.0.0.1:8081`. `LOCAL_FREE=1` is a test-only bypass and must never be enabled in production. The [lab](integration/lab/README.md) provides controlled buyer/seller scenarios; synthetic qualification and live payment evidence are reported separately.
 
-Body:
+PostgreSQL replay authority provides durable payment identities across processes. Catalog/history and ordered transparency writes still require the documented single-writer boundary. A shared replay database is not proof of horizontal capacity or millions of requests per day. Follow the [managed PostgreSQL runbook](docs/runbooks/managed-postgres-functions.md), [readiness checks](docs/fly-ready-check.md), [backup guide](docs/backup.md) and [scaling plan](docs/scale-20m.md). Never replace an uncertain authority with a stale backup or unfenced SQLite source.
 
-```json
-{ "need": "erc20 token balance", "url": "https://example.com/x402/balance", "prefer_network": "base" }
-```
+Production admission policy, customer identities and live policy limits stay in private operator configuration. Public historical observation metadata is not a promise of future reliability or proof of customer adoption. See [admission operations](docs/admission-operations.md).
 
-`need` or `url` (or both) is required.
+The [documentation index](docs/README.md) separates current contracts from historical release gates. Preserve economic identities, signed history and recovery material during upgrades. Historical TestNet broadcasting is a `402signal (router) env` capability: 402security must GO before anyone sets it to `1`. Signer never reads BROADCAST. This historical flag does not enable MainNet; use the separate reviewed [MainNet anchoring runbook](docs/pq-automatic-anchoring.md).
 
-- No valid payment and `LOCAL_FREE` unset → **HTTP 402**. One 402 lists three accepts (Base, Solana, Algorand) plus the bazaar extension. We do not probe.
-- Valid authorization: match the advertised rail exactly, verify with the matching facilitator, then admit its replay fingerprint durably before discovery and probing. Invalid authorizations occupy only a bounded memory cache; body validation and private recovery scope checks must also pass. Settle only after a valid live eligible route passes the final billable-winner gate. An unverified header never opens the gate.
-- If `url` is set: must be `https`. Unknown public URLs are port 443 only; catalog-known listings may use the HTTPS port already present on that listing. Unpaid probe is GET first, then POST `{}` only when GET is 405/501 AND the catalog explicitly declares POST AND does not require a request body. Never POST `{}` after GET 200/400/401/403/404/500. Never POST seller-declared or catalog-declared input bodies. If a required body means a valid unpaid probe cannot be constructed, the typed miss is `unsafe_to_probe`. DNS uses a bounded resolver pool (`getaddrinfo`, 2s); the TCP/TLS connection is pinned to those SSRF-checked public IPs with TLS SNI and HTTP Host set to the original hostname (re-checked and re-pinned on each redirect hop). Fail closed if pin/SNI/Host cannot be applied. ~4s timeout. Response includes `live`, `status`, `latency_ms`, `has_402_challenge`, `selected_payment`, `billing`, and a `health` snapshot. **$0.003 only when a valid live route is found. Normal typed misses are not settled. Seller payment is separate.**
-- If only `need`: federated need-scoped search (local FTS on `catalog.sqlite` + Coinbase / PayAI / GoPlausible) at request time (CDP `/discovery/search`; PayAI / GoPlausible search or a small first-pages fetch), union/dedupe/rank that working set, hydrate only the top ~5–10 finalists with claimed method/schema/toolName (bounded, TTL, optional gzip on disk; never a 44k RAM schema index), then probe adaptively (first 3, expand 2–4 if no winner; hard ceiling 20). Return the best currently observed live option (not the first live URL, not a catalog-only rail). A HTTP 200 winner is a resource plus the exact observed payment option that made it win: `selected_payment` is never null, never copied from a catalog claim, and when `networks` is set its `network` must be in that lock. Live hits are write-through upserted onto disk. Catalog claims stay on `claimed.payment_options` and `catalog.sqlite` `accept_claims`; `target.accepts` and selection use the current HTTP 402 envelope only. Claimed schemas are not observed payment options. A completed normal miss → **HTTP 200** with `live:false`, `payable:false`, `selected_payment:null`, `billing.settlement_attempted=false` and `billing.settled=false`; the verified authorization becomes a durable terminal `not_settled` replay outcome. Optional structured constraints are top-level request fields: `max_price_usd`, `max_total_cost_usd` (merchant + known fees; unknown fee fails closed), `max_probe_latency_ms`, `max_service_latency_ms` (historical p50, not probe RTT), `max_settlement_latency_ms` (settlement/finality, not probe RTT), `require_invocable`, `networks` (hard policy lock), `min_observations`, `min_observed_success`, `min_reputation_score`, `min_reputation_confidence`. A nested `constraints` object is rejected rather than silently ignored. `prefer_network` is a weak ranking preference only; it does not become a filter. `max_latency_ms` is a probe-RTT alias. Unknown measured values fail closed. Optional `objective`: `best` / `cheapest` / `fastest` / `most_reliable` / `lowest_total_cost` / `fastest_settlement`. `cheapest`, `fastest`, and `most_reliable` rank the currently probed eligible candidates, not every discovered endpoint. `fastest` is this-request probe RTT, not settlement latency (`fastest_settlement` stays separate). Optional `policy` / need phrasing such as `weather under $0.01 and 300ms` compiles to structured constraints; "established usage" / "strong observed evidence" compile to `min_observations=10`; vague "high reputation" stays unresolved; settlement / total-cost language compiles only with a numeric bound. The engine uses structured values only. `interpreted_constraints` / `applied_constraints` echo constraints actually used. Settled `/route` winners and unpaid `/preview` include transparent `reputation` components (observed / usage / tenure / stability / source_count) plus V2 `reputation_score`, `reputation_confidence`, and `scoring_model_id` / `scoring_model_hash`. Free misses remain tentative and do not promote trusted history. Rail `economics` (merchant price, fees, settlement/finality) sit on the selected payment option and on `compared[]`, each field labeled `402signal_observed`, `protocol_reference`, or `unknown`. Same model on Base, Solana, and Algorand (no algo bonus). Catalog is not a 0–100 badge. Pulse stays facts; rates stay hidden below `n=10`. Unique payer addresses are never listed. Most usage/settlement/unique-payer fields are unknown on first ship because 402Signal has probe history, not a settlement ledger.
-- Operational probe failures such as timeouts and upstream 5xx responses retain **HTTP 503**. Completed normal misses use **HTTP 200** with explicit unpaid billing; neither result invents a live URL. Local work-capacity refusals use **HTTP 503** with `probe_capacity`, explicit retryability and no invented negative API observation.
-- `LIVE402_FIXTURE=1` uses `live402/data/fixtures.json`. No network.
-- Settled **HTTP 200** includes `target: { method, inputSchema, outputSchema, accepts, facilitator, amountAtomic, displayAmount, timeoutSeconds }` (envelope accepts only), `selected_payment: { rail, network, asset, amount_atomic, display_amount, normalized_usd, payTo, facilitator }`, and `billing: { model, condition, asset, amount_atomic, display_amount, rail, settlement_attempted, settled, settlement_state }`. `selected_payment` must exactly match a valid option from the current envelope. `payable` requires a complete observed option; `invocable` is payable plus input schema. If schema is missing, `live` may still be true with `invocable: false` and `miss_reason: "no_input_schema"`. `accepts[].extra.facilitator` is copied as `{url, feePayer, caip2, scheme}` — do not default to x402.org.
-- `miss_reason` is a closed enum: `no_candidates`, `no_402_envelope`, `no_payto`, `reachable_200`, `probe_timeout`, `quote_expired`, `invalid_need`, `upstream_5xx`, `ssrf`, `no_input_schema`, `constraints_unmet`, `probe_budget_exhausted`, `probe_limit_reached`, `probe_capacity`, `unsafe_to_probe`, `settlement_unknown`. HTTP 402 with no usable payTo is `no_payto` (typed miss, not retry-pay). Probe budget is under 60s; a hang returns **503** JSON immediately. `stop_reason` and `probe_ceiling` say why probing stopped.
-- `GET /health` is **HTTP 200** `{ "ok": true }` for Fly checks. Not a paid listing. Not a rails dump.
-- `GET /ready` checks catalog/history/log access and log consistency, plus a real replay-ledger write probe, durable journal mode and storage admission capacity. Response is booleans only (no paths, no secrets). The catalog/history/log checks do not simulate disk-full writes. Fly checks both `/health` and `/ready`; readiness failure removes the machine from service. See [the readiness runbook](docs/fly-ready-check.md).
-- `GET /preview?need=` is an unpaid request-time catalog search (`not_probed: true`, hits + prices + freshness + facilitator/method/inputSchema_present/rails_up, optional `also_on[]`). Optional `prefer_network=base|solana|algorand` is a weak ranking preference: it ranks that rail first but still searches all three. Optional `networks=solana` (repeat or comma-separate) is a hard policy lock on which rails are queried. `discovery_via` is a compact per-rail how-found map; `discovery_exhaustive` is true only when the returned set is known complete. It does not probe and does not charge. Paid `POST /route` remains the fail-closed 402 probe.
-- `GET /rails` lists the three pay-in networks, asset, amountAtomic, facilitators, feePayers, maxTimeoutSeconds, and per-rail up+latency. Cached. Not stuffed into `/health`.
-- `GET /pulse` is a JSON snapshot. Catalog totals stay unpublished. Discovery uses current upstream catalogs plus a process-local shadow (not a full-world RAM index). `index_status` is `upstream-live`, `shadow-warm`, `both`, or `fixture`. Observed `n_7d` comes from `402signal_observed`. Rates (`success_7d`, `payable_rate_7d`, `invocable_rate_7d`) are omitted below `n=10`. There is no binary `healthy` and no `executable_now_rate`. Query params are ignored — no caller-supplied URLs. Cached ~15s. Fail-open: never waits on a discovery crawl. The trickle refresher never blocks `/route`.
+## Repository and contact
 
-## Capability labels
+| Path | Purpose |
+|---|---|
+| `live402/` | Router, discovery, probing, payment verification and evidence |
+| `sdk/route-guard/` | Buyer client and local evidence verification |
+| `integration/` | Reference buyers, MCP adapter and controlled lab |
+| `tests/` | Synthetic functional and security regressions |
+| `docs/`, `ops/`, `scripts/` | Protocol contracts and reviewed operating tools |
 
-Capabilities are conservative, rule-based discovery hints, not output-quality or
-interchangeability guarantees. `market.price` covers quotes, prices and OHLCV data;
-`market.analysis` covers financial analysis such as market regime, sector breadth,
-leadership, technical indicators and probabilistic returns. Broad words like
-"analysis", "signal" and "leadership" need financial context in the same evidence
-source; "market" or "trading" alone no longer implies prices. RSI/MACD are distinctive
-indicator terms; OHLC/OHLCV supply financial context. Specific financial analysis resolves price/forecast overlap;
-unrelated category conflicts remain ambiguous. Existing evidence priority stays
-tags, tool name, description, service name, then a distinctive URL.
-
-Put the specific job in `need` (for example, "equity market regime" or "sector
-breadth leadership"). "Market intelligence" is a search synonym for "market
-analysis", not a second capability. Search request counts and limits are unchanged.
-Pulse keeps the broad `market` theme for both.
-
-Classification versions live with stored labels. Older records are reclassified
-on read for ranking and reindexed in batches of at most 100 on the existing
-background trickle worker. This changes derived labels and their search index only:
-claim/verification timestamps, payment claims, source generations, history and
-claim events are preserved. No restart-time full catalog rebuild is needed.
-Until backfill completes, searches that rely only on the new capability's indexed
-text can miss older records in both `/preview` and `/route`; on-read classification
-corrects returned candidates, not retrieval coverage. Descriptive `need` text still
-searches retained endpoint descriptions. The backlog progresses only while the
-trickle worker is enabled and storage is writable. Reclassification failures emit
-`catalog_reclassification_failed` at most once per minute and leave ordinary claim
-refresh running. No exception contents or seller metadata are logged.
-Previously unretained tool names cannot be recovered by reclassification; ordinary
-upstream refresh supplies that evidence. New slim records retain bounded tool names.
-Future taxonomy changes must bump `CAPABILITY_VERSION` and test both positive
-examples and neighboring/ambiguous intents, including persisted catalog upgrades.
-
-## Shadow catalog refresh queue
-
-Background trickle is one bounded step at a time (a few stale URLs, or one COLD page). It does not rebuild a 44k RAM catalog and does not add network fanout beyond the existing discovery/probe budgets.
-
-Priority (first matching reason wins; then `last_fetched` / URL). Same order in `live402/shadow.py` `REFRESH_REASONS`:
-
-1. **recent_search** — searched in the last hour, claim older than `LIVE402_HOT_REFRESH_S`
-2. **recent_route** — routed in the last hour, claim stale
-3. **source_disagreement** — two catalogs disagree on amount or payTo for the same rail
-4. **price_change** — recent `price_changed` claim event
-5. **payto_change** — recent `payTo_changed` claim event
-6. **schema_change** — recent `schema_changed` claim event
-7. **failed_probe** — last independent probe was not live
-8. **stale_observation** — never verified, or last verification older than a day
-9. **high_demand_capability** — capability with at least two recently searched listings
-
-If the queue is empty, the refresher takes one COLD generation page.
-- `GET /dashboard` shows sample lookups as HTML. Use `/catalog` for free interactive search and a paid-request builder.
-- `GET /` explains discovery, live routing, separate seller payment and optional signed evidence. `/catalog` provides free search and a request builder; it does not sign or send payments. `/developers` documents HTTP, MCP and client verification. Main navigation links Explore, Developers, Transparency and GitHub; `/how` explains the end-to-end flow. The website does not hold buyer keys or provide an injected-wallet payment flow.
-- `GET /route` is split by `Accept`: browsers (`text/html`) get the human page (HTTP 200). Agents (`application/json`) and curl with no Accept get HTTP 402 + bazaar + accepts (amount `3000`). Agents that intend to authorize should **POST**, not GET.
-- Discovery: `GET /openapi.json`, `GET /mcp.json`, `GET /.well-known/x402`, `GET /.well-known/x402.json`, `GET /robots.txt`, `GET /llms.txt`, `GET /preview`, `GET /rails`. Paid `POST /route` is documented with `x-payment-info` and HTTP 402. MCP bazaar type is `mcp` + `toolName: route`.
-- `POST /validate` (also `GET /validate?url=`) is an unpaid seller probe: is this endpoint agent-ready? Only URLs already in the catalog or fixture are probed (no arbitrary public fetch). Same unpaid helper as `/route`: GET first, justified POST `{}` only, never a catalog-declared body, DNS IP-pin, fail-closed SSRF. Does not write `402signal_observed`. Not a `/route` payment bypass. Returns readiness, claimed vs observed, flags. Never a binary `healthy` flag.
-- `GET /attestation` is a public sha256 of canonical JSON of a recent `402signal_observed` probe batch (`batch_id`, `created_at`, `n`, `algo`, `hash`). Not on-chain. No signatures or keys. Optional `?batch_id=`.
-- `GET /pq/log/checkpoint` and `GET /pq/log/tile/*` are an **experimental** C2SP transparency log (tlog-checkpoint@v1.0.0 + tlog-tiles@v0.1.0). Production identity is MainNet-only: origin `402signal.com/pq/log/mainnet-v1`, epoch `mainnet-v1`, DB `/data/pq-log-mainnet.sqlite`, `LIVE402_PQ_FALCON_NETWORK=mainnet`, pq-anchor/3, MainNet Falcon address, and authenticated MainNet signer responses. Unset or unknown network fails closed. There is no live TestNet PQ fallback. TestNet constants, `LIVE402_PQ_LOG_SK`, `LIVE402_PQ_SIGNER_TOKEN`, `LIVE402_PQ_FALCON_BROADCAST`, `LIVE402_PQ_FALCON_ADDRESS`, `/data/pq-log.sqlite`, and pq-anchor/1 remain TEST SUPPORT (tests and archive) only. Automatic MainNet anchoring is exact-opt-in and defaults off; its durable controller is outside the route request path. Production AUTHORIZED persistence requires a verified response HMAC over the exact SignedTxn bytes followed by strict semantic validation; caller-supplied bytes cannot reach persistence. Existing confirmed evidence remains readable. AUTHORIZED / SEND_ATTEMPTED / SUBMITTED are never rendered as CONFIRMED. Explorer links follow independently recorded network/genesis. MainNet evidence never uses TestNet URLs. Falcon SK must never live on 402signal. The isolated signer never reads BROADCAST and never POSTs. `last_confirmed` is persisted only after an independent fetch+decode+verify. Signing or POST success is not confirmation. Settled `POST /route` does not wait for chain inclusion. Falcon authorizes a checkpoint transaction, not a merchant payment. A settled winner may include optional `pq_trust.transparency` `{status: pending|logged_uncheckpointed|unavailable, state, log_origin, index, checkpoint_size, receipt, reveal}`. A free miss appends no route-decision leaf and cannot trigger an anchor solely for that request. Settlement and log append are not atomic (SEC-ROUTER-004 / A-14): a settled winner does not require a durable signed leaf unless `require_transparency` or `require_route_binding` is true. If required transparency fails after settlement, the response remains truthful that settlement occurred and no second settlement is attempted. `pending` means a durable leaf plus a signed checkpoint (state `checkpoint_signed`). `logged_uncheckpointed` means the leaf is durable without a signed checkpoint and is never success when `require_transparency` is true. `unavailable` means a signed receipt could not be produced; an append may already have occurred. It is not pending or confirmed. Never say signed if there is no checkpoint. Default route receipts use `402signal.route_decision.v3`: the public leaf is type, minute-rounded ts, nonce, and sha256 commitment only. Historical v1 and v2 leaves stay verifiable with their original semantics. A public leaf is not a claim of anonymous or unlinkable traffic. The customer `reveal` holds private evidence, salt, expected commitment, and event version. `verify_route_receipt()` checks event version, reveal, commitment, leaf_hash, inclusion, and the Ed25519 checkpoint. `receipt.leaf_hash` is present so `verify_receipt()` can still round-trip. `payment_authorization.pq_native` is always false. No `/trust` page. The homepage PQ card renders only when `last_confirmed` has a real confirmed txid. Production Ed25519 signing uses `LIVE402_PQ_LOG_SK_MAINNET` only (never baked into git; never auto-generated on boot; never falls back to `LIVE402_PQ_LOG_SK`). See `docs/pq-automatic-anchoring.md`.
-- `POST /route` is rate-limited in memory (~12/min per IP by default; operator-configurable). User-Agent does not grant extra quota. On Fly the limiter key is `Fly-Client-IP`; otherwise the socket peer. `X-Forwarded-For` is not trusted. Rate-limit maps and per-host probe semaphores are TTL/LRU bounded. `GET /preview` and unpaid MCP `tools/call preview` share a looser limiter (~180/min per IP, at least 2× the route cap). `GET /pulse` and `GET /rails` each have their own ~180/min per-IP limiter (same ballpark as preview, still looser than paid `/route`). `GET /health` stays unlimited `{ok:true}`. `429` when exceeded. Production request logs are request id, method, path only, status, latency, and a coarse endpoint. Query strings, need, policy, `/preview` search, `/validate` target URL, request JSON, `PAYMENT-SIGNATURE`, `X-PAYMENT`, payment payloads, and seller response bodies are not logged. Settlement logs are coarse success/skipped outcome plus rail and request id, not full txids. Responses send `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Strict-Transport-Security: max-age=31536000` (no includeSubDomains; www is a CNAME and Fly has no extra hostnames), and `Content-Security-Policy: default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'self'; frame-ancestors 'none'`. script-src stays `'self'` (no CDN, no vendor wallet scripts). connect-src is `'self'` only; the catalog UI calls the unpaid search endpoint. HEAD 200 on `/llms.txt` `/openapi.json` `/mcp.json` `/preview` `/rails` `/pulse`. Payment resource / OpenAPI `servers` / MCP resource are pinned to `https://402signal.com` (Host is not reflected). Probe DNS uses a bounded `getaddrinfo` pool (2s); the TCP/TLS connection is pinned to those SSRF-checked public IPs with TLS SNI and HTTP Host set to the original hostname (re-pinned on redirects). Seller-declared catalog bodies are never POSTed; unjustified POST `{}` is skipped; required-body misses are `unsafe_to_probe`. Paid `/route` uses one advertised-timeout deadline for verify, probe, and optional settlement.
-
-PQ Trust clients that need later verification must securely retain the complete paid `/route` response, including `compared[]`; at minimum, keep `pq_trust.transparency.receipt` and `pq_trust.transparency.reveal` together. Private replay outcomes can retain the reveal for short-term [HTTP response recovery](docs/route-recovery.md); they are not long-term evidence storage. Keep your own copy. Modified evidence fails verification against the public log. Because the reveal contains private request and decision evidence, it must not be written to public logs.
-
-Opt-in proof-carrying routes: send `require_route_binding: true` to require a
-v4 signed receipt binding the actual observed seller URL, method, request-body
-hash, complete current x402 envelope and short freshness window. This also
-requires transparency. Normal typed misses remain free; an unavailable required
-receipt after settlement still reports `billing.settled=true`. Buyer keys,
-transaction validation, signing and execution stay with the buyer. The immediate
-receipt uses the pinned Ed25519 log key; later cumulative Falcon confirmation is
-separate. See [the v1 contract and verifier](docs/proof-carrying-route-v1.md) for
-supported request shapes, expiry, privacy and limitations. Defaults, existing
-v3 clients, and automatic anchor settings are unchanged. Start with the
-[developer walkthrough](https://402signal.com/developers#route-binding), then
-integrate the [installable Node/TypeScript client and local guard](sdk/route-guard/README.md) or the Python
-verifier. The Node module is distributed as repository source, not published to
-npm. Client-side expiry or a changed seller challenge does not undo an
-already-settled routing fee.
-
-Clients send v2 `PAYMENT-SIGNATURE` (base64 `PaymentPayload`) or v1 `X-PAYMENT`. Success/settle echo is `PAYMENT-RESPONSE`.
-
-## Reputation V2 and rail economics
-
-Components come first. A score is never returned without them.
-
-| Component | What it is | What it is not |
-|---|---|---|
-| observed | probe success count, n, distinct days, freshness, outcome stability | uptime, a health badge |
-| usage | eligible `402signal_observed` probe counts, excluding operator-classified self-tests | settlement counts, unique payers, or proof of organic demand |
-| tenure | first seen, days listed | quality |
-| stability | payTo / price / schema / rail changes | a guarantee |
-| source_count | independent catalog sources | popularity |
-
-**V2 score** (0–1, chain-neutral, documented in `live402/reputation.py` and the sqlite `scoring_models` log):
-
-- observed_performance **0.50** — the only reliability-like signal we measure. Popularity cannot dominate.
-- stability **0.20** — recent identity/quote churn is a risk signal.
-- tenure **0.10** — age ≠ quality. Log-capped at 365 days.
-- usage **0.10** — log-capped probe counts (`log1p(n)/log1p(100)`). 0 probes and unknown usage are both dropped so 0 does not look worse than unknown. Settlements and unique payers are never faked from probes.
-- distribution **0.10** — `min(source_count, 3) / 3`. Not in catalog ≠ 0 sources.
-
-Operator-classified self-tests remain in operational history, but V2 excludes them from the scoring usage, performance and confidence samples. Unclassified observations are not proof of organic demand. Missing components are dropped and lower `reputation_confidence`. Fewer than 10 eligible observations caps confidence at 0.35. No public reliability % below `n=10`. Same function on Base, Solana, and Algorand. No `algo_bonus`.
-
-**Economics** (same keys on every rail, provenance on every field):
-
-- `402signal_observed` — we measured it (merchant price from the current 402 option).
-- `protocol_reference` — a cited official figure (Base L2 inclusion ~2s; Algorand block finality 2.82s). Solana wall-clock finality is unknown (no current official ms).
-- `unknown` — missing. Chain fees and facilitator fees are unknown in USD (no FX oracle). `lowest_total_cost` / `max_total_cost_usd` fail closed. `fastest_settlement` / `max_settlement_latency_ms` use settlement or protocol finality, never probe RTT.
-
-## Rails
-
-| Rail | payTo | asset | network (402 body) | Facilitator verify / settle |
-|---|---|---|---|---|
-| Base | `0xb18fc2275f36dae99eb215caeff03b431f887d16` | USDC `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | `eip155:8453` (v2; legacy v1 uses `base`) | `https://api.cdp.coinbase.com/platform/v2/x402/verify` and `/settle` |
-| Solana | `HCM423cyKYVUoq9GvmqUphZwYVB6M2wez34i9jzSewLy` | mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` | `https://facilitator.payai.network/verify` and `/settle` |
-| Algorand | `N2JSJZCSORMYGYO2NSIYRUEMBFRHEOMYODVXV2MXYYHB5H2JVUGG6NJ4NQ` | ASA `31566704` | `algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=` | `https://facilitator.goplausible.xyz/verify` and `/settle` |
-
-The routing authorization is **$0.003 USDC** (`3000` atomic, 6 decimals) on every rail. It settles only when a valid live eligible route is found. Normal typed misses return HTTP 200 with live:false, payable:false, selected_payment:null, and settlement_state:not_attempted. Operational failures retain HTTP 503. Seller payment is separate. Bazaar is echoed on successful settlement so catalogs can index. Inspect `billing.settlement_state` on every HTTP 503: `not_attempted` is an unpaid operational failure (or a cached legacy miss), `settled` can be a required-transparency failure after successful settlement, and `unknown` means settlement may have occurred and the authorization must not be reused.
-
-Base CDP calls need `CDP_API_KEY_ID` + `CDP_API_KEY_SECRET` (or `CDP_ACCESS_TOKEN`). PayAI free-tier calls can omit credentials; paid-tier authentication uses `PAYAI_API_KEY_ID` + `PAYAI_API_KEY_SECRET` to generate short-lived merchant JWTs. GoPlausible needs no auth. Never put a wallet private key in env.
-
-## Env
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `LIVE402_PORT` | `8081` | bind port (local) |
-| `PORT` | unset | Fly / Docker port; if set, host defaults to `0.0.0.0` |
-| `LIVE402_HOST` | `127.0.0.1` local / `0.0.0.0` when `PORT` is set | bind host |
-| `PAYTO_ADDRESS` | Base payTo above | Base `payTo` |
-| `PAYTO_SOLANA` | Solana payTo above | Solana `payTo` |
-| `PAYTO_ALGORAND` | Algorand payTo above | Algorand `payTo` |
-| `CDP_API_KEY_ID` / `CDP_API_KEY_SECRET` | unset | CDP JWT for Base verify/settle |
-| `CDP_ACCESS_TOKEN` | unset | pre-minted CDP Bearer (optional) |
-| `PAYAI_API_KEY_ID` / `PAYAI_API_KEY_SECRET` | unset | PayAI merchant ID and base64 PKCS#8 DER Ed25519 API key; optional `payai_sk_` secret prefix |
-| `PAYAI_ACCESS_TOKEN` | unset | explicit pre-minted PayAI bearer override; operator-managed rotation |
-| `PAYAI_API_KEY` | unset | legacy pre-minted PayAI bearer, used only without an ID/secret pair |
-| `LOCAL_FREE` | unset | `1` skips the paywall (tests only) |
-| `LIVE402_FIXTURE` | unset | `1` uses local JSON, no network |
-| `LIVE402_PROBE_TIMEOUT` | `4` | probe timeout seconds |
-| `LIVE402_HISTORY_DB` | `/data/live402-history.sqlite` on Fly (`/tmp` fallback) | sqlite probe history (WAL, 0600, capped). Observed only. |
-| `LIVE402_CATALOG_DB` | `/data/catalog.sqlite` on Fly (`/tmp` fallback) | sqlite shadow catalog of CDP/PayAI/GoPlausible **claims**. Process-local on the existing `/data` volume. **Not HTTP-exposed** (no dump/download endpoint, not under `static/`, not in OpenAPI). Separate file from history. FTS5. Never a 44k RAM list. |
-| `LIVE402_PQ_LOG_DB` | `/data/pq-log-mainnet.sqlite` on Fly (`/tmp` fallback) | PRODUCTION C2SP log. Separate from catalog, history, and the TestNet archive `/data/pq-log.sqlite` (TEST SUPPORT only). **Not HTTP-exposed** as a sqlite dump; read API is `/pq/log/*` only. Ross-only empty reset: `docs/runbooks/mainnet-prelaunch-reset.md`. |
-| `LIVE402_PQ_LOG_EPOCH` | `mainnet-v1` in fly.toml | PRODUCTION requires `mainnet-v1`. Unset/unknown fail closed. `testnet-v1` is TEST SUPPORT only. |
-| `LIVE402_PQ_LOG_ORIGIN` | `402signal.com/pq/log/mainnet-v1` in fly.toml | PRODUCTION origin. TestNet origin is archive/TEST SUPPORT only. |
-| `LIVE402_PQ_LOG_VKEY` | unset | TEST SUPPORT Ed25519 log verifier key (public). Production never uses this. Never a private key. |
-| `LIVE402_PQ_LOG_VKEY_MAINNET` | unset | PRODUCTION Ed25519 log verifier key (public). If set with `LIVE402_PQ_LOG_SK_MAINNET`, must exactly match the C2SP vkey derived from that SK (fail closed; env is not overwritten). If SK is set and VKEY is unset, boot writes the derived vkey (ops may stage SK first). If SK is unset, there is no MainNet signer. Never a private key. |
-| `LIVE402_PQ_LOG_SK` | unset | TEST SUPPORT Ed25519 seed only. Production never loads this. Never commit, never paste into chat. |
-| `LIVE402_PQ_LOG_SK_MAINNET` | unset | PRODUCTION Ed25519 seed only. Code rejects silent fallback to `LIVE402_PQ_LOG_SK`. Install via stdin/file (`NAME=-`); never a CLI secret argument. Never set from this PR. |
-| `LIVE402_PQ_FALCON_ADDRESS` | unset | TEST SUPPORT TestNet Falcon address. Not a production default. Never a private key. |
-| `LIVE402_PQ_FALCON_NETWORK` | `mainnet` in fly.toml | PRODUCTION requires `mainnet`. Unset/unknown fail closed. `testnet` is TEST SUPPORT only. |
-| `LIVE402_PQ_FALCON_BROADCAST` | unset | TEST SUPPORT 402signal (router) env. `1` allows POST of a signer-approved SignedTxn to pinned TestNet algod. Production never uses this. Default unset: never POST. 402security must GO before anyone sets it to `1`. Signer never reads BROADCAST. This flag never sends MainNet. |
-| `LIVE402_PQ_FALCON_MAINNET_BROADCAST` | unset | Distinct MainNet capability flag. Default off. A POST also requires exactly one mode: automatic or human canary. Unset stops MainNet submit while routing continues. |
-| `LIVE402_PQ_FALCON_MAINNET_CANARY` | unset | One-shot human canary gate. Default off. Worker, tick, and boot never read this. Live POST still needs this `=1` and `LIVE402_PQ_FALCON_MAINNET_BROADCAST=1`. |
-| `LIVE402_PQ_FALCON_MAINNET_AUTO` | unset | Exact `1` opts into the durable automatic controller after deployment review. Default off. Never set together with the canary flag. |
-| `LIVE402_PQ_FALCON_MAINNET_AUTO_KILL` | unset | Exact `1` stops automatic signing and POST immediately while routing and transparency logging continue. Preserve all in-flight state. |
-| `LIVE402_PQ_FALCON_MAINNET_ADDRESS` | fly.toml (public MainNet address) | PRODUCTION public MainNet Falcon f1 address. Distinct from the archived TestNet address. Never a private key. |
-| `LIVE402_PQ_SIGNER_TOKEN` | unset | TEST SUPPORT HMAC for the TestNet pq-anchor/1 client. Production never dials that signer. |
-| `LIVE402_PQ_SIGNER_MAINNET_TOKEN` | unset | PRODUCTION request/response HMAC for `402signal-pq-signer-mainnet` (pq-anchor/3). Named, never valued in git. |
-| `LIVE402_PQ_LOG` | unset | `0` forces transparency `unavailable` even if a signer is configured. |
-| `LIVE402_HOT_REFRESH_S` | `600` (clamped 300–900) | Stale-claim threshold for the information-value refresh queue |
-| `LIVE402_WARM_REFRESH_S` | `7200` (clamped 3600–10800) | WARM refresh interval (legacy due_warm helper) |
-| `LIVE402_COLD_SWEEP_S` | `64800` (clamped 12–24h) | COLD rolling generation sweep cadence |
-| `LIVE402_TRICKLE_SLEEP_S` | `2` (clamped 1–30) | Sleep between trickle pages |
-| `LIVE402_CATALOG_REFRESH` | `1` | `0` disables the background trickle |
-| `LIVE402_ROUTE_RPM` | `12` | paid `POST /route` per IP per minute. No User-Agent privilege. CI explicitly uses 60. |
-| `LIVE402_PREVIEW_RPM` | `180` (or 2× route, whichever is larger) | unpaid `GET /preview` and MCP preview per IP per minute |
-| `LIVE402_PUBLIC_RPM` | `180` (or 2× route, whichever is larger) | unpaid `GET /pulse`, `GET /rails`, and `GET /attestation` per IP per minute (separate buckets) |
-| `LIVE402_VALIDATE_RPM` | `60` | unpaid `POST /validate` / `GET /validate` and MCP `tools/call validate` per IP per minute |
-
-## Fly (do not run until you have an account)
-
-Single app **402signal**. Not HA. No second hostname.
-
-```bash
-fly launch --ha=false --name 402signal --no-deploy
-fly secrets set CDP_API_KEY_ID=… CDP_API_KEY_SECRET=…
-# After 402security GO only. An admin sets these; never paste values into chat. 402dev never holds them.
-# fly secrets set LIVE402_PQ_LOG_SK_MAINNET=…
-# fly secrets set LIVE402_PQ_SIGNER_MAINNET_TOKEN=…
-fly deploy
-fly ips list
-```
-
-`fly.toml` sets `app = "402signal"`, `internal_port = 8080`, `auto_stop_machines = "off"`, `min_machines_running = 1` on the **app** HTTP process (shared-cpu-1x 1GB). One app process. Do not deploy, `fly scale`, or set secrets from this PR. Production is MainNet-only. `LIVE402_PQ_FALCON_BROADCAST`, `LIVE402_PQ_SIGNER_TOKEN`, and `LIVE402_PQ_LOG_SK` stay unset on the public router. Automatic anchoring is not activated by `fly.toml`; see `docs/pq-automatic-anchoring.md` for the separate reviewed opt-in.
-
-## Namecheap BasicDNS (do not change until deploy)
-
-Keep Namecheap nameservers. Use BasicDNS records only. Do not CNAME the apex. Delete parking / marketplace records first.
-
-| Type | Host | Value |
-|---|---|---|
-| A | `@` | Fly shared IPv4 from `fly ips list` |
-| AAAA | `@` | Fly IPv6 from `fly ips list` |
-| CNAME | `www` | `402signal.fly.dev` |
-
-## Bazaar
-
-The 402 body includes `extensions.bazaar` with `info` + `schema` for `POST /route`, following [x402 bazaar](https://github.com/x402-foundation/x402/blob/main/specs/extensions/bazaar.md). Clients should echo it; we also attach it on settle so facilitators can index.
-
-## Layout
-
-```
-live402/            package (server, route, probe, payment, facilitator, fixtures, shadow)
-live402/shadow.py    on-disk catalog.sqlite (claims + FTS5). Not 402signal_observed.
-live402/hydrate.py   finalist claimed-contract cache (bounded, TTL, gzip). Not 44k RAM schemas.
-live402/policy.py    NL → structured constraints. Engine uses structured values only.
-live402/reputation.py transparent components + documented V2 score + scoring-model hash.
-live402/economics.py  rail economics with provenance. Same model for Base / Solana / Algorand.
-live402/pq/         experimental C2SP log (RFC 9162 Merkle + tiles + receipts). PRODUCTION is MainNet-only.
-live402/static/     GET / homepage (app.js, styles, dashboard.js)
-live402/algod.py    pinned algod suggestedParams for the unpaid Algorand 402 extra
-live402/data/       fixture catalog
-tests/              unittest
-Dockerfile          Python 3.12.14-slim (gh-150743), 0.0.0.0:$PORT, UID/GID 10001
-fly.toml            app 402signal, internal_port 8080, one machine
-docs/backup.md      sqlite backup tooling + Fly human checklist (backups not claimed active)
-docs/github-protection.md  branch protection (Protect main ruleset is active)
-docs/automation-security-boundaries.md  bot and human roles. production command bans
-docs/docker.md      non-root runtime and required existing-volume migration
-docs/merkle-bench.md  honest 10k/100k/1m frontier timings; SQLite commit is the bottleneck
-```
+[MIT license](LICENSE) · [Private security contact](https://402signal.com/.well-known/security.txt) · [ross@402signal.com](mailto:ross@402signal.com)

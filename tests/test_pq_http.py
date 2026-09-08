@@ -184,7 +184,7 @@ class C2SPHttpTests(unittest.TestCase):
         )
         self.assertIn("Algorand MainNet", home)
         self.assertIn("Awaiting anchor", home)
-        self.assertIn("402Signal records routing evidence in an append-only Merkle log.", home)
+        self.assertIn("Keep a record of the request, observed terms and routing decision.", home)
         self.assertNotIn("/pq/log", home)
 
 

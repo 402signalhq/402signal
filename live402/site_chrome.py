@@ -22,6 +22,8 @@ FOOTER = (
     ("/mcp.json", "MCP", False),
     ("/transparency", "Transparency", False),
     ("/contact", "Contact", False),
+    ("/.well-known/security.txt", "Security", False),
+    ("https://github.com/402signalhq/402signal/blob/main/LICENSE", "License", True),
     (CONTACT_MAILTO, CONTACT_EMAIL, False),
 )
 
