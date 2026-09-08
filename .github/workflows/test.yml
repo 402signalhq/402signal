@@ -96,6 +96,14 @@ jobs:
           npm --prefix integration/session-client run test:package
           npm --prefix integration/session-client run test:types
           npm --prefix integration/session-client audit --package-lock-only --ignore-scripts --audit-level=high
+      - name: Qualify fresh Algorand manifest owner campaigns (synthetic only)
+        # Reuse exact installed lab dependencies; no additional install or wallet.
+        run: |
+          test ! -e integration/batch-buyer/algorand/node_modules
+          test ! -L integration/batch-buyer/algorand/node_modules
+          ln -s ../../lab/node_modules integration/batch-buyer/algorand/node_modules
+          trap 'rm -f integration/batch-buyer/algorand/node_modules' EXIT
+          node --test integration/batch-buyer/algorand/manifest-owner.test.mjs
       - name: Qualify larger Algorand manifests and packaged consumer
         run: node scripts/check_algorand_manifest_package.mjs
       - name: Audit locked lab and Solana dependencies (no updates)

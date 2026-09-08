@@ -1,3 +1,4 @@
+import { configuredNativeAlgorandCharge } from "./algorand-native-charge-config.js";
 import { configuredAlgorandManifestMerchants } from "./algorand-manifest-config.js";
 import { readFileSync, lstatSync } from "node:fs";
 import { Pool } from "pg";
@@ -322,10 +323,13 @@ export async function configuredBatchHttpMerchants(
   const existing = await configuredExistingBatchHttpMerchants(seller, env);
   try {
     const algorand = await configuredAlgorandManifestMerchants(seller, env);
+    let native;
+    try { native = await configuredNativeAlgorandCharge(seller, env); }
+    catch (error) { await algorand.close(); throw error; }
     return {
-      merchants: [...existing.merchants, ...algorand.merchants],
+      merchants: [...existing.merchants, ...algorand.merchants, ...native.merchants],
       close: async () => {
-        await Promise.all([existing.close(), algorand.close()]);
+        await Promise.all([existing.close(), algorand.close(), native.close()]);
       },
     };
   } catch (error) {

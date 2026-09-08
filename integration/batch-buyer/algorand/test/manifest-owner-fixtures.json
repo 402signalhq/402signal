@@ -1,0 +1,501 @@
+[
+  {
+    "request": {
+      "url": "https://merchant.example/v2/jobs?invoice=example&order=original",
+      "merchant_profile": "algorand-atomic-multi-item-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+        "fee_payer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+        "max_total_amount_atomic": "3000",
+        "max_sponsor_fee_micro_algo": "4000",
+        "max_item_amount_atomic": "1000",
+        "job_hashes": [
+          "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+          "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+          "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+        ]
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": "eyJhY2NlcHRzIjpbeyJhbW91bnQiOiIxMDAwIiwiYXNzZXQiOiIzMTU2NjcwNCIsImV4dHJhIjp7ImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSJ9LCJtYXhUaW1lb3V0U2Vjb25kcyI6NjAsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheVRvIjoiUUU0WE9EVklQVUxWNlZWREtSVE1HVEQ2WlRGWTNDVVJXVFhEUElTNTZZSFZYRDZKV09LT1JUTFBCVSIsInNjaGVtZSI6ImV4YWN0In1dLCJleHRlbnNpb25zIjp7IjQwMnNpZ25hbC1hdG9taWMtYmF0Y2giOnsiYXNzZXQiOiIzMTU2NjcwNCIsImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSIsImZlZVF1b3RlIjp7ImV4cGlyZXNBdCI6MTgwMDAwMDA0NSwiZmVlUGVyQnl0ZU1pY3JvQWxnbyI6IjAiLCJmaXJzdFZhbGlkIjoiMTAwMSIsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOiIxMTAxIiwibWluRmVlTWljcm9BbGdvIjoiMTAwMCIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsIm9ic2VydmVkQXQiOjE4MDAwMDAwMDAsInNwb25zb3JGZWVNaWNyb0FsZ28iOiI0MDAwIiwidHJhbnNhY3Rpb25Db3VudCI6NH0sImpvYkNvdW50IjozLCJqb2JIYXNoZXMiOlsiZWM2N2IyYWNjODIxY2I0ODMwZjk1NGI5Nzg2YzFjNTk0ZmViNzU2ZmRiNjgxMTE2OTBkM2ZkZjJkNGJlNjU4OSIsIjAyNmFiNjM5YzIxZGY4YWE4MGU1Nzg5MzcwYTlkYjFiOGI1MjRiNzc2ZmQ4YTBjMmJhNzFlZmIzNzdlY2M3ZDkiLCIwZTc1MzQ4Nzg3OWZiOGE5YmI4YWJlZjAzMTUyYzQ0MGRhZWMyMWM5ZmNkNjhlNGZhNDAwNzE2M2QyZGQxNzI4Il0sIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheW1lbnRBbW91bnQiOiIxMDAwIiwicGF5bWVudENvdW50IjozLCJwYXltZW50SW5kaWNlcyI6WzEsMiwzXSwicGVySm9iQW1vdW50IjoiMTAwMCIsInByb2ZpbGUiOiJhbGdvcmFuZC1hdG9taWMtbXVsdGktaXRlbS12MSIsInJlY2lwaWVudCI6IlFFNFhPRFZJUFVMVjZWVkRLUlRNR1RENlpURlkzQ1VSV1RYRFBJUzU2WUhWWEQ2SldPS09SVExQQlUiLCJyZXF1ZXN0SGFzaCI6ImNkZTc3ODQ1OTdmMDc0MjFkMzU0NGNhYmVlY2ViYWI2YmQ1OTgyNzUzNTdlODVkZGFlOTZlMmY1YjVkOTEwMTQiLCJyZXNvdXJjZSI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZS92Mi9qb2JzP2ludm9pY2U9ZXhhbXBsZSZvcmRlcj1vcmlnaW5hbCIsInNwb25zb3JJbmRleCI6MCwidG90YWxBbW91bnQiOiIzMDAwIiwidmVyc2lvbiI6Mn19LCJyZXNvdXJjZSI6eyJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24iLCJ1cmwiOiJodHRwczovL21lcmNoYW50LmV4YW1wbGUvdjIvam9icz9pbnZvaWNlPWV4YW1wbGUmb3JkZXI9b3JpZ2luYWwifSwieDQwMlZlcnNpb24iOjJ9",
+      "wwwAuthenticate": null
+    },
+    "response": {
+      "url": "https://merchant.example/v2/jobs?invoice=example&order=original",
+      "merchant_profile": "algorand-atomic-multi-item-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "version": 2,
+        "profile": "algorand-atomic-multi-item-v1",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+        "resource": "https://merchant.example/v2/jobs?invoice=example&order=original",
+        "requestHash": "cde7784597f07421d3544cabeecebab6bd598275357e85ddae96e2f5b5d91014",
+        "jobCount": 3,
+        "paymentCount": 3,
+        "paymentAmount": "1000",
+        "perJobAmount": "1000",
+        "totalAmount": "3000",
+        "paymentIndices": [
+          1,
+          2,
+          3
+        ],
+        "sponsorIndex": 0,
+        "feePayer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+        "jobHashes": [
+          "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+          "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+          "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+        ],
+        "feeQuote": {
+          "expiresAt": 1800000045,
+          "feePerByteMicroAlgo": "0",
+          "firstValid": "1001",
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": "1101",
+          "minFeeMicroAlgo": "1000",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "observedAt": 1800000000,
+          "sponsorFeeMicroAlgo": "4000",
+          "transactionCount": 4
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-atomic-multi-item-v1",
+        "request": {
+          "url": "https://merchant.example/v2/jobs?invoice=example&order=original",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+          "fee_payer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+          "max_total_amount_atomic": "3000",
+          "max_sponsor_fee_micro_algo": "4000",
+          "max_item_amount_atomic": "1000",
+          "job_hashes": [
+            "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+            "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+            "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+          ]
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": "eyJhY2NlcHRzIjpbeyJhbW91bnQiOiIxMDAwIiwiYXNzZXQiOiIzMTU2NjcwNCIsImV4dHJhIjp7ImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSJ9LCJtYXhUaW1lb3V0U2Vjb25kcyI6NjAsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheVRvIjoiUUU0WE9EVklQVUxWNlZWREtSVE1HVEQ2WlRGWTNDVVJXVFhEUElTNTZZSFZYRDZKV09LT1JUTFBCVSIsInNjaGVtZSI6ImV4YWN0In1dLCJleHRlbnNpb25zIjp7IjQwMnNpZ25hbC1hdG9taWMtYmF0Y2giOnsiYXNzZXQiOiIzMTU2NjcwNCIsImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSIsImZlZVF1b3RlIjp7ImV4cGlyZXNBdCI6MTgwMDAwMDA0NSwiZmVlUGVyQnl0ZU1pY3JvQWxnbyI6IjAiLCJmaXJzdFZhbGlkIjoiMTAwMSIsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOiIxMTAxIiwibWluRmVlTWljcm9BbGdvIjoiMTAwMCIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsIm9ic2VydmVkQXQiOjE4MDAwMDAwMDAsInNwb25zb3JGZWVNaWNyb0FsZ28iOiI0MDAwIiwidHJhbnNhY3Rpb25Db3VudCI6NH0sImpvYkNvdW50IjozLCJqb2JIYXNoZXMiOlsiZWM2N2IyYWNjODIxY2I0ODMwZjk1NGI5Nzg2YzFjNTk0ZmViNzU2ZmRiNjgxMTE2OTBkM2ZkZjJkNGJlNjU4OSIsIjAyNmFiNjM5YzIxZGY4YWE4MGU1Nzg5MzcwYTlkYjFiOGI1MjRiNzc2ZmQ4YTBjMmJhNzFlZmIzNzdlY2M3ZDkiLCIwZTc1MzQ4Nzg3OWZiOGE5YmI4YWJlZjAzMTUyYzQ0MGRhZWMyMWM5ZmNkNjhlNGZhNDAwNzE2M2QyZGQxNzI4Il0sIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheW1lbnRBbW91bnQiOiIxMDAwIiwicGF5bWVudENvdW50IjozLCJwYXltZW50SW5kaWNlcyI6WzEsMiwzXSwicGVySm9iQW1vdW50IjoiMTAwMCIsInByb2ZpbGUiOiJhbGdvcmFuZC1hdG9taWMtbXVsdGktaXRlbS12MSIsInJlY2lwaWVudCI6IlFFNFhPRFZJUFVMVjZWVkRLUlRNR1RENlpURlkzQ1VSV1RYRFBJUzU2WUhWWEQ2SldPS09SVExQQlUiLCJyZXF1ZXN0SGFzaCI6ImNkZTc3ODQ1OTdmMDc0MjFkMzU0NGNhYmVlY2ViYWI2YmQ1OTgyNzUzNTdlODVkZGFlOTZlMmY1YjVkOTEwMTQiLCJyZXNvdXJjZSI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZS92Mi9qb2JzP2ludm9pY2U9ZXhhbXBsZSZvcmRlcj1vcmlnaW5hbCIsInNwb25zb3JJbmRleCI6MCwidG90YWxBbW91bnQiOiIzMDAwIiwidmVyc2lvbiI6Mn19LCJyZXNvdXJjZSI6eyJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24iLCJ1cmwiOiJodHRwczovL21lcmNoYW50LmV4YW1wbGUvdjIvam9icz9pbnZvaWNlPWV4YW1wbGUmb3JkZXI9b3JpZ2luYWwifSwieDQwMlZlcnNpb24iOjJ9",
+          "wwwAuthenticate": null
+        },
+        "challenge_sha256": "80934e1e35f4bc8341f2fc2cee671afaaa05d864561865a6351c8aed48bbdfd9",
+        "terms": {
+          "version": 2,
+          "profile": "algorand-atomic-multi-item-v1",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+          "resource": "https://merchant.example/v2/jobs?invoice=example&order=original",
+          "requestHash": "cde7784597f07421d3544cabeecebab6bd598275357e85ddae96e2f5b5d91014",
+          "jobCount": 3,
+          "paymentCount": 3,
+          "paymentAmount": "1000",
+          "perJobAmount": "1000",
+          "totalAmount": "3000",
+          "paymentIndices": [
+            1,
+            2,
+            3
+          ],
+          "sponsorIndex": 0,
+          "feePayer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+          "jobHashes": [
+            "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+            "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+            "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+          ],
+          "feeQuote": {
+            "expiresAt": 1800000045,
+            "feePerByteMicroAlgo": "0",
+            "firstValid": "1001",
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": "1101",
+            "minFeeMicroAlgo": "1000",
+            "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "observedAt": 1800000000,
+            "sponsorFeeMicroAlgo": "4000",
+            "transactionCount": 4
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000045
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T19:05:00Z",
+            "nonce": "791874fa8268e680f6fd43ae8795c8a52b752dbf53094174c9cb5a874e570025",
+            "commitment": "5ae72226a45093cd6993b83189823641efa80ac0c4f4b857c291629761d9b2dc",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":\"5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M\",\"job_hashes\":[\"ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589\",\"026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9\",\"0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728\"],\"max_item_amount_atomic\":\"1000\",\"max_sponsor_fee_micro_algo\":\"4000\",\"max_total_amount_atomic\":\"3000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"recipient\":\"QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU\"},\"merchant_profile\":\"algorand-atomic-multi-item-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/v2/jobs?invoice=example&order=original\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-atomic-multi-item-v1",
+                "request": {
+                  "url": "https://merchant.example/v2/jobs?invoice=example&order=original",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+                  "fee_payer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+                  "max_total_amount_atomic": "3000",
+                  "max_sponsor_fee_micro_algo": "4000",
+                  "max_item_amount_atomic": "1000",
+                  "job_hashes": [
+                    "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+                    "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+                    "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+                  ]
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": "eyJhY2NlcHRzIjpbeyJhbW91bnQiOiIxMDAwIiwiYXNzZXQiOiIzMTU2NjcwNCIsImV4dHJhIjp7ImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSJ9LCJtYXhUaW1lb3V0U2Vjb25kcyI6NjAsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheVRvIjoiUUU0WE9EVklQVUxWNlZWREtSVE1HVEQ2WlRGWTNDVVJXVFhEUElTNTZZSFZYRDZKV09LT1JUTFBCVSIsInNjaGVtZSI6ImV4YWN0In1dLCJleHRlbnNpb25zIjp7IjQwMnNpZ25hbC1hdG9taWMtYmF0Y2giOnsiYXNzZXQiOiIzMTU2NjcwNCIsImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSIsImZlZVF1b3RlIjp7ImV4cGlyZXNBdCI6MTgwMDAwMDA0NSwiZmVlUGVyQnl0ZU1pY3JvQWxnbyI6IjAiLCJmaXJzdFZhbGlkIjoiMTAwMSIsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOiIxMTAxIiwibWluRmVlTWljcm9BbGdvIjoiMTAwMCIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsIm9ic2VydmVkQXQiOjE4MDAwMDAwMDAsInNwb25zb3JGZWVNaWNyb0FsZ28iOiI0MDAwIiwidHJhbnNhY3Rpb25Db3VudCI6NH0sImpvYkNvdW50IjozLCJqb2JIYXNoZXMiOlsiZWM2N2IyYWNjODIxY2I0ODMwZjk1NGI5Nzg2YzFjNTk0ZmViNzU2ZmRiNjgxMTE2OTBkM2ZkZjJkNGJlNjU4OSIsIjAyNmFiNjM5YzIxZGY4YWE4MGU1Nzg5MzcwYTlkYjFiOGI1MjRiNzc2ZmQ4YTBjMmJhNzFlZmIzNzdlY2M3ZDkiLCIwZTc1MzQ4Nzg3OWZiOGE5YmI4YWJlZjAzMTUyYzQ0MGRhZWMyMWM5ZmNkNjhlNGZhNDAwNzE2M2QyZGQxNzI4Il0sIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheW1lbnRBbW91bnQiOiIxMDAwIiwicGF5bWVudENvdW50IjozLCJwYXltZW50SW5kaWNlcyI6WzEsMiwzXSwicGVySm9iQW1vdW50IjoiMTAwMCIsInByb2ZpbGUiOiJhbGdvcmFuZC1hdG9taWMtbXVsdGktaXRlbS12MSIsInJlY2lwaWVudCI6IlFFNFhPRFZJUFVMVjZWVkRLUlRNR1RENlpURlkzQ1VSV1RYRFBJUzU2WUhWWEQ2SldPS09SVExQQlUiLCJyZXF1ZXN0SGFzaCI6ImNkZTc3ODQ1OTdmMDc0MjFkMzU0NGNhYmVlY2ViYWI2YmQ1OTgyNzUzNTdlODVkZGFlOTZlMmY1YjVkOTEwMTQiLCJyZXNvdXJjZSI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZS92Mi9qb2JzP2ludm9pY2U9ZXhhbXBsZSZvcmRlcj1vcmlnaW5hbCIsInNwb25zb3JJbmRleCI6MCwidG90YWxBbW91bnQiOiIzMDAwIiwidmVyc2lvbiI6Mn19LCJyZXNvdXJjZSI6eyJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24iLCJ1cmwiOiJodHRwczovL21lcmNoYW50LmV4YW1wbGUvdjIvam9icz9pbnZvaWNlPWV4YW1wbGUmb3JkZXI9b3JpZ2luYWwifSwieDQwMlZlcnNpb24iOjJ9",
+                  "wwwAuthenticate": null
+                },
+                "challenge_sha256": "80934e1e35f4bc8341f2fc2cee671afaaa05d864561865a6351c8aed48bbdfd9",
+                "terms": {
+                  "version": 2,
+                  "profile": "algorand-atomic-multi-item-v1",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+                  "resource": "https://merchant.example/v2/jobs?invoice=example&order=original",
+                  "requestHash": "cde7784597f07421d3544cabeecebab6bd598275357e85ddae96e2f5b5d91014",
+                  "jobCount": 3,
+                  "paymentCount": 3,
+                  "paymentAmount": "1000",
+                  "perJobAmount": "1000",
+                  "totalAmount": "3000",
+                  "paymentIndices": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "sponsorIndex": 0,
+                  "feePayer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+                  "jobHashes": [
+                    "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+                    "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+                    "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+                  ],
+                  "feeQuote": {
+                    "expiresAt": 1800000045,
+                    "feePerByteMicroAlgo": "0",
+                    "firstValid": "1001",
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": "1101",
+                    "minFeeMicroAlgo": "1000",
+                    "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "observedAt": 1800000000,
+                    "sponsorFeeMicroAlgo": "4000",
+                    "transactionCount": 4
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000045
+              }
+            },
+            "salt": "1944507ff6804882efc88616def26ab5e8c3d01262ac7126cc7333cb10348f37"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 0,
+          "checkpoint_size": 1,
+          "receipt": {
+            "index": 0,
+            "inclusion_path": [],
+            "checkpoint": "402signal.com/pq/log\n1\nQOHxilj6B8kSEYCHDn6PvhGO0kat/X1qga+OGa5fWgw=\n\n\u2014 402signal.com/pq/log +aRl4rkSUbkSEk/LPXNOh1WqGBhFM/zJFiBs3SR4/0K61iwPF1JctY4hoxb1tkXOnU7IDL3UthM7RUrX02iSOyl9Pws=\n",
+            "leaf_hash": "40e1f18a58fa07c9121180870e7e8fbe118ed246adfd7d6a81af8e19ae5f5a0c"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f9a465e2+AX+JI9RFkoZhW2JEG4h3t4pGPpVvhAwQfcaa5cQ4k+gH",
+    "now": 1800000000,
+    "buyer": "RKEOHXLUBHYZL7KS3MWTZOS5OLFGOCN7DWKBEG7TOSEADNAPN5OOTUNSLE",
+    "merchant": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+    "sponsor": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M"
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/v2/jobs?invoice=example&order=original",
+      "merchant_profile": "algorand-aggregate-invoice-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+        "fee_payer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+        "max_total_amount_atomic": "3000",
+        "max_sponsor_fee_micro_algo": "2000",
+        "job_hashes": [
+          "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+          "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+          "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+        ]
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": "eyJhY2NlcHRzIjpbeyJhbW91bnQiOiIzMDAwIiwiYXNzZXQiOiIzMTU2NjcwNCIsImV4dHJhIjp7ImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSJ9LCJtYXhUaW1lb3V0U2Vjb25kcyI6NjAsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheVRvIjoiUUU0WE9EVklQVUxWNlZWREtSVE1HVEQ2WlRGWTNDVVJXVFhEUElTNTZZSFZYRDZKV09LT1JUTFBCVSIsInNjaGVtZSI6ImV4YWN0In1dLCJleHRlbnNpb25zIjp7IjQwMnNpZ25hbC1hdG9taWMtYmF0Y2giOnsiYXNzZXQiOiIzMTU2NjcwNCIsImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSIsImZlZVF1b3RlIjp7ImV4cGlyZXNBdCI6MTgwMDAwMDA0NSwiZmVlUGVyQnl0ZU1pY3JvQWxnbyI6IjAiLCJmaXJzdFZhbGlkIjoiMTAwMSIsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOiIxMTAxIiwibWluRmVlTWljcm9BbGdvIjoiMTAwMCIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsIm9ic2VydmVkQXQiOjE4MDAwMDAwMDAsInNwb25zb3JGZWVNaWNyb0FsZ28iOiIyMDAwIiwidHJhbnNhY3Rpb25Db3VudCI6Mn0sImpvYkNvdW50IjozLCJqb2JIYXNoZXMiOlsiZWM2N2IyYWNjODIxY2I0ODMwZjk1NGI5Nzg2YzFjNTk0ZmViNzU2ZmRiNjgxMTE2OTBkM2ZkZjJkNGJlNjU4OSIsIjAyNmFiNjM5YzIxZGY4YWE4MGU1Nzg5MzcwYTlkYjFiOGI1MjRiNzc2ZmQ4YTBjMmJhNzFlZmIzNzdlY2M3ZDkiLCIwZTc1MzQ4Nzg3OWZiOGE5YmI4YWJlZjAzMTUyYzQ0MGRhZWMyMWM5ZmNkNjhlNGZhNDAwNzE2M2QyZGQxNzI4Il0sIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheW1lbnRBbW91bnQiOiIzMDAwIiwicGF5bWVudENvdW50IjoxLCJwYXltZW50SW5kaWNlcyI6WzFdLCJwZXJKb2JBbW91bnQiOm51bGwsInByb2ZpbGUiOiJhbGdvcmFuZC1hZ2dyZWdhdGUtaW52b2ljZS12MSIsInJlY2lwaWVudCI6IlFFNFhPRFZJUFVMVjZWVkRLUlRNR1RENlpURlkzQ1VSV1RYRFBJUzU2WUhWWEQ2SldPS09SVExQQlUiLCJyZXF1ZXN0SGFzaCI6ImNkZTc3ODQ1OTdmMDc0MjFkMzU0NGNhYmVlY2ViYWI2YmQ1OTgyNzUzNTdlODVkZGFlOTZlMmY1YjVkOTEwMTQiLCJyZXNvdXJjZSI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZS92Mi9qb2JzP2ludm9pY2U9ZXhhbXBsZSZvcmRlcj1vcmlnaW5hbCIsInNwb25zb3JJbmRleCI6MCwidG90YWxBbW91bnQiOiIzMDAwIiwidmVyc2lvbiI6Mn19LCJyZXNvdXJjZSI6eyJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24iLCJ1cmwiOiJodHRwczovL21lcmNoYW50LmV4YW1wbGUvdjIvam9icz9pbnZvaWNlPWV4YW1wbGUmb3JkZXI9b3JpZ2luYWwifSwieDQwMlZlcnNpb24iOjJ9",
+      "wwwAuthenticate": null
+    },
+    "response": {
+      "url": "https://merchant.example/v2/jobs?invoice=example&order=original",
+      "merchant_profile": "algorand-aggregate-invoice-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "version": 2,
+        "profile": "algorand-aggregate-invoice-v1",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+        "resource": "https://merchant.example/v2/jobs?invoice=example&order=original",
+        "requestHash": "cde7784597f07421d3544cabeecebab6bd598275357e85ddae96e2f5b5d91014",
+        "jobCount": 3,
+        "paymentCount": 1,
+        "paymentAmount": "3000",
+        "perJobAmount": null,
+        "totalAmount": "3000",
+        "paymentIndices": [
+          1
+        ],
+        "sponsorIndex": 0,
+        "feePayer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+        "jobHashes": [
+          "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+          "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+          "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+        ],
+        "feeQuote": {
+          "expiresAt": 1800000045,
+          "feePerByteMicroAlgo": "0",
+          "firstValid": "1001",
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": "1101",
+          "minFeeMicroAlgo": "1000",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "observedAt": 1800000000,
+          "sponsorFeeMicroAlgo": "2000",
+          "transactionCount": 2
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-aggregate-invoice-v1",
+        "request": {
+          "url": "https://merchant.example/v2/jobs?invoice=example&order=original",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+          "fee_payer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+          "max_total_amount_atomic": "3000",
+          "max_sponsor_fee_micro_algo": "2000",
+          "job_hashes": [
+            "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+            "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+            "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+          ]
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": "eyJhY2NlcHRzIjpbeyJhbW91bnQiOiIzMDAwIiwiYXNzZXQiOiIzMTU2NjcwNCIsImV4dHJhIjp7ImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSJ9LCJtYXhUaW1lb3V0U2Vjb25kcyI6NjAsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheVRvIjoiUUU0WE9EVklQVUxWNlZWREtSVE1HVEQ2WlRGWTNDVVJXVFhEUElTNTZZSFZYRDZKV09LT1JUTFBCVSIsInNjaGVtZSI6ImV4YWN0In1dLCJleHRlbnNpb25zIjp7IjQwMnNpZ25hbC1hdG9taWMtYmF0Y2giOnsiYXNzZXQiOiIzMTU2NjcwNCIsImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSIsImZlZVF1b3RlIjp7ImV4cGlyZXNBdCI6MTgwMDAwMDA0NSwiZmVlUGVyQnl0ZU1pY3JvQWxnbyI6IjAiLCJmaXJzdFZhbGlkIjoiMTAwMSIsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOiIxMTAxIiwibWluRmVlTWljcm9BbGdvIjoiMTAwMCIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsIm9ic2VydmVkQXQiOjE4MDAwMDAwMDAsInNwb25zb3JGZWVNaWNyb0FsZ28iOiIyMDAwIiwidHJhbnNhY3Rpb25Db3VudCI6Mn0sImpvYkNvdW50IjozLCJqb2JIYXNoZXMiOlsiZWM2N2IyYWNjODIxY2I0ODMwZjk1NGI5Nzg2YzFjNTk0ZmViNzU2ZmRiNjgxMTE2OTBkM2ZkZjJkNGJlNjU4OSIsIjAyNmFiNjM5YzIxZGY4YWE4MGU1Nzg5MzcwYTlkYjFiOGI1MjRiNzc2ZmQ4YTBjMmJhNzFlZmIzNzdlY2M3ZDkiLCIwZTc1MzQ4Nzg3OWZiOGE5YmI4YWJlZjAzMTUyYzQ0MGRhZWMyMWM5ZmNkNjhlNGZhNDAwNzE2M2QyZGQxNzI4Il0sIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheW1lbnRBbW91bnQiOiIzMDAwIiwicGF5bWVudENvdW50IjoxLCJwYXltZW50SW5kaWNlcyI6WzFdLCJwZXJKb2JBbW91bnQiOm51bGwsInByb2ZpbGUiOiJhbGdvcmFuZC1hZ2dyZWdhdGUtaW52b2ljZS12MSIsInJlY2lwaWVudCI6IlFFNFhPRFZJUFVMVjZWVkRLUlRNR1RENlpURlkzQ1VSV1RYRFBJUzU2WUhWWEQ2SldPS09SVExQQlUiLCJyZXF1ZXN0SGFzaCI6ImNkZTc3ODQ1OTdmMDc0MjFkMzU0NGNhYmVlY2ViYWI2YmQ1OTgyNzUzNTdlODVkZGFlOTZlMmY1YjVkOTEwMTQiLCJyZXNvdXJjZSI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZS92Mi9qb2JzP2ludm9pY2U9ZXhhbXBsZSZvcmRlcj1vcmlnaW5hbCIsInNwb25zb3JJbmRleCI6MCwidG90YWxBbW91bnQiOiIzMDAwIiwidmVyc2lvbiI6Mn19LCJyZXNvdXJjZSI6eyJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24iLCJ1cmwiOiJodHRwczovL21lcmNoYW50LmV4YW1wbGUvdjIvam9icz9pbnZvaWNlPWV4YW1wbGUmb3JkZXI9b3JpZ2luYWwifSwieDQwMlZlcnNpb24iOjJ9",
+          "wwwAuthenticate": null
+        },
+        "challenge_sha256": "5fd2b117f5dbf9924416d87469e2c9536453c0dd52ab5d78392b12001180f102",
+        "terms": {
+          "version": 2,
+          "profile": "algorand-aggregate-invoice-v1",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+          "resource": "https://merchant.example/v2/jobs?invoice=example&order=original",
+          "requestHash": "cde7784597f07421d3544cabeecebab6bd598275357e85ddae96e2f5b5d91014",
+          "jobCount": 3,
+          "paymentCount": 1,
+          "paymentAmount": "3000",
+          "perJobAmount": null,
+          "totalAmount": "3000",
+          "paymentIndices": [
+            1
+          ],
+          "sponsorIndex": 0,
+          "feePayer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+          "jobHashes": [
+            "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+            "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+            "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+          ],
+          "feeQuote": {
+            "expiresAt": 1800000045,
+            "feePerByteMicroAlgo": "0",
+            "firstValid": "1001",
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": "1101",
+            "minFeeMicroAlgo": "1000",
+            "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "observedAt": 1800000000,
+            "sponsorFeeMicroAlgo": "2000",
+            "transactionCount": 2
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000045
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T19:05:00Z",
+            "nonce": "7d6a3ab88142417543ac4130cccad72af729b1e993878f56b5ea02900e2299a0",
+            "commitment": "924eb1d5ef698091bb3ec67e92c96ab4595132a26633bc5d8f1d16d958218f69",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":\"5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M\",\"job_hashes\":[\"ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589\",\"026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9\",\"0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728\"],\"max_sponsor_fee_micro_algo\":\"2000\",\"max_total_amount_atomic\":\"3000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"recipient\":\"QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU\"},\"merchant_profile\":\"algorand-aggregate-invoice-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/v2/jobs?invoice=example&order=original\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-aggregate-invoice-v1",
+                "request": {
+                  "url": "https://merchant.example/v2/jobs?invoice=example&order=original",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+                  "fee_payer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+                  "max_total_amount_atomic": "3000",
+                  "max_sponsor_fee_micro_algo": "2000",
+                  "job_hashes": [
+                    "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+                    "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+                    "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+                  ]
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": "eyJhY2NlcHRzIjpbeyJhbW91bnQiOiIzMDAwIiwiYXNzZXQiOiIzMTU2NjcwNCIsImV4dHJhIjp7ImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSJ9LCJtYXhUaW1lb3V0U2Vjb25kcyI6NjAsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheVRvIjoiUUU0WE9EVklQVUxWNlZWREtSVE1HVEQ2WlRGWTNDVVJXVFhEUElTNTZZSFZYRDZKV09LT1JUTFBCVSIsInNjaGVtZSI6ImV4YWN0In1dLCJleHRlbnNpb25zIjp7IjQwMnNpZ25hbC1hdG9taWMtYmF0Y2giOnsiYXNzZXQiOiIzMTU2NjcwNCIsImZlZVBheWVyIjoiNVZFU1JSUkkySEJNTjJYSkFNNEpBV01WTUVVVlNKWjJMUlI3U05SV1lGREJKTEVIRzdJMjU3Mk40TSIsImZlZVF1b3RlIjp7ImV4cGlyZXNBdCI6MTgwMDAwMDA0NSwiZmVlUGVyQnl0ZU1pY3JvQWxnbyI6IjAiLCJmaXJzdFZhbGlkIjoiMTAwMSIsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOiIxMTAxIiwibWluRmVlTWljcm9BbGdvIjoiMTAwMCIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsIm9ic2VydmVkQXQiOjE4MDAwMDAwMDAsInNwb25zb3JGZWVNaWNyb0FsZ28iOiIyMDAwIiwidHJhbnNhY3Rpb25Db3VudCI6Mn0sImpvYkNvdW50IjozLCJqb2JIYXNoZXMiOlsiZWM2N2IyYWNjODIxY2I0ODMwZjk1NGI5Nzg2YzFjNTk0ZmViNzU2ZmRiNjgxMTE2OTBkM2ZkZjJkNGJlNjU4OSIsIjAyNmFiNjM5YzIxZGY4YWE4MGU1Nzg5MzcwYTlkYjFiOGI1MjRiNzc2ZmQ4YTBjMmJhNzFlZmIzNzdlY2M3ZDkiLCIwZTc1MzQ4Nzg3OWZiOGE5YmI4YWJlZjAzMTUyYzQ0MGRhZWMyMWM5ZmNkNjhlNGZhNDAwNzE2M2QyZGQxNzI4Il0sIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInBheW1lbnRBbW91bnQiOiIzMDAwIiwicGF5bWVudENvdW50IjoxLCJwYXltZW50SW5kaWNlcyI6WzFdLCJwZXJKb2JBbW91bnQiOm51bGwsInByb2ZpbGUiOiJhbGdvcmFuZC1hZ2dyZWdhdGUtaW52b2ljZS12MSIsInJlY2lwaWVudCI6IlFFNFhPRFZJUFVMVjZWVkRLUlRNR1RENlpURlkzQ1VSV1RYRFBJUzU2WUhWWEQ2SldPS09SVExQQlUiLCJyZXF1ZXN0SGFzaCI6ImNkZTc3ODQ1OTdmMDc0MjFkMzU0NGNhYmVlY2ViYWI2YmQ1OTgyNzUzNTdlODVkZGFlOTZlMmY1YjVkOTEwMTQiLCJyZXNvdXJjZSI6Imh0dHBzOi8vbWVyY2hhbnQuZXhhbXBsZS92Mi9qb2JzP2ludm9pY2U9ZXhhbXBsZSZvcmRlcj1vcmlnaW5hbCIsInNwb25zb3JJbmRleCI6MCwidG90YWxBbW91bnQiOiIzMDAwIiwidmVyc2lvbiI6Mn19LCJyZXNvdXJjZSI6eyJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24iLCJ1cmwiOiJodHRwczovL21lcmNoYW50LmV4YW1wbGUvdjIvam9icz9pbnZvaWNlPWV4YW1wbGUmb3JkZXI9b3JpZ2luYWwifSwieDQwMlZlcnNpb24iOjJ9",
+                  "wwwAuthenticate": null
+                },
+                "challenge_sha256": "5fd2b117f5dbf9924416d87469e2c9536453c0dd52ab5d78392b12001180f102",
+                "terms": {
+                  "version": 2,
+                  "profile": "algorand-aggregate-invoice-v1",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+                  "resource": "https://merchant.example/v2/jobs?invoice=example&order=original",
+                  "requestHash": "cde7784597f07421d3544cabeecebab6bd598275357e85ddae96e2f5b5d91014",
+                  "jobCount": 3,
+                  "paymentCount": 1,
+                  "paymentAmount": "3000",
+                  "perJobAmount": null,
+                  "totalAmount": "3000",
+                  "paymentIndices": [
+                    1
+                  ],
+                  "sponsorIndex": 0,
+                  "feePayer": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M",
+                  "jobHashes": [
+                    "ec67b2acc821cb4830f954b9786c1c594feb756fdb68111690d3fdf2d4be6589",
+                    "026ab639c21df8aa80e5789370a9db1b8b524b776fd8a0c2ba71efb377ecc7d9",
+                    "0e753487879fb8a9bb8abef03152c440daec21c9fcd68e4fa4007163d2dd1728"
+                  ],
+                  "feeQuote": {
+                    "expiresAt": 1800000045,
+                    "feePerByteMicroAlgo": "0",
+                    "firstValid": "1001",
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": "1101",
+                    "minFeeMicroAlgo": "1000",
+                    "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "observedAt": 1800000000,
+                    "sponsorFeeMicroAlgo": "2000",
+                    "transactionCount": 2
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000045
+              }
+            },
+            "salt": "6f6a2c0b6bff9c65b03af824e15e9dc04d0f7243030e448772802b8f2c6c6aa5"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 1,
+          "checkpoint_size": 2,
+          "receipt": {
+            "index": 1,
+            "inclusion_path": [
+              "QOHxilj6B8kSEYCHDn6PvhGO0kat/X1qga+OGa5fWgw="
+            ],
+            "checkpoint": "402signal.com/pq/log\n2\n7mTBVWr6vnrsa2nNpaykfDIvCgUijmufK/qlqXb71Mg=\n\n\u2014 402signal.com/pq/log +aRl4l9871O1H2CVK3TojLGKO4ohqvPP0sMfQD8xtjkcUE/zr2XNjOPj//6EFHHUXtq8OHmiF6CESGgz2kQNVaOuhwg=\n",
+            "leaf_hash": "c966370844e2f77ab9f1e8efc4dc6d68ee8a9d8868f368d59da0667ae5d6c525"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f9a465e2+AX+JI9RFkoZhW2JEG4h3t4pGPpVvhAwQfcaa5cQ4k+gH",
+    "now": 1800000000,
+    "buyer": "RKEOHXLUBHYZL7KS3MWTZOS5OLFGOCN7DWKBEG7TOSEADNAPN5OOTUNSLE",
+    "merchant": "QE4XODVIPULV6VVDKRTMGTD6ZTFY3CURWTXDPIS56YHVXD6JWOKORTLPBU",
+    "sponsor": "5VESRRRI2HBMN2XJAM4JAWMVMEUVSJZ2LRR7SNRWYFDBJLEHG7I2572N4M"
+  }
+]
