@@ -4,12 +4,26 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Paid routing endpoint · 402Signal</title>
-  <meta name="description" content="Agents POST /route when they want 402Signal to check an x402 service immediately before spending." />
+  <meta name="description" content="Use POST /route to check a paid API offer against your rules. A qualifying observation costs $0.003 USDC; seller payment is separate." />
   <link rel="canonical" href="https://402signal.com/route" />
+  <meta property="og:title" content="Paid routing endpoint · 402Signal" />
+  <meta property="og:description" content="Use POST /route to check a paid API offer against your rules. A qualifying observation costs $0.003 USDC; seller payment is separate." />
+  <meta property="og:url" content="https://402signal.com/route" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="402Signal" />
+  <meta property="og:image" content="https://402signal.com/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Paid routing endpoint · 402Signal" />
+  <meta name="twitter:description" content="Use POST /route to check a paid API offer against your rules. A qualifying observation costs $0.003 USDC; seller payment is separate." />
+  <meta name="twitter:image" content="https://402signal.com/og.png" />
+  <meta name="twitter:site" content="@402Signal" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <div class="page">
     <header class="site">
       <a class="brand" href="/">
@@ -24,25 +38,22 @@
       </nav>
     </header>
 
-    <main>
-      <section class="hero compact">
-        <h1>This is the paid routing endpoint.</h1>
-        <p class="lede">Agents POST /route. An unpaid call returns HTTP 402 to authorize $0.003 USDC. 402Signal settles only when it returns a valid live eligible route. A normal typed miss is not settled.</p>
-        <p class="note">Seller payment is separate. A normal unpaid miss returns HTTP 200 with <code>live:false</code>; HTTP 200 alone does not authorize seller payment. On every HTTP 503, inspect <code>billing.settlement_state</code> before retrying; never reuse an authorization marked <code>unknown</code>.</p>
-        <p class="note">402Signal does not hold the buyer's keys or execute the selected service's payment.</p>
-        <div class="hero-actions">
-          <a class="btn" href="/developers">Developer docs</a>
-          <a class="btn secondary" href="/catalog">Try a free preview</a>
-        </div>
+    <main id="main">
+<section class="hero compact"><p class="eyebrow">HTTP integration</p><h1>This is the paid routing endpoint.</h1>
+        <p class="lede">Agents POST /route. An unpaid request returns HTTP 402 with the advertised $0.003 USDC routing authorization. A qualifying live observation settles that fee; a normal typed miss is not settled.</p>
+        <p>Your buyer keeps its wallet, signing authority and final decision. Seller payment is separate.</p>
+        <div class="hero-actions"><a class="btn" href="/developers#quickstart">Developer docs</a><a class="btn secondary" href="/catalog">Try a free preview</a></div>
       </section>
-      <section class="block">
-        <h2>Bind the route to the seller's terms</h2>
-        <p>Add <code>"require_route_binding": true</code> to your request for a signed v4 receipt covering the observed seller URL, method, request body and x402 payment offer. This is optional and uses the same $0.003 success-only routing fee.</p>
-        <p>Your buyer verifies the receipt and compares the current seller challenge before signing. An expired or changed challenge blocks the seller handoff; it does not undo an already-settled routing fee.</p>
-        <p><a href="/developers#route-binding">Integration guide and supported request shapes</a></p>
+      <section class="block"><h2>Make the result useful before signing</h2>
+        <p>Add <code>"require_route_binding": true</code> for signed evidence of a supported seller request and observed payment offer. Integrate the buyer guard to compare the current offer before your own payment code signs.</p>
+        <p>Changed terms or expired evidence stop that handoff. They do not undo an already-settled routing fee or guarantee the seller's output.</p>
+        <p><a href="/developers#route-binding">Supported request shapes and buyer verification</a></p>
+      </section>
+      <section class="block"><h2>Read the result and the billing state</h2>
+        <p>A completed normal miss returns HTTP 200 with <code>live:false</code>; HTTP 200 alone does not authorize seller payment. On HTTP 503, inspect <code>billing.settlement_state</code> before retrying; never reuse an authorization marked <code>unknown</code>.</p>
+        <p><a href="/developers#recovery">Recover the original attempt before creating another</a>.</p>
       </section>
     </main>
-
     <footer class="foot">
       <p>402Signal</p>
       <p>
@@ -53,9 +64,12 @@
         <a href="/mcp.json">MCP</a>
         <a href="/transparency">Transparency</a>
         <a href="/contact">Contact</a>
+        <a href="/.well-known/security.txt">Security</a>
+        <a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a>
         <a href="mailto:ross@402signal.com">ross@402signal.com</a>
       </p>
     </footer>
   </div>
+
 </body>
 </html>

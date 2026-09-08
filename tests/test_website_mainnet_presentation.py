@@ -142,7 +142,7 @@ class COPY_EXPLORER_ISOLATION(unittest.TestCase):
         self.assertIn("Algorand MainNet", home)
         self.assertIn("Awaiting anchor", home)
         self.assertIn('class="pq-chip"', home)
-        self.assertIn("402Signal records routing evidence in an append-only Merkle log.", home)
+        self.assertIn("Checkpoints are anchored on Algorand MainNet.", home)
         self.assertIn("402Signal records routing evidence in an append-only Merkle log.", trans)
         self.assertNotIn("Latest confirmed Tree", home)
         self.assertNotIn('class="confirm-card"', trans)
