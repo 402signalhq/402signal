@@ -28,7 +28,7 @@ NAV_HREFS = (
     "https://github.com/402signalhq/402signal",
 )
 LISTED_ON = (
-    ("Glama", "https://glama.ai/mcp/servers/402signal/402signal"),
+    ("Glama", "https://glama.ai/mcp/servers/402signalhq/402signal"),
     ("MCP Registry", "https://registry.modelcontextprotocol.io/?q=402signal"),
     ("Gold-402", "https://github.com/Haustorium12/gold-402/blob/main/directory/aggregators.md"),
     ("Smithery", "https://smithery.ai/servers/live402/signal"),

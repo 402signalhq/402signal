@@ -725,7 +725,7 @@ class PaywallTests(unittest.TestCase):
         )
         self.assertNotIn("x402scan skips Algorand", llms)
         self.assertNotIn("Signal402", llms)
-        self.assertIn("https://glama.ai/mcp/servers/402signal/402signal", llms)
+        self.assertIn("https://glama.ai/mcp/servers/402signalhq/402signal", llms)
         self.assertIn("https://smithery.ai/servers/live402/signal", llms)
         self.assertIn("api.cdp.coinbase.com/platform/v2/x402/discovery/search?query=402signal", llms)
         self.assertIn("facilitator.goplausible.xyz/discovery/resources", llms)
@@ -824,10 +824,10 @@ class PaywallTests(unittest.TestCase):
         self.assertTrue(spec["info"]["description"].startswith(catalog))
         self.assertIn("payment envelope", spec["info"]["description"])
         self.assertIn("MCP: GET /mcp.json.", spec["info"]["description"])
-        self.assertEqual(mcp_mod.ROUTE_DESCRIPTION, catalog)
+        self.assertNotEqual(mcp_mod.ROUTE_DESCRIPTION, catalog)
         self.assertEqual(mcp_mod.manifest()["description"], catalog)
         route = next(t for t in mcp_mod.manifest()["tools"] if t["name"] == "route")
-        self.assertEqual(route["description"], catalog)
+        self.assertEqual(route["description"], mcp_mod.ROUTE_DESCRIPTION)
         self.assertTrue(discover.LLMS_TXT.startswith("# 402Signal\n\n" + catalog))
         readme = Path(__file__).resolve().parent.parent.joinpath("README.md").read_text(
             encoding="utf-8"
@@ -1885,8 +1885,9 @@ class ProductBriefTests(unittest.TestCase):
         from live402 import mcp as mcp_mod
         tools = mcp_mod.manifest()["tools"]
         route = next(t for t in tools if t.get("name") == "route")
-        self.assertLessEqual(len(route["description"]), 500)
-        self.assertEqual(route["description"], payment.CATALOG_DESCRIPTION)
+        self.assertLessEqual(len(mcp_mod.manifest()["description"]), 500)
+        self.assertEqual(mcp_mod.manifest()["description"], payment.CATALOG_DESCRIPTION)
+        self.assertEqual(route["description"], mcp_mod.ROUTE_DESCRIPTION)
         self.assertNotIn("Signal402", route["description"])
         self.assertEqual(
             route["inputSchema"].get("anyOf"),
