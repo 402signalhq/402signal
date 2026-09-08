@@ -7,7 +7,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
 import { AlgorandBatchCampaign } from "./campaign-operator.mjs";
-import { createAlgorandOwnerHooks } from "./owner-hooks.mjs";
+import {
+  createAlgorandOwnerHooks,
+  normalizeRouterPaymentPayload,
+} from "./owner-hooks.mjs";
+import { canonical } from "../../reference-buyer/policy.mjs";
+import { sdkSigner } from "../../lab/dist/src/signer-sdk.js";
 import { createOwnerGroupSigner } from "./owner-factory.mjs";
 const req = createRequire(new URL("../../lab/package.json", import.meta.url));
 const { Address } = await import(
@@ -18,6 +23,7 @@ const {
   TransactionType,
   groupTransactions,
   decodeTransaction,
+  decodeSignedTransaction,
   encodeTransactionRaw,
   encodeSignedTransaction,
   bytesForSigning,
@@ -144,6 +150,110 @@ function setup(fault = "") {
       assert.equal(rail, "algorand");
       assert.equal(c.accepts.length, 1);
       assert.deepEqual(c.accepts[0], offer);
+      if (fault.startsWith("sdk")) {
+        const key = Buffer.concat([
+          pair.privateKey
+            .export({ format: "der", type: "pkcs8" })
+            .subarray(-32),
+          pair.publicKey.export({ format: "der", type: "spki" }).subarray(-32),
+        ]).toString("base64");
+        const addresses = {
+          base: "0x" + "22".repeat(20),
+          solana: "11111111111111111111111111111111",
+          algorand: buyer,
+        };
+        const payTo = {
+          base: "0x" + "33".repeat(20),
+          solana: "11111111111111111111111111111111",
+          algorand: offer.payTo,
+        };
+        const fees = { base: [], solana: [], algorand: [offer.extra.feePayer] };
+        const config = {
+          mode: "mainnet",
+          routerUrl: policy.router.url,
+          sellerOrigin: "https://seller.example",
+          ledgerPath: ":memory:",
+          sellerMaxAtomic: "1000",
+          sellerPayTo: payTo,
+          routerPayTo: payTo,
+          feePayers: fees,
+          capAtomicPerRail: { base: "0", solana: "0", algorand: "5000" },
+          mainnet: {
+            workflow: "seller_only",
+            buyerAddresses: addresses,
+            rpcUrls: {
+              base: "https://base.example",
+              solana: "https://solana.example",
+              algorand: policy.rpcUrl,
+            },
+            buyerNativeFeeAtomic: "0",
+          },
+          routePilot: {
+            protocol: "402signal-lab-route-v2",
+            routerFeePayers: fees,
+          },
+        };
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = async (input, init) => {
+          assert.equal(
+            String(input),
+            policy.rpcUrl + "/v2/transactions/params",
+          );
+          assert.equal(init?.method ?? "GET", "GET");
+          return response(
+            {
+              "genesis-hash": policy.router.network.slice(9),
+              "genesis-id": "mainnet-v1.0",
+              "last-round": 1000,
+              "min-fee": 1000,
+              fee: 0,
+              "consensus-version": "synthetic",
+            },
+            200,
+            { "Content-Type": "application/json" },
+          );
+        };
+        let payload;
+        try {
+          payload = await sdkSigner(
+            config,
+            {
+              LAB_ALLOW_NETWORK: "1",
+              LAB_MAINNET_ACK: "reviewed-separate-self-test-lab",
+              LAB_BUYER_ACK: "mainnet-sponsored-route-pilot",
+              LAB_BUYER_ALGORAND_KEY_B64: key,
+            },
+            "router",
+          )(rail, c);
+        } finally {
+          globalThis.fetch = originalFetch;
+        }
+        assert.equal(Object.hasOwn(payload, "extensions"), true);
+        assert.equal(payload.extensions, undefined);
+        assert.throws(() => JSON.parse(canonical(payload)), SyntaxError);
+        routerRaw = [
+          Buffer.from(payload.payload.paymentGroup[0], "base64"),
+          encodeTransactionRaw(
+            decodeSignedTransaction(
+              Buffer.from(payload.payload.paymentGroup[1], "base64"),
+            ).txn,
+          ),
+        ];
+        if (fault === "sdk_required_undefined")
+          payload.accepted = { ...payload.accepted, amount: undefined };
+        if (fault === "sdk_authority")
+          payload.accepted = { ...payload.accepted, amount: "3001" };
+        if (fault === "sdk_signature") {
+          const signed = decodeSignedTransaction(
+            Buffer.from(payload.payload.paymentGroup[1], "base64"),
+          );
+          signed.sig[0] ^= 1;
+          payload.payload.paymentGroup[1] = Buffer.from(
+            encodeSignedTransaction(signed),
+          ).toString("base64");
+        }
+        return payload;
+      }
       const common = {
         genesisHash: Buffer.from(policy.router.network.slice(9), "base64"),
         genesisId: "mainnet-v1.0",
@@ -236,6 +346,30 @@ function setup(fault = "") {
         return response(challenge, 402, {
           "PAYMENT-REQUIRED": encode(challenge),
         });
+      const wire = JSON.parse(
+        Buffer.from(h.get("PAYMENT-SIGNATURE"), "base64").toString("utf8"),
+      );
+      assert.deepEqual(wire.accepted, offer);
+      assert.equal(Object.hasOwn(wire, "extensions"), false);
+      assert.deepEqual(
+        wire.payload.paymentGroup.map((item, index) =>
+          index === 0
+            ? Buffer.from(item, "base64")
+            : Buffer.from(
+                encodeTransactionRaw(
+                  decodeSignedTransaction(Buffer.from(item, "base64")).txn,
+                ),
+              ),
+        ),
+        routerRaw.map((item) => Buffer.from(item)),
+      );
+      if (fault === "sdk" && process.env.ALGORAND_SYNTHETIC_WIRE_EVIDENCE) {
+        writeFileSync(
+          process.env.ALGORAND_SYNTHETIC_WIRE_EVIDENCE,
+          h.get("PAYMENT-SIGNATURE"),
+          { mode: 0o600 },
+        );
+      }
       if (h.get("Replay-Only") === "1") counts.routerRecover++;
       else {
         counts.routerSend++;
@@ -459,5 +593,85 @@ test("owner CLI plan loads no hooks; callback error text is never printed", () =
   } finally {
     s.close();
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("actual sdkSigner envelope passes strict wire JSON, original signed group checks and one-shot recovery", async () => {
+  const s = setup("sdk");
+  try {
+    assert.equal((await s.run()).state, "complete");
+    assert.equal(s.counts.routerSign, 1);
+    assert.equal(s.counts.routerSend, 1);
+    assert.equal(s.counts.merchantSign, 1);
+    assert.equal(s.counts.merchantSend, 1);
+    await assert.rejects(s.again());
+    assert.equal((await s.recover()).state, "complete");
+    assert.equal(s.counts.routerSign, 1);
+  } finally {
+    s.close();
+  }
+});
+test("SDK malformed required data, changed authority and bad signatures stop before transport", async () => {
+  for (const fault of [
+    "sdk_required_undefined",
+    "sdk_authority",
+    "sdk_signature",
+  ]) {
+    const s = setup(fault);
+    try {
+      await assert.rejects(s.run());
+      assert.equal(s.counts.routerSign, 1);
+      assert.equal(s.counts.routerSend, 0);
+      assert.equal(s.counts.merchantSign, 0);
+      await assert.rejects(s.again());
+    } finally {
+      s.close();
+    }
+  }
+});
+test("wire normalization permits only absent root extensions and preserves all JSON metadata", () => {
+  const original = {
+    x402Version: 2,
+    extensions: undefined,
+    payload: { paymentIndex: 1, paymentGroup: ["unchanged", "signed"] },
+  };
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(normalizeRouterPaymentPayload(original))),
+    {
+      x402Version: 2,
+      payload: original.payload,
+    },
+  );
+  assert.equal(Object.hasOwn(original, "extensions"), true);
+  const metadata = {
+    ...original,
+    extensions: {
+      bazaar: {
+        info: { description: "retained", value: null, values: [true, 0.003] },
+      },
+    },
+  };
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(normalizeRouterPaymentPayload(metadata))),
+    metadata,
+  );
+  for (const value of [
+    undefined,
+    NaN,
+    Infinity,
+    1n,
+    Symbol("invalid"),
+    () => {},
+    { toJSON: () => "changed" },
+  ]) {
+    assert.throws(() =>
+      normalizeRouterPaymentPayload({
+        ...original,
+        accepted: { amount: value },
+      }),
+    );
+    assert.throws(() =>
+      normalizeRouterPaymentPayload({ ...original, payload: [value] }),
+    );
   }
 });
