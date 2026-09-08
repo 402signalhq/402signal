@@ -16,7 +16,7 @@ import {
   validateManifestOwnerConfig,
 } from "./manifest-owner.mjs";
 import { createManifestOwner } from "./manifest-owner-factory.mjs";
-import { AlgorandManifestStore } from "./manifest-store.mjs";
+import { AlgorandManifestStore } from "../../lab/dist/src/algorand-manifest-store.js";
 import { canonical } from "../../reference-buyer/policy.mjs";
 import { AlgorandManifestSeller } from "../../lab/dist/src/algorand-manifest-seller.js";
 const req = createRequire(new URL("../../lab/package.json", import.meta.url));
