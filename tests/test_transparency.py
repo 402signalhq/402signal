@@ -148,7 +148,7 @@ class TransparencyPageTests(unittest.TestCase):
         self.assertIn("Algorand MainNet", html)
         self.assertNotIn("Trust the history, too.", html)
         self.assertNotIn("View TestNet transaction", html)
-        self.assertIn("Check paid APIs before your agent spends.", html)
+        self.assertIn("Check the offer before your agent pays.", html)
         self.assertIn('href="/transparency"', html)
         static = (STATIC / "index.html").read_text(encoding="utf-8")
         self.assertNotIn("Trust the history, too.", static)

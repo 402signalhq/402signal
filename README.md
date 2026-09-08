@@ -48,7 +48,7 @@ Customer access keys identify a 402Signal integration or workload class. They ar
 
 Exact x402 observations cover Base, Solana and Algorand. The ordinary request path uses GET, with a narrowly justified empty-object POST fallback. The opt-in `parallel-search-json-v1` profile accepts an exact, bounded JSON search request only at `https://parallelmpp.dev/api/search`. Its body is bound to the observation and is not broadcast through discovery. This is not an arbitrary POST proxy. See the [exact-request contract](docs/proof-carrying-route-v1.md).
 
-**Batch and session support:** the published v0.5 client includes a separate v5 guard for the profiles below. Live paid qualification is still in progress. Controlled lab examples demonstrate specific contracts and limits.
+**Batch and session support:** the published v0.5 client includes a separate v5 guard for the profiles below. Controlled MainNet tests are complete for the profiles below, including merchant payments and independently confirmed settlement. These examples use owner-operated lab endpoints with explicit limits.
 
 | Profile | Supported scope | Buyer responsibility |
 |---|---|---|
@@ -56,7 +56,7 @@ Exact x402 observations cover Base, Solana and Algorand. The ordinary request pa
 | Solana native MPP push sessions | A supported channel, operator and recipient | Own opening, voucher signing, fees/rent and closing; no claim of cross-channel batch settlement |
 | Algorand two-item atomic grouping | One exact HTTPS GET API, two USDC payments to one recipient, explicit item/total caps and job hashes | Validate the full group and sponsor terms; atomic chain execution does not promise atomic HTTP delivery |
 
-The router observes one explicitly requested API; it does not aggregate seller payments, deposit capital or issue vouchers. The $0.003 observation fee is separate from merchant economics. The [batch contract](docs/batch-observation-v1.md), [Algorand buyer adapter](integration/batch-buyer/algorand/README.md) and [lab qualification guide](integration/lab/BATCH_QUALIFICATION.md) describe the bounded mechanisms and their remaining live evidence. The x402 mppx gateway adapter is separate from native MPP sessions.
+The router observes one explicitly requested API; it does not aggregate seller payments, deposit capital or issue vouchers. The $0.003 observation fee is separate from merchant economics. The [batch contract](docs/batch-observation-v1.md), [Algorand buyer adapter](integration/batch-buyer/algorand/README.md) and [lab qualification guide](integration/lab/BATCH_QUALIFICATION.md) describe the bounded mechanisms and the controlled live test scope. The x402 mppx gateway adapter is separate from native MPP sessions.
 
 ## Outcomes, recovery and evidence
 

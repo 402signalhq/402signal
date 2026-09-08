@@ -288,15 +288,22 @@ def route_constraint_properties() -> dict:
     }
 
 
-def route_body_schema() -> dict:
+def route_body_schema(*, surface: str = "http") -> dict:
+    """Advertise HTTP profiles separately from the existing MCP contract."""
     props = need_or_url_schema()
     props.update(route_constraint_properties())
-    return {
+    result = {
         "type": "object",
         "properties": props,
         "anyOf": list(NEED_OR_URL_ANYOF),
         "additionalProperties": False,
     }
+    if surface == "mcp":
+        return result
+    if surface != "http":
+        raise ValueError("unknown schema surface")
+    from live402.schema_http import extend_http_route_schema
+    return extend_http_route_schema(result)
 
 
 def miss_reason_schema() -> dict:

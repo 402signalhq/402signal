@@ -54,7 +54,7 @@ PREVIEW_DESCRIPTION = (
     "authorize payment."
 )
 
-INPUT_SCHEMA = schema_fields.route_body_schema()
+INPUT_SCHEMA = schema_fields.route_body_schema(surface="mcp")
 
 OUTPUT_SCHEMA = {
     "type": "object",

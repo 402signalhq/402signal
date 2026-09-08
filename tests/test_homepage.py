@@ -182,8 +182,8 @@ class HomepageProductTests(unittest.TestCase):
 
     def test_qualification_status_is_dated_and_bounded(self):
         self.assertIn("September 8, 2026", self.home)
-        self.assertIn("paid qualification remain in progress", self.home)
-        self.assertIn("MainNet paid test is complete", self.home)
+        self.assertIn("Controlled MainNet tests are complete", self.home)
+        self.assertIn("owner-operated lab endpoints", self.home)
         for phrase in ("hosted enablement", "An ordinary exact-payment receipt does not authorize a batch or session", "not a per-call price", "per_call_amount_atomic", "null", "not native MPP settlement support", "two USDC payments to the same recipient"):
             self.assertIn(phrase, _text(self.devs))
 
