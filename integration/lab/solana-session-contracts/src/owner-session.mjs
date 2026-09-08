@@ -178,6 +178,14 @@ export async function verifySolanaSessionDeployment(rpc,plan){
  const balance=await rpc('getTokenAccountBalance',[payerAta,{commitment:'finalized'}]);check(balance?.value?.decimals===6&&BigInt(balance.value.amount)>=BigInt(plan.policy.depositAtomic),'payer USDC balance insufficient');
  const rent=await quoteSolanaSessionRent(rpc),fee=await rpc('getFeeForMessage',[plan.messageBase64,{commitment:'finalized'}]);check(Number.isSafeInteger(fee?.value)&&fee.value>=0,'current blockhash/fee required');
  const cost=BigInt(rent.operatorRentLamports)+BigInt(fee.value);check(cost<=BigInt(plan.policy.maximumOperatorOpenLamports),'operator budget exceeded');
- const operator=await rpc('getBalance',[plan.policy.operator,{commitment:'finalized'}]);check(Number.isSafeInteger(operator?.value)&&BigInt(operator.value)>=cost,'operator SOL balance insufficient');
- return {state:'ready',operatorOpenLamports:cost.toString(),buyerNativeLamports:'0',programDataSha256:plan.policy.programDataSha256};
+ // The operator's remaining system-account balance must stay rent exempt.
+ // This retained reserve is not a fee and does not expand the spending cap.
+ const [operator,reserve]=await Promise.all([
+  rpc('getBalance',[plan.policy.operator,{commitment:'finalized'}]),
+  rpc('getMinimumBalanceForRentExemption',[0,{commitment:'finalized'}]),
+ ]);
+ check(Number.isSafeInteger(reserve)&&reserve>0,'operator rent reserve unavailable');
+ const requiredBalance=cost+BigInt(reserve);
+ check(Number.isSafeInteger(operator?.value)&&operator.value>=0&&BigInt(operator.value)>=requiredBalance,'operator SOL balance below opening cost plus retained reserve');
+ return {state:'ready',operatorOpenLamports:cost.toString(),operatorRetainedReserveLamports:String(reserve),operatorMinimumBalanceLamports:requiredBalance.toString(),buyerNativeLamports:'0',programDataSha256:plan.policy.programDataSha256};
 }
