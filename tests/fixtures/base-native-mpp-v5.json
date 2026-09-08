@@ -1,0 +1,149 @@
+{
+  "request": {
+    "url": "https://merchant.example?contact=a@b",
+    "merchant_profile": "base-mpp-charge-v1",
+    "buyer_limits": {
+      "network": "eip155:8453",
+      "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "recipient": "0x1111111111111111111111111111111111111111",
+      "max_call_amount_atomic": "1000",
+      "realm": "merchant.example"
+    },
+    "require_route_binding": true
+  },
+  "challenge": {
+    "status": 402,
+    "bodyText": "Payment required",
+    "paymentRequired": null,
+    "wwwAuthenticate": "Payment id=\"base-native-synthetic\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\""
+  },
+  "now": 1788886800,
+  "observation": {
+    "request": {
+      "url": "https://merchant.example?contact=a@b",
+      "method": "GET",
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "observed_at": 1788886800,
+    "challenge": {
+      "status": 402,
+      "bodyText": "Payment required",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"base-native-synthetic\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\""
+    }
+  },
+  "trusted_vkey": "402signal.com/pq/log+3681bf46+Ab7X0qtmjaPvrWE5mPBver94dfOmt2d6nzzpR9d9d2Cm",
+  "response": {
+    "url": "https://merchant.example?contact=a@b",
+    "merchant_profile": "base-mpp-charge-v1",
+    "live": true,
+    "payable": true,
+    "status": 402,
+    "selected_payment": null,
+    "batch_terms": {
+      "network": "eip155:8453",
+      "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "recipient": "0x1111111111111111111111111111111111111111",
+      "per_call_amount_atomic": "1000",
+      "credential_type": "authorization",
+      "intent": "charge"
+    },
+    "batch_binding": {
+      "model": "proof_carrying_batch_observation_v1",
+      "profile": "base-mpp-charge-v1",
+      "request": {
+        "url": "https://merchant.example?contact=a@b",
+        "method": "GET",
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "buyer_limits": {
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "recipient": "0x1111111111111111111111111111111111111111",
+        "max_call_amount_atomic": "1000",
+        "realm": "merchant.example"
+      },
+      "challenge": {
+        "status": 402,
+        "bodyText": "Payment required",
+        "paymentRequired": null,
+        "wwwAuthenticate": "Payment id=\"base-native-synthetic\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\""
+      },
+      "challenge_sha256": "a8b11eb31e6fce41854d1d79caae7c82f0ac9c95f27fa3629d1d694a37b1290e",
+      "terms": {
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "recipient": "0x1111111111111111111111111111111111111111",
+        "per_call_amount_atomic": "1000",
+        "credential_type": "authorization",
+        "intent": "charge"
+      },
+      "observed_at": 1788886800,
+      "expires_at": 1788886860
+    },
+    "payment_authorization": {
+      "pq_native": false
+    },
+    "pq_trust": {
+      "transparency": {
+        "log_origin": "402signal.com/pq/log",
+        "leaf_type": "402signal.route_decision.v5",
+        "reveal": {
+          "type": "402signal.route_decision.v5",
+          "ts": "2026-09-08T17:08:00Z",
+          "nonce": "37d43da0179bb9bffc15ed310fec397df38cbc6adde6a67013a983c75d4b4c3c",
+          "commitment": "a4f060af2c9cdf6167d795a51e3079364cfa35e9d99c12b3825d7e2a6323e94a",
+          "event_version": "402signal.route_decision.v5",
+          "evidence": {
+            "evidence_version": 3,
+            "request_json": "{\"buyer_limits\":{\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"max_call_amount_atomic\":\"1000\",\"network\":\"eip155:8453\",\"realm\":\"merchant.example\",\"recipient\":\"0x1111111111111111111111111111111111111111\"},\"merchant_profile\":\"base-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example?contact=a@b\"}",
+            "batch_binding": {
+              "model": "proof_carrying_batch_observation_v1",
+              "profile": "base-mpp-charge-v1",
+              "request": {
+                "url": "https://merchant.example?contact=a@b",
+                "method": "GET",
+                "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "buyer_limits": {
+                "network": "eip155:8453",
+                "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "recipient": "0x1111111111111111111111111111111111111111",
+                "max_call_amount_atomic": "1000",
+                "realm": "merchant.example"
+              },
+              "challenge": {
+                "status": 402,
+                "bodyText": "Payment required",
+                "paymentRequired": null,
+                "wwwAuthenticate": "Payment id=\"base-native-synthetic\", realm=\"merchant.example\", method=\"evm\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiIweDgzMzU4OWZDRDZlRGI2RTA4ZjRjN0MzMkQ0ZjcxYjU0YmRBMDI5MTMiLCJtZXRob2REZXRhaWxzIjp7ImNoYWluSWQiOjg0NTMsImNyZWRlbnRpYWxUeXBlcyI6WyJhdXRob3JpemF0aW9uIl0sImRlY2ltYWxzIjo2fSwicmVjaXBpZW50IjoiMHgxMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExIn0\", expires=\"2026-09-08T17:01:00.000Z\""
+              },
+              "challenge_sha256": "a8b11eb31e6fce41854d1d79caae7c82f0ac9c95f27fa3629d1d694a37b1290e",
+              "terms": {
+                "network": "eip155:8453",
+                "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "recipient": "0x1111111111111111111111111111111111111111",
+                "per_call_amount_atomic": "1000",
+                "credential_type": "authorization",
+                "intent": "charge"
+              },
+              "observed_at": 1788886800,
+              "expires_at": 1788886860
+            }
+          },
+          "salt": "dff649d6a4b4f453734b53be5497ba4d1be928ee7c71997ef5beb3d9d0d7eee4"
+        },
+        "status": "pending",
+        "state": "checkpoint_signed",
+        "index": 0,
+        "checkpoint_size": 1,
+        "receipt": {
+          "index": 0,
+          "inclusion_path": [],
+          "checkpoint": "402signal.com/pq/log\n1\nOLBoSNhReYzEZ3UlPaHrCep/s28mz7V3IgoFmeNZOgs=\n\n\u2014 402signal.com/pq/log NoG/Rl+zPQG+UdGfNwP9colIpoX0t/uZveMOqMTohHoR4ckrslSsgEeKaiq4ZXRnSMr0DTvb/ebE5mdWx+aiU2aCjQI=\n",
+          "leaf_hash": "38b06848d851798cc46775253da1eb09ea7fb36f26cfb577220a0599e3593a0b"
+        }
+      }
+    }
+  }
+}

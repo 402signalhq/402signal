@@ -1,0 +1,31 @@
+# Native Algorand MPP charge reference adapter
+
+This opt-in adapter supports `algorand-mpp-charge-v1`: one buyer-owned mainnet USDC payment, with an optional merchant-offered fee sponsor. It is native MPP **charge**, distinct from x402 atomic job manifests and from payment sessions. It does not hold customer keys, broadcast through an automatic fetch wrapper, offer escrow, or decide whether a result is satisfactory.
+
+Pinned upstream: `@goplausible/algorand-mpp-sdk` 0.9.4, `mppx` 0.9.2 and AlgoKit 10.0.0-alpha.46. This package uses the repository's route guard and durable journal; it is a reference integration rather than a standalone published package. Use Node24 and the committed lockfile.
+
+## Explicit execution boundary
+
+1. Receive the bounded original response containing native `WWW-Authenticate: Payment` offers for the exact HTTPS GET URL. Explicitly pin its realm (which can differ from the hostname), mainnet USDC asset, merchant, amount ceiling, network-fee ceiling and `fee_payer` address or null.
+2. Call `prepareNativeAlgorandCharge`. This is pure: no wallet, RPC or merchant calls. It preserves the challenge, request, amount, lease, quote and exact transaction bytes. It selects exactly one offer matching those explicit limits and refuses ambiguity, malformed offers, role conflicts and credentials exceeding16KiB before signing. The complete original header, body and optional x402 header remain bound as evidence; unrelated payment instructions are never executed. See [native offer selection](../mpp-client/NATIVE_SELECTION.md).
+3. Obtain and retain one fresh 402Signal v5 observation for this offer. A qualifying observation costs0.003USDC; this does not include the merchant charge or network fees. `executeVerifiedNativeAlgorandCharge` checks that proof before signing and again before submission. Its `confirmRouterPayment` callback must independently confirm the exact retained3000-atomic-USDC router payment, intended recipient/network and successful effects; a provider acknowledgment alone is insufficient. Its `reserveBudget` callback must atomically and idempotently reserve this operation's complete amount and buyer-paid network fees across workers. Neither callback may buy another route.
+4. Supply a buyer-controlled signer, a bounded read-only `readParams` transport and a single bounded redirect-free `send` transport. The adapter requests only the exact asset-transfer signature, writes the intent before signing, validates the returned signature, then writes a separate durable send permit before sending. The signer must never broadcast. The SDK receives complete suggested parameters and cannot implicitly fetch them. No global fetch wrapper is installed.
+5. A successful merchant receipt is `merchant_acknowledged`, **not chain confirmation**. `confirmNativeAlgorandCharge` independently reads every retained transaction's exact effects and common confirmed round. Algorand consensus confirmation is reported separately from resource acknowledgment.
+
+The lower-level `executeNativeAlgorandCharge` accepts a caller-owned `authorize` callback with the same mandatory fresh-proof, retained-router-payment and budget obligations. Prefer the verified composition above. The durable journal may use `AlgorandManifestStore`; keep the private journal and its original operation ID across restarts. Private files must not be published.
+
+## Fees and recovery
+
+`fee_payer: null` explicitly accepts buyer-paid fees. An address accepts only that quoted sponsor; buyer fees must remain zero. The exact group fee and buyer/sponsor split are returned separately. No402Signal wallet is used for sponsorship. Facilitator commercial pricing is not inferred from chain fees.
+
+The pinned SDK computes fees from unsigned transaction size. This adapter independently models every permitted MessagePack field and the full Ed25519 wrapper. Positive per-byte quotes work when the SDK's chosen fee covers the actual final signed group. Underfunded size-priced quotes are refused before billing/signing; the adapter does not silently modify merchant terms or claim Algorand requires zero per-byte fees. Fresh independent parameters must still match before signing and sending.
+
+Lost wallet or merchant acknowledgments stay fenced, including after process restart and under another operation ID for the same payer/lease. Recovery reads chain state only; it never resends a credential. Native MPP does not promise a `Replay-Only` resource cache. A confirmed payment with no authenticated resource receipt remains `resourceAcknowledged:false`; it does not authorize another payment. On expiry, only read-only reconciliation is permitted. Local journal retention must cover the transaction validity and any required reconciliation; do not reset an unresolved authority.
+
+## Qualification and live gate
+
+Cloud tests use actual upstream challenge, credential, sponsor and server verification code with public synthetic keys and loopback/mock transports. They cover exact signing, caller refusal, mutation, duplicate receipts, positive fee quotes, competing durable connections, restart, lost acknowledgment, expiry, Python/JavaScript fee-size parity, signed v5 proofs and3000-atomic router billing/replay. No live native Algorand MPP payment has been made by these tests.
+
+Before a paid campaign: enable the explicit hosted profile through the operator's allowlist, obtain a compatible merchant's current quote, independently check mainnet/USDC opt-in and balances, quote merchant+router+network costs, pin transport destinations and immutable campaign budget, then review one small buyer-owned charge. Hosted observation and offline validation alone are not production payment qualification. Existing x402 profiles and their qualification evidence remain separate.
+
+Sources: [GoPlausible SDK](https://github.com/GoPlausible/algorand-mpp-sdk), [MPP challenge and credential protocol](https://mpp.dev/protocol/).

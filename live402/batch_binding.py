@@ -7,10 +7,15 @@ import re
 import time
 from urllib.parse import urlsplit
 from live402 import route_binding as rb
-from live402.batch_profiles import base, solana, algorand, algorand_generic, algorand_manifest
+from live402.batch_profiles import (
+    base, solana, algorand, algorand_generic, algorand_manifest,
+    base_charge, native_charge, algorand_charge,
+)
 
 MODEL = "proof_carrying_batch_observation_v1"
 PROFILES = {
+    "algorand-mpp-charge-v1": algorand_charge.validate,
+    "base-mpp-charge-v1": base_charge.validate,
     "base-x402-batch-v1": base.validate,
     "solana-mpp-session-v1": solana.validate,
     "algorand-atomic-batch-v1": algorand.validate,
@@ -58,7 +63,12 @@ def parse_request(body, *, enabled=False):
         if enabled:
             check(profile in os.environ.get("BATCH_OBSERVATION_PROFILES", "").split(","))
         return ctx
+    if profile == "algorand-mpp-charge-v1":
+        algorand_charge.validate_limits(limits)
+        if enabled: check(profile in os.environ.get("BATCH_OBSERVATION_PROFILES", "").split(","))
+        return ctx
     module = {
+        "base-mpp-charge-v1": base_charge,
         "base-x402-batch-v1": base,
         "solana-mpp-session-v1": solana,
         "algorand-atomic-batch-v1": algorand,
@@ -82,7 +92,9 @@ def parse_request(body, *, enabled=False):
             )
         elif key != "withdraw_delay_seconds":
             check(type(value) is str and 0 < len(value) <= 256)
-    if profile == "base-x402-batch-v1":
+    if profile == "base-mpp-charge-v1":
+        base_charge.address(limits["recipient"])
+    elif profile == "base-x402-batch-v1":
         check(
             type(limits["withdraw_delay_seconds"]) is int
             and limits["withdraw_delay_seconds"] == 900
@@ -120,7 +132,7 @@ def parse_request(body, *, enabled=False):
     return ctx
 
 
-def wire(challenge, context, profile):
+def wire(challenge, context, profile, *, expected_realm=None, validator=None):
     rb.canonical(challenge)
     check(
         type(challenge) is dict
@@ -140,6 +152,10 @@ def wire(challenge, context, profile):
             and all(32 <= ord(c) < 127 for c in challenge[k])
         )
     check(len(rb.canonical(challenge)) <= RAW_LIMIT)
+    if profile == "algorand-mpp-charge-v1":
+        return native_charge.wire(challenge, context, "algorand", expected_realm, validator)
+    if profile == "base-mpp-charge-v1":
+        return native_charge.wire(challenge, context, "evm", expected_realm, validator)
     if profile == "solana-mpp-session-v1":
         check(challenge["bodyText"] == "" and challenge["paymentRequired"] is None)
         raw = challenge["wwwAuthenticate"]
@@ -193,7 +209,7 @@ def build(body, observation):
     )
     observed = observation["observed_at"]
     check(type(observed) is int and observed > 0)
-    env, native_expiry = wire(observation["challenge"], ctx, body["merchant_profile"])
+    env, native_expiry = wire(observation["challenge"], ctx, body["merchant_profile"], expected_realm=body["buyer_limits"].get("realm"), validator=lambda offer: PROFILES[body["merchant_profile"]](offer, ctx, body["buyer_limits"]))
     terms = PROFILES[body["merchant_profile"]](env, ctx, body["buyer_limits"])
     if body["merchant_profile"] in algorand_manifest.PROFILES:
         quote = terms["feeQuote"]

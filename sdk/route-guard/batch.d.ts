@@ -15,6 +15,8 @@ export interface BatchRouteOptions {
 export interface BatchObservation {
   model: "proof_carrying_batch_observation_v1";
   profile:
+    | "algorand-mpp-charge-v1"
+    | "base-mpp-charge-v1"
     | "base-x402-batch-v1"
     | "solana-mpp-session-v1"
     | "algorand-atomic-batch-v1"
@@ -22,7 +24,7 @@ export interface BatchObservation {
     | "algorand-atomic-multi-item-v1"
     | "algorand-aggregate-invoice-v1";
   request: { url: string; method: "GET"; body_sha256: string };
-  buyer_limits: Record<string, string | number | string[]>;
+  buyer_limits: Record<string, string | number | string[] | null>;
   challenge: BatchChallenge;
   challenge_sha256: string;
   terms: Record<string, unknown>;

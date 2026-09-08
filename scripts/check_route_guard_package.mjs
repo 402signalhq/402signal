@@ -58,6 +58,7 @@ const exports = {
   '@402signal/route-guard/recovery': ['reconcilePayment'],
   '@402signal/route-guard/client': ['RouteClient', 'RouteClientError', 'classifyRouteResponse'],
   '@402signal/route-guard/file-store': ['FileAttemptStore'],
+  '@402signal/route-guard/batch': ['verifyBatchRoute', 'withVerifiedBatchRoute'],
 };
 for (const [specifier, names] of Object.entries(exports)) {
   const imported = await import(specifier);
@@ -70,6 +71,11 @@ import {RouteClient, type RouteResult, type RouteResponse} from '@402signal/rout
 import {FileAttemptStore} from '@402signal/route-guard/file-store';
 import {verifyReceipt, withVerifiedRoute} from '@402signal/route-guard';
 import {reconcilePayment} from '@402signal/route-guard/recovery';
+import {type BatchObservation} from '@402signal/route-guard/batch';
+const nativeLimits:BatchObservation['buyer_limits']={fee_payer:null};
+const nativeProfile:BatchObservation['profile']='algorand-mpp-charge-v1';
+const invoiceProfile:BatchObservation['profile']='algorand-aggregate-invoice-v1';
+void nativeLimits; void nativeProfile; void invoiceProfile;
 const store = new FileAttemptStore('/tmp/typecheck-only-not-executed');
 const client = new RouteClient({store, recoveryProfile: 'http-route-v1', customerKey: 'synthetic_customer_key_12345678901'});
 const challenge: Promise<RouteResponse> = client.challenge('typecheck-only');

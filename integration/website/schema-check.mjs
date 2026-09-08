@@ -40,6 +40,11 @@ for (const [value, valid] of [
     request: {...algoRequest, buyer_limits: {...algoRequest.buyer_limits,
       max_sponsor_fee_micro_algo: value}}});
 }
+const nativeBaseRequest = fixture('base-native-mpp-v5.json').request;
+for (const [value, valid] of [['1', true], ['1000', true], ['18446744073709551615', true], ['18446744073709551616', false], [1000, false], ['01000', false], ['0', false]]) {
+  cases.push({name:'native-base-amount-'+JSON.stringify(value),valid,request:{...nativeBaseRequest,buyer_limits:{...nativeBaseRequest.buyer_limits,max_call_amount_atomic:value}}});
+}
+cases.push({name:'native-base-zero-recipient',valid:false,request:{...nativeBaseRequest,buyer_limits:{...nativeBaseRequest.buyer_limits,recipient:'0x'+'0'.repeat(40)}}});
 // Limits can overlap across versioned profiles. The outer request variant
 // must bind the selected profile while allowing any matching limits shape.
 for (const [profile, count, valid] of [
@@ -63,6 +68,14 @@ for (const [profile, count, valid] of [
     cases.push({name: 'invoice-item-cap-' + count, request: withItemCap, valid: false});
   }
 }
+
+const nativeAlgoRequest = fixture('algorand-mpp-charge.json')[0].request;
+cases.push({name:'native-algo-buyer-fees',request:nativeAlgoRequest,valid:true});
+for (const [key,value] of [['fee_payer',false],['recipient','AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ'],['max_amount_atomic','0'],['max_network_fee_micro_algo','18446744073709551616']]) {
+  cases.push({name:'native-algo-invalid-'+key,valid:false,request:{...nativeAlgoRequest,buyer_limits:{...nativeAlgoRequest.buyer_limits,[key]:value}}});
+}
+cases.push({name:'native-algo-limits-cannot-select-base',request:{...nativeAlgoRequest,merchant_profile:'base-mpp-charge-v1'},valid:false});
+cases.push({name:'native-base-limits-cannot-select-algo',request:{...nativeBaseRequest,merchant_profile:'algorand-mpp-charge-v1'},valid:false});
 for (const item of cases) {
   const result = validate(item.request);
   assert.equal(result, item.valid, item.name + ': ' + JSON.stringify(validate.errors));

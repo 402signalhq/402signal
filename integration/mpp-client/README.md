@@ -1,6 +1,8 @@
-# Explicit mppx interoperability qualification
+# Explicit mppx interoperability
 
-This private integration qualifies mppx 0.9.2 for existing x402 V2 exact Base USDC offers. It is not native MPP settlement support and does not change 402Signal's exact routing fee. Dependencies are pinned in package-lock.json.
+The existing x402 adapter below qualifies mppx 0.9.2 for x402 V2 exact Base USDC offers. The separate [native Base MPP client](NATIVE.md) supports the explicit `evm.charge` profile and an installable archive. Neither changes the routing fee. Dependencies are pinned in package-lock.json.
+
+## x402 exact adapter
 
 `prepareBaseX402` accepts an unsigned 402 challenge, the exact HTTPS request URL/method/body, and caller-pinned atomic amount, recipient and payer. GET requests with a nonempty query and empty body may use byte-exact queryless resource metadata; the complete queried URL stays in the reviewed request. POST metadata must match the full URL. It verifies raw JSON before mppx normalization, snapshots those terms, and creates no signature. `createPaymentPayload({authorize})` requires an explicit caller gate that receives the immutable inspection. That gate must verify the route proof and caller policy, acquire a durable one-shot signing claim, and return only a guarded buyer-owned `{address, signTypedData}` account. The guarded account must durably record the exact typed data before delegating to its signer. A successful result contains `paymentPayload` and the PAYMENT-SIGNATURE header; the caller must durably save this complete result before its own single transmission.
 

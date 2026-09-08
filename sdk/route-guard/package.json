@@ -1,6 +1,6 @@
 {
   "name": "@402signal/route-guard",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": false,
   "type": "module",
   "description": "402Signal buyer-owned routing client, private response recovery and local evidence verifier.",
@@ -45,7 +45,10 @@
     "batch-profiles/solana.mjs",
     "batch-profiles/algorand.mjs",
     "batch-profiles/algorand-generic.mjs",
-    "batch-profiles/algorand-manifest.mjs"
+    "batch-profiles/algorand-manifest.mjs",
+    "batch-profiles/base-charge.mjs",
+    "batch-profiles/native-charge.mjs",
+    "batch-profiles/algorand-charge.mjs"
   ],
   "engines": {
     "node": ">=22"

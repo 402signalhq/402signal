@@ -1,0 +1,1997 @@
+[
+  {
+    "request": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "realm": "payments.example",
+        "max_amount_atomic": "1000",
+        "max_network_fee_micro_algo": "20000",
+        "fee_payer": null
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-0\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiJmNGNlZTg3Zi03YmZmLTRiNDUtYjQ0OS0xOThlMzRiZjlkNGQiLCJsZWFzZSI6IitIeU12TmxoSXV3VVZnUzljenZmd1AzNVRHTWl5MWpMd1JvMUpTOHEreEU9IiwibmV0d29yayI6ImFsZ29yYW5kOndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9Iiwic3VnZ2VzdGVkUGFyYW1zIjp7ImZlZSI6MCwiZmlyc3RWYWxpZCI6MTAwMCwiZ2VuZXNpc0hhc2giOiJ3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsImdlbmVzaXNJZCI6Im1haW5uZXQtdjEuMCIsImxhc3RWYWxpZCI6MjAwMCwibWluRmVlIjoxMDAwfX0sInJlY2lwaWVudCI6IkpVVTdZRkEyTlFIVjJXWkpVWFdEU0FDSUtSUUFJUDJNMldLTENMWDRVWFVIS1MzU003RFJZSEs1RFUifQ\", expires=\"2027-01-15T08:01:00.000Z\""
+    },
+    "offer": {
+      "amount": "1000",
+      "currency": "USDC",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "methodDetails": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "challengeReference": "f4cee87f-7bff-4b45-b449-198e34bf9d4d",
+        "lease": "+HyMvNlhIuwUVgS9czvfwP35TGMiy1jLwRo1JS8q+xE=",
+        "asaId": "31566704",
+        "suggestedParams": {
+          "fee": 0,
+          "firstValid": 1000,
+          "lastValid": 2000,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "minFee": 1000
+        }
+      },
+      "externalId": "order-1"
+    },
+    "buyer": "TPQ7KC3Y3EKRPS37WOVU267GGJ4WKZMOE6KBVA4KYDM7KKKHOT3QLRQCVM",
+    "now": 1800000000,
+    "expectedTerms": {
+      "amount_atomic": "1000",
+      "asset": "31566704",
+      "challenge_reference": "f4cee87f-7bff-4b45-b449-198e34bf9d4d",
+      "currency_label": "USDC",
+      "fee_payer": null,
+      "fee_quote_requires_buyer_validation": true,
+      "intent": "charge",
+      "lease": "+HyMvNlhIuwUVgS9czvfwP35TGMiy1jLwRo1JS8q+xE=",
+      "method": "algorand",
+      "minimum_group_fee_micro_algo": "1000",
+      "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+      "network_fee_micro_algo": "1000",
+      "protocol": "mpp",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "suggested_params": {
+        "fee": 0,
+        "firstValid": 1000,
+        "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "genesisId": "mainnet-v1.0",
+        "lastValid": 2000,
+        "minFee": 1000
+      },
+      "transaction_count": 1
+    },
+    "unsignedSizes": [
+      311
+    ],
+    "raw": [
+      "jaRhYW10zQPopGFyY3bEIE0p/BQabA9dWyml7DkASFRgBD9M1ZSxLvyl6HVLcmfHo2ZlZc0D6KJmds0D6KNnZW6sbWFpbm5ldC12MS4womdoxCDAYcTY/B293tLXYEvkVo4/bQQZh6w3veS2ILWrOSSK36NncnDEIA17Hm4flQQa0oU2BJhk6S7fckLg9bufT9IwUDtI+Zh/omx2zQfQomx4xCD4fIy82WEi7BRWBL1zO9/A/flMYyLLWMvBGjUlLyr7EaRub3RlxDFtcHB4OmY0Y2VlODdmLTdiZmYtNGI0NS1iNDQ5LTE5OGUzNGJmOWQ0ZDpvcmRlci0xo3NuZMQgm+H1C3jZFRfLf7OrTXvmMnllZY4nlBqDisDZ9SlHdPekdHlwZaVheGZlcqR4YWlkzgHhq3A="
+    ],
+    "response": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "protocol": "mpp",
+        "method": "algorand",
+        "intent": "charge",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "amount_atomic": "1000",
+        "currency_label": "USDC",
+        "fee_payer": null,
+        "transaction_count": 1,
+        "minimum_group_fee_micro_algo": "1000",
+        "network_fee_micro_algo": "1000",
+        "fee_quote_requires_buyer_validation": true,
+        "challenge_reference": "f4cee87f-7bff-4b45-b449-198e34bf9d4d",
+        "lease": "+HyMvNlhIuwUVgS9czvfwP35TGMiy1jLwRo1JS8q+xE=",
+        "suggested_params": {
+          "fee": 0,
+          "firstValid": 1000,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": 2000,
+          "minFee": 1000
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-mpp-charge-v1",
+        "request": {
+          "url": "https://merchant.example/paid?order=original&encoding=%61",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "realm": "payments.example",
+          "max_amount_atomic": "1000",
+          "max_network_fee_micro_algo": "20000",
+          "fee_payer": null
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": null,
+          "wwwAuthenticate": "Payment id=\"synthetic-0\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiJmNGNlZTg3Zi03YmZmLTRiNDUtYjQ0OS0xOThlMzRiZjlkNGQiLCJsZWFzZSI6IitIeU12TmxoSXV3VVZnUzljenZmd1AzNVRHTWl5MWpMd1JvMUpTOHEreEU9IiwibmV0d29yayI6ImFsZ29yYW5kOndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9Iiwic3VnZ2VzdGVkUGFyYW1zIjp7ImZlZSI6MCwiZmlyc3RWYWxpZCI6MTAwMCwiZ2VuZXNpc0hhc2giOiJ3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsImdlbmVzaXNJZCI6Im1haW5uZXQtdjEuMCIsImxhc3RWYWxpZCI6MjAwMCwibWluRmVlIjoxMDAwfX0sInJlY2lwaWVudCI6IkpVVTdZRkEyTlFIVjJXWkpVWFdEU0FDSUtSUUFJUDJNMldLTENMWDRVWFVIS1MzU003RFJZSEs1RFUifQ\", expires=\"2027-01-15T08:01:00.000Z\""
+        },
+        "challenge_sha256": "cf6ac52fd621fdcf7beb72b2eca8aee10e6bf2ea055b92b0dc0f24719fbcba1b",
+        "terms": {
+          "protocol": "mpp",
+          "method": "algorand",
+          "intent": "charge",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "amount_atomic": "1000",
+          "currency_label": "USDC",
+          "fee_payer": null,
+          "transaction_count": 1,
+          "minimum_group_fee_micro_algo": "1000",
+          "network_fee_micro_algo": "1000",
+          "fee_quote_requires_buyer_validation": true,
+          "challenge_reference": "f4cee87f-7bff-4b45-b449-198e34bf9d4d",
+          "lease": "+HyMvNlhIuwUVgS9czvfwP35TGMiy1jLwRo1JS8q+xE=",
+          "suggested_params": {
+            "fee": 0,
+            "firstValid": 1000,
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": 2000,
+            "minFee": 1000
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T17:38:00Z",
+            "nonce": "2411bc9cb567f6d4da57f3103087b335ec4fdad4577457e254b9eda2e6731585",
+            "commitment": "b199fbb75f0b7164182c514a398ab886d05d7c9759286bab7f98b5503e7f8f51",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":null,\"max_amount_atomic\":\"1000\",\"max_network_fee_micro_algo\":\"20000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"realm\":\"payments.example\",\"recipient\":\"JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU\"},\"merchant_profile\":\"algorand-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/paid?order=original&encoding=%61\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-mpp-charge-v1",
+                "request": {
+                  "url": "https://merchant.example/paid?order=original&encoding=%61",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "realm": "payments.example",
+                  "max_amount_atomic": "1000",
+                  "max_network_fee_micro_algo": "20000",
+                  "fee_payer": null
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": "Payment id=\"synthetic-0\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiJmNGNlZTg3Zi03YmZmLTRiNDUtYjQ0OS0xOThlMzRiZjlkNGQiLCJsZWFzZSI6IitIeU12TmxoSXV3VVZnUzljenZmd1AzNVRHTWl5MWpMd1JvMUpTOHEreEU9IiwibmV0d29yayI6ImFsZ29yYW5kOndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9Iiwic3VnZ2VzdGVkUGFyYW1zIjp7ImZlZSI6MCwiZmlyc3RWYWxpZCI6MTAwMCwiZ2VuZXNpc0hhc2giOiJ3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsImdlbmVzaXNJZCI6Im1haW5uZXQtdjEuMCIsImxhc3RWYWxpZCI6MjAwMCwibWluRmVlIjoxMDAwfX0sInJlY2lwaWVudCI6IkpVVTdZRkEyTlFIVjJXWkpVWFdEU0FDSUtSUUFJUDJNMldLTENMWDRVWFVIS1MzU003RFJZSEs1RFUifQ\", expires=\"2027-01-15T08:01:00.000Z\""
+                },
+                "challenge_sha256": "cf6ac52fd621fdcf7beb72b2eca8aee10e6bf2ea055b92b0dc0f24719fbcba1b",
+                "terms": {
+                  "protocol": "mpp",
+                  "method": "algorand",
+                  "intent": "charge",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "amount_atomic": "1000",
+                  "currency_label": "USDC",
+                  "fee_payer": null,
+                  "transaction_count": 1,
+                  "minimum_group_fee_micro_algo": "1000",
+                  "network_fee_micro_algo": "1000",
+                  "fee_quote_requires_buyer_validation": true,
+                  "challenge_reference": "f4cee87f-7bff-4b45-b449-198e34bf9d4d",
+                  "lease": "+HyMvNlhIuwUVgS9czvfwP35TGMiy1jLwRo1JS8q+xE=",
+                  "suggested_params": {
+                    "fee": 0,
+                    "firstValid": 1000,
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": 2000,
+                    "minFee": 1000
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "d70113e5d3504fb82563babc943232dd5225791e6bca288699c6c021a232c2a0"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 0,
+          "checkpoint_size": 1,
+          "receipt": {
+            "index": 0,
+            "inclusion_path": [],
+            "checkpoint": "402signal.com/pq/log\n1\ns1saRE5mT9mHhJAQWui+Oqd7yELcUZwPZWs/pxwsMVQ=\n\n\u2014 402signal.com/pq/log 9vQhdxvrLZZHXT0fvpYXfzmmtiacuo/ZrKG4V/BZt08IIVdxOXjI5Qbr4cHKZqQPlF7PVnwWZWNvclsV5PG1uW5YnAI=\n",
+            "leaf_hash": "b35b1a444e664fd9878490105ae8be3aa77bc842dc519c0f656b3fa71c2c3154"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f6f42177+AeSItHRncUgtUQAeWZA1EmMGq1SiWYhZlulR0svTPWHJ"
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "realm": "payments.example",
+        "max_amount_atomic": "18446744073709551615",
+        "max_network_fee_micro_algo": "20000",
+        "fee_payer": null
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-1\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiYjZkNjQ3ODAtOTI0Zi00OTZmLTg2ODQtNGY4NmI0ODVmYjcyIiwibGVhc2UiOiJEYy9rLzVnK0EweVdJN0J3SWhkSHpIeVNUdS83YWh1VWpmbkRHREtkbmxjPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjAsImZpcnN0VmFsaWQiOjQyOTQ5NjcyOTYsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjQyOTQ5NjgyOTYsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+    },
+    "offer": {
+      "amount": "18446744073709551615",
+      "currency": "USDC",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "methodDetails": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "challengeReference": "b6d64780-924f-496f-8684-4f86b485fb72",
+        "lease": "Dc/k/5g+A0yWI7BwIhdHzHySTu/7ahuUjfnDGDKdnlc=",
+        "asaId": "31566704",
+        "suggestedParams": {
+          "fee": 0,
+          "firstValid": 4294967296,
+          "lastValid": 4294968296,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "minFee": 1000
+        }
+      },
+      "externalId": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9"
+    },
+    "buyer": "TPQ7KC3Y3EKRPS37WOVU267GGJ4WKZMOE6KBVA4KYDM7KKKHOT3QLRQCVM",
+    "now": 1800000000,
+    "expectedTerms": {
+      "amount_atomic": "18446744073709551615",
+      "asset": "31566704",
+      "challenge_reference": "b6d64780-924f-496f-8684-4f86b485fb72",
+      "currency_label": "USDC",
+      "fee_payer": null,
+      "fee_quote_requires_buyer_validation": true,
+      "intent": "charge",
+      "lease": "Dc/k/5g+A0yWI7BwIhdHzHySTu/7ahuUjfnDGDKdnlc=",
+      "method": "algorand",
+      "minimum_group_fee_micro_algo": "1000",
+      "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+      "network_fee_micro_algo": "1000",
+      "protocol": "mpp",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "suggested_params": {
+        "fee": 0,
+        "firstValid": 4294967296,
+        "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "genesisId": "mainnet-v1.0",
+        "lastValid": 4294968296,
+        "minFee": 1000
+      },
+      "transaction_count": 1
+    },
+    "unsignedSizes": [
+      579
+    ],
+    "raw": [
+      "jaRhYW10z///////////pGFyY3bEIE0p/BQabA9dWyml7DkASFRgBD9M1ZSxLvyl6HVLcmfHo2ZlZc0D6KJmds8AAAABAAAAAKNnZW6sbWFpbm5ldC12MS4womdoxCDAYcTY/B293tLXYEvkVo4/bQQZh6w3veS2ILWrOSSK36NncnDEIE20UYo1s2UZEpiXU++GVHoRsc0xuwXEQdnZes4ZhF8Xomx2zwAAAAEAAAPoomx4xCANz+T/mD4DTJYjsHAiF0fMfJJO7/tqG5SN+cMYMp2eV6Rub3RlxQEqbXBweDpiNmQ2NDc4MC05MjRmLTQ5NmYtODY4NC00Zjg2YjQ4NWZiNzI6w6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqaNzbmTEIJvh9Qt42RUXy3+zq0175jJ5ZWWOJ5Qag4rA2fUpR3T3pHR5cGWlYXhmZXKkeGFpZM4B4atw"
+    ],
+    "response": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "protocol": "mpp",
+        "method": "algorand",
+        "intent": "charge",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "amount_atomic": "18446744073709551615",
+        "currency_label": "USDC",
+        "fee_payer": null,
+        "transaction_count": 1,
+        "minimum_group_fee_micro_algo": "1000",
+        "network_fee_micro_algo": "1000",
+        "fee_quote_requires_buyer_validation": true,
+        "challenge_reference": "b6d64780-924f-496f-8684-4f86b485fb72",
+        "lease": "Dc/k/5g+A0yWI7BwIhdHzHySTu/7ahuUjfnDGDKdnlc=",
+        "suggested_params": {
+          "fee": 0,
+          "firstValid": 4294967296,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": 4294968296,
+          "minFee": 1000
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-mpp-charge-v1",
+        "request": {
+          "url": "https://merchant.example/paid?order=original&encoding=%61",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "realm": "payments.example",
+          "max_amount_atomic": "18446744073709551615",
+          "max_network_fee_micro_algo": "20000",
+          "fee_payer": null
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": null,
+          "wwwAuthenticate": "Payment id=\"synthetic-1\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiYjZkNjQ3ODAtOTI0Zi00OTZmLTg2ODQtNGY4NmI0ODVmYjcyIiwibGVhc2UiOiJEYy9rLzVnK0EweVdJN0J3SWhkSHpIeVNUdS83YWh1VWpmbkRHREtkbmxjPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjAsImZpcnN0VmFsaWQiOjQyOTQ5NjcyOTYsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjQyOTQ5NjgyOTYsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+        },
+        "challenge_sha256": "7e5f6c095c0bf767b86e6fc1c4a24421df1ac09db13c0feb20d01d5f3fed70dc",
+        "terms": {
+          "protocol": "mpp",
+          "method": "algorand",
+          "intent": "charge",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "amount_atomic": "18446744073709551615",
+          "currency_label": "USDC",
+          "fee_payer": null,
+          "transaction_count": 1,
+          "minimum_group_fee_micro_algo": "1000",
+          "network_fee_micro_algo": "1000",
+          "fee_quote_requires_buyer_validation": true,
+          "challenge_reference": "b6d64780-924f-496f-8684-4f86b485fb72",
+          "lease": "Dc/k/5g+A0yWI7BwIhdHzHySTu/7ahuUjfnDGDKdnlc=",
+          "suggested_params": {
+            "fee": 0,
+            "firstValid": 4294967296,
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": 4294968296,
+            "minFee": 1000
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T17:38:00Z",
+            "nonce": "e61999925ccaf0d63f846a4f7a16100113a6993acc55e4e3a8d380abc23d6106",
+            "commitment": "0900eb2ab61bc4346ab1adefea4599d0bbeda78a91f908ef8f1a85d2590edb26",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":null,\"max_amount_atomic\":\"18446744073709551615\",\"max_network_fee_micro_algo\":\"20000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"realm\":\"payments.example\",\"recipient\":\"JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU\"},\"merchant_profile\":\"algorand-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/paid?order=original&encoding=%61\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-mpp-charge-v1",
+                "request": {
+                  "url": "https://merchant.example/paid?order=original&encoding=%61",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "realm": "payments.example",
+                  "max_amount_atomic": "18446744073709551615",
+                  "max_network_fee_micro_algo": "20000",
+                  "fee_payer": null
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": "Payment id=\"synthetic-1\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiYjZkNjQ3ODAtOTI0Zi00OTZmLTg2ODQtNGY4NmI0ODVmYjcyIiwibGVhc2UiOiJEYy9rLzVnK0EweVdJN0J3SWhkSHpIeVNUdS83YWh1VWpmbkRHREtkbmxjPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjAsImZpcnN0VmFsaWQiOjQyOTQ5NjcyOTYsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjQyOTQ5NjgyOTYsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+                },
+                "challenge_sha256": "7e5f6c095c0bf767b86e6fc1c4a24421df1ac09db13c0feb20d01d5f3fed70dc",
+                "terms": {
+                  "protocol": "mpp",
+                  "method": "algorand",
+                  "intent": "charge",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "amount_atomic": "18446744073709551615",
+                  "currency_label": "USDC",
+                  "fee_payer": null,
+                  "transaction_count": 1,
+                  "minimum_group_fee_micro_algo": "1000",
+                  "network_fee_micro_algo": "1000",
+                  "fee_quote_requires_buyer_validation": true,
+                  "challenge_reference": "b6d64780-924f-496f-8684-4f86b485fb72",
+                  "lease": "Dc/k/5g+A0yWI7BwIhdHzHySTu/7ahuUjfnDGDKdnlc=",
+                  "suggested_params": {
+                    "fee": 0,
+                    "firstValid": 4294967296,
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": 4294968296,
+                    "minFee": 1000
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "1c84e6c807f66d9aef42f0263ab5cd77876250e510c2bcf00041cee0cbbee1ce"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 1,
+          "checkpoint_size": 2,
+          "receipt": {
+            "index": 1,
+            "inclusion_path": [
+              "s1saRE5mT9mHhJAQWui+Oqd7yELcUZwPZWs/pxwsMVQ="
+            ],
+            "checkpoint": "402signal.com/pq/log\n2\nnVkYw1EoTtCmhFUOX3LkvfySvQarG3ct21/nccic53o=\n\n\u2014 402signal.com/pq/log 9vQhd+ySFhwyZvcGY2KQnES/B90zyb+EOp4BMjc03DYDgEOHhlB1QOvRrv7EskzFDYYGdZ33H5p8Dd7OLN5ohKO+/wU=\n",
+            "leaf_hash": "99dbf1c0daa52d76a3fdd9cda6494d517225eccbe4b19e42376ba93b681464fc"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f6f42177+AeSItHRncUgtUQAeWZA1EmMGq1SiWYhZlulR0svTPWHJ"
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "realm": "payments.example",
+        "max_amount_atomic": "1000",
+        "max_network_fee_micro_algo": "20000",
+        "fee_payer": null
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-2\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiJkNDhmYWMyZS02MmJhLTQ2ZTMtODUxMy1hZDIyN2M1MmQ0NjEiLCJsZWFzZSI6ImtlVStNWnlxcHdVemh5RVQraFJNbmR3OE9RQzJBYUlRL0tXRUF3WmpTUmM9IiwibmV0d29yayI6ImFsZ29yYW5kOndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9Iiwic3VnZ2VzdGVkUGFyYW1zIjp7ImZlZSI6MSwiZmlyc3RWYWxpZCI6MTAwMCwiZ2VuZXNpc0hhc2giOiJ3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsImdlbmVzaXNJZCI6Im1haW5uZXQtdjEuMCIsImxhc3RWYWxpZCI6MjAwMCwibWluRmVlIjoxMDAwfX0sInJlY2lwaWVudCI6IkpVVTdZRkEyTlFIVjJXWkpVWFdEU0FDSUtSUUFJUDJNMldLTENMWDRVWFVIS1MzU003RFJZSEs1RFUifQ\", expires=\"2027-01-15T08:01:00.000Z\""
+    },
+    "offer": {
+      "amount": "1000",
+      "currency": "USDC",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "methodDetails": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "challengeReference": "d48fac2e-62ba-46e3-8513-ad227c52d461",
+        "lease": "keU+MZyqpwUzhyET+hRMndw8OQC2AaIQ/KWEAwZjSRc=",
+        "asaId": "31566704",
+        "suggestedParams": {
+          "fee": 1,
+          "firstValid": 1000,
+          "lastValid": 2000,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "minFee": 1000
+        }
+      },
+      "externalId": "order-1"
+    },
+    "buyer": "TPQ7KC3Y3EKRPS37WOVU267GGJ4WKZMOE6KBVA4KYDM7KKKHOT3QLRQCVM",
+    "now": 1800000000,
+    "expectedTerms": {
+      "amount_atomic": "1000",
+      "asset": "31566704",
+      "challenge_reference": "d48fac2e-62ba-46e3-8513-ad227c52d461",
+      "currency_label": "USDC",
+      "fee_payer": null,
+      "fee_quote_requires_buyer_validation": true,
+      "intent": "charge",
+      "lease": "keU+MZyqpwUzhyET+hRMndw8OQC2AaIQ/KWEAwZjSRc=",
+      "method": "algorand",
+      "minimum_group_fee_micro_algo": "1000",
+      "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+      "network_fee_micro_algo": "1000",
+      "protocol": "mpp",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "suggested_params": {
+        "fee": 1,
+        "firstValid": 1000,
+        "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "genesisId": "mainnet-v1.0",
+        "lastValid": 2000,
+        "minFee": 1000
+      },
+      "transaction_count": 1
+    },
+    "unsignedSizes": [
+      311
+    ],
+    "raw": [
+      "jaRhYW10zQPopGFyY3bEIE0p/BQabA9dWyml7DkASFRgBD9M1ZSxLvyl6HVLcmfHo2ZlZc0D6KJmds0D6KNnZW6sbWFpbm5ldC12MS4womdoxCDAYcTY/B293tLXYEvkVo4/bQQZh6w3veS2ILWrOSSK36NncnDEIDvMW3zGepgoJPLPbXq1hJcIWuO+5AORFfGmV4R9N+k5omx2zQfQomx4xCCR5T4xnKqnBTOHIRP6FEyd3Dw5ALYBohD8pYQDBmNJF6Rub3RlxDFtcHB4OmQ0OGZhYzJlLTYyYmEtNDZlMy04NTEzLWFkMjI3YzUyZDQ2MTpvcmRlci0xo3NuZMQgm+H1C3jZFRfLf7OrTXvmMnllZY4nlBqDisDZ9SlHdPekdHlwZaVheGZlcqR4YWlkzgHhq3A="
+    ],
+    "response": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "protocol": "mpp",
+        "method": "algorand",
+        "intent": "charge",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "amount_atomic": "1000",
+        "currency_label": "USDC",
+        "fee_payer": null,
+        "transaction_count": 1,
+        "minimum_group_fee_micro_algo": "1000",
+        "network_fee_micro_algo": "1000",
+        "fee_quote_requires_buyer_validation": true,
+        "challenge_reference": "d48fac2e-62ba-46e3-8513-ad227c52d461",
+        "lease": "keU+MZyqpwUzhyET+hRMndw8OQC2AaIQ/KWEAwZjSRc=",
+        "suggested_params": {
+          "fee": 1,
+          "firstValid": 1000,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": 2000,
+          "minFee": 1000
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-mpp-charge-v1",
+        "request": {
+          "url": "https://merchant.example/paid?order=original&encoding=%61",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "realm": "payments.example",
+          "max_amount_atomic": "1000",
+          "max_network_fee_micro_algo": "20000",
+          "fee_payer": null
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": null,
+          "wwwAuthenticate": "Payment id=\"synthetic-2\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiJkNDhmYWMyZS02MmJhLTQ2ZTMtODUxMy1hZDIyN2M1MmQ0NjEiLCJsZWFzZSI6ImtlVStNWnlxcHdVemh5RVQraFJNbmR3OE9RQzJBYUlRL0tXRUF3WmpTUmM9IiwibmV0d29yayI6ImFsZ29yYW5kOndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9Iiwic3VnZ2VzdGVkUGFyYW1zIjp7ImZlZSI6MSwiZmlyc3RWYWxpZCI6MTAwMCwiZ2VuZXNpc0hhc2giOiJ3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsImdlbmVzaXNJZCI6Im1haW5uZXQtdjEuMCIsImxhc3RWYWxpZCI6MjAwMCwibWluRmVlIjoxMDAwfX0sInJlY2lwaWVudCI6IkpVVTdZRkEyTlFIVjJXWkpVWFdEU0FDSUtSUUFJUDJNMldLTENMWDRVWFVIS1MzU003RFJZSEs1RFUifQ\", expires=\"2027-01-15T08:01:00.000Z\""
+        },
+        "challenge_sha256": "39771c75011a5ece86870c6fab076548cb64cafd26e7e33a154c6a828cfb121a",
+        "terms": {
+          "protocol": "mpp",
+          "method": "algorand",
+          "intent": "charge",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "amount_atomic": "1000",
+          "currency_label": "USDC",
+          "fee_payer": null,
+          "transaction_count": 1,
+          "minimum_group_fee_micro_algo": "1000",
+          "network_fee_micro_algo": "1000",
+          "fee_quote_requires_buyer_validation": true,
+          "challenge_reference": "d48fac2e-62ba-46e3-8513-ad227c52d461",
+          "lease": "keU+MZyqpwUzhyET+hRMndw8OQC2AaIQ/KWEAwZjSRc=",
+          "suggested_params": {
+            "fee": 1,
+            "firstValid": 1000,
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": 2000,
+            "minFee": 1000
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T17:38:00Z",
+            "nonce": "88a53aebcd9e2e56f2855214ed347ea9bfb415b1bd50da2b5e27f762a4c0a9eb",
+            "commitment": "8e3b07a1856b0f9215c780e5e45af36bb900ced3be8a811ae447da6a98ef56bc",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":null,\"max_amount_atomic\":\"1000\",\"max_network_fee_micro_algo\":\"20000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"realm\":\"payments.example\",\"recipient\":\"JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU\"},\"merchant_profile\":\"algorand-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/paid?order=original&encoding=%61\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-mpp-charge-v1",
+                "request": {
+                  "url": "https://merchant.example/paid?order=original&encoding=%61",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "realm": "payments.example",
+                  "max_amount_atomic": "1000",
+                  "max_network_fee_micro_algo": "20000",
+                  "fee_payer": null
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": "Payment id=\"synthetic-2\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiJkNDhmYWMyZS02MmJhLTQ2ZTMtODUxMy1hZDIyN2M1MmQ0NjEiLCJsZWFzZSI6ImtlVStNWnlxcHdVemh5RVQraFJNbmR3OE9RQzJBYUlRL0tXRUF3WmpTUmM9IiwibmV0d29yayI6ImFsZ29yYW5kOndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9Iiwic3VnZ2VzdGVkUGFyYW1zIjp7ImZlZSI6MSwiZmlyc3RWYWxpZCI6MTAwMCwiZ2VuZXNpc0hhc2giOiJ3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsImdlbmVzaXNJZCI6Im1haW5uZXQtdjEuMCIsImxhc3RWYWxpZCI6MjAwMCwibWluRmVlIjoxMDAwfX0sInJlY2lwaWVudCI6IkpVVTdZRkEyTlFIVjJXWkpVWFdEU0FDSUtSUUFJUDJNMldLTENMWDRVWFVIS1MzU003RFJZSEs1RFUifQ\", expires=\"2027-01-15T08:01:00.000Z\""
+                },
+                "challenge_sha256": "39771c75011a5ece86870c6fab076548cb64cafd26e7e33a154c6a828cfb121a",
+                "terms": {
+                  "protocol": "mpp",
+                  "method": "algorand",
+                  "intent": "charge",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "amount_atomic": "1000",
+                  "currency_label": "USDC",
+                  "fee_payer": null,
+                  "transaction_count": 1,
+                  "minimum_group_fee_micro_algo": "1000",
+                  "network_fee_micro_algo": "1000",
+                  "fee_quote_requires_buyer_validation": true,
+                  "challenge_reference": "d48fac2e-62ba-46e3-8513-ad227c52d461",
+                  "lease": "keU+MZyqpwUzhyET+hRMndw8OQC2AaIQ/KWEAwZjSRc=",
+                  "suggested_params": {
+                    "fee": 1,
+                    "firstValid": 1000,
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": 2000,
+                    "minFee": 1000
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "3f9ab690e8194cb60345659f74443c1c99128d4a6acb06f7eb9d12569941d53c"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 2,
+          "checkpoint_size": 3,
+          "receipt": {
+            "index": 2,
+            "inclusion_path": [
+              "nVkYw1EoTtCmhFUOX3LkvfySvQarG3ct21/nccic53o="
+            ],
+            "checkpoint": "402signal.com/pq/log\n3\nwOXs+Cbt4EfsbYeuw27SVLKIMvtIh+w/WX3CRd3DGlU=\n\n\u2014 402signal.com/pq/log 9vQhdxFNV5sFZj1KXcfW4cZ+iPuMIr1OXkZ/DNHzqOWEkZInWXJwB/ABDhh+Cuj7TFgJc6qZLXyO5PR4OCx2LsVC9QY=\n",
+            "leaf_hash": "70f2582ef100addd0b4af51644677f2800214f2445c1b512eb3d0305105ad791"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f6f42177+AeSItHRncUgtUQAeWZA1EmMGq1SiWYhZlulR0svTPWHJ"
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "realm": "payments.example",
+        "max_amount_atomic": "18446744073709551615",
+        "max_network_fee_micro_algo": "20000",
+        "fee_payer": null
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-3\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiODY1ZjkxOTEtZGRlMC00ZDU0LTgzYmEtZWM1Yjg5MjljY2RmIiwibGVhc2UiOiJIYW5zVkJjREZ3aUlBWDUvOWttaFViUzMra09CK1FMLy81M1NiRnZwSTJjPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjEsImZpcnN0VmFsaWQiOjQyOTQ5NjcyOTYsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjQyOTQ5NjgyOTYsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+    },
+    "offer": {
+      "amount": "18446744073709551615",
+      "currency": "USDC",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "methodDetails": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "challengeReference": "865f9191-dde0-4d54-83ba-ec5b8929ccdf",
+        "lease": "HansVBcDFwiIAX5/9kmhUbS3+kOB+QL//53SbFvpI2c=",
+        "asaId": "31566704",
+        "suggestedParams": {
+          "fee": 1,
+          "firstValid": 4294967296,
+          "lastValid": 4294968296,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "minFee": 1000
+        }
+      },
+      "externalId": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9"
+    },
+    "buyer": "TPQ7KC3Y3EKRPS37WOVU267GGJ4WKZMOE6KBVA4KYDM7KKKHOT3QLRQCVM",
+    "now": 1800000000,
+    "expectedTerms": {
+      "amount_atomic": "18446744073709551615",
+      "asset": "31566704",
+      "challenge_reference": "865f9191-dde0-4d54-83ba-ec5b8929ccdf",
+      "currency_label": "USDC",
+      "fee_payer": null,
+      "fee_quote_requires_buyer_validation": true,
+      "intent": "charge",
+      "lease": "HansVBcDFwiIAX5/9kmhUbS3+kOB+QL//53SbFvpI2c=",
+      "method": "algorand",
+      "minimum_group_fee_micro_algo": "1000",
+      "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+      "network_fee_micro_algo": "1000",
+      "protocol": "mpp",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "suggested_params": {
+        "fee": 1,
+        "firstValid": 4294967296,
+        "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "genesisId": "mainnet-v1.0",
+        "lastValid": 4294968296,
+        "minFee": 1000
+      },
+      "transaction_count": 1
+    },
+    "unsignedSizes": [
+      579
+    ],
+    "raw": [
+      "jaRhYW10z///////////pGFyY3bEIE0p/BQabA9dWyml7DkASFRgBD9M1ZSxLvyl6HVLcmfHo2ZlZc0D6KJmds8AAAABAAAAAKNnZW6sbWFpbm5ldC12MS4womdoxCDAYcTY/B293tLXYEvkVo4/bQQZh6w3veS2ILWrOSSK36NncnDEIC/EPaMDfe9dB0c3Cjq/z2oIor8LbAS18O6bSaIztJXoomx2zwAAAAEAAAPoomx4xCAdqexUFwMXCIgBfn/2SaFRtLf6Q4H5Av//ndJsW+kjZ6Rub3RlxQEqbXBweDo4NjVmOTE5MS1kZGUwLTRkNTQtODNiYS1lYzViODkyOWNjZGY6w6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqaNzbmTEIJvh9Qt42RUXy3+zq0175jJ5ZWWOJ5Qag4rA2fUpR3T3pHR5cGWlYXhmZXKkeGFpZM4B4atw"
+    ],
+    "response": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "protocol": "mpp",
+        "method": "algorand",
+        "intent": "charge",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "amount_atomic": "18446744073709551615",
+        "currency_label": "USDC",
+        "fee_payer": null,
+        "transaction_count": 1,
+        "minimum_group_fee_micro_algo": "1000",
+        "network_fee_micro_algo": "1000",
+        "fee_quote_requires_buyer_validation": true,
+        "challenge_reference": "865f9191-dde0-4d54-83ba-ec5b8929ccdf",
+        "lease": "HansVBcDFwiIAX5/9kmhUbS3+kOB+QL//53SbFvpI2c=",
+        "suggested_params": {
+          "fee": 1,
+          "firstValid": 4294967296,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": 4294968296,
+          "minFee": 1000
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-mpp-charge-v1",
+        "request": {
+          "url": "https://merchant.example/paid?order=original&encoding=%61",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "realm": "payments.example",
+          "max_amount_atomic": "18446744073709551615",
+          "max_network_fee_micro_algo": "20000",
+          "fee_payer": null
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": null,
+          "wwwAuthenticate": "Payment id=\"synthetic-3\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiODY1ZjkxOTEtZGRlMC00ZDU0LTgzYmEtZWM1Yjg5MjljY2RmIiwibGVhc2UiOiJIYW5zVkJjREZ3aUlBWDUvOWttaFViUzMra09CK1FMLy81M1NiRnZwSTJjPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjEsImZpcnN0VmFsaWQiOjQyOTQ5NjcyOTYsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjQyOTQ5NjgyOTYsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+        },
+        "challenge_sha256": "44d76399bf193f363c97a09bbb232f6f33ccd3e438962b95ae2363d824bd7e23",
+        "terms": {
+          "protocol": "mpp",
+          "method": "algorand",
+          "intent": "charge",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "amount_atomic": "18446744073709551615",
+          "currency_label": "USDC",
+          "fee_payer": null,
+          "transaction_count": 1,
+          "minimum_group_fee_micro_algo": "1000",
+          "network_fee_micro_algo": "1000",
+          "fee_quote_requires_buyer_validation": true,
+          "challenge_reference": "865f9191-dde0-4d54-83ba-ec5b8929ccdf",
+          "lease": "HansVBcDFwiIAX5/9kmhUbS3+kOB+QL//53SbFvpI2c=",
+          "suggested_params": {
+            "fee": 1,
+            "firstValid": 4294967296,
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": 4294968296,
+            "minFee": 1000
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T17:38:00Z",
+            "nonce": "7bc5332003cd6593fda4ea51efa4bdbb67e57f20bcebdcb44879708aeb5bc142",
+            "commitment": "dbb46cf9656c97102b6a3a6be1dd5d04386273c98e39304a1cfba07ca032c8c2",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":null,\"max_amount_atomic\":\"18446744073709551615\",\"max_network_fee_micro_algo\":\"20000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"realm\":\"payments.example\",\"recipient\":\"JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU\"},\"merchant_profile\":\"algorand-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/paid?order=original&encoding=%61\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-mpp-charge-v1",
+                "request": {
+                  "url": "https://merchant.example/paid?order=original&encoding=%61",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "realm": "payments.example",
+                  "max_amount_atomic": "18446744073709551615",
+                  "max_network_fee_micro_algo": "20000",
+                  "fee_payer": null
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": "Payment id=\"synthetic-3\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiODY1ZjkxOTEtZGRlMC00ZDU0LTgzYmEtZWM1Yjg5MjljY2RmIiwibGVhc2UiOiJIYW5zVkJjREZ3aUlBWDUvOWttaFViUzMra09CK1FMLy81M1NiRnZwSTJjPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjEsImZpcnN0VmFsaWQiOjQyOTQ5NjcyOTYsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjQyOTQ5NjgyOTYsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+                },
+                "challenge_sha256": "44d76399bf193f363c97a09bbb232f6f33ccd3e438962b95ae2363d824bd7e23",
+                "terms": {
+                  "protocol": "mpp",
+                  "method": "algorand",
+                  "intent": "charge",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "amount_atomic": "18446744073709551615",
+                  "currency_label": "USDC",
+                  "fee_payer": null,
+                  "transaction_count": 1,
+                  "minimum_group_fee_micro_algo": "1000",
+                  "network_fee_micro_algo": "1000",
+                  "fee_quote_requires_buyer_validation": true,
+                  "challenge_reference": "865f9191-dde0-4d54-83ba-ec5b8929ccdf",
+                  "lease": "HansVBcDFwiIAX5/9kmhUbS3+kOB+QL//53SbFvpI2c=",
+                  "suggested_params": {
+                    "fee": 1,
+                    "firstValid": 4294967296,
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": 4294968296,
+                    "minFee": 1000
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "91fc87e528d8cc5932dfaf1d35caed33386961954f518979b8af4b570da0c0cd"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 3,
+          "checkpoint_size": 4,
+          "receipt": {
+            "index": 3,
+            "inclusion_path": [
+              "cPJYLvEArd0LSvUWRGd/KAAhTyRFwbUS6z0DBRBa15E=",
+              "nVkYw1EoTtCmhFUOX3LkvfySvQarG3ct21/nccic53o="
+            ],
+            "checkpoint": "402signal.com/pq/log\n4\nFcYDRnE2BekIqrWR2EWTh2qjeXOHCSy9nSIA40Bq49M=\n\n\u2014 402signal.com/pq/log 9vQhd22PMe0kJydNv3yW+DdernnZ1RdsjHuUfgeZxXpwrif7YpqZdoz5AO1ZzGgSGVDBqEN14SIlgybwEsaQb+C6eg0=\n",
+            "leaf_hash": "5120704647e1da28a1c7b113d28e79059460e7c0c80680d65e8d5f96d48b8808"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f6f42177+AeSItHRncUgtUQAeWZA1EmMGq1SiWYhZlulR0svTPWHJ"
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "realm": "payments.example",
+        "max_amount_atomic": "1000",
+        "max_network_fee_micro_algo": "20000",
+        "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-4\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiIxYmExOGE0Yi1iNGU4LTQxYTYtYjNlYy0wNjdmMjk4YWY4Y2MiLCJmZWVQYXllciI6dHJ1ZSwiZmVlUGF5ZXJLZXkiOiJDRlE2RkRKQUFHTDVYU0hLRjVCMllCS0Q1Sk1UUjdKQVZCUVNXSlVOTk9TUVRGNUFSNkNaTVNYSU1ZIiwibGVhc2UiOiJmR1k2ZHVTTG9sOGtXOTlvb0txNlFKeVpxTURVcWgxWGVDbkNOeUhWeFBvPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjAsImZpcnN0VmFsaWQiOjEwMDAsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjIwMDAsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+    },
+    "offer": {
+      "amount": "1000",
+      "currency": "USDC",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "methodDetails": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "challengeReference": "1ba18a4b-b4e8-41a6-b3ec-067f298af8cc",
+        "lease": "fGY6duSLol8kW99ooKq6QJyZqMDUqh1XeCnCNyHVxPo=",
+        "asaId": "31566704",
+        "feePayer": true,
+        "feePayerKey": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+        "suggestedParams": {
+          "fee": 0,
+          "firstValid": 1000,
+          "lastValid": 2000,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "minFee": 1000
+        }
+      },
+      "externalId": "order-1"
+    },
+    "buyer": "TPQ7KC3Y3EKRPS37WOVU267GGJ4WKZMOE6KBVA4KYDM7KKKHOT3QLRQCVM",
+    "now": 1800000000,
+    "expectedTerms": {
+      "amount_atomic": "1000",
+      "asset": "31566704",
+      "challenge_reference": "1ba18a4b-b4e8-41a6-b3ec-067f298af8cc",
+      "currency_label": "USDC",
+      "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+      "fee_quote_requires_buyer_validation": true,
+      "intent": "charge",
+      "lease": "fGY6duSLol8kW99ooKq6QJyZqMDUqh1XeCnCNyHVxPo=",
+      "method": "algorand",
+      "minimum_group_fee_micro_algo": "2000",
+      "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+      "network_fee_micro_algo": "2000",
+      "protocol": "mpp",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "suggested_params": {
+        "fee": 0,
+        "firstValid": 1000,
+        "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "genesisId": "mainnet-v1.0",
+        "lastValid": 2000,
+        "minFee": 1000
+      },
+      "transaction_count": 2
+    },
+    "unsignedSizes": [
+      197,
+      304
+    ],
+    "raw": [
+      "iaNmZWXNB9CiZnbNA+ijZ2VurG1haW5uZXQtdjEuMKJnaMQgwGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit+jZ3JwxCBwPgL2oYyzmTInnUY2b8/+K0BeJwS64WW7AJMv6E7AwaJsds0H0KNyY3bEIBFh4o0gAZfbyOovQ6wFQ+pZOP0gqGErJo1rpQmXoI+Fo3NuZMQgEWHijSABl9vI6i9DrAVD6lk4/SCoYSsmjWulCZegj4WkdHlwZaNwYXk=",
+      "jKRhYW10zQPopGFyY3bEIE0p/BQabA9dWyml7DkASFRgBD9M1ZSxLvyl6HVLcmfHomZ2zQPoo2dlbqxtYWlubmV0LXYxLjCiZ2jEIMBhxNj8Hb3e0tdgS+RWjj9tBBmHrDe95LYgtas5JIrfo2dycMQgcD4C9qGMs5kyJ51GNm/P/itAXicEuuFluwCTL+hOwMGibHbNB9CibHjEIHxmOnbki6JfJFvfaKCqukCcmajA1KodV3gpwjch1cT6pG5vdGXEMW1wcHg6MWJhMThhNGItYjRlOC00MWE2LWIzZWMtMDY3ZjI5OGFmOGNjOm9yZGVyLTGjc25kxCCb4fULeNkVF8t/s6tNe+YyeWVljieUGoOKwNn1KUd096R0eXBlpWF4ZmVypHhhaWTOAeGrcA=="
+    ],
+    "response": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "protocol": "mpp",
+        "method": "algorand",
+        "intent": "charge",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "amount_atomic": "1000",
+        "currency_label": "USDC",
+        "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+        "transaction_count": 2,
+        "minimum_group_fee_micro_algo": "2000",
+        "network_fee_micro_algo": "2000",
+        "fee_quote_requires_buyer_validation": true,
+        "challenge_reference": "1ba18a4b-b4e8-41a6-b3ec-067f298af8cc",
+        "lease": "fGY6duSLol8kW99ooKq6QJyZqMDUqh1XeCnCNyHVxPo=",
+        "suggested_params": {
+          "fee": 0,
+          "firstValid": 1000,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": 2000,
+          "minFee": 1000
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-mpp-charge-v1",
+        "request": {
+          "url": "https://merchant.example/paid?order=original&encoding=%61",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "realm": "payments.example",
+          "max_amount_atomic": "1000",
+          "max_network_fee_micro_algo": "20000",
+          "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": null,
+          "wwwAuthenticate": "Payment id=\"synthetic-4\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiIxYmExOGE0Yi1iNGU4LTQxYTYtYjNlYy0wNjdmMjk4YWY4Y2MiLCJmZWVQYXllciI6dHJ1ZSwiZmVlUGF5ZXJLZXkiOiJDRlE2RkRKQUFHTDVYU0hLRjVCMllCS0Q1Sk1UUjdKQVZCUVNXSlVOTk9TUVRGNUFSNkNaTVNYSU1ZIiwibGVhc2UiOiJmR1k2ZHVTTG9sOGtXOTlvb0txNlFKeVpxTURVcWgxWGVDbkNOeUhWeFBvPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjAsImZpcnN0VmFsaWQiOjEwMDAsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjIwMDAsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+        },
+        "challenge_sha256": "5d385a92ae4ddb7cbca8f054157b2ca698fb71bbdc9573bbc840b6b12a2fea37",
+        "terms": {
+          "protocol": "mpp",
+          "method": "algorand",
+          "intent": "charge",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "amount_atomic": "1000",
+          "currency_label": "USDC",
+          "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+          "transaction_count": 2,
+          "minimum_group_fee_micro_algo": "2000",
+          "network_fee_micro_algo": "2000",
+          "fee_quote_requires_buyer_validation": true,
+          "challenge_reference": "1ba18a4b-b4e8-41a6-b3ec-067f298af8cc",
+          "lease": "fGY6duSLol8kW99ooKq6QJyZqMDUqh1XeCnCNyHVxPo=",
+          "suggested_params": {
+            "fee": 0,
+            "firstValid": 1000,
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": 2000,
+            "minFee": 1000
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T17:38:00Z",
+            "nonce": "1cdfce65e848d2a068e8003e6b8395d0f763db7f4fa9e7ad66792de0f2a93bc9",
+            "commitment": "e147955c6aa82650fe0231d2609234a64da46ae75b514429685d1cf7743ae846",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":\"CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY\",\"max_amount_atomic\":\"1000\",\"max_network_fee_micro_algo\":\"20000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"realm\":\"payments.example\",\"recipient\":\"JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU\"},\"merchant_profile\":\"algorand-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/paid?order=original&encoding=%61\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-mpp-charge-v1",
+                "request": {
+                  "url": "https://merchant.example/paid?order=original&encoding=%61",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "realm": "payments.example",
+                  "max_amount_atomic": "1000",
+                  "max_network_fee_micro_algo": "20000",
+                  "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": "Payment id=\"synthetic-4\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiIxYmExOGE0Yi1iNGU4LTQxYTYtYjNlYy0wNjdmMjk4YWY4Y2MiLCJmZWVQYXllciI6dHJ1ZSwiZmVlUGF5ZXJLZXkiOiJDRlE2RkRKQUFHTDVYU0hLRjVCMllCS0Q1Sk1UUjdKQVZCUVNXSlVOTk9TUVRGNUFSNkNaTVNYSU1ZIiwibGVhc2UiOiJmR1k2ZHVTTG9sOGtXOTlvb0txNlFKeVpxTURVcWgxWGVDbkNOeUhWeFBvPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjAsImZpcnN0VmFsaWQiOjEwMDAsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjIwMDAsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+                },
+                "challenge_sha256": "5d385a92ae4ddb7cbca8f054157b2ca698fb71bbdc9573bbc840b6b12a2fea37",
+                "terms": {
+                  "protocol": "mpp",
+                  "method": "algorand",
+                  "intent": "charge",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "amount_atomic": "1000",
+                  "currency_label": "USDC",
+                  "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+                  "transaction_count": 2,
+                  "minimum_group_fee_micro_algo": "2000",
+                  "network_fee_micro_algo": "2000",
+                  "fee_quote_requires_buyer_validation": true,
+                  "challenge_reference": "1ba18a4b-b4e8-41a6-b3ec-067f298af8cc",
+                  "lease": "fGY6duSLol8kW99ooKq6QJyZqMDUqh1XeCnCNyHVxPo=",
+                  "suggested_params": {
+                    "fee": 0,
+                    "firstValid": 1000,
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": 2000,
+                    "minFee": 1000
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "187c8d1dab253d5d63ef963be455b29170f28f3f919c718677fe2d35133097fd"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 4,
+          "checkpoint_size": 5,
+          "receipt": {
+            "index": 4,
+            "inclusion_path": [
+              "FcYDRnE2BekIqrWR2EWTh2qjeXOHCSy9nSIA40Bq49M="
+            ],
+            "checkpoint": "402signal.com/pq/log\n5\n27Gxlial5db34BCQIalIElFRu1hT2EENkOpN/nW4WOo=\n\n\u2014 402signal.com/pq/log 9vQhdwzvckNQRYgEgrAMR6JySm0zNm13NHcisxk4Tl8sP3UmEAaQA0ynaBUytIKKsmBEAkkkw5e5IDLEKch/JHXN/w0=\n",
+            "leaf_hash": "4505c4110e55a90ee38d5c9415020653a9a693a7ee5f80f0cadce2a59ae6d5d4"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f6f42177+AeSItHRncUgtUQAeWZA1EmMGq1SiWYhZlulR0svTPWHJ"
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "realm": "payments.example",
+        "max_amount_atomic": "18446744073709551615",
+        "max_network_fee_micro_algo": "20000",
+        "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-5\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiODNmNDY2YTEtNmRhYi00Mzk3LTgzZmMtZjQzODQ0NDY1NzBiIiwiZmVlUGF5ZXIiOnRydWUsImZlZVBheWVyS2V5IjoiQ0ZRNkZESkFBR0w1WFNIS0Y1QjJZQktENUpNVFI3SkFWQlFTV0pVTk5PU1FURjVBUjZDWk1TWElNWSIsImxlYXNlIjoiQ3JkL0w1ZlVQejl1UUNGUksvZEZRRUZ4UzdsMVpnL0laZmhaNUpUWkdjaz0iLCJuZXR3b3JrIjoiYWxnb3JhbmQ6d0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJzdWdnZXN0ZWRQYXJhbXMiOnsiZmVlIjowLCJmaXJzdFZhbGlkIjo0Mjk0OTY3Mjk2LCJnZW5lc2lzSGFzaCI6IndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9IiwiZ2VuZXNpc0lkIjoibWFpbm5ldC12MS4wIiwibGFzdFZhbGlkIjo0Mjk0OTY4Mjk2LCJtaW5GZWUiOjEwMDB9fSwicmVjaXBpZW50IjoiSlVVN1lGQTJOUUhWMldaSlVYV0RTQUNJS1JRQUlQMk0yV0tMQ0xYNFVYVUhLUzNTTTdEUllISzVEVSJ9\", expires=\"2027-01-15T08:01:00.000Z\""
+    },
+    "offer": {
+      "amount": "18446744073709551615",
+      "currency": "USDC",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "methodDetails": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "challengeReference": "83f466a1-6dab-4397-83fc-f4384446570b",
+        "lease": "Crd/L5fUPz9uQCFRK/dFQEFxS7l1Zg/IZfhZ5JTZGck=",
+        "asaId": "31566704",
+        "feePayer": true,
+        "feePayerKey": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+        "suggestedParams": {
+          "fee": 0,
+          "firstValid": 4294967296,
+          "lastValid": 4294968296,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "minFee": 1000
+        }
+      },
+      "externalId": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9"
+    },
+    "buyer": "TPQ7KC3Y3EKRPS37WOVU267GGJ4WKZMOE6KBVA4KYDM7KKKHOT3QLRQCVM",
+    "now": 1800000000,
+    "expectedTerms": {
+      "amount_atomic": "18446744073709551615",
+      "asset": "31566704",
+      "challenge_reference": "83f466a1-6dab-4397-83fc-f4384446570b",
+      "currency_label": "USDC",
+      "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+      "fee_quote_requires_buyer_validation": true,
+      "intent": "charge",
+      "lease": "Crd/L5fUPz9uQCFRK/dFQEFxS7l1Zg/IZfhZ5JTZGck=",
+      "method": "algorand",
+      "minimum_group_fee_micro_algo": "2000",
+      "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+      "network_fee_micro_algo": "2000",
+      "protocol": "mpp",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "suggested_params": {
+        "fee": 0,
+        "firstValid": 4294967296,
+        "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "genesisId": "mainnet-v1.0",
+        "lastValid": 4294968296,
+        "minFee": 1000
+      },
+      "transaction_count": 2
+    },
+    "unsignedSizes": [
+      209,
+      572
+    ],
+    "raw": [
+      "iaNmZWXNB9CiZnbPAAAAAQAAAACjZ2VurG1haW5uZXQtdjEuMKJnaMQgwGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit+jZ3JwxCAMz4KG7DcOCijM4AY9ugax5qpKqU7BRd+wMcs2JxSADaJsds8AAAABAAAD6KNyY3bEIBFh4o0gAZfbyOovQ6wFQ+pZOP0gqGErJo1rpQmXoI+Fo3NuZMQgEWHijSABl9vI6i9DrAVD6lk4/SCoYSsmjWulCZegj4WkdHlwZaNwYXk=",
+      "jKRhYW10z///////////pGFyY3bEIE0p/BQabA9dWyml7DkASFRgBD9M1ZSxLvyl6HVLcmfHomZ2zwAAAAEAAAAAo2dlbqxtYWlubmV0LXYxLjCiZ2jEIMBhxNj8Hb3e0tdgS+RWjj9tBBmHrDe95LYgtas5JIrfo2dycMQgDM+Chuw3DgoozOAGPboGseaqSqlOwUXfsDHLNicUgA2ibHbPAAAAAQAAA+iibHjEIAq3fy+X1D8/bkAhUSv3RUBBcUu5dWYPyGX4WeSU2RnJpG5vdGXFASptcHB4OjgzZjQ2NmExLTZkYWItNDM5Ny04M2ZjLWY0Mzg0NDQ2NTcwYjrDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpo3NuZMQgm+H1C3jZFRfLf7OrTXvmMnllZY4nlBqDisDZ9SlHdPekdHlwZaVheGZlcqR4YWlkzgHhq3A="
+    ],
+    "response": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "protocol": "mpp",
+        "method": "algorand",
+        "intent": "charge",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "amount_atomic": "18446744073709551615",
+        "currency_label": "USDC",
+        "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+        "transaction_count": 2,
+        "minimum_group_fee_micro_algo": "2000",
+        "network_fee_micro_algo": "2000",
+        "fee_quote_requires_buyer_validation": true,
+        "challenge_reference": "83f466a1-6dab-4397-83fc-f4384446570b",
+        "lease": "Crd/L5fUPz9uQCFRK/dFQEFxS7l1Zg/IZfhZ5JTZGck=",
+        "suggested_params": {
+          "fee": 0,
+          "firstValid": 4294967296,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": 4294968296,
+          "minFee": 1000
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-mpp-charge-v1",
+        "request": {
+          "url": "https://merchant.example/paid?order=original&encoding=%61",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "realm": "payments.example",
+          "max_amount_atomic": "18446744073709551615",
+          "max_network_fee_micro_algo": "20000",
+          "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": null,
+          "wwwAuthenticate": "Payment id=\"synthetic-5\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiODNmNDY2YTEtNmRhYi00Mzk3LTgzZmMtZjQzODQ0NDY1NzBiIiwiZmVlUGF5ZXIiOnRydWUsImZlZVBheWVyS2V5IjoiQ0ZRNkZESkFBR0w1WFNIS0Y1QjJZQktENUpNVFI3SkFWQlFTV0pVTk5PU1FURjVBUjZDWk1TWElNWSIsImxlYXNlIjoiQ3JkL0w1ZlVQejl1UUNGUksvZEZRRUZ4UzdsMVpnL0laZmhaNUpUWkdjaz0iLCJuZXR3b3JrIjoiYWxnb3JhbmQ6d0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJzdWdnZXN0ZWRQYXJhbXMiOnsiZmVlIjowLCJmaXJzdFZhbGlkIjo0Mjk0OTY3Mjk2LCJnZW5lc2lzSGFzaCI6IndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9IiwiZ2VuZXNpc0lkIjoibWFpbm5ldC12MS4wIiwibGFzdFZhbGlkIjo0Mjk0OTY4Mjk2LCJtaW5GZWUiOjEwMDB9fSwicmVjaXBpZW50IjoiSlVVN1lGQTJOUUhWMldaSlVYV0RTQUNJS1JRQUlQMk0yV0tMQ0xYNFVYVUhLUzNTTTdEUllISzVEVSJ9\", expires=\"2027-01-15T08:01:00.000Z\""
+        },
+        "challenge_sha256": "4447dadbf26ffded9c43f9914e9923b807292d1dc09ee50261ad6d593b342081",
+        "terms": {
+          "protocol": "mpp",
+          "method": "algorand",
+          "intent": "charge",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "amount_atomic": "18446744073709551615",
+          "currency_label": "USDC",
+          "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+          "transaction_count": 2,
+          "minimum_group_fee_micro_algo": "2000",
+          "network_fee_micro_algo": "2000",
+          "fee_quote_requires_buyer_validation": true,
+          "challenge_reference": "83f466a1-6dab-4397-83fc-f4384446570b",
+          "lease": "Crd/L5fUPz9uQCFRK/dFQEFxS7l1Zg/IZfhZ5JTZGck=",
+          "suggested_params": {
+            "fee": 0,
+            "firstValid": 4294967296,
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": 4294968296,
+            "minFee": 1000
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T17:38:00Z",
+            "nonce": "d0903983b9f01a8ce8c5b16d2b7c2b5b79ac87f30a7741c8de40c9eb33dcf7dc",
+            "commitment": "c6bd2bec8f7053547625fdaf6f3de3d2eda38548420894ef421f04d8b17418e9",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":\"CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY\",\"max_amount_atomic\":\"18446744073709551615\",\"max_network_fee_micro_algo\":\"20000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"realm\":\"payments.example\",\"recipient\":\"JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU\"},\"merchant_profile\":\"algorand-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/paid?order=original&encoding=%61\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-mpp-charge-v1",
+                "request": {
+                  "url": "https://merchant.example/paid?order=original&encoding=%61",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "realm": "payments.example",
+                  "max_amount_atomic": "18446744073709551615",
+                  "max_network_fee_micro_algo": "20000",
+                  "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": "Payment id=\"synthetic-5\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiODNmNDY2YTEtNmRhYi00Mzk3LTgzZmMtZjQzODQ0NDY1NzBiIiwiZmVlUGF5ZXIiOnRydWUsImZlZVBheWVyS2V5IjoiQ0ZRNkZESkFBR0w1WFNIS0Y1QjJZQktENUpNVFI3SkFWQlFTV0pVTk5PU1FURjVBUjZDWk1TWElNWSIsImxlYXNlIjoiQ3JkL0w1ZlVQejl1UUNGUksvZEZRRUZ4UzdsMVpnL0laZmhaNUpUWkdjaz0iLCJuZXR3b3JrIjoiYWxnb3JhbmQ6d0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJzdWdnZXN0ZWRQYXJhbXMiOnsiZmVlIjowLCJmaXJzdFZhbGlkIjo0Mjk0OTY3Mjk2LCJnZW5lc2lzSGFzaCI6IndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9IiwiZ2VuZXNpc0lkIjoibWFpbm5ldC12MS4wIiwibGFzdFZhbGlkIjo0Mjk0OTY4Mjk2LCJtaW5GZWUiOjEwMDB9fSwicmVjaXBpZW50IjoiSlVVN1lGQTJOUUhWMldaSlVYV0RTQUNJS1JRQUlQMk0yV0tMQ0xYNFVYVUhLUzNTTTdEUllISzVEVSJ9\", expires=\"2027-01-15T08:01:00.000Z\""
+                },
+                "challenge_sha256": "4447dadbf26ffded9c43f9914e9923b807292d1dc09ee50261ad6d593b342081",
+                "terms": {
+                  "protocol": "mpp",
+                  "method": "algorand",
+                  "intent": "charge",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "amount_atomic": "18446744073709551615",
+                  "currency_label": "USDC",
+                  "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+                  "transaction_count": 2,
+                  "minimum_group_fee_micro_algo": "2000",
+                  "network_fee_micro_algo": "2000",
+                  "fee_quote_requires_buyer_validation": true,
+                  "challenge_reference": "83f466a1-6dab-4397-83fc-f4384446570b",
+                  "lease": "Crd/L5fUPz9uQCFRK/dFQEFxS7l1Zg/IZfhZ5JTZGck=",
+                  "suggested_params": {
+                    "fee": 0,
+                    "firstValid": 4294967296,
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": 4294968296,
+                    "minFee": 1000
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "b3351a69392bc1165fa6db1ba68a2aa9fa52d6eefe309ec0ea534e8f51f47431"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 5,
+          "checkpoint_size": 6,
+          "receipt": {
+            "index": 5,
+            "inclusion_path": [
+              "RQXEEQ5VqQ7jjVyUFQIGU6mmk6fuX4DwytzipZrm1dQ=",
+              "FcYDRnE2BekIqrWR2EWTh2qjeXOHCSy9nSIA40Bq49M="
+            ],
+            "checkpoint": "402signal.com/pq/log\n6\nwC3N6fiO6qpc6wRrpm7AnVag6nXDlBr8rUxEuGlD/TI=\n\n\u2014 402signal.com/pq/log 9vQhd1jesHWWCW3pRwSU6QkHsqcdpYeQjLH9SwlatBnssqiaalQ6VKx+mhr9UuRWaJ5kxaHNStli7SPyiaTqQOswRQc=\n",
+            "leaf_hash": "a552efaad4634ac2eeb15c9c422122420feebf6ab6482747dc417876dbd8fa6f"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f6f42177+AeSItHRncUgtUQAeWZA1EmMGq1SiWYhZlulR0svTPWHJ"
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "realm": "payments.example",
+        "max_amount_atomic": "1000",
+        "max_network_fee_micro_algo": "20000",
+        "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-6\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiJkODI4ODJjNS1iYjJhLTQzMzgtOWZmOC1mZjVmOGVmYWUzNzAiLCJmZWVQYXllciI6dHJ1ZSwiZmVlUGF5ZXJLZXkiOiJDRlE2RkRKQUFHTDVYU0hLRjVCMllCS0Q1Sk1UUjdKQVZCUVNXSlVOTk9TUVRGNUFSNkNaTVNYSU1ZIiwibGVhc2UiOiJsOWoxa1Arc0dVTTJnQ0I5UlQyakdmZjJab2k1b1BjVjNXNzVBU3JkRUNJPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjEsImZpcnN0VmFsaWQiOjEwMDAsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjIwMDAsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+    },
+    "offer": {
+      "amount": "1000",
+      "currency": "USDC",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "methodDetails": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "challengeReference": "d82882c5-bb2a-4338-9ff8-ff5f8efae370",
+        "lease": "l9j1kP+sGUM2gCB9RT2jGff2Zoi5oPcV3W75ASrdECI=",
+        "asaId": "31566704",
+        "feePayer": true,
+        "feePayerKey": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+        "suggestedParams": {
+          "fee": 1,
+          "firstValid": 1000,
+          "lastValid": 2000,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "minFee": 1000
+        }
+      },
+      "externalId": "order-1"
+    },
+    "buyer": "TPQ7KC3Y3EKRPS37WOVU267GGJ4WKZMOE6KBVA4KYDM7KKKHOT3QLRQCVM",
+    "now": 1800000000,
+    "expectedTerms": {
+      "amount_atomic": "1000",
+      "asset": "31566704",
+      "challenge_reference": "d82882c5-bb2a-4338-9ff8-ff5f8efae370",
+      "currency_label": "USDC",
+      "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+      "fee_quote_requires_buyer_validation": true,
+      "intent": "charge",
+      "lease": "l9j1kP+sGUM2gCB9RT2jGff2Zoi5oPcV3W75ASrdECI=",
+      "method": "algorand",
+      "minimum_group_fee_micro_algo": "2000",
+      "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+      "network_fee_micro_algo": "2000",
+      "protocol": "mpp",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "suggested_params": {
+        "fee": 1,
+        "firstValid": 1000,
+        "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "genesisId": "mainnet-v1.0",
+        "lastValid": 2000,
+        "minFee": 1000
+      },
+      "transaction_count": 2
+    },
+    "unsignedSizes": [
+      197,
+      304
+    ],
+    "raw": [
+      "iaNmZWXNB9CiZnbNA+ijZ2VurG1haW5uZXQtdjEuMKJnaMQgwGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit+jZ3JwxCAoZXB7dazlWGbU7s26veUQCdyJMmNUk2gHfXrYO6xikqJsds0H0KNyY3bEIBFh4o0gAZfbyOovQ6wFQ+pZOP0gqGErJo1rpQmXoI+Fo3NuZMQgEWHijSABl9vI6i9DrAVD6lk4/SCoYSsmjWulCZegj4WkdHlwZaNwYXk=",
+      "jKRhYW10zQPopGFyY3bEIE0p/BQabA9dWyml7DkASFRgBD9M1ZSxLvyl6HVLcmfHomZ2zQPoo2dlbqxtYWlubmV0LXYxLjCiZ2jEIMBhxNj8Hb3e0tdgS+RWjj9tBBmHrDe95LYgtas5JIrfo2dycMQgKGVwe3Ws5Vhm1O7Nur3lEAnciTJjVJNoB3162DusYpKibHbNB9CibHjEIJfY9ZD/rBlDNoAgfUU9oxn39maIuaD3Fd1u+QEq3RAipG5vdGXEMW1wcHg6ZDgyODgyYzUtYmIyYS00MzM4LTlmZjgtZmY1ZjhlZmFlMzcwOm9yZGVyLTGjc25kxCCb4fULeNkVF8t/s6tNe+YyeWVljieUGoOKwNn1KUd096R0eXBlpWF4ZmVypHhhaWTOAeGrcA=="
+    ],
+    "response": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "protocol": "mpp",
+        "method": "algorand",
+        "intent": "charge",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "amount_atomic": "1000",
+        "currency_label": "USDC",
+        "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+        "transaction_count": 2,
+        "minimum_group_fee_micro_algo": "2000",
+        "network_fee_micro_algo": "2000",
+        "fee_quote_requires_buyer_validation": true,
+        "challenge_reference": "d82882c5-bb2a-4338-9ff8-ff5f8efae370",
+        "lease": "l9j1kP+sGUM2gCB9RT2jGff2Zoi5oPcV3W75ASrdECI=",
+        "suggested_params": {
+          "fee": 1,
+          "firstValid": 1000,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": 2000,
+          "minFee": 1000
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-mpp-charge-v1",
+        "request": {
+          "url": "https://merchant.example/paid?order=original&encoding=%61",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "realm": "payments.example",
+          "max_amount_atomic": "1000",
+          "max_network_fee_micro_algo": "20000",
+          "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": null,
+          "wwwAuthenticate": "Payment id=\"synthetic-6\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiJkODI4ODJjNS1iYjJhLTQzMzgtOWZmOC1mZjVmOGVmYWUzNzAiLCJmZWVQYXllciI6dHJ1ZSwiZmVlUGF5ZXJLZXkiOiJDRlE2RkRKQUFHTDVYU0hLRjVCMllCS0Q1Sk1UUjdKQVZCUVNXSlVOTk9TUVRGNUFSNkNaTVNYSU1ZIiwibGVhc2UiOiJsOWoxa1Arc0dVTTJnQ0I5UlQyakdmZjJab2k1b1BjVjNXNzVBU3JkRUNJPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjEsImZpcnN0VmFsaWQiOjEwMDAsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjIwMDAsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+        },
+        "challenge_sha256": "5f22eb32b04eec735f573906089bb2738723c524d1f90ac23c2b2c4d6b4853a7",
+        "terms": {
+          "protocol": "mpp",
+          "method": "algorand",
+          "intent": "charge",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "amount_atomic": "1000",
+          "currency_label": "USDC",
+          "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+          "transaction_count": 2,
+          "minimum_group_fee_micro_algo": "2000",
+          "network_fee_micro_algo": "2000",
+          "fee_quote_requires_buyer_validation": true,
+          "challenge_reference": "d82882c5-bb2a-4338-9ff8-ff5f8efae370",
+          "lease": "l9j1kP+sGUM2gCB9RT2jGff2Zoi5oPcV3W75ASrdECI=",
+          "suggested_params": {
+            "fee": 1,
+            "firstValid": 1000,
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": 2000,
+            "minFee": 1000
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T17:38:00Z",
+            "nonce": "bd91f90d2522c0c93bd484672f02616d859502cf5996afb2c34cc758d830d245",
+            "commitment": "b8cf67a1fff393e8e5aca2231a64bb9091c576db5b052aebc73fa5077b12c484",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":\"CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY\",\"max_amount_atomic\":\"1000\",\"max_network_fee_micro_algo\":\"20000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"realm\":\"payments.example\",\"recipient\":\"JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU\"},\"merchant_profile\":\"algorand-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/paid?order=original&encoding=%61\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-mpp-charge-v1",
+                "request": {
+                  "url": "https://merchant.example/paid?order=original&encoding=%61",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "realm": "payments.example",
+                  "max_amount_atomic": "1000",
+                  "max_network_fee_micro_algo": "20000",
+                  "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": "Payment id=\"synthetic-6\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxMDAwIiwiY3VycmVuY3kiOiJVU0RDIiwiZXh0ZXJuYWxJZCI6Im9yZGVyLTEiLCJtZXRob2REZXRhaWxzIjp7ImFzYUlkIjoiMzE1NjY3MDQiLCJjaGFsbGVuZ2VSZWZlcmVuY2UiOiJkODI4ODJjNS1iYjJhLTQzMzgtOWZmOC1mZjVmOGVmYWUzNzAiLCJmZWVQYXllciI6dHJ1ZSwiZmVlUGF5ZXJLZXkiOiJDRlE2RkRKQUFHTDVYU0hLRjVCMllCS0Q1Sk1UUjdKQVZCUVNXSlVOTk9TUVRGNUFSNkNaTVNYSU1ZIiwibGVhc2UiOiJsOWoxa1Arc0dVTTJnQ0I5UlQyakdmZjJab2k1b1BjVjNXNzVBU3JkRUNJPSIsIm5ldHdvcmsiOiJhbGdvcmFuZDp3R0hFMlB3ZHZkN1MxMkJMNUZhT1AyMEVHWWVzTjcza3RpQzFxemtraXQ4PSIsInN1Z2dlc3RlZFBhcmFtcyI6eyJmZWUiOjEsImZpcnN0VmFsaWQiOjEwMDAsImdlbmVzaXNIYXNoIjoid0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJnZW5lc2lzSWQiOiJtYWlubmV0LXYxLjAiLCJsYXN0VmFsaWQiOjIwMDAsIm1pbkZlZSI6MTAwMH19LCJyZWNpcGllbnQiOiJKVVU3WUZBMk5RSFYyV1pKVVhXRFNBQ0lLUlFBSVAyTTJXS0xDTFg0VVhVSEtTM1NNN0RSWUhLNURVIn0\", expires=\"2027-01-15T08:01:00.000Z\""
+                },
+                "challenge_sha256": "5f22eb32b04eec735f573906089bb2738723c524d1f90ac23c2b2c4d6b4853a7",
+                "terms": {
+                  "protocol": "mpp",
+                  "method": "algorand",
+                  "intent": "charge",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "amount_atomic": "1000",
+                  "currency_label": "USDC",
+                  "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+                  "transaction_count": 2,
+                  "minimum_group_fee_micro_algo": "2000",
+                  "network_fee_micro_algo": "2000",
+                  "fee_quote_requires_buyer_validation": true,
+                  "challenge_reference": "d82882c5-bb2a-4338-9ff8-ff5f8efae370",
+                  "lease": "l9j1kP+sGUM2gCB9RT2jGff2Zoi5oPcV3W75ASrdECI=",
+                  "suggested_params": {
+                    "fee": 1,
+                    "firstValid": 1000,
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": 2000,
+                    "minFee": 1000
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "028bda1544d7982918e1f602fc82a49be1f5d7395c2c4fbe35fd97da0db1f5aa"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 6,
+          "checkpoint_size": 7,
+          "receipt": {
+            "index": 6,
+            "inclusion_path": [
+              "44OqyfoUigdLU3b7Qe+Vk4qVz6yaCow9H5oEC9qxc+E=",
+              "FcYDRnE2BekIqrWR2EWTh2qjeXOHCSy9nSIA40Bq49M="
+            ],
+            "checkpoint": "402signal.com/pq/log\n7\nVOZPcexpITPuWaWyVXaUKke6kQ7p8clNaLl0SlecHwg=\n\n\u2014 402signal.com/pq/log 9vQhdxW/pogNog4BqkCDeKNbnE3Ih79lfnnsigvlUp5RMoj0QMzdq3ITM2VFz+jvyM0h2zzt78zOnRG1NnQ74rN3fw8=\n",
+            "leaf_hash": "cd3703a4deee9a5c78bee4ae511f433b80580305d43ec5938e0eb75ad8143451"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f6f42177+AeSItHRncUgtUQAeWZA1EmMGq1SiWYhZlulR0svTPWHJ"
+  },
+  {
+    "request": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "buyer_limits": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "realm": "payments.example",
+        "max_amount_atomic": "18446744073709551615",
+        "max_network_fee_micro_algo": "20000",
+        "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+      },
+      "require_route_binding": true
+    },
+    "challenge": {
+      "status": 402,
+      "bodyText": "",
+      "paymentRequired": null,
+      "wwwAuthenticate": "Payment id=\"synthetic-7\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiODE5ZTBlZTgtNTExNC00YzExLWIwZmEtYTQ0NTE2OTI5OGZjIiwiZmVlUGF5ZXIiOnRydWUsImZlZVBheWVyS2V5IjoiQ0ZRNkZESkFBR0w1WFNIS0Y1QjJZQktENUpNVFI3SkFWQlFTV0pVTk5PU1FURjVBUjZDWk1TWElNWSIsImxlYXNlIjoiblJnaGdTdDU0RlZyTHhkY3pjMWhOdldMeFhxVDBadzlsbmlNNGxLc2lEcz0iLCJuZXR3b3JrIjoiYWxnb3JhbmQ6d0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJzdWdnZXN0ZWRQYXJhbXMiOnsiZmVlIjoxLCJmaXJzdFZhbGlkIjo0Mjk0OTY3Mjk2LCJnZW5lc2lzSGFzaCI6IndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9IiwiZ2VuZXNpc0lkIjoibWFpbm5ldC12MS4wIiwibGFzdFZhbGlkIjo0Mjk0OTY4Mjk2LCJtaW5GZWUiOjEwMDB9fSwicmVjaXBpZW50IjoiSlVVN1lGQTJOUUhWMldaSlVYV0RTQUNJS1JRQUlQMk0yV0tMQ0xYNFVYVUhLUzNTTTdEUllISzVEVSJ9\", expires=\"2027-01-15T08:01:00.000Z\""
+    },
+    "offer": {
+      "amount": "18446744073709551615",
+      "currency": "USDC",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "methodDetails": {
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "challengeReference": "819e0ee8-5114-4c11-b0fa-a445169298fc",
+        "lease": "nRghgSt54FVrLxdczc1hNvWLxXqT0Zw9lniM4lKsiDs=",
+        "asaId": "31566704",
+        "feePayer": true,
+        "feePayerKey": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+        "suggestedParams": {
+          "fee": 1,
+          "firstValid": 4294967296,
+          "lastValid": 4294968296,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "minFee": 1000
+        }
+      },
+      "externalId": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9"
+    },
+    "buyer": "TPQ7KC3Y3EKRPS37WOVU267GGJ4WKZMOE6KBVA4KYDM7KKKHOT3QLRQCVM",
+    "now": 1800000000,
+    "expectedTerms": {
+      "amount_atomic": "18446744073709551615",
+      "asset": "31566704",
+      "challenge_reference": "819e0ee8-5114-4c11-b0fa-a445169298fc",
+      "currency_label": "USDC",
+      "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+      "fee_quote_requires_buyer_validation": true,
+      "intent": "charge",
+      "lease": "nRghgSt54FVrLxdczc1hNvWLxXqT0Zw9lniM4lKsiDs=",
+      "method": "algorand",
+      "minimum_group_fee_micro_algo": "2000",
+      "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+      "network_fee_micro_algo": "2000",
+      "protocol": "mpp",
+      "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+      "suggested_params": {
+        "fee": 1,
+        "firstValid": 4294967296,
+        "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "genesisId": "mainnet-v1.0",
+        "lastValid": 4294968296,
+        "minFee": 1000
+      },
+      "transaction_count": 2
+    },
+    "unsignedSizes": [
+      209,
+      572
+    ],
+    "raw": [
+      "iaNmZWXNB9CiZnbPAAAAAQAAAACjZ2VurG1haW5uZXQtdjEuMKJnaMQgwGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit+jZ3JwxCAc7XWGamc6+w99yfVHd7Tl9qYm+jz7GexsNKOdjH941aJsds8AAAABAAAD6KNyY3bEIBFh4o0gAZfbyOovQ6wFQ+pZOP0gqGErJo1rpQmXoI+Fo3NuZMQgEWHijSABl9vI6i9DrAVD6lk4/SCoYSsmjWulCZegj4WkdHlwZaNwYXk=",
+      "jKRhYW10z///////////pGFyY3bEIE0p/BQabA9dWyml7DkASFRgBD9M1ZSxLvyl6HVLcmfHomZ2zwAAAAEAAAAAo2dlbqxtYWlubmV0LXYxLjCiZ2jEIMBhxNj8Hb3e0tdgS+RWjj9tBBmHrDe95LYgtas5JIrfo2dycMQgHO11hmpnOvsPfcn1R3e05famJvo8+xnsbDSjnYx/eNWibHbPAAAAAQAAA+iibHjEIJ0YIYEreeBVay8XXM3NYTb1i8V6k9GcPZZ4jOJSrIg7pG5vdGXFASptcHB4OjgxOWUwZWU4LTUxMTQtNGMxMS1iMGZhLWE0NDUxNjkyOThmYzrDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpo3NuZMQgm+H1C3jZFRfLf7OrTXvmMnllZY4nlBqDisDZ9SlHdPekdHlwZaVheGZlcqR4YWlkzgHhq3A="
+    ],
+    "response": {
+      "url": "https://merchant.example/paid?order=original&encoding=%61",
+      "merchant_profile": "algorand-mpp-charge-v1",
+      "live": true,
+      "payable": true,
+      "invocable": false,
+      "status": 402,
+      "selected_payment": null,
+      "batch_terms": {
+        "protocol": "mpp",
+        "method": "algorand",
+        "intent": "charge",
+        "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+        "asset": "31566704",
+        "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+        "amount_atomic": "18446744073709551615",
+        "currency_label": "USDC",
+        "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+        "transaction_count": 2,
+        "minimum_group_fee_micro_algo": "2000",
+        "network_fee_micro_algo": "2000",
+        "fee_quote_requires_buyer_validation": true,
+        "challenge_reference": "819e0ee8-5114-4c11-b0fa-a445169298fc",
+        "lease": "nRghgSt54FVrLxdczc1hNvWLxXqT0Zw9lniM4lKsiDs=",
+        "suggested_params": {
+          "fee": 1,
+          "firstValid": 4294967296,
+          "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "genesisId": "mainnet-v1.0",
+          "lastValid": 4294968296,
+          "minFee": 1000
+        }
+      },
+      "batch_binding": {
+        "model": "proof_carrying_batch_observation_v1",
+        "profile": "algorand-mpp-charge-v1",
+        "request": {
+          "url": "https://merchant.example/paid?order=original&encoding=%61",
+          "method": "GET",
+          "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "buyer_limits": {
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "realm": "payments.example",
+          "max_amount_atomic": "18446744073709551615",
+          "max_network_fee_micro_algo": "20000",
+          "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+        },
+        "challenge": {
+          "status": 402,
+          "bodyText": "",
+          "paymentRequired": null,
+          "wwwAuthenticate": "Payment id=\"synthetic-7\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiODE5ZTBlZTgtNTExNC00YzExLWIwZmEtYTQ0NTE2OTI5OGZjIiwiZmVlUGF5ZXIiOnRydWUsImZlZVBheWVyS2V5IjoiQ0ZRNkZESkFBR0w1WFNIS0Y1QjJZQktENUpNVFI3SkFWQlFTV0pVTk5PU1FURjVBUjZDWk1TWElNWSIsImxlYXNlIjoiblJnaGdTdDU0RlZyTHhkY3pjMWhOdldMeFhxVDBadzlsbmlNNGxLc2lEcz0iLCJuZXR3b3JrIjoiYWxnb3JhbmQ6d0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJzdWdnZXN0ZWRQYXJhbXMiOnsiZmVlIjoxLCJmaXJzdFZhbGlkIjo0Mjk0OTY3Mjk2LCJnZW5lc2lzSGFzaCI6IndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9IiwiZ2VuZXNpc0lkIjoibWFpbm5ldC12MS4wIiwibGFzdFZhbGlkIjo0Mjk0OTY4Mjk2LCJtaW5GZWUiOjEwMDB9fSwicmVjaXBpZW50IjoiSlVVN1lGQTJOUUhWMldaSlVYV0RTQUNJS1JRQUlQMk0yV0tMQ0xYNFVYVUhLUzNTTTdEUllISzVEVSJ9\", expires=\"2027-01-15T08:01:00.000Z\""
+        },
+        "challenge_sha256": "fe27380e1a3d5359100f09085627d5af226bbecb35c1a1ca5d26c182b32588e8",
+        "terms": {
+          "protocol": "mpp",
+          "method": "algorand",
+          "intent": "charge",
+          "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+          "asset": "31566704",
+          "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+          "amount_atomic": "18446744073709551615",
+          "currency_label": "USDC",
+          "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+          "transaction_count": 2,
+          "minimum_group_fee_micro_algo": "2000",
+          "network_fee_micro_algo": "2000",
+          "fee_quote_requires_buyer_validation": true,
+          "challenge_reference": "819e0ee8-5114-4c11-b0fa-a445169298fc",
+          "lease": "nRghgSt54FVrLxdczc1hNvWLxXqT0Zw9lniM4lKsiDs=",
+          "suggested_params": {
+            "fee": 1,
+            "firstValid": 4294967296,
+            "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+            "genesisId": "mainnet-v1.0",
+            "lastValid": 4294968296,
+            "minFee": 1000
+          }
+        },
+        "observed_at": 1800000000,
+        "expires_at": 1800000060
+      },
+      "payment_authorization": {
+        "pq_native": false
+      },
+      "pq_trust": {
+        "transparency": {
+          "log_origin": "402signal.com/pq/log",
+          "leaf_type": "402signal.route_decision.v5",
+          "reveal": {
+            "type": "402signal.route_decision.v5",
+            "ts": "2026-09-08T17:38:00Z",
+            "nonce": "eab551f1557362de44ca5dac60472865f9831d128d517052509bb1d15d935303",
+            "commitment": "f2607e999ff5e2432fe1a1c44f6a864bc667736a5466fffd84d0afe52154b5b3",
+            "event_version": "402signal.route_decision.v5",
+            "evidence": {
+              "evidence_version": 3,
+              "request_json": "{\"buyer_limits\":{\"asset\":\"31566704\",\"fee_payer\":\"CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY\",\"max_amount_atomic\":\"18446744073709551615\",\"max_network_fee_micro_algo\":\"20000\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"realm\":\"payments.example\",\"recipient\":\"JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU\"},\"merchant_profile\":\"algorand-mpp-charge-v1\",\"require_route_binding\":true,\"url\":\"https://merchant.example/paid?order=original&encoding=%61\"}",
+              "batch_binding": {
+                "model": "proof_carrying_batch_observation_v1",
+                "profile": "algorand-mpp-charge-v1",
+                "request": {
+                  "url": "https://merchant.example/paid?order=original&encoding=%61",
+                  "method": "GET",
+                  "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "buyer_limits": {
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "realm": "payments.example",
+                  "max_amount_atomic": "18446744073709551615",
+                  "max_network_fee_micro_algo": "20000",
+                  "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY"
+                },
+                "challenge": {
+                  "status": 402,
+                  "bodyText": "",
+                  "paymentRequired": null,
+                  "wwwAuthenticate": "Payment id=\"synthetic-7\", realm=\"payments.example\", method=\"algorand\", intent=\"charge\", request=\"eyJhbW91bnQiOiIxODQ0Njc0NDA3MzcwOTU1MTYxNSIsImN1cnJlbmN5IjoiVVNEQyIsImV4dGVybmFsSWQiOiLDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpw6nDqcOpIiwibWV0aG9kRGV0YWlscyI6eyJhc2FJZCI6IjMxNTY2NzA0IiwiY2hhbGxlbmdlUmVmZXJlbmNlIjoiODE5ZTBlZTgtNTExNC00YzExLWIwZmEtYTQ0NTE2OTI5OGZjIiwiZmVlUGF5ZXIiOnRydWUsImZlZVBheWVyS2V5IjoiQ0ZRNkZESkFBR0w1WFNIS0Y1QjJZQktENUpNVFI3SkFWQlFTV0pVTk5PU1FURjVBUjZDWk1TWElNWSIsImxlYXNlIjoiblJnaGdTdDU0RlZyTHhkY3pjMWhOdldMeFhxVDBadzlsbmlNNGxLc2lEcz0iLCJuZXR3b3JrIjoiYWxnb3JhbmQ6d0dIRTJQd2R2ZDdTMTJCTDVGYU9QMjBFR1llc043M2t0aUMxcXpra2l0OD0iLCJzdWdnZXN0ZWRQYXJhbXMiOnsiZmVlIjoxLCJmaXJzdFZhbGlkIjo0Mjk0OTY3Mjk2LCJnZW5lc2lzSGFzaCI6IndHSEUyUHdkdmQ3UzEyQkw1RmFPUDIwRUdZZXNONzNrdGlDMXF6a2tpdDg9IiwiZ2VuZXNpc0lkIjoibWFpbm5ldC12MS4wIiwibGFzdFZhbGlkIjo0Mjk0OTY4Mjk2LCJtaW5GZWUiOjEwMDB9fSwicmVjaXBpZW50IjoiSlVVN1lGQTJOUUhWMldaSlVYV0RTQUNJS1JRQUlQMk0yV0tMQ0xYNFVYVUhLUzNTTTdEUllISzVEVSJ9\", expires=\"2027-01-15T08:01:00.000Z\""
+                },
+                "challenge_sha256": "fe27380e1a3d5359100f09085627d5af226bbecb35c1a1ca5d26c182b32588e8",
+                "terms": {
+                  "protocol": "mpp",
+                  "method": "algorand",
+                  "intent": "charge",
+                  "network": "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                  "asset": "31566704",
+                  "recipient": "JUU7YFA2NQHV2WZJUXWDSACIKRQAIP2M2WKLCLX4UXUHKS3SM7DRYHK5DU",
+                  "amount_atomic": "18446744073709551615",
+                  "currency_label": "USDC",
+                  "fee_payer": "CFQ6FDJAAGL5XSHKF5B2YBKD5JMTR7JAVBQSWJUNNOSQTF5AR6CZMSXIMY",
+                  "transaction_count": 2,
+                  "minimum_group_fee_micro_algo": "2000",
+                  "network_fee_micro_algo": "2000",
+                  "fee_quote_requires_buyer_validation": true,
+                  "challenge_reference": "819e0ee8-5114-4c11-b0fa-a445169298fc",
+                  "lease": "nRghgSt54FVrLxdczc1hNvWLxXqT0Zw9lniM4lKsiDs=",
+                  "suggested_params": {
+                    "fee": 1,
+                    "firstValid": 4294967296,
+                    "genesisHash": "wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=",
+                    "genesisId": "mainnet-v1.0",
+                    "lastValid": 4294968296,
+                    "minFee": 1000
+                  }
+                },
+                "observed_at": 1800000000,
+                "expires_at": 1800000060
+              }
+            },
+            "salt": "e9845a33bfdbbd35276b548583fac8214081e9eab3d30710e9462ef25ce71899"
+          },
+          "status": "pending",
+          "state": "checkpoint_signed",
+          "index": 7,
+          "checkpoint_size": 8,
+          "receipt": {
+            "index": 7,
+            "inclusion_path": [
+              "zTcDpN7umlx4vuSuUR9DO4BYAwXUPsWTjg63WtgUNFE=",
+              "44OqyfoUigdLU3b7Qe+Vk4qVz6yaCow9H5oEC9qxc+E=",
+              "FcYDRnE2BekIqrWR2EWTh2qjeXOHCSy9nSIA40Bq49M="
+            ],
+            "checkpoint": "402signal.com/pq/log\n8\nQV6gX77SYBPPXr9YiYlc2/qP3nQSvmQaOhsGqR9DZbo=\n\n\u2014 402signal.com/pq/log 9vQhdytKxz8h2xLfDZlFVmKB2oeqs0IT9GUYQHjDx9AQe9tOM8emeRSjwueQKzcroBOYZ5ymFIo6QtYlNdCN9FQFFww=\n",
+            "leaf_hash": "26171d886e1f21d836e153ca4045053ba27690b9d314674cd76716d8bcc89904"
+          }
+        }
+      }
+    },
+    "trusted_vkey": "402signal.com/pq/log+f6f42177+AeSItHRncUgtUQAeWZA1EmMGq1SiWYhZlulR0svTPWHJ"
+  }
+]

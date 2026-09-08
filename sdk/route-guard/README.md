@@ -269,3 +269,14 @@ not enable native MPP routing-fee collection or automatic payment retries.
 Import `verifyBatchRoute` or `withVerifiedBatchRoute` from `@402signal/route-guard/batch` for the separate v5 observation contract. It binds an exact supported GET, raw challenge, merchant profile and independent buyer limits to signed evidence. Base batch settlement, native Solana MPP push sessions and Algorand two-item same-payee USDC grouping have separate explicit profiles. Availability depends on the server enabling a qualified profile. See [the profile contract](../../docs/batch-observation-v1.md).
 
 The fee is $0.003 for a qualifying API observation. Merchant requests, cumulative vouchers, deposits, network/provider charges and refunds are separate. A session cap is never treated as its unit price. This guard does not fund a channel, authorize an entire batch, guarantee a refund, or assess delivery quality. The caller must still validate and durably reserve each actual wallet action. Native Solana cross-channel batching, arbitrary Algorand groups and generic POST batches are outside these profiles. The original v4 exact-payment guard remains separate.
+
+## Native charge observations (0.7.0)
+
+The source supports explicit `base-mpp-charge-v1` and `algorand-mpp-charge-v1`
+observations, including a uniquely matching native offer in a combined Payment
+header. The entire original response remains bound. These are separate from
+x402, Base channels, Solana sessions, and the larger Algorand manifests added in
+0.6.0. Server profile activation and payment qualification remain separate gates.
+See [native selection and limits](../../integration/mpp-client/NATIVE_SELECTION.md)
+and the [Algorand reference adapter](../../integration/mpp-algorand/README.md).
+No callback receives automatic authority to pay an alternative offer.

@@ -12,7 +12,7 @@ class HttpSchemaTests(unittest.TestCase):
     def test_http_profiles_are_closed_and_disjoint(self):
         schema = schema_fields.route_body_schema()
         self.assertFalse(schema['additionalProperties'])
-        self.assertEqual(len(schema['oneOf']), 7)
+        self.assertEqual(len(schema['oneOf']), 2 + len(schema_http.batch_limit_schemas()))
         for variant in schema['oneOf']:
             self.assertFalse(variant['additionalProperties'])
         for name in ('probe_request', 'merchant_profile', 'buyer_limits'):

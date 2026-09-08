@@ -53,6 +53,18 @@ def batch_limit_schemas() -> dict:
     def constant(value):
         return {"type": "string", "const": value}
     result = {
+        "algorand-mpp-charge-v1": _closed({
+            "network": constant(algo.NETWORK), "asset": constant(algo.ASSET),
+            "recipient": {**deepcopy(alg), "not":{"const":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"}},
+            "fee_payer": {"anyOf":[{"type":"null"},{**deepcopy(alg),"not":{"const":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"}}],"description":"Null explicitly selects buyer-paid fees; an address pins the merchant-offered sponsor. This never authorizes 402Signal sponsorship."},
+            "max_amount_atomic": deepcopy(amount), "max_network_fee_micro_algo": deepcopy(amount),
+            "realm":{"type":"string","minLength":1,"maxLength":256,"pattern":r"^[\x20-\x7e]*[\x21-\x7e][\x20-\x7e]*$"},
+        }),
+        "base-mpp-charge-v1": _closed({
+            "network": constant(base.NETWORK), "asset": constant(base.ASSET),
+            "recipient": deepcopy(evm), "max_call_amount_atomic": deepcopy(amount),
+            "realm": {"type":"string", "minLength":1, "maxLength":256, "pattern":r"^[\x20-\x7e]*[\x21-\x7e][\x20-\x7e]*$"},
+        }),
         "base-x402-batch-v1": _closed({
             "network": constant(base.NETWORK), "asset": constant(base.ASSET),
             "recipient": deepcopy(evm), "receiver_authorizer": constant(base.AUTHORIZER),

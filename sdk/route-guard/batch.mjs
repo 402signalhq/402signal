@@ -211,7 +211,12 @@ import { validateSolanaSessionProfile } from "./batch-profiles/solana.mjs";
 import { validateAlgorandBatchProfile } from "./batch-profiles/algorand.mjs";
 import { validateAlgorandGenericProfile } from "./batch-profiles/algorand-generic.mjs";
 import { validateAlgorandAtomicMultiProfile, validateAlgorandInvoiceProfile, ATOMIC as ALGO_MULTI, INVOICE as ALGO_INVOICE } from "./batch-profiles/algorand-manifest.mjs";
+import {validateBaseChargeProfile} from "./batch-profiles/base-charge.mjs";
+import {nativeChargeWire} from "./batch-profiles/native-charge.mjs";
+import {validateAlgorandChargeProfile} from "./batch-profiles/algorand-charge.mjs";
 const PROFILES = {
+  "algorand-mpp-charge-v1": validateAlgorandChargeProfile,
+  "base-mpp-charge-v1": validateBaseChargeProfile,
   "base-x402-batch-v1": validateBaseBatchProfile,
   "solana-mpp-session-v1": validateSolanaSessionProfile,
   "algorand-atomic-batch-v1": validateAlgorandBatchProfile,
@@ -260,7 +265,7 @@ function request(body) {
   );
   return context(body.url);
 }
-function wire(c, ctx, profile) {
+function wire(c, ctx, profile, limits = {}) {
   exactKeys(c, ["status", "bodyText", "paymentRequired", "wwwAuthenticate"]);
   check(
     c.status === 402 &&
@@ -276,6 +281,8 @@ function wire(c, ctx, profile) {
           /^[\x20-\x7e]+$/.test(c[k])),
     );
   check(Buffer.byteLength(canonical(c)) <= 24576);
+  if (profile === "algorand-mpp-charge-v1") return nativeChargeWire(c,ctx,"algorand",limits.realm,e=>validateAlgorandChargeProfile(e,ctx,limits));
+  if (profile === "base-mpp-charge-v1") return nativeChargeWire(c,ctx,"evm",limits.realm,e=>validateBaseChargeProfile(e,ctx,limits));
   if (profile === "solana-mpp-session-v1") {
     check(
       c.bodyText === "" &&
@@ -349,6 +356,7 @@ function validate(binding, body, now) {
     binding.challenge,
     ctx,
     body.merchant_profile,
+    body.buyer_limits,
   );
   const terms = PROFILES[body.merchant_profile](
     JSON.parse(canonical(envelope)),
