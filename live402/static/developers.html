@@ -1,83 +1,42 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Integrate a pre-spend check · 402Signal</title>
-  <meta name="description" content="Add 402Signal to an agent buyer with HTTP, MCP and an installable client. Verify the observed offer before your own wallet signs." />
-  <link rel="canonical" href="https://402signal.com/developers" />
-  <meta property="og:title" content="Integrate a pre-spend check · 402Signal" />
-  <meta property="og:description" content="Add 402Signal to an agent buyer with HTTP, MCP and an installable client. Verify the observed offer before your own wallet signs." />
-  <meta property="og:url" content="https://402signal.com/developers" />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="402Signal" />
-  <meta property="og:image" content="https://402signal.com/og.png" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Integrate a pre-spend check · 402Signal" />
-  <meta name="twitter:description" content="Add 402Signal to an agent buyer with HTTP, MCP and an installable client. Verify the observed offer before your own wallet signs." />
-  <meta name="twitter:image" content="https://402signal.com/og.png" />
-  <meta name="twitter:site" content="@402Signal" />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/styles.css" />
+  <meta name="description" content="Start with an offline example, add a hosted check to an existing buyer, and verify the current offer before your own wallet signs. HTTP, SDK and MCP compatibility." />
+  <link rel="canonical" href="https://402signal.com/developers" /><meta property="og:title" content="Integrate a pre-spend check · 402Signal" /><meta property="og:description" content="Hosted checks, local verification and explicit payment recovery for agent buyers." /><meta property="og:url" content="https://402signal.com/developers" /><meta property="og:type" content="website" /><meta property="og:site_name" content="402Signal" /><meta property="og:image" content="https://402signal.com/og.png" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:site" content="@402Signal" /><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <div class="page developer-page">
-    <header class="site">
-      <a class="brand" href="/">
-        <span class="mark">402</span>
-        <span class="brand-name">402Signal</span>
-      </a>
-      <nav class="nav" aria-label="Primary">
-        <a href="/catalog">Explore</a>
-        <a href="/developers" aria-current="page">Developers</a>
-        <a href="/transparency">Transparency</a>
-        <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-      </nav>
-    </header>
-
-    <main id="main">
-<section class="hero compact">
-        <p class="eyebrow">For agent runtimes, SDKs and MCP clients</p>
-        <h1>Check an offer before your buyer signs.</h1>
-        <p class="lede hero-copy">Send what your agent needs and the rules a route must meet. Get a qualifying route or a typed miss, then keep the final payment decision in your application.</p>
-        <p>Your wallet and private keys stay in your runtime. The client handles the route attempt and evidence; your payment code authorizes and signs.</p>
-        <nav class="page-links" aria-label="Developer sections"><a href="#quickstart">Quick start</a><a href="#route-binding">Verify before signing</a><a href="#recovery">Recover an attempt</a><a href="#batch-support">Batch scope</a><a href="#pq-trust">Keep evidence</a></nav>
-      </section>
-      <section class="block quickstart" id="quickstart">
-        <p class="eyebrow">1. Get the advertised routing fee</p><h2>Call POST /route</h2>
-        <p>Send an unpaid request first. This returns HTTP 402 with the current payment requirements; it does not authorize or settle a payment.</p>
-        <pre class="code"><code>curl -sS -D - https://402signal.com/route \
-  -H 'Content-Type: application/json' \
-  --data '{"need":"web search","networks":["base"],"max_price_usd":0.02,"require_route_binding":true}'</code></pre>
-        <p>Validate the returned requirements and authorize the $0.003 USDC routing fee using your buyer's wallet. Submit the identical JSON with the resulting <code>PAYMENT-SIGNATURE</code>. Do not send wallet secrets to 402Signal.</p>
-        <p class="scope-note">$0.003 only when a valid live route is found. Normal typed misses are not settled. Seller payment is separate.</p>
-        <h3>Install the client and guard</h3>
-        <p>Use the reviewed <a href="https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0" rel="noopener noreferrer">v0.5.0 release archive</a>, verify its published digest, then install it locally. Node.js 22 or newer is required. This archive is not an npm registry release.</p>
-        <pre class="code"><code>npm install ./402signal-route-guard-0.5.0.tgz</code></pre>
-        <p>The package exports <code>@402signal/route-guard/client</code>, <code>/file-store</code>, the exact-payment guard and the separate <code>/batch</code> guard. The private file store needs a supported POSIX filesystem, such as the buyer's Linux or WSL environment.</p>
-        <pre class="code"><code>import { RouteClient } from '@402signal/route-guard/client';
-import { FileAttemptStore } from '@402signal/route-guard/file-store';
-
-const client = new RouteClient({
-  store: new FileAttemptStore('/private/buyer/route-attempts'),
-  recoveryProfile: 'http-route-v1'
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="page developer-page">
+  <header class="site"><a class="brand" href="/"><span class="mark">402</span><span class="brand-name">402Signal</span></a><nav class="nav" aria-label="Primary"><a href="/catalog">Explore</a><a href="/developers" aria-current="page">Developers</a><a href="/transparency">Transparency</a><a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a></nav></header>
+  <main id="main">
+    <section class="hero compact"><p class="eyebrow">For agent runtimes, SDKs and MCP clients</p><h1>Check an offer before your buyer signs.</h1><p class="lede">Send what your agent needs and the rules a route must meet. Get a qualifying route or a typed miss, then keep the final payment decision in your application.</p><p class="note">The hosted service observes. The local guard verifies. Your application controls the wallet, budget, signing and seller purchase.</p><nav class="page-links" aria-label="Developer sections"><a href="#quickstart">Quick start</a><a href="#request">Request profiles</a><a href="#route-binding">Verify before signing</a><a href="#recovery">Recover an attempt</a><a href="#batch-support">Compatibility</a><a href="#interfaces">HTTP and MCP</a><a href="#policy-guide">Policy boundaries</a><a href="#pq-trust">Keep evidence</a></nav></section>
+    <section class="block quickstart" id="quickstart"><p class="eyebrow">Choose your starting point</p><h2>Start without a payment.</h2><p><a href="/how#playground">The interactive sample</a> demonstrates changed terms and expiry without a wallet. To run the actual offline verifier, use the public fixture below in a repository checkout.</p><h3>Run the offline guard</h3><p>Requires Node.js 22 or newer. This uses a public test key and synthetic evidence. No networking, signing or payment occurs.</p><pre class="code"><code>git clone https://github.com/402signalhq/402signal.git
+cd 402signal
+node --input-type=module &lt;&lt;'JS'
+import { readFileSync } from 'node:fs';
+import { verifyRoute } from './sdk/route-guard/index.mjs';
+const vectors = JSON.parse(readFileSync('tests/fixtures/route-binding-v1.json'));
+const sample = vectors.cases[0];
+const terms = verifyRoute({
+  routeResponseJson: JSON.stringify(sample.response),
+  routeRequestJson: JSON.stringify(sample.request),
+  trustedLogVkey: vectors.trusted_vkey, // PUBLIC TEST KEY, not production.
+  request: {
+    url: sample.response.url,
+    method: sample.method,
+    body: Buffer.from(sample.body)
+  },
+  challenge: { status: 402, bodyText: JSON.stringify(sample.challenge) },
+  now: sample.now // Fixture only. Omit in a real integration.
 });
-
-await client.prepare(attemptId, JSON.stringify({
-  need: 'web search', require_route_binding: true
-}));
-const challenge = await client.challenge(attemptId);
-// Your wallet checks the quote and budget, then signs.
-await client.setPaymentHeader(attemptId, { value: signedHeader });
-const outcome = await client.submit(attemptId);</code></pre>
-        <p><code>attemptId</code> is your durable, unique operation identifier. <code>signedHeader</code> comes from your own payment code. This example does not implement wallet signing or authorize a seller purchase.</p>
-      </section>
-      <section class="block" id="request">
-        <p class="eyebrow">2. State your requirements</p><h2>What you can send</h2>
-        <div class="code-pair"><div><h3>Discover a capability</h3><pre class="code"><code>{
+console.log(terms.model, terms.request.method, terms.accepted.network);
+JS</code></pre><p>Real integrations must retain raw untrusted JSON rather than parse and reserialize it. The fixture above is trusted local test data.</p><h3>Use an existing buyer</h3><p>The <a href="https://github.com/402signalhq/402signal/blob/main/integration/reference-buyer/README.md" rel="noopener noreferrer">reference Base buyer</a> supplies a caller-owned signer integration, durable campaign limits and independent payment checks. It requires Node 24 and a private POSIX filesystem. Read its prerequisites and use the planning command before loading your signer. It is example application code, not a hosted wallet.</p><h3>Install the client and guard</h3><p>Use the reviewed <a href="https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0" rel="noopener noreferrer">v0.5.0 release archive</a> and its published digest. Node.js 22 or newer is required. This archive is not an npm registry release.</p><pre class="code"><code>sha256sum --check SHA256SUMS
+npm install ./402signal-route-guard-0.5.0.tgz</code></pre><p>The root verifier is offline. Optional <code>/client</code> and <code>/file-store</code> modules handle HTTP attempts and private persistence. The supplied file store requires a supported POSIX filesystem, such as Linux or WSL. Other runtimes must supply suitable durable storage. The separate <code>/batch</code> export verifies v5 batch observations.</p></section>
+    <section class="block" id="request"><p class="eyebrow">Hosted check</p><h2>Call POST /route</h2><p>Send an unpaid request first. It returns HTTP 402 with the current routing payment requirements. It does not authorize or settle a payment.</p><pre class="code"><code>curl -sS -D - https://402signal.com/route \
+  -H 'Content-Type: application/json' \
+  --data '{"need":"web search","networks":["base"],"max_price_usd":0.02,"require_route_binding":true}'</code></pre><p>Validate the requirements and reserve your budget in the buyer. Authorize the $0.003 USDC fee with your own wallet, then submit the identical JSON with the resulting <code>PAYMENT-SIGNATURE</code>. Never send wallet private keys to 402Signal.</p><p class="scope-note">$0.003 only when a valid live route is found. Normal typed misses are not settled. Seller payment is separate.</p><h3>What you can send</h3><div class="code-pair"><div><h3>Discover a capability</h3><pre class="code"><code>{
   "need": "erc20 token balance",
   "networks": ["base"],
   "max_price_usd": 0.02,
@@ -86,12 +45,7 @@ const outcome = await client.submit(attemptId);</code></pre>
 }</code></pre></div><div><h3>Check one endpoint</h3><pre class="code"><code>{
   "url": "https://seller.example/x402",
   "require_route_binding": true
-}</code></pre></div></div>
-        <p>A required network excludes other networks; <code>prefer_network</code> only influences ranking. Price, response-time and invocation constraints remain separate. Unknown costs cannot satisfy a required total-cost cap.</p>
-        <p>Use the <a href="/catalog">free request builder</a> for supported filters, or the <a href="/openapi.json">OpenAPI schema</a> for the complete contract. HTTP probe time is not settlement latency.</p>
-        <h3>Supported exact request bodies</h3>
-        <p>The ordinary guard covers observed GET requests and the narrowly justified empty-object POST fallback. A separate opt-in profile permits one reviewed search request at <code>https://parallelmpp.dev/api/search</code>.</p>
-        <pre class="code"><code>{
+}</code></pre></div></div><p>A required network excludes other networks. <code>prefer_network</code> only affects ranking within the permitted set. Unknown measurements do not satisfy required bounds. <code>max_total_cost_usd</code> covers the seller price plus known seller-side fees, not the separate routing fee or an entire wallet budget.</p><p>Use the <a href="/catalog#request-builder">request builder</a> or <a href="/openapi.json">OpenAPI specification</a>. The builder validates limits and requests signed binding by default. It never submits a paid request. HTTP probe time is not settlement latency.</p><h3>Supported exact request bodies</h3><p>The ordinary guard covers GET and the narrowly justified empty-object POST fallback. The explicit <code>parallel-search-json-v1</code> profile permits a bounded search request only at <code>https://parallelmpp.dev/api/search</code>. It is not a general POST proxy.</p><p class="scope-note"><strong>Compatibility observation, September 7, 2026:</strong> the Parallel gateway changed its recipient across unsigned challenges, so the current fixed-offer guard refused seller signing. The example below documents a bounded request profile, not a qualified live purchase path for rotating recipients. Do not replace a recipient pin or bypass the refusal.</p><pre class="code"><code>{
   "url": "https://parallelmpp.dev/api/search",
   "networks": ["base"],
   "max_price_usd": 0.01,
@@ -102,88 +56,39 @@ const outcome = await client.submit(attemptId);</code></pre>
     "method": "POST",
     "body": "{\"query\":\"x402 payment protocol\",\"mode\":\"one-shot\"}"
   }
-}</code></pre>
-        <p>The exact JSON string is bound to the observation. This profile accepts only a nonempty query of at most 300 characters and <code>mode:"one-shot"</code>, within 4 KiB. It sends that body only to the designated endpoint, with no arbitrary caller headers. It is not a general POST proxy.</p>
-      </section>
-      <section class="block" id="route-binding">
-        <p class="eyebrow">3. Verify, then let your wallet decide</p><h2>Compare the current offer before signing</h2>
-        <p>Set <code>"require_route_binding": true</code> to require a signed v4 receipt for a supported exact x402 observation. The record binds the route request, seller URL, method, exact body hash and complete observed payment offer.</p>
-        <p>Keep the raw route response and original route request. Immediately before signing, obtain the seller's current unpaid challenge and call <code>withVerifiedRoute</code> with an independently trusted log verification key.</p>
-        <pre class="code"><code>import { withVerifiedRoute } from '@402signal/route-guard';
+}</code></pre><p>The exact body string is bound to the observation. The profile accepts only a nonempty query of at most 300 characters and <code>mode:"one-shot"</code>, within 4 KiB, with no arbitrary caller headers. The body is sent only to the designated endpoint and is not broadcast through discovery. This profile is documented for HTTP, not the advertised MCP input schema.</p></section>
+    <section class="block" id="route-binding"><p class="eyebrow">Local buyer guard</p><h2>Compare the current offer before signing</h2><p>Set <code>"require_route_binding": true</code> for a signed v4 receipt on supported exact x402 observations. It binds the original route request, exact seller URL, method, body hash and observed offer.</p><p>Preserve the original request and raw response. Obtain the seller's current unpaid challenge for the same URL, method and body bytes without following redirects. Use a log verification key from independent trusted configuration, not a key offered by the response being verified.</p><pre class="code"><code>import { withVerifiedRoute } from '@402signal/route-guard';
 
 await withVerifiedRoute({
   routeResponseJson, routeRequestJson, trustedLogVkey,
   request: { url, method, body: exactRequestBytes },
   challenge: { status: 402, bodyText, paymentRequired }
 }, async verified =&gt; {
-  // Your buyer checks the actual transaction and budget
-  // against verified.accepted, then signs in its own wallet.
-});</code></pre>
-        <p>The guard verifies the log signature and inclusion proof, request binding, observed terms and freshness. It rejects altered or expired evidence before invoking your callback. The default observation window is 60 seconds; check the receipt's actual expiry.</p>
-        <p class="scope-note">The callback is a permission boundary in your application, not an automatic payment guarantee. Independently validate the actual transaction, reserve the budget and prevent duplicate seller sends. A valid receipt does not guarantee delivery, establish output quality or reverse the routing fee.</p>
-        <p>Historical <code>verifyReceipt</code> checks evidence integrity after expiry. It does not authorize a fresh purchase. The x402 adapter for <code>mppx</code> handles gateway challenges; it is separate from native MPP sessions.</p>
-      </section>
-      <section class="block" id="recovery">
-        <p class="eyebrow">4. Retain one attempt until its outcome is known</p><h2>Recover a lost response without a fresh payment</h2>
-        <p>The durable client records the exact request, payment header and private recovery credentials before its ordinary paid submission. Reopening the same attempt enters recovery instead of silently creating another authorization.</p>
-        <pre class="code"><code>const recovered = await client.recover(attemptId);</code></pre>
-        <p>Protect the attempt store as private credentials. A payment authorization is sensitive even though it is not a wallet private key. Optional customer access credentials identify an integration; they are not customer wallet keys.</p>
-        <dl class="checks compact">
-          <div><dt>Completed miss</dt><dd>A completed normal miss returns HTTP 200 with <code>live:false</code>, <code>payable:false</code>, <code>selected_payment:null</code> and <code>billing.settlement_state=not_attempted</code>. No routing settlement was attempted.</dd></div>
-          <div><dt>Operational or uncertain outcome</dt><dd>HTTP 503 can represent incomplete evaluation, a required evidence failure after settlement, or unknown settlement. Inspect <code>billing.settlement_state</code> before retrying. Do not reuse an unknown authorization or treat an unread response as proof that no payment occurred.</dd></div>
-          <div><dt>Recovery unavailable</dt><dd>Reconcile the original authorization using read-only chain evidence. Keep the reserved budget until the outcome is established; do not generate another seller payment as a recovery shortcut.</dd></div>
-        </dl>
-      </section>
-      <section class="block" id="batch-support">
-        <p class="eyebrow">Release qualification</p><h2>Batch offers need their own evidence</h2>
-        <p class="scope-note"><strong>Supported profiles:</strong> Base batch settlement, Solana MPP push sessions and Algorand two-item atomic groups. The owner-operated Algorand two-item MainNet paid test is complete. Base batch and native Solana session live paid qualification is still in progress. An ordinary exact-payment receipt does not authorize a batch or session.</p>
-        <div class="table-scroll"><table class="support-table"><caption>Bounded profiles; lab examples use controlled merchants</caption><thead><tr><th scope="col">Network</th><th scope="col">Payment profile</th><th scope="col">Scope</th></tr></thead><tbody>
-          <tr><th scope="row">Base</th><td>EVM batch settlement</td><td>Explicit channel terms and buyer caps. A voucher acceptance is distinct from an on-chain payout.</td></tr>
-          <tr><th scope="row">Solana</th><td>Native MPP push sessions</td><td>Buyer-owned opening, signed vouchers and closing. This does not claim cross-channel batch settlement.</td></tr>
-          <tr><th scope="row">Algorand</th><td>Two-item atomic grouping</td><td>One exact HTTPS GET endpoint, two USDC payments to the same recipient, explicit item and total caps and job hashes.</td></tr>
-        </tbody></table></div>
-        <p>The separate v5 batch evidence model binds a supported merchant profile, full observed offer and buyer limits. Profile-specific buyer adapters still validate and sign their own transactions.</p>
-        <p>The routing check is one qualifying API observation at $0.003. Merchant charges, channel deposits, fees and rent remain separate. This is not a promise that arbitrary batches, endpoints or group sizes are supported.</p>
-      </section>
-      <section class="block pq-developer" id="pq-trust">
-        <p class="eyebrow">PQ Trust</p><h2>Make routing evidence part of the response</h2>
-        <p>Use <code>"require_transparency": true</code> when evidence is required without the exact-request guard. Bound routes require their own signed evidence. Inspect <code>pq_trust.transparency</code> rather than treating an HTTP success as proof of log inclusion.</p>
-        <p><strong>Keep the verification record:</strong> retain the full paid response, including <code>pq_trust.transparency.receipt</code> and <code>pq_trust.transparency.reveal</code>, plus your original request. Store it privately; do not put it in public logs.</p>
-        <p>The immediate log receipt uses Ed25519. Cumulative checkpoints use native Falcon-1024 authorization on Algorand MainNet. The route call does not wait for chain confirmation. A pending anchor is not confirmed evidence.</p>
-        <p>The public log commits a fingerprint of the private record. Private replay outcomes can retain the reveal for bounded attempt recovery, but are not a long-term evidence backup. Retain your own copy and a trusted verification key.</p>
-        <p>Checkpoint verification establishes evidence integrity. It does not authorize or secure the seller payment.</p>
-        <p><a href="/transparency">Inspect the transparency log</a></p>
-      </section>
-      <section class="block" id="interfaces"><h2>HTTP and MCP interfaces</h2>
-        <dl class="checks compact">
-          <div><dt><code>POST /route</code></dt><dd>Paid search, check, policy, and selection</dd></div>
-          <div><dt><code>GET /preview</code></dt><dd>Free discovery search without a new endpoint check</dd></div>
-          <div><dt><code>GET /rails</code></dt><dd>Supported payment rails</dd></div>
-          <div><dt><code>GET /openapi.json</code></dt><dd>OpenAPI specification</dd></div>
-          <div><dt><code>GET /mcp.json</code></dt><dd>MCP manifest</dd></div>
-          <div><dt><code>POST /mcp</code></dt><dd>MCP JSON-RPC</dd></div>
-          <div><dt><code>GET /transparency</code></dt><dd>Transparency log</dd></div>
-        </dl>
-        <p>Start with the <a href="/mcp.json">MCP manifest</a>, <a href="/openapi.json">OpenAPI specification</a> or <a href="/llms.txt">machine-readable guide</a>. Keep buyer authorization and payment recovery explicit in your integration.</p>
-        <p><a class="btn" href="/catalog">Build a request</a> <a class="btn secondary" href="/contact">Get in touch</a></p>
-      </section>
-    </main>
-    <footer class="foot">
-      <p>402Signal</p>
-      <p>
-        <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-        <a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a>
-        <a href="/how">How it works</a>
-        <a href="/openapi.json">OpenAPI</a>
-        <a href="/mcp.json">MCP</a>
-        <a href="/transparency">Transparency</a>
-        <a href="/contact">Contact</a>
-        <a href="/contact#security">Security reporting</a>
-        <a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a>
-        <a href="mailto:ross@402signal.com">ross@402signal.com</a>
-      </p>
-    </footer>
-  </div>
-  <script src="/app.js" defer></script>
+  // Your buyer validates the actual transaction and its durable
+  // budget against verified.accepted before its own wallet signs.
+});</code></pre><p>This is integration scaffolding, not complete wallet code. The <a href="https://github.com/402signalhq/402signal/blob/main/integration/reference-buyer/README.md" rel="noopener noreferrer">reference buyer</a> shows the supported payment lifecycle. The default observation window is 60 seconds; inspect the actual expiry. A valid receipt does not promise that the seller will honor a quote for the entire window.</p><p class="scope-note">The callback is a permission boundary in your application. A hosted check or a request flag alone cannot stop your wallet. Your buyer must validate transaction effects, reserve budgets, prevent duplicate seller sends and refuse altered or expired evidence. A valid receipt does not guarantee delivery or output quality, or reverse the routing fee.</p><p><code>verifyReceipt</code> checks historical evidence after expiry without authorizing a new purchase. The x402 adapter for <code>mppx</code> handles supported Base gateway challenges; it is separate from native MPP sessions.</p></section>
+    <section class="block" id="recovery"><p class="eyebrow">One durable attempt</p><h2>Recover a lost response without a fresh payment</h2><p>The client stores the exact request, private recovery credential and authorization before submission. Reopening the same attempt enters recovery instead of silently authorizing another payment.</p><pre class="code"><code>import { RouteClient } from '@402signal/route-guard/client';
+import { FileAttemptStore } from '@402signal/route-guard/file-store';
+
+const client = new RouteClient({
+  store: new FileAttemptStore('/private/buyer/route-attempts'),
+  recoveryProfile: 'http-route-v1'
+});
+await client.prepare(attemptId, JSON.stringify({
+  need: 'web search', require_route_binding: true
+}));
+const challenge = await client.challenge(attemptId);
+// Your wallet inspects the requirements, reserves the budget and signs once.
+await client.setPaymentHeader(attemptId, { value: signedHeader });
+const outcome = await client.submit(attemptId);
+// After a lost response or restart, use the SAME durable attempt:
+const recovered = await client.recover(attemptId);</code></pre><p><code>attemptId</code> and <code>signedHeader</code> come from your application. This snippet does not implement signing or authorize the seller purchase. Do not use automatic-payment middleware, automatic redirects or payment retry wrappers.</p><dl class="checks compact"><div><dt>Before routing authorization</dt><dd>HTTP 402 supplies requirements. No paid check has completed.</dd></div><div><dt>Completed normal miss</dt><dd>A completed normal miss returns HTTP 200 with <code>live:false</code>, <code>payable:false</code>, <code>selected_payment:null</code> and <code>billing.settlement_state=not_attempted</code>. No routing settlement was attempted.</dd></div><div><dt>Qualifying offer</dt><dd>Read the offer and billing result together. HTTP 200 alone does not authorize a seller purchase. The fee remains paid when the customer later declines or the guard refuses changed terms.</dd></div><div><dt>Operational or uncertain outcome</dt><dd>HTTP 503 can mean incomplete evaluation, required evidence failure after settlement, or unknown settlement. Inspect <code>billing.settlement_state</code> before retrying. Do not reuse an unknown authorization. An unread response is not proof that no payment happened.</dd></div><div><dt>Recovery unavailable</dt><dd>Reconcile the original authorization with independent, read-only chain evidence. Keep reserved funds until the outcome is established. Do not generate another payment or a new job ID as a recovery shortcut.</dd></div></dl><p>Protect payment headers and attempt stores as sensitive credentials. Optional access credentials identify an integration or workload class; they are not customer wallet keys. The documented recovery-only client profile is HTTP <code>/route</code>, not MCP. Recovery retrieves the original result and expiry; it does not extend the quote or resume seller execution.</p></section>
+    <section class="block" id="batch-support"><p class="eyebrow">Compatibility and qualification</p><h2>Batch offers need their own evidence</h2><p>An ordinary exact-payment receipt does not authorize a batch or session. The v0.5 client includes a separate v5 batch verifier. The hosted service must explicitly enable the relevant qualified profile.</p><div class="table-scroll"><table class="support-table"><caption>Scope reviewed September 8, 2026. Test completion is not universal merchant compatibility or hosted enablement.</caption><thead><tr><th scope="col">Mechanism</th><th scope="col">What is checked</th><th scope="col">Qualification boundary</th></tr></thead><tbody><tr><th scope="row">Exact x402</th><td>Supported fixed offers across Base, Solana and Algorand; exact request and observed terms.</td><td>Three-rail contracts. The reference AgentsTools purchase is a dated external compatibility observation.</td></tr><tr><th scope="row">Base EVM batch settlement</th><td>Explicit channel recipient, authorities, per-call, cumulative and capital limits.</td><td>Live paid qualification is still in progress. Voucher acceptance is distinct from an on-chain payout.</td></tr><tr><th scope="row">Solana Native MPP push sessions</th><td>Supported operator, recipient, program and session cap.</td><td>Live paid qualification is still in progress. Buyer-owned opening, vouchers and closing; this does not claim cross-channel batch settlement.</td></tr><tr><th scope="row">Algorand two-item grouping</th><td>One exact HTTPS GET endpoint, two USDC payments to the same recipient, item and total caps and independent job hashes.</td><td>The owner-operated Algorand two-item MainNet paid test is complete. Generic merchants must implement the defined profile; arbitrary groups are not supported.</td></tr><tr><th scope="row">mppx x402 gateway adapter</th><td>Supported Base USDC exact offers through the explicit adapter.</td><td>Separate integration qualification. This is not native MPP settlement support.</td></tr></tbody></table></div><p>The native Solana session cap is not a per-call price. Its <code>per_call_amount_atomic</code> is null; establish service economics separately. Base channel capital is separate from its per-call cost. Algorand on-chain grouping does not promise atomic HTTP delivery.</p><p>Batch/session observation is one explicitly requested API, not catalog discovery or aggregation of seller payments. Requests contain <code>url</code>, <code>merchant_profile</code>, <code>buyer_limits</code> and <code>require_route_binding:true</code>. Supported keys and pins differ by profile.</p><p>Use <code>verifyBatchRoute</code> or <code>withVerifiedBatchRoute</code> from <code>@402signal/route-guard/batch</code>. An observation is not a blanket spending authorization. The buyer adapter still validates current chain state, authorities, actual transactions and durable limits before funding or signing.</p><p>The observation fee is $0.003. Merchant charges, capital deposits, fees, rent and retained reserves remain separate. A profile listed here may not be enabled for your workload. <a href="/contact">Confirm integration availability</a> before committing a routing budget.</p><p><a href="https://github.com/402signalhq/402signal/blob/main/docs/batch-observation-v1.md" rel="noopener noreferrer">Batch request contract</a> · <a href="https://github.com/402signalhq/402signal/blob/main/integration/mpp-client/README.md" rel="noopener noreferrer">mppx gateway scope</a></p></section>
+    <section class="block" id="interfaces"><h2>HTTP and MCP interfaces</h2><div class="table-scroll"><table class="support-table"><caption>Choose the smallest tool that meets the task.</caption><thead><tr><th scope="col">Tool</th><th scope="col">Use it for</th><th scope="col">What it does not provide</th></tr></thead><tbody><tr><th scope="row">preview</th><td>Free discovery search without a new endpoint check.</td><td>No fresh seller probe or bound receipt.</td></tr><tr><th scope="row">validate</th><td>Free readiness check of one exact catalog-listed HTTPS endpoint.</td><td>No constrained comparative selection or signed routing evidence.</td></tr><tr><th scope="row">route</th><td>Paid search, check, policy, and selection. Qualifying checks cost $0.003.</td><td>No automatic seller payment. Paid completion requires an x402-capable client.</td></tr></tbody></table></div><dl class="checks compact"><div><dt><code>POST /route</code></dt><dd>HTTP routing, supported bound request profiles and explicit response recovery.</dd></div><div><dt><code>GET /preview</code></dt><dd>Free catalog discovery.</dd></div><div><dt><code>GET /rails</code></dt><dd>Supported payment rails.</dd></div><div><dt><code>GET /openapi.json</code></dt><dd>OpenAPI specification.</dd></div><div><dt><code>GET /mcp.json</code></dt><dd>MCP manifest.</dd></div><div><dt><code>POST /mcp</code></dt><dd>MCP JSON-RPC. The versioned hosted transport is <code>/mcp/v0.3.1</code>.</dd></div><div><dt><code>GET /transparency</code></dt><dd>Transparency log.</dd></div></dl><p>The Glama stdio adapter supports free preview and validate. An unpaid route produces a tool error with the payment challenge; the adapter cannot sign, forward payment headers or complete a paid route. General MCP support does not imply payment support.</p><p>The bounded POST and batch/session profiles are documented for HTTP, not the advertised MCP input schema. Keep the payment and recovery path explicit. Do not silently fall back from a refused guard to an unguarded purchase.</p><p><a href="/mcp.json">MCP manifest</a> · <a href="/openapi.json">OpenAPI specification</a> · <a href="/llms.txt">Machine-readable guide</a></p></section>
+    <section class="block" id="policy-guide"><p class="eyebrow">Treasury, security and platform teams</p><h2>Keep enforceable policy outside the model.</h2><p>Let the agent propose a capability or endpoint. Trusted application code should supply enforced limits, approved recipients, verification keys and signing authority. A model-generated request is not an organizational policy system.</p><dl class="checks compact"><div><dt>Hosted 402Signal check</dt><dd>Evaluates submitted requirements against a supported current offer. Unknown required measurements fail closed. It does not centrally administer your organization's wallet policy.</dd></div><div><dt>Local verification guard</dt><dd>Verifies bound evidence, request identity, relevant terms and expiry before its callback. It cannot protect a caller that bypasses the guard or supplies malicious trusted modules.</dd></div><div><dt>Buyer and wallet</dt><dd>Enforce durable budgets, recipient allowlists, chain/token/transaction effects and one-shot payment identity. Obtain human approval before the final fresh check when required.</dd></div><div><dt>Evidence owner</dt><dd>Retains the original private request and response, reconciles uncertain outcomes and handles internal retention and access control.</dd></div></dl><p>The server's destination-change handling is not a permanent organization-wide recipient allowlist. A later independent observation can establish a changed destination. Pin approved recipients in trusted buyer policy when that stronger boundary is required.</p><p>There is no hosted approval queue, delegated signer, escrow, delivery guarantee or dispute-resolution service. For volume integrations, confirm workload access and operating limits; shared storage is not a throughput certification.</p><p><a href="/how#data-boundary">Data flow and privacy boundaries</a> · <a href="/contact#security">Private security reporting</a></p></section>
+    <section class="block pq-developer" id="pq-trust"><p class="eyebrow">PQ Trust</p><h2>Make routing evidence part of the response</h2><p>Use <code>"require_transparency": true</code> when evidence is required without exact-request binding. Bound routes require their own signed evidence. Inspect <code>pq_trust.transparency</code> rather than equating HTTP success with log inclusion.</p><p><strong>Keep the verification record:</strong> retain the full paid response, including <code>pq_trust.transparency.receipt</code> and <code>pq_trust.transparency.reveal</code>, plus your original request. Store it privately; do not put it in public logs.</p><p>The immediate log receipt uses Ed25519. Cumulative checkpoints use native Falcon-1024 authorization on Algorand MainNet. The route call does not wait for chain confirmation. A pending anchor is not confirmed evidence.</p><p>The public log contains commitments, not a recoverable copy of your private decision. Private replay outcomes can retain the reveal for bounded attempt recovery, but are not a long-term evidence backup. Keep your own copy and an independently trusted verification key.</p><p>Historical integrity verification does not extend an observation's expiry. It does not authorize or secure the seller payment.</p><p><a href="/transparency">Inspect the transparency log</a> · <a href="https://github.com/402signalhq/402signal/blob/main/sdk/route-guard/README.md" rel="noopener noreferrer">Client and verification API</a></p></section>
+  </main>
+  <footer class="foot"><p>402Signal</p><p><a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a><a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a><a href="/how">How it works</a><a href="/openapi.json">OpenAPI</a><a href="/mcp.json">MCP</a><a href="/transparency">Transparency</a><a href="/contact">Contact</a><a href="/contact#security">Security reporting</a><a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a><a href="mailto:ross@402signal.com">ross@402signal.com</a></p></footer>
+</div>
 </body>
 </html>
