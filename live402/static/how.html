@@ -1,135 +1,46 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>How 402Signal checks a paid API offer</title>
-    <meta name="description" content="Follow a route check from buyer constraints to a current offer, a billing outcome and evidence the buyer can verify." />
-    <link rel="canonical" href="https://402signal.com/how" />
-    <meta property="og:title" content="How 402Signal checks a paid API offer" />
-    <meta property="og:description" content="Follow a route check from buyer constraints to a current offer, a billing outcome and evidence the buyer can verify." />
-    <meta property="og:url" content="https://402signal.com/how" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="402Signal" />
-    <meta property="og:image" content="https://402signal.com/og.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="How 402Signal checks a paid API offer" />
-    <meta name="twitter:description" content="Follow a route check from buyer constraints to a current offer, a billing outcome and evidence the buyer can verify." />
-    <meta name="twitter:image" content="https://402signal.com/og.png" />
-    <meta name="twitter:site" content="@402Signal" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <a class="skip-link" href="#main">Skip to content</a>
-    <div class="page home-page how-page">
-      <header class="site">
-        <a class="brand" href="/">
-          <span class="mark">402</span>
-          <span class="brand-name">402Signal</span>
-        </a>
-        <nav class="nav" aria-label="Primary">
-          <a href="/catalog">Explore</a>
-          <a href="/developers">Developers</a>
-          <a href="/transparency">Transparency</a>
-          <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-        </nav>
-      </header>
-
-      <main id="main">
-        <section class="hero compact how-intro">
-          <p class="eyebrow">How it works</p>
-          <h1>Check the terms. Then choose to pay.</h1>
-          <p class="lede">402Signal checks the API offer. Your app reviews the evidence and pays the seller directly.</p>
-        </section>
-        <figure class="payment-map" aria-labelledby="payment-map-caption">
-          <figcaption id="payment-map-caption">The check and the purchase are separate</figcaption>
-          <div class="map-row">
-            <div class="map-node">
-              <span>1 / Your app</span><strong>Set the request<br />and spending rules</strong>
-            </div>
-            <div class="map-arrow" aria-hidden="true">→</div>
-            <div class="map-node map-signal">
-              <span>2 / 402Signal</span><strong>Observe the API<br />and check its terms</strong><small>$0.003 qualifying check</small>
-            </div>
-            <div class="map-arrow" aria-hidden="true">→</div>
-            <div class="map-node">
-              <span>3 / Your app</span><strong>Verify the evidence.<br /> Proceed or stop.</strong>
-            </div>
-          </div>
-          <div class="direct-payment">
-            <div><span>Your wallet</span><strong>Signs the seller payment</strong></div>
-            <div class="payment-arrow"><span>Direct payment</span><i aria-hidden="true"></i></div>
-            <div><span>The seller</span><strong>Receives payment &amp; serves the API</strong></div>
-          </div>
-          <p class="map-note">402Signal does not hold the seller payment. Your wallet validates the transaction and your app confirms settlement.</p>
-        </figure>
-        <section class="editorial-row">
-          <div>
-            <p class="eyebrow">Illustrative x402 example</p>
-            <h2>A $0.020 weather request.</h2>
-          </div>
-          <div>
-            <p>Your limit is $0.020 on Base. The API’s offer qualifies, so the $0.003 check is paid. Your integrated buyer guard then compares the fresh offer and exact request before seller signing.</p>
-            <dl class="decision-lines">
-              <div>
-                <dt>Same request and terms</dt>
-                <dd>Your app may proceed.</dd>
-              </div>
-              <div>
-                <dt>Price, recipient or request changes</dt>
-                <dd>Stop before seller signing.</dd>
-              </div>
-              <div>
-                <dt>Evidence expires</dt>
-                <dd>Stop before seller signing.</dd>
-              </div>
-            </dl>
-            <p class="note">The earlier check remains paid if you stop. A completed initial check with no match is free.</p>
-          </div>
-        </section>
-        <section class="compact-models">
-          <h2>What changes with the payment model?</h2>
-          <dl class="model-lines">
-            <div>
-              <dt>Base batch settlement</dt>
-              <dd>Check the per-call price and channel limits. A deposit is separate capital.</dd>
-            </div>
-            <div>
-              <dt>Solana MPP sessions</dt>
-              <dd>Check the recipient, operator and session cap. The cap is not a per-call price.</dd>
-            </div>
-            <div>
-              <dt>Algorand atomic groups</dt>
-              <dd>Bind both item hashes and the total. Two $0.001 items plus the check cost $0.005 before fees.</dd>
-            </div>
-          </dl>
-          <p>
-            <a href="/developers#batch-support">Supported profiles and test status →</a>
-          </p>
-        </section>
-        <div class="how-end">
-          <p>Your wallet remains responsible for payment. Keep the full verification record privately; an observed offer does not guarantee the seller’s output.</p>
-          <div class="hero-actions"><a class="btn" href="/developers#quickstart">Developer quickstart</a><a href="/developers#recovery">Billing and recovery</a><a href="/transparency">Verify evidence</a></div>
-        </div>
-      </main>
-      <footer class="foot">
-        <p>402Signal</p>
-        <p>
-          <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-          <a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a>
-          <a href="/how" aria-current="page">How it works</a>
-          <a href="/openapi.json">OpenAPI</a>
-          <a href="/mcp.json">MCP</a>
-          <a href="/transparency">Transparency</a>
-          <a href="/contact">Contact</a>
-          <a href="/contact#security">Security reporting</a>
-          <a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a>
-          <a href="mailto:ross@402signal.com">ross@402signal.com</a>
-        </p>
-      </footer>
-    </div>
-  </body>
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How 402Signal checks a paid API offer</title>
+  <meta name="description" content="See the hosted check, local buyer guard and direct seller payment. Try a clearly simulated example without a wallet." />
+  <link rel="canonical" href="https://402signal.com/how" />
+  <meta property="og:title" content="How 402Signal checks a paid API offer" /><meta property="og:description" content="Check the offer, verify it locally, then choose whether to pay." /><meta property="og:url" content="https://402signal.com/how" /><meta property="og:type" content="website" /><meta property="og:site_name" content="402Signal" /><meta property="og:image" content="https://402signal.com/og.png" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:site" content="@402Signal" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="page home-page how-page">
+  <header class="site"><a class="brand" href="/"><span class="mark">402</span><span class="brand-name">402Signal</span></a><nav class="nav" aria-label="Primary"><a href="/catalog">Explore</a><a href="/developers">Developers</a><a href="/transparency">Transparency</a><a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a></nav></header>
+  <main id="main">
+    <section class="hero compact how-intro"><p class="eyebrow">How it works</p><h1>Check the terms. Then choose to pay.</h1><p class="lede">A hosted API checks the offer. A local guard verifies the evidence before your application signs. Your wallet pays the seller directly.</p><div class="page-links"><a href="#playground">Try a sample check</a><a href="/catalog#request-builder">Check your own endpoint</a><a href="/developers#quickstart">Developer quickstart</a></div></section>
+    <figure class="payment-map" aria-labelledby="payment-map-caption">
+      <figcaption id="payment-map-caption">The check and the purchase are separate</figcaption>
+      <div class="map-row">
+        <div class="map-node"><span>1 / Your application</span><strong>Set the request and spending rules</strong><small>Keep enforced limits outside model-generated instructions.</small></div>
+        <div class="map-arrow" aria-hidden="true">→</div>
+        <div class="map-node map-signal"><span>2 / Hosted 402Signal API</span><strong>Observe the API and check its terms</strong><small>$0.003 when the offer qualifies. A completed no-match check is free.</small></div>
+        <div class="map-arrow" aria-hidden="true">→</div>
+        <div class="map-node"><span>3 / Local buyer guard</span><strong>Verify the evidence. Proceed or stop.</strong><small>Your application must integrate this guard before signing.</small></div>
+      </div>
+      <div class="direct-payment"><div><span>Your wallet</span><strong>Signs the seller payment</strong></div><div class="payment-arrow"><span>Direct payment</span><i aria-hidden="true"></i></div><div><span>The seller</span><strong>Receives payment and handles the API request</strong></div></div>
+      <p class="map-note">402Signal does not hold the seller payment. Your wallet validates the transaction, and your application checks settlement and delivery separately.</p>
+    </figure>
+    <section class="block" id="playground" aria-labelledby="demo-heading">
+      <p class="eyebrow">Interactive example</p><h2 id="demo-heading">Change the offer. See the decision.</h2>
+      <p class="scope-note"><strong>Simulated example. No wallet, live check, signature or payment.</strong> The examples below explain the integration; they do not run the cryptographic guard or issue a real receipt.</p>
+      <label class="label" for="demo-scenario">What happens before seller signing?</label>
+      <select id="demo-scenario"><option value="same">The request and terms stay the same</option><option value="price">The price changes to $0.030</option><option value="recipient">The payment recipient changes</option><option value="expired">The signed evidence expires</option><option value="miss">The initial offer does not qualify</option></select>
+      <figure class="offer-preview" aria-labelledby="demo-caption"><figcaption id="demo-caption">Illustrative x402 weather request<span>Buyer rule: Base, up to $0.020. Recorded offer: $0.020 to Seller A.</span></figcaption><dl class="offer-facts"><div><dt>Current offer in this example</dt><dd id="demo-price">$0.020 USDC</dd></div><div><dt>Current recipient</dt><dd id="demo-recipient">Seller A</dd></div><div><dt>Evidence age</dt><dd id="demo-age">Within the sample window</dd></div></dl><div class="offer-change" id="demo-output" role="status" aria-live="polite"><strong id="demo-result">Offer matches</strong><p id="demo-reason">The local guard could pass control to your buyer. Your wallet still validates the transaction and budget.</p></div><dl class="offer-facts"><div><dt>Illustrative checking fee</dt><dd id="demo-fee">$0.003</dd></div><div><dt>Seller payment</dt><dd id="demo-wallet">No payment in this demonstration</dd></div></dl></figure>
+      <p class="note">The earlier check remains paid if you stop. A completed initial check with no match is free. A matching offer does not guarantee the seller's output.</p>
+      <noscript><p>The interactive controls need JavaScript. A changed price or recipient, or expired evidence, stops the integrated signing callback. A completed initial no-match check is free; a later refusal does not reverse an already paid check.</p></noscript>
+    </section>
+    <section class="editorial-row"><div><p class="eyebrow">What you are adding</p><h2>A check, a local guard and a record.</h2></div><div><p><strong>Check.</strong> Bring a supported endpoint or discover one. Ask 402Signal to evaluate its current offer against your requirements.</p><p><strong>Verify.</strong> Request signed binding and compare the exact request and relevant offer in your application immediately before its own payment code signs.</p><p><strong>Retain.</strong> Keep the private verification record and your original request. The public log is not a backup of that record.</p><p>A wallet cap alone does not supply an independent observation or its retained evidence. 402Signal does not replace your wallet's transaction validation or make a compromised buyer runtime safe.</p></div></section>
+    <section class="compact-models"><h2>What changes with the payment model?</h2><dl class="model-lines"><div><dt>Base batch settlement</dt><dd>Check the per-call price and channel limits. A deposit is separate capital; voucher acceptance is not a confirmed payout.</dd></div><div><dt>Solana MPP sessions</dt><dd>Check the recipient, operator and session cap. The cap is not a per-call price. Your buyer still owns opening, vouchers and closing.</dd></div><div><dt>Algorand atomic groups</dt><dd>Bind both item hashes and the total for the supported two-item profile. Atomic chain execution does not promise atomic HTTP delivery.</dd></div></dl><p><a href="/developers#batch-support">Supported profiles and dated qualification status</a></p></section>
+    <section class="block" id="data-boundary"><h2>What 402Signal sees</h2><p>The service receives the route request and constraints, inspects the supported seller offer, and receives the routing-fee authorization. Supported request-binding profiles can include exact request context. Do not send wallet private keys or credentials in a URL.</p><p>Your private response includes verification evidence. Short-term response recovery is not long-term storage. Public log leaves contain commitments rather than the full private decision. <a href="/developers#pq-trust">Data retention and evidence boundaries</a>.</p></section>
+    <div class="how-end"><p>Your wallet remains responsible for payment. An observed offer does not guarantee the seller's output.</p><div class="hero-actions"><a class="btn" href="/developers#quickstart">Developer quickstart</a><a href="/developers#recovery">Billing and recovery</a><a href="/transparency">Verify evidence</a></div></div>
+  </main>
+  <footer class="foot"><p>402Signal</p><p><a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a><a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a><a href="/how" aria-current="page">How it works</a><a href="/openapi.json">OpenAPI</a><a href="/mcp.json">MCP</a><a href="/transparency">Transparency</a><a href="/contact">Contact</a><a href="/contact#security">Security reporting</a><a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a><a href="mailto:ross@402signal.com">ross@402signal.com</a></p></footer>
+</div><script src="/app.js" defer></script>
+</body>
 </html>

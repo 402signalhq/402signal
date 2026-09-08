@@ -810,7 +810,7 @@ class HomepagePqSectionTests(unittest.TestCase):
         self.assertNotIn("Latest confirmed Tree", html)
         self.assertNotIn("View TestNet transaction", html)
         self.assertNotIn("testnet.explorer.perawallet.app", html)
-        self.assertIn("Check paid APIs before your agent spends.", html)
+        self.assertIn("Check the offer before your agent pays.", html)
         self.assertNotIn("why it won", html.lower())
         self.assertNotIn("healthy", html)
         self.assertNotIn("Executable Now Rate", html)
@@ -848,7 +848,7 @@ class HomepagePqSectionTests(unittest.TestCase):
         self.assertNotIn("success_7d", html)
         self.assertIn("Algorand MainNet", html)
         self.assertNotIn("placeholder", html.lower())
-        self.assertIn("Check paid APIs before your agent spends.", html)
+        self.assertIn("Check the offer before your agent pays.", html)
         self.assertEqual(html.count("<h1"), 1)
 
 

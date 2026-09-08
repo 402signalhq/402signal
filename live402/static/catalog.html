@@ -1,193 +1,77 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Explore paid APIs</title>
-  <meta name="description" content="Search x402 services across Base, Solana, and Algorand. Find candidates, then set the rules for a live check." />
+  <title>Explore paid APIs · 402Signal</title>
+  <meta name="description" content="Compare listed payment terms, input metadata and dated observations. Choose an endpoint and build a check against your own spending rules." />
   <link rel="canonical" href="https://402signal.com/catalog" />
-  <meta property="og:title" content="Explore paid APIs" />
-  <meta property="og:description" content="Search x402 services across Base, Solana, and Algorand. Find candidates, then set the rules for a live check." />
+  <meta property="og:title" content="Explore paid APIs · 402Signal" />
+  <meta property="og:description" content="Compare candidates, see what is known, and build an endpoint-specific check." />
   <meta property="og:url" content="https://402signal.com/catalog" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="402Signal" />
   <meta property="og:image" content="https://402signal.com/og.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Explore paid APIs" />
-  <meta name="twitter:description" content="Search x402 services across Base, Solana, and Algorand. Find candidates, then set the rules for a live check." />
-  <meta name="twitter:image" content="https://402signal.com/og.png" />
   <meta name="twitter:site" content="@402Signal" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <div class="page">
-    <header class="site">
-      <a class="brand" href="/">
-        <span class="mark">402</span>
-        <span class="brand-name">402Signal</span>
-      </a>
-      <nav class="nav" aria-label="Primary">
-        <a href="/catalog" aria-current="page">Explore</a>
-        <a href="/developers">Developers</a>
-        <a href="/transparency">Transparency</a>
-        <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-      </nav>
-    </header>
-
-    <main id="main">
-      <section class="hero compact builder">
-        <p class="eyebrow">Free catalog search</p>
-        <h1>Explore paid APIs</h1>
-        <p class="lede hero-copy">Search x402 services across Base, Solana, and Algorand. Find candidates, then set the rules for a live check. Results come from discovery sources and prior observations. This free search does not check endpoints again.</p>
-      </section>
-
-      <form id="search-form" class="catalog-search">
-        <label class="sr-only" for="need">What do you need?</label>
-        <div class="search-row">
-          <input id="need" class="editable" type="text" value="" placeholder="Try weather, web search, token risk..." autocomplete="off" spellcheck="false" />
-          <button type="submit" id="search-btn" class="btn" disabled>Search catalog</button>
-        </div>
-        <div class="search-meta">
-          <span>Free</span>
-          <span>Discovery data</span>
-          <span>Not a live check</span>
-          <span id="search-status" class="muted" role="status" aria-live="polite"></span>
-        </div>
-
-        <details class="catalog-options">
-          <summary>Examples and network filters</summary>
-          <div class="catalog-options-body">
-            <p class="label">Examples</p>
-            <div class="chips" id="need-chips">
-              <button type="button" class="chip" data-need="web search">web search</button>
-              <button type="button" class="chip" data-need="weather">weather</button>
-              <button type="button" class="chip" data-need="token risk">token risk</button>
-              <button type="button" class="chip" data-need="LLM inference">LLM inference</button>
-              <button type="button" class="chip" data-need="wallet balance">wallet balance</button>
-            </div>
-
-            <fieldset class="policy-field lock">
-              <legend>Required network</legend>
-              <p class="policy-hint">Limits catalog results and the generated route request. Leave Any selected to search all supported networks.</p>
-              <div class="chips lock-chips" id="network-chips" role="radiogroup" aria-label="Required network">
-                <button type="button" class="chip active" data-network="any" aria-pressed="true">Any</button>
-                <button type="button" class="chip" data-network="base" aria-pressed="false">Base</button>
-                <button type="button" class="chip" data-network="solana" aria-pressed="false">Solana</button>
-                <button type="button" class="chip" data-network="algorand" aria-pressed="false">Algorand</button>
-              </div>
-            </fieldset>
-
-            <fieldset class="policy-field prefer">
-              <legend>Prefer network</legend>
-              <p class="policy-hint">Changes ranking without excluding other networks.</p>
-              <div class="chips prefer-chips" id="prefer-chips" role="radiogroup" aria-label="Prefer network">
-                <button type="button" class="chip active" data-prefer="any" aria-pressed="true">No preference</button>
-                <button type="button" class="chip" data-prefer="base" aria-pressed="false">Base</button>
-                <button type="button" class="chip" data-prefer="solana" aria-pressed="false">Solana</button>
-                <button type="button" class="chip" data-prefer="algorand" aria-pressed="false">Algorand</button>
-              </div>
-            </fieldset>
-          </div>
-        </details>
-      </form>
-
-      <div id="search-results" aria-live="polite" aria-relevant="additions text"></div>
-
-      <details class="route-builder">
-        <summary>Build a paid live routing request</summary>
-        <section class="function-pane route-pane route-request" aria-labelledby="route-heading">
-        <h2 id="route-heading">Set route constraints</h2>
-        <p>These rules apply only to the generated <code>POST /route</code> request. This page builds the request but does not submit or charge it.</p>
-
-        <div class="policy-grid pair">
-          <div class="policy-field">
-            <label class="label" for="max-price">Max price (USD)</label>
-            <input id="max-price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.05" />
-          </div>
-          <div class="policy-field">
-            <label class="label" for="min-observations">Minimum prior observations</label>
-            <input id="min-observations" type="number" min="0" step="1" inputmode="numeric" placeholder="3" />
-          </div>
-        </div>
-
-        <label class="toggle">
-          <input id="require-invocable" type="checkbox" />
-          <span>Require invocation schema</span>
-        </label>
-        <p class="policy-hint">Exclude live payment endpoints that do not provide enough input information to construct the call.</p>
-
-        <fieldset class="policy-field">
-          <legend>Objective</legend>
-          <p class="policy-hint">Default ranking uses the server's usual order. Lowest price, lowest probe latency, and observed reliability apply only to currently probed eligible candidates.</p>
-          <div class="chips" id="objective-chips" role="radiogroup" aria-label="Objective">
-            <button type="button" class="chip active" data-objective="best" aria-pressed="true">Default ranking</button>
-            <button type="button" class="chip" data-objective="cheapest" aria-pressed="false">Lowest price</button>
-            <button type="button" class="chip" data-objective="fastest" aria-pressed="false">Lowest probe latency</button>
-            <button type="button" class="chip" data-objective="most_reliable" aria-pressed="false">Observed reliability</button>
-          </div>
-        </fieldset>
-
-        <details class="policy-advanced">
-          <summary>Advanced route constraints</summary>
-          <div class="policy-grid pair">
-            <div class="policy-field">
-              <label class="label" for="max-total-cost">Maximum total cost</label>
-              <input id="max-total-cost" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.10" />
-              <p class="policy-hint">Merchant price plus known fees. Unknown required cost components fail closed.</p>
-            </div>
-            <div class="policy-field">
-              <label class="label" for="max-latency">Maximum probe latency</label>
-              <input id="max-latency" type="number" min="0" step="1" inputmode="numeric" placeholder="800" />
-              <p class="policy-hint">Maximum HTTP probe RTT for the current check. This is not settlement latency.</p>
-            </div>
-          </div>
-          <fieldset class="policy-field">
-            <legend>Search depth</legend>
-            <p class="policy-hint">Thorough allows a deeper probe set. The server-wide maximum is 20 candidates.</p>
-            <div class="chips" id="depth-chips" role="radiogroup" aria-label="Search depth">
-              <button type="button" class="chip active" data-depth="standard" aria-pressed="true">Standard</button>
-              <button type="button" class="chip" data-depth="thorough" aria-pressed="false">Thorough</button>
-            </div>
-          </fieldset>
-        </details>
-
-        <h3>Generated request</h3>
-        <p class="note">For optional route binding, add <code>"require_route_binding": true</code> to the generated JSON before your initial <code>/route</code> request. These controls do not add it automatically, and free preview does not issue a bound receipt. <a href="/developers#route-binding">Verify seller terms before signing</a>.</p>
-        <div id="policy-facts" class="policy-facts"></div>
-        <p id="policy-summary" class="policy-summary">Enter a capability above to generate the request body.</p>
-        <div class="code-toolbar">
-          <p class="muted">POST /route JSON from these controls</p>
-          <div class="row">
-            <button type="button" id="copy-route-json" class="copy-btn" disabled>Copy JSON</button>
-            <button type="button" id="copy-route-curl" class="copy-btn" disabled>Copy curl</button>
-            <a href="/developers">Developers</a>
-          </div>
-        </div>
-        <pre id="route-json" class="code" aria-live="polite">Enter a capability above to generate the request body.</pre>
-        <pre id="route-curl" class="code" hidden></pre>
-        <p class="note">Authorize $0.003 USDC for POST /route. 402Signal settles only when it returns a valid live eligible route. Normal typed misses are not settled. Seller payment is separate.</p>
-        </section>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="page wide">
+  <header class="site">
+    <a class="brand" href="/"><span class="mark">402</span><span class="brand-name">402Signal</span></a>
+    <nav class="nav" aria-label="Primary"><a href="/catalog" aria-current="page">Explore</a><a href="/developers">Developers</a><a href="/transparency">Transparency</a><a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a></nav>
+  </header>
+  <main id="main">
+    <section class="hero compact builder">
+      <p class="eyebrow">Free catalog search</p>
+      <h1>Explore paid APIs</h1>
+      <p class="lede hero-copy">Find a candidate. See what is known. Build a check before paying.</p>
+      <p class="note">Search x402 services across Base, Solana, and Algorand. Listings describe what sellers offer; prior observations describe what 402Signal saw at the stated time. This free search does not check endpoints again.</p>
+      <div class="page-links"><a href="#request-builder">Already have an endpoint?</a><a href="/how#playground">Try the no-payment example</a><a href="/developers#interfaces">Preview, validate or route?</a></div>
+    </section>
+    <form id="search-form" class="catalog-search">
+      <label class="label" for="need">What do you need?</label>
+      <div class="search-row"><input id="need" type="text" maxlength="300" placeholder="Try weather, web search, token risk..." autocomplete="off" /><button id="search-btn" class="btn" type="submit" disabled>Search catalog</button></div>
+      <div class="search-meta"><span>Free</span><span>Discovery data</span><span>Not a live check</span></div>
+      <div class="chips" id="need-chips" aria-label="Example searches"><button type="button" class="chip" data-need="web search">Web search</button><button type="button" class="chip" data-need="weather">Weather</button><button type="button" class="chip" data-need="token risk">Token risk</button><button type="button" class="chip" data-need="LLM inference">LLM inference</button><button type="button" class="chip" data-need="wallet balance">Wallet balance</button></div>
+      <fieldset class="policy-field"><legend>Required network</legend><p class="policy-hint">Limits catalog results and the generated route request. Leave Any selected to search all supported networks.</p><div class="chips" id="network-chips"><button type="button" class="chip active" data-network="any" aria-pressed="true">Any</button><button type="button" class="chip" data-network="base" aria-pressed="false">Base</button><button type="button" class="chip" data-network="solana" aria-pressed="false">Solana</button><button type="button" class="chip" data-network="algorand" aria-pressed="false">Algorand</button></div></fieldset>
+      <p id="search-status" role="status" aria-live="polite"></p>
+    </form>
+    <section id="result-controls" class="panel" hidden aria-label="Refine returned listings">
+      <p id="catalog-summary"></p>
+      <div class="policy-grid pair"><div><label class="label" for="display-filter">Show returned listings</label><select id="display-filter"><option value="all">All</option><option value="observed">With prior observations</option><option value="schema">With a listed input schema</option></select></div><div><label class="label" for="display-sort">Order returned listings</label><select id="display-sort"><option value="catalog">Catalog order</option><option value="recent">Most recently observed</option><option value="price">Lowest listed fixed USD price</option></select></div></div>
+      <p class="policy-hint">These controls affect only the listings in this response, not a live route's ranking. Unknown or variable prices are not compared as fixed prices. Listings are not endorsements or promises of equivalent output.</p>
+    </section>
+    <div id="search-results" aria-live="polite" aria-relevant="additions text"></div>
+    <section id="request-builder" class="block route-request" aria-labelledby="route-heading">
+      <p class="eyebrow">Your next step</p><h2 id="route-heading">Build a paid live routing request</h2>
+      <p>This page builds the request but does not submit or charge it. Choose a listed endpoint above or bring your own.</p>
+      <fieldset class="policy-field"><legend>What should be checked?</legend><label class="toggle"><input type="radio" name="target-mode" value="need" checked /> Discover by the capability above</label><label class="toggle"><input type="radio" name="target-mode" value="url" /> Check one exact endpoint</label></fieldset>
+      <div id="endpoint-field" hidden><label class="label" for="endpoint-url">Exact HTTPS endpoint</label><input id="endpoint-url" type="text" inputmode="url" autocomplete="off" spellcheck="false" maxlength="4096" placeholder="https://seller.example/x402" aria-describedby="endpoint-help endpoint-error" /><p id="endpoint-help" class="policy-hint">The original URL and query encoding are preserved. Do not paste credentials, authorization headers or private records. Selecting an endpoint does not change your required network.</p><p id="endpoint-error" role="status"></p></div>
+      <div class="policy-grid pair">
+        <div class="policy-field"><label class="label" for="max-price">Maximum seller price (USD)</label><input id="max-price" type="text" inputmode="decimal" autocomplete="off" maxlength="24" placeholder="0.001" aria-describedby="max-price-error" /><p id="max-price-error" role="status"></p></div>
+        <div class="policy-field"><label class="label" for="min-observations">Minimum prior observations</label><input id="min-observations" type="text" inputmode="numeric" autocomplete="off" maxlength="16" placeholder="3" aria-describedby="min-observations-error" /><p id="min-observations-error" role="status"></p></div>
+      </div>
+      <label class="toggle"><input id="require-invocable" type="checkbox" />Require invocation schema</label><p class="policy-hint">Require enough input metadata to construct the call. This does not establish output quality.</p>
+      <label class="toggle"><input id="require-binding" type="checkbox" checked />Include signed evidence for the buyer guard</label><p id="binding-help" class="policy-hint">Adds require_route_binding=true. Your application must also integrate the local guard before its own wallet signs; the flag alone does not enforce wallet policy.</p>
+      <details class="policy-advanced"><summary>Ranking and additional constraints</summary>
+        <fieldset class="policy-field"><legend>Objective</legend><p class="policy-hint">Ranks currently probed eligible candidates, not every listing.</p><div class="chips" id="objective-chips"><button type="button" class="chip active" data-objective="best" aria-pressed="true">Default ranking</button><button type="button" class="chip" data-objective="cheapest" aria-pressed="false">Lowest price</button><button type="button" class="chip" data-objective="fastest" aria-pressed="false">Lowest probe latency</button><button type="button" class="chip" data-objective="most_reliable" aria-pressed="false">Observed reliability</button></div></fieldset>
+        <fieldset class="policy-field"><legend>Prefer network</legend><p class="policy-hint">Changes ranking without excluding other networks. It cannot override the required network.</p><div class="chips" id="prefer-chips"><button type="button" class="chip active" data-prefer="any" aria-pressed="true">No preference</button><button type="button" class="chip" data-prefer="base" aria-pressed="false">Base</button><button type="button" class="chip" data-prefer="solana" aria-pressed="false">Solana</button><button type="button" class="chip" data-prefer="algorand" aria-pressed="false">Algorand</button></div></fieldset>
+        <div class="policy-grid pair"><div class="policy-field"><label class="label" for="max-total-cost">Seller price + known seller-side fees cap (USD)</label><input id="max-total-cost" type="text" inputmode="decimal" autocomplete="off" maxlength="24" placeholder="0.01" aria-describedby="total-help max-total-cost-error" /><p id="total-help" class="policy-hint">This is max_total_cost_usd, not a whole-wallet budget. It excludes the separate $0.003 routing fee. Unknown required cost components fail closed.</p><p id="max-total-cost-error" role="status"></p></div><div class="policy-field"><label class="label" for="max-latency">Maximum HTTP probe time (ms)</label><input id="max-latency" type="text" inputmode="numeric" autocomplete="off" maxlength="16" placeholder="800" aria-describedby="latency-help max-latency-error" /><p id="latency-help" class="policy-hint">This is not settlement latency.</p><p id="max-latency-error" role="status"></p></div></div>
+        <fieldset class="policy-field"><legend>Search depth</legend><div class="chips" id="depth-chips"><button type="button" class="chip active" data-depth="standard" aria-pressed="true">Standard</button><button type="button" class="chip" data-depth="thorough" aria-pressed="false">Thorough</button></div><p class="policy-hint">Thorough permits more probes within server limits. It does not guarantee exhaustive coverage.</p></fieldset>
       </details>
-    </main>
-
-    <footer class="foot">
-      <p>402Signal</p>
-      <p>
-        <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-        <a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a>
-        <a href="/how">How it works</a>
-        <a href="/openapi.json">OpenAPI</a>
-        <a href="/mcp.json">MCP</a>
-        <a href="/transparency">Transparency</a>
-        <a href="/contact">Contact</a>
-        <a href="/contact#security">Security reporting</a>
-        <a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a>
-        <a href="mailto:ross@402signal.com">ross@402signal.com</a>
-      </p>
-    </footer>
-  </div>
-  <script src="/app.js"></script>
+      <h3>Generated request</h3><p id="policy-summary" role="status" aria-live="polite">Enter a capability or choose an exact endpoint.</p><div id="policy-facts" class="policy-facts"></div>
+      <div class="code-toolbar"><p>POST /route</p><div class="row"><button type="button" id="copy-route-json" class="copy-btn" disabled>Copy JSON</button><button type="button" id="copy-route-curl" class="copy-btn" disabled>Copy curl</button></div></div>
+      <pre id="route-json" class="code">Enter a capability or choose an exact endpoint.</pre><pre id="route-curl" hidden></pre>
+      <p class="note">The copied curl sends an unpaid request and receives the routing payment challenge. A qualifying check costs $0.003 USDC; completed no-match checks are free. Seller payment is separate. A later buyer-guard refusal does not refund an already settled check.</p>
+      <div class="page-links"><a href="/developers#route-binding">Integrate the local guard</a><a href="/developers#recovery">Handle billing and recovery</a><a href="/developers#batch-support">Batch and session profiles</a></div>
+    </section>
+  </main>
+  <footer class="foot"><p>402Signal</p><p><a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a><a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a><a href="/how">How it works</a><a href="/openapi.json">OpenAPI</a><a href="/mcp.json">MCP</a><a href="/transparency">Transparency</a><a href="/contact">Contact</a><a href="/contact#security">Security reporting</a><a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a><a href="mailto:ross@402signal.com">ross@402signal.com</a></p></footer>
+</div>
+<script src="/app.js" defer></script>
 </body>
 </html>
