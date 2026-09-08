@@ -52,7 +52,7 @@ def batch_limit_schemas() -> dict:
     )
     def constant(value):
         return {"type": "string", "const": value}
-    return {
+    result = {
         "base-x402-batch-v1": _closed({
             "network": constant(base.NETWORK), "asset": constant(base.ASSET),
             "recipient": deepcopy(evm), "receiver_authorizer": constant(base.AUTHORIZER),
@@ -77,6 +77,21 @@ def batch_limit_schemas() -> dict:
                            "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
         }),
     }
+
+    # New profiles preserve the old two-item floor and use a fee-quote-bound
+    # caller ceiling instead. Aggregate invoices have no inferred item price.
+    multi = deepcopy(result["algorand-atomic-two-item-v1"])
+    multi["properties"]["job_hashes"]["maxItems"] = 15
+    multi["properties"]["max_sponsor_fee_micro_algo"] = deepcopy(amount)
+    multi["description"] = "2–15 ordered item payments plus sponsor. The observed current fee quote must fit the caller ceiling."
+    invoice = deepcopy(multi)
+    invoice["properties"]["job_hashes"]["maxItems"] = 64
+    del invoice["properties"]["max_item_amount_atomic"]
+    invoice["required"].remove("max_item_amount_atomic")
+    invoice["description"] = "Explicit merchant aggregate invoice: 2–64 jobs, one payment plus sponsor. Per-job price is unknown; item price caps are unsupported. 64 is the initial manifest budget, not a chain transaction limit."
+    result["algorand-atomic-multi-item-v1"] = multi
+    result["algorand-aggregate-invoice-v1"] = invoice
+    return result
 
 
 def extend_http_route_schema(ordinary: dict) -> dict:

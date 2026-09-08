@@ -1,0 +1,56 @@
+{
+  "name": "@402signal/session-client",
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "exports": {
+    ".": {
+      "types": "./types/policy.d.ts",
+      "default": "./src/policy.mjs"
+    },
+    "./base": {
+      "types": "./types/base.d.ts",
+      "default": "./src/base.mjs"
+    },
+    "./solana": {
+      "types": "./types/solana.d.ts",
+      "default": "./src/solana.mjs"
+    },
+    "./ledger": {
+      "types": "./types/ledger.d.ts",
+      "default": "./internal/local-ledger.mjs"
+    },
+    "./transport": {
+      "types": "./types/transport.d.ts",
+      "default": "./src/transport.mjs"
+    }
+  },
+  "files": [
+    "src",
+    "internal",
+    "route-guard",
+    "README.md",
+    "PROVENANCE.json",
+    "types",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node sync-internal.mjs",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "prepack": "node sync-internal.mjs",
+    "test:package": "node test/install-smoke.mjs",
+    "test:types": "node test/types-smoke.mjs"
+  },
+  "dependencies": {
+    "@solana/kit": "6.10.0",
+    "@solana/mpp": "0.7.0",
+    "@x402/core": "2.25.0",
+    "@x402/evm": "2.25.0",
+    "mppx": "0.5.5",
+    "viem": "2.56.3"
+  },
+  "license": "MIT",
+  "types": "./types/policy.d.ts"
+}

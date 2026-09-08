@@ -1,3 +1,4 @@
+import type {ManifestRecoveryRequest} from "./algorand-manifest.js";
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { Seller } from './seller.js';
 import { RAILS, type Rail } from './config.js';
@@ -17,6 +18,7 @@ async function readBody(req: IncomingMessage): Promise<string> {
 }
 export interface BatchHttpMerchant {
  path:string; authorizationHeader:'payment-signature'|'authorization';
+ recover?:(request:ManifestRecoveryRequest)=>Promise<Outcome & {recoveryOnly:true}>;
  request(url:string,authorization?:string,recoveryOnly?:boolean):Promise<Outcome|{status:number;bodyText:string;headers?:Record<string,string>}>;
 }
 function send(res: ServerResponse, o: Outcome|{status:number;bodyText:string;headers?:Record<string,string>}, head = false) {
@@ -47,6 +49,12 @@ export function server(seller: Seller, atomicBatch?: AlgorandBatchSeller, batchM
         const header=req.headers[batch.authorizationHeader];assert(!Array.isArray(header),'invalid_payment_header');
         const recovery=req.rawHeaders.filter((v,i)=>i%2===0&&v.toLowerCase()==='replay-only').length;
         assert(recovery<=1&&(!recovery||req.headers['replay-only']==='1'),'invalid_recovery_header');
+        if(batch.recover){
+          const fields=["manifest-group-id","manifest-request-digest","manifest-authorization-digest"];
+          assert(fields.every(n=>req.rawHeaders.filter((v,i)=>i%2===0&&v.toLowerCase()===n).length<=1),"duplicate_manifest_recovery_header");
+          if(recovery===1){assert(header===undefined,"executable_recovery_credential_refused");const recovered=await batch.recover({recoveryOnly:true,url:seller.config.origin+path,groupId:req.headers[fields[0]!] as string,requestDigest:req.headers[fields[1]!] as string,authorizationDigest:req.headers[fields[2]!] as string});return send(res,{...recovered,headers:{...recovered.headers,"Replay-Only":"1"}})}
+          assert(fields.every(n=>req.headers[n]===undefined),"unexpected_recovery_header");
+        }
         return send(res,await batch.request(seller.config.origin+path,header,recovery===1));
       }
       if(atomicBatch && path.startsWith(ALGORAND_BATCH_PATH+'?')) {

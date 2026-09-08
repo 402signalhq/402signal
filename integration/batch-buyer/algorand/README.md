@@ -44,3 +44,9 @@ For a compatible outside merchant, explicitly select `algorand-atomic-two-item-v
 Pass the verified observation's manifest and the original independent limits to `prepareAlgorandBatch({...input, profile:'algorand-atomic-two-item-v1', buyerLimits})`. Use `withVerifiedBatchRoute` from the separately installed route guard before the signing callback; check its request and challenge against the actual invocation. The adapter independently revalidates the generic manifest and keeps the profile/limits attached throughout signing, send and read-only recovery. It rejects an absent or changed item cap, total cap, job hash, recipient, sponsor or resource. Job hashes describe the intended items; they do not certify that work was delivered.
 
 The existing `algorandBatchManifest` helper and campaign CLI describe the fixed-price SHA256 lab example only. They do not derive arbitrary merchant job semantics or select a customer's spending limits.
+
+## Larger groups and explicit invoices
+
+The optional `./manifest` and `./manifest-store` exports add two versioned profiles: 2–15 ordered equal-price USDC payments plus one sponsor, or a merchant-declared 2–64-job invoice paid in one transfer plus a sponsor. The original two-item API remains unchanged. The invoice limit is a payload budget, not a chain limit; unknown per-job allocation remains unknown.
+
+See [the exact profiles and economics](../../../docs/algorand-manifests-v2.md) and [the buyer-owned guard example](examples/manifest.ts). Install the locally packed route-guard package alongside this package to compile the example. New profiles have synthetic SDK/HTTP/restart qualification; live provider campaigns remain separately gated.
