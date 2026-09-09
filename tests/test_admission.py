@@ -317,6 +317,13 @@ class AdmissionTests(unittest.TestCase):
                 )
                 self.assertEqual(status, 200)
                 self.assertEqual((body.get("result") or {}).get("serverInfo", {}).get("name"), "402Signal")
+                status, body = request(
+                    "POST",
+                    "/mcp",
+                    body=json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+                    headers={"Content-Type": "application/json"},
+                )
+                self.assertEqual(status, 202)
                 status, body = request("GET", "/route", headers={"Accept": "application/json"})
                 self.assertEqual(status, 429)
                 self.assertEqual(body.get("error"), "rate limit")
@@ -529,6 +536,74 @@ class AdmissionTests(unittest.TestCase):
             httpd.shutdown()
             httpd.server_close()
             thread.join(timeout=5)
+
+    def test_http_cold_mcp_lifecycle_leaves_free_tool_headroom(self):
+        import http.client
+        class QuietHandler(server.Handler):
+            def log_message(self, *args): pass
+        httpd = server.BoundedThreadingHTTPServer(("127.0.0.1", 0), QuietHandler)
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        def request(body):
+            c = http.client.HTTPConnection("127.0.0.1", httpd.server_port, timeout=5)
+            try:
+                c.request("POST", "/mcp", body=json.dumps(body), headers={"Content-Type": "application/json"})
+                r = c.getresponse()
+                raw = r.read()
+                if not raw:
+                    return r.status, None
+                return r.status, json.loads(raw.decode("utf-8"))
+            finally:
+                c.close()
+        unpaid_before = self.e.buckets.get("unpaid:global")
+        unpaid_balance = unpaid_before.balance if unpaid_before else None
+        ingress_before = self.e.buckets.get("ingress:global")
+        try:
+            with patch.object(admission, "engine", return_value=self.e), patch.object(admission, "configured", return_value=True), patch.object(server, "client_ip", return_value="anon-mcp"), patch.dict(os.environ, {"LIVE402_FIXTURE": "1"}):
+                self.assertEqual(self.now, 10.0)
+                status, body = request({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+                self.assertEqual(status, 200)
+                self.assertEqual((body.get("result") or {}).get("serverInfo", {}).get("name"), "402Signal")
+                status, body = request({"jsonrpc": "2.0", "method": "notifications/initialized"})
+                self.assertEqual(status, 202)
+                self.assertIsNone(body)
+                status, body = request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+                self.assertEqual(status, 200)
+                names = [t.get("name") for t in ((body.get("result") or {}).get("tools") or [])]
+                self.assertEqual(set(names), {"route", "preview", "validate"})
+                status, body = request({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "preview", "arguments": {"need": "weather"}}})
+                self.assertEqual(status, 200)
+                preview = json.loads(body["result"]["content"][0]["text"])
+                self.assertTrue(preview.get("not_probed"))
+                status, body = request({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "validate", "arguments": {"url": "https://fixture.402signal.local/weather"}}})
+                self.assertEqual(status, 200)
+                checked = json.loads(body["result"]["content"][0]["text"])
+                self.assertEqual(checked.get("url"), "https://fixture.402signal.local/weather")
+                self.assertIn("live", checked)
+                status, body = request({"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "preview", "arguments": {"need": "weather"}}})
+                self.assertEqual(status, 429)
+                c = http.client.HTTPConnection("127.0.0.1", httpd.server_port, timeout=5)
+                c.request("POST", "/route", body="{}", headers={"Content-Type": "application/json"})
+                r = c.getresponse()
+                paid = json.loads(r.read().decode("utf-8"))
+                self.assertEqual(r.status, 402)
+                self.assertEqual(paid.get("amount"), "$0.003")
+                c.close()
+                self.assertEqual(self.now, 10.0)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=5)
+        if unpaid_balance is None:
+            self.assertNotIn("unpaid:global", self.e.buckets)
+        else:
+            self.assertEqual(self.e.buckets["unpaid:global"].balance, unpaid_balance)
+        self.assertNotIn("discovery:global", self.e.buckets)
+        self.assertIn("discovery:global", self.e.discovery_buckets)
+        self.assertTrue(any(k.startswith("discovery:anonymous:") for k in self.e.discovery_buckets))
+        if ingress_before is None:
+            self.assertIn("ingress:global", self.e.buckets)
+        self.assertLess(self.e.discovery_buckets["discovery:global"].balance, admission.DISCOVERY_GLOBAL)
 
 
 
