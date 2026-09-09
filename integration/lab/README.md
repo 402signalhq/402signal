@@ -22,20 +22,20 @@ podman build --build-arg NODE_IMAGE=YOUR_REVIEWED_NODE_24_IMAGE -t localhost/402
 ```
 
 Fly lab publishes use `integration/lab/Dockerfile.fly` with the `integration/`
-context so the locked `integration/mpp-algorand` package is copied to
-`/mpp-algorand` (sources plus production `node_modules`). Compiled seller
-registration can load `lab-merchant.mjs` without a post-build symlink. The
-package's repository-relative `../../sdk/route-guard` imports use a second
-copy of the already-required lab SDK at `/sdk`.
+context. The machine command is `node /app/start-seller.mjs`. The locked
+`integration/mpp-algorand` package is copied to `/app/native-mpp/algorand` with
+`/mpp-algorand` pointing at that directory so compiled seller registration can
+load `lab-merchant.mjs`. `index.mjs` repository-relative `../../sdk/route-guard`
+imports resolve through `/app/sdk`.
 
 ```sh
 podman build --build-arg NODE_IMAGE=YOUR_REVIEWED_NODE_24_IMAGE \
   -f integration/lab/Dockerfile.fly -t localhost/402signal-lab:reviewed integration
 ```
 
-Pin NODE_IMAGE to a reviewed digest before publishing. The default image command
-runs an offline demo. Existing live configurations, public verification-key pins
-and ledgers must be mounted separately; paid runs retain all explicit policy,
+Pin NODE_IMAGE to a reviewed digest before publishing. Provide
+`/app/config/seller-deploy.json` and a `/labdata` volume on the machine; do not
+commit production seller-deploy contents. Paid runs retain all explicit policy,
 wallet, recipient, fee, budget and network gates. Recovery needs public policy,
 the ledger and RPC access, but no private wallet environment.
 

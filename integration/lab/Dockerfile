@@ -1,7 +1,8 @@
 # Keep the existing lab-only context and /app/dist + /app/sdk runtime paths.
-# Fly lab publishes use Dockerfile.fly (integration/ context) so /mpp-algorand
-# is baked in. Full repository and PostgreSQL integration tests run in cloud
-# CI before build. Pin NODE_IMAGE to the reviewed digest when publishing.
+# Fly lab publishes use Dockerfile.fly (integration/ context, start-seller
+# entrypoint, /app/native-mpp/algorand). Full repository and PostgreSQL
+# integration tests run in cloud CI before build. Pin NODE_IMAGE to the
+# reviewed digest when publishing.
 ARG NODE_IMAGE=node:24-bookworm-slim
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app

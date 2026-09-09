@@ -52,11 +52,11 @@ the module does not fabricate a receipt or claim fulfillment.
 Registration loads `../../../mpp-algorand/lab-merchant.mjs` from compiled
 `/app/dist/src`, which is `/mpp-algorand/lab-merchant.mjs`. The lab Fly image
 (`integration/lab/Dockerfile.fly`, built from the `integration/` context) copies
-the locked package sources and production `node_modules` to `/mpp-algorand`.
-`index.mjs` repository-relative `../../sdk/route-guard` imports resolve through
-a second copy of the already-required lab SDK at `/sdk`. Do not replace this
-layout with a post-deploy machine symlink. Existing opt-in flags, recipient,
-origin, RPC and credential gates are unchanged.
+the locked package sources and production `node_modules` to
+`/app/native-mpp/algorand` and links `/mpp-algorand` there. `index.mjs`
+repository-relative `../../sdk/route-guard` imports resolve through `/app/sdk`.
+The machine command is `node /app/start-seller.mjs`. Existing opt-in flags,
+recipient, origin, RPC and credential gates are unchanged.
 
 ## Qualification
 
