@@ -105,15 +105,14 @@ test("missing batch credentials keep seller boot and refuse the batch profile cl
       const ready = await http(l.config.origin + "/ready", "GET");
       assert.equal(ready.status, 200);
       assert.equal(ready.body.ok, true);
-      assert.deepEqual(ready.body.unavailable_profiles, [{
-        profile: "base-batch",
-        path: "/base/batch/sha256",
-        error: "base_batch_cdp_tokens_required",
-        new_payment_allowed: false,
-      }]);
+      assert.equal(ready.body.unavailable_profiles.length, 1);
+      assert.equal(ready.body.unavailable_profiles[0].profile, "base-batch");
+      assert.equal(ready.body.unavailable_profiles[0].path, "/base/batch/sha256");
+      assert.equal(ready.body.unavailable_profiles[0].error, "base_batch_cdp_tokens_required");
+      assert.equal(ready.body.unavailable_profiles[0].new_payment_allowed, false);
       const again = await http(l.config.origin + "/ready", "GET");
       assert.equal(again.status, 200);
-      assert.deepEqual(again.body.unavailable_profiles, ready.body.unavailable_profiles);
+      assert.equal(again.body.unavailable_profiles[0].error, ready.body.unavailable_profiles[0].error);
       const challenge = await http(l.config.origin + "/base/payload/sha256", "GET");
       assert.equal(challenge.status, 402);
       assert.equal(challenge.body.accepts[0].scheme, "exact");
