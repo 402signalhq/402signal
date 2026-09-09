@@ -47,7 +47,7 @@ try{for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
   await page.goto(origin+'/');assert.ok(await page.getByRole('link',{name:'Building a payment client? Run the free offline checks.'}).isVisible());
   await page.screenshot({path:resolve(out,`adoption-home-${engine}-${width}.png`),fullPage:true});
   await page.goto(origin+'/developers#request');assert.ok(await page.locator('#route-binding').isVisible());
-  for (const id of ['quickstart','route-binding','native-mpp','batch-support','sellers','recovery','seller-recovery','interfaces','pq-trust','policy-guide','compatibility']) { await page.locator('[data-guide-link="'+id+'"]').click(); assert.ok(await page.locator('#'+id).isVisible()); assert.equal(await page.locator('[data-guide]:visible').count(),1); }
+  for (const id of ['quickstart','route-binding','native-mpp','batch-support','sellers','recovery','seller-recovery','interfaces','pq-trust','policy-guide','compatibility']) { await page.locator('[data-guide-link="'+id+'"]').click(); await page.locator('#'+id).waitFor({state:'visible'}); assert.ok(await page.locator('#'+id).isVisible()); assert.equal(await page.locator('[data-guide]:visible').count(),1); }
   await page.goto(origin+'/developers#seller-recovery');assert.ok(await page.locator('#seller-recovery').isVisible());
   await page.screenshot({path:resolve(out,`adoption-index-${engine}-${width}.png`),fullPage:true});
   assert.deepEqual(errors,[]);assert.ok(!requests.some(u=>u.includes('/route?')||u.endsWith('/route')||u.includes('/validate')));
