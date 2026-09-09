@@ -2297,6 +2297,11 @@ class PublicRateLimitTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(raw), {"ok": True})
         status, raw, _hdrs = _get_full(
+            self.port, "/ready", extra_headers=ip_headers
+        )
+        self.assertIn(status, (200, 503))
+        self.assertIn("ok", json.loads(raw))
+        status, raw, _hdrs = _get_full(
             self.port, "/rails", extra_headers=ip_headers
         )
         self.assertEqual(status, 200)

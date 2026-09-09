@@ -880,8 +880,6 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/health":
             return self._json(200, {"ok": True})
         if parsed.path == "/ready":
-            if not self._public_allowed("ready"):
-                return self._json(429, {"error": "rate limit"})
             payload = ready.readiness()
             return self._json(200 if payload.get("ok") else 503, payload)
         if parsed.path == "/preview":
