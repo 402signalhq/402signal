@@ -1,0 +1,150 @@
+{
+  "record_version": 1,
+  "reviewed_at": "2026-09-09",
+  "source_baseline": "a743b655866e52951efe751be0fefacf3f82ac33",
+  "packages": [
+    {
+      "tag": "route-guard-v0.7.0",
+      "published_at": "2026-09-08T21:23:36Z",
+      "source_revision": "65371be8c2d54af6fe52459d31f5009b0171f962",
+      "archive": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.0/402signal-route-guard-0.7.0.tgz",
+      "sha256": "3a775b824c1c8a83e9ea782b4092cd30b30c6347e531b26dace8eb67b94542d4",
+      "checksum_file": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.0/SHA256SUMS",
+      "checksum_file_sha256": "303921695e3f4ca0af492247b96c0061d7eca9288bc1005916a5ee4b69bc5105",
+      "distribution": "GitHub release archive; not npm registry",
+      "state": "published",
+      "recipe": "/developers/check-offer"
+    },
+    {
+      "tag": "session-client-v0.1.1",
+      "published_at": "2026-09-08T21:48:08Z",
+      "source_revision": "37152505b06f6fc5c003a3ee347a18187f51e3e5",
+      "archive": "https://github.com/402signalhq/402signal/releases/download/session-client-v0.1.1/402signal-session-client-0.1.1.tgz",
+      "sha256": "682b149b96d475c0def54ff01eab7194ca0db6645bb4a69a76b03f958bbc9aea",
+      "checksum_file": "https://github.com/402signalhq/402signal/releases/download/session-client-v0.1.1/SHA256SUMS.txt",
+      "checksum_file_sha256": "e9522cbfa2432790a7bf9977b5f6b7fd2be3259e9f78956e1672f038c6715293",
+      "distribution": "GitHub release archive; not npm registry",
+      "state": "published",
+      "recipe": "/developers/sessions-and-invoices"
+    },
+    {
+      "tag": "algorand-batch-buyer-v0.2.0",
+      "published_at": "2026-09-08T21:23:28Z",
+      "source_revision": "65371be8c2d54af6fe52459d31f5009b0171f962",
+      "archive": "https://github.com/402signalhq/402signal/releases/download/algorand-batch-buyer-v0.2.0/402signal-algorand-batch-buyer-0.2.0.tgz",
+      "sha256": "36a984cca2ac33200d15fe1318f8163c2dcdf61b9bb97308d18763b2967a792b",
+      "checksum_file": "https://github.com/402signalhq/402signal/releases/download/algorand-batch-buyer-v0.2.0/SHA256SUMS",
+      "checksum_file_sha256": "9a59c1f78ec2d1809ec46a664e9c52e09c3110651dc7e1fcbec8da34e8567a3e",
+      "distribution": "GitHub release archive; not npm registry",
+      "state": "published",
+      "recipe": "/developers/sessions-and-invoices"
+    },
+    {
+      "tag": "mpp-client-v0.1.0",
+      "published_at": "2026-09-08T21:23:32Z",
+      "source_revision": "65371be8c2d54af6fe52459d31f5009b0171f962",
+      "archive": "https://github.com/402signalhq/402signal/releases/download/mpp-client-v0.1.0/402signal-mpp-client-0.1.0.tgz",
+      "sha256": "cc507a426fd0bdb68d7f508717689c3fb74df1ba7503aca93d8e1c67fdbaf0cc",
+      "checksum_file": "https://github.com/402signalhq/402signal/releases/download/mpp-client-v0.1.0/SHA256SUMS",
+      "checksum_file_sha256": "2b9732dcb577d2e7e9424978e482bb359770fe7d218bf47e7b31fa994bdfdee2",
+      "distribution": "GitHub release archive; not npm registry",
+      "state": "published",
+      "recipe": "/developers/native-mpp"
+    }
+  ],
+  "scope_note": "A reviewed documentation record, not a runtime allowlist. Package publication, hosted enablement and dated qualification are separate facts. Recheck current contracts before authorized use.",
+  "fee": {
+    "qualifying_hosted_observation_usdc": "0.003",
+    "normal_completed_miss": "not_settled",
+    "seller_payment_and_network_costs": "separate",
+    "later_refusal": "does_not_reverse_settled_checking_fee"
+  },
+  "merchant_integrations": [
+    {
+      "profiles": [],
+      "network": [
+        "Base",
+        "Solana",
+        "Algorand"
+      ],
+      "mechanism": "supported exact offers",
+      "package": "route-guard-v0.7.0",
+      "runtime": "Node >=22; FileAttemptStore requires private POSIX storage",
+      "request": "GET; bounded POST only where explicitly supported by its separate request profile",
+      "offline_scope": "5 Base exact customer-adapter cases; 2 reference historical-verifier cases, not a production signing test",
+      "limits": "Returned observation expiry; ordinary POST is not a general proxy",
+      "hosted_enablement_source": "/openapi.json",
+      "live_qualification": "See dated integration/reference-buyer/README.md; not universal merchant qualification",
+      "receipt_version": "4; ordinary exact requests omit merchant_profile"
+    },
+    {
+      "profiles": [
+        "base-x402-batch-v1",
+        "solana-mpp-session-v1"
+      ],
+      "network": [
+        "Base for the Base profile",
+        "Solana for the Solana profile"
+      ],
+      "mechanism": "separate channel/session implementations",
+      "package": "session-client-v0.1.1",
+      "runtime": "Node 24; private POSIX/SQLite journal",
+      "request": "exact HTTPS GET observation",
+      "offline_scope": "integration/session-client tests, distinct from exact-offer pack",
+      "limits": "1..64 sequential calls, fixed buyer deadline up to 24 hours; no automatic top-up. Solana cap is not per-call price.",
+      "hosted_enablement_source": "docs/batch-observation-v1.md",
+      "live_qualification": "Documented controlled examples only; maximum call count and duration not certified"
+    },
+    {
+      "profiles": [
+        "algorand-atomic-two-item-v1",
+        "algorand-atomic-multi-item-v1",
+        "algorand-aggregate-invoice-v1"
+      ],
+      "network": [
+        "Algorand"
+      ],
+      "mechanism": "explicit USDC manifests with sponsorship",
+      "package": "algorand-batch-buyer-v0.2.0",
+      "runtime": "Node 24; caller-owned durable budget, identity and submission state",
+      "request": "exact HTTPS GET observation",
+      "offline_scope": "integration/batch-buyer/algorand tests",
+      "limits": "Two-item or 2..15 job payments plus sponsor; invoice 2..64 explicit jobs in one payment plus sponsor. Original sponsor fee bounds unchanged.",
+      "hosted_enablement_source": "docs/algorand-manifests-v2.md",
+      "live_qualification": "Documented controlled examples only; chain atomicity does not establish HTTP delivery"
+    },
+    {
+      "profiles": [
+        "base-mpp-charge-v1"
+      ],
+      "network": [
+        "Base"
+      ],
+      "mechanism": "native MPP evm.charge, USDC EIP-3009",
+      "package": "mpp-client-v0.1.0",
+      "runtime": "Use the runtime in the published archive and integration/mpp-client/NATIVE.md; private durable authorization identity and budget supplied by customer",
+      "request": "exact HTTPS GET observation; exactly one supported offer matches",
+      "offline_scope": "integration/mpp-client native selection tests",
+      "limits": "No splits, Permit2 or arbitrary tokens; preparation is not submission",
+      "hosted_enablement_source": "integration/mpp-client/NATIVE.md",
+      "live_qualification": "Refer to dated contract evidence; not inferred from package publication"
+    },
+    {
+      "profiles": [
+        "algorand-mpp-charge-v1"
+      ],
+      "network": [
+        "Algorand"
+      ],
+      "mechanism": "native MPP charge",
+      "package": null,
+      "runtime": "Source reference adapter; consult integration/mpp-algorand/README.md",
+      "request": "supported exact GET observation",
+      "offline_scope": "integration/mpp-algorand tests",
+      "limits": "Explicit sponsor or buyer-paid fee policy; merchant acknowledgment is not chain confirmation",
+      "hosted_enablement_source": "integration/mpp-algorand/README.md",
+      "live_qualification": "Separate dated evidence; no claim of a published standalone package"
+    }
+  ],
+  "pay_in_note": "402Signal fee-payment mechanisms are advertised separately at /rails and in the unpaid /route requirements. Merchant inspection support does not imply acceptance of that mechanism for the checking fee."
+}

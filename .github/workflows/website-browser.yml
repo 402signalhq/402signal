@@ -34,7 +34,7 @@ jobs:
               def addError(self,test,err):
                   print('ERROR',test.id(),err[0].__name__,str(err[1])[:600])
                   super().addError(test,err)
-          suite=unittest.defaultTestLoader.discover('tests',pattern='test_homepage.py')
+          suite=unittest.TestSuite([unittest.defaultTestLoader.discover('tests',pattern=pattern) for pattern in ['test_homepage.py','test_developer_recipes.py']])
           result=unittest.TextTestRunner(stream=io.StringIO(),resultclass=Result).run(suite)
           print('Customer contracts:',result.testsRun,'run,',len(result.failures),'failed,',len(result.errors),'errors')
           if not result.wasSuccessful(): raise SystemExit(1)
@@ -64,6 +64,7 @@ jobs:
           status=0
           node integration/website/browser.mjs || status=1
           node integration/website/extended.mjs || status=1
+          node integration/website/recipes.mjs || status=1
           exit "$status"
       - name: Record exact qualification revision
         if: always()

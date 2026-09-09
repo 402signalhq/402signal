@@ -70,7 +70,7 @@ with tempfile.TemporaryDirectory(prefix='website-fixture-') as directory:
     try:
         for path, name in [('/transparency', 'transparency.html'), ('/dashboard', 'dashboard.html'),
                            ('/route', 'route.html'), ('/openapi.json', 'openapi.json'),
-                           ('/mcp.json', 'mcp.json'), ('/pulse', 'pulse.json')]:
+                           ('/mcp.json', 'mcp.json'), ('/pulse', 'pulse.json')] + [('/developers/' + slug, 'recipe-' + slug + '.html') for slug in __import__('live402.developer_guides', fromlist=['GUIDES']).GUIDES]:
             connection = HTTPConnection('127.0.0.1', server.server_address[1], timeout=10)
             connection.request('GET', path, headers={'Accept': 'text/html' if name.endswith('.html') else 'application/json'})
             response = connection.getresponse()
