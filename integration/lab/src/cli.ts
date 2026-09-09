@@ -3,7 +3,7 @@ import { readFileSync, mkdirSync, writeFileSync, mkdtempSync, rmSync, readdirSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
-import { loadConfig, RAILS, type Rail, type Config, railInfo } from './config.js';
+import { loadConfig, RAILS, type Rail, type Config, railInfo, serveListenOptions } from './config.js';
 import { assert, LabError, parseJson } from './json.js';
 import { Ledger } from './ledger.js';
 import { Seller } from './seller.js';
@@ -194,7 +194,7 @@ async function main() {
     const c = loadConfig(flag('config')), ledger = new Ledger(c.ledgerPath), seller = new Seller(c, ledger);
     try { await seller.initialize(); } catch { ledger.close(); throw new LabError('seller_initialization_failed', 503); }
     const batches=await configuredBatchHttpMerchants(seller);
-    const app = server(seller, configuredAlgorandBatchSeller(seller),batches.merchants); app.listen(c.port, c.host); await once(app, 'listening');
+    const app = server(seller, configuredAlgorandBatchSeller(seller),batches.merchants); app.listen(serveListenOptions(c.host, c.port)); await once(app, 'listening');
     const unavailable_profiles = batches.merchants.flatMap(m => m.unavailable ?
       [{ profile: m.unavailable.profile, path: m.path, error: m.unavailable.error }] : []);
     print({ listening: app.address(), mode: c.mode, traffic_class: 'self_test', public_directory_submission: false,
