@@ -1,5 +1,11 @@
 # Glama release: hosted-service stdio adapter
 
+**HOLD — needs Ross per-channel GO before any Glama write.** Discovery
+copy and the operator checklist live in
+[track-c-discovery-drafts.md](track-c-discovery-drafts.md)
+(`DRAFT / NO EXTERNAL WRITE`). A README or adapter change is not a Glama
+release.
+
 The Glama container runs `python scripts/glama_stdio.py`. It connects to the
 public hosted MCP endpoint `https://402signal.com/mcp/v0.3.1` and forwards its
 live tool definitions and responses. It does not start a self-hosted router.
@@ -27,8 +33,11 @@ tools remain usable afterward. Requests have a 25-second network timeout.
 - Pinned commit: the reviewed commit containing this adapter
 
 Run Build, inspect the successful test and discovered tools, then create a Glama
-release. Glama releases are separate from GitHub releases and from the hosted
-service version. The adapter's initial release version is `0.1.0`.
+release only after Ross GO. Glama releases are separate from GitHub releases and
+from the hosted service version. The adapter's initial release version is
+`0.1.0` (`User-Agent: 402Signal-Glama-stdio/0.1.0`). A later Glama index
+refresh may appear as a distinct listing version; do not treat that as a new
+adapter contract or as permission to publish.
 
 ## Validation
 

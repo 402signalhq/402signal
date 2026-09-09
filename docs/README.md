@@ -67,7 +67,7 @@ These documents preserve decisions and safety requirements from specific release
 - [Node/TypeScript client and offline guard](../sdk/route-guard/README.md)
 - [Reference buyer](../integration/reference-buyer/README.md)
 - [x402 mppx gateway adapter](../integration/mpp-client/README.md)
-- [MCP adapter](../integration/mcp/README.md), [Glama release procedure](glama-release.md), and [tool-description contributor guidance](mcp-tool-descriptions.md)
+- [MCP adapter](../integration/mcp/README.md), [Glama release procedure](glama-release.md) (HOLD — Ross GO before any Glama write), [Track C discovery drafts](track-c-discovery-drafts.md) (`DRAFT / NO EXTERNAL WRITE`), and [tool-description contributor guidance](mcp-tool-descriptions.md)
 - [Controlled lab](../integration/lab/README.md), [batch qualification](../integration/lab/BATCH_QUALIFICATION.md), and [independently gated HTTP profiles](../integration/lab/BATCH_HTTP.md)
 - [Buyer-owned Algorand payment adapters](../integration/batch-buyer/algorand/README.md)
 - [Installable Base and Solana continuation clients](../integration/session-client/README.md)
