@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.402signalhq/402signal",
-  "description": "Find paid APIs and check buyer rules. Qualifying routes cost $0.003 USDC; normal misses cost $0.",
+  "description": "Check paid API offers before your agent spends. Qualifying routes: $0.003 USDC. Normal misses: free.",
   "title": "402Signal",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "websiteUrl": "https://402signal.com",
-  "remotes": [{"type":"streamable-http","url":"https://402signal.com/mcp/v0.3.1"}]
+  "remotes": [{"type": "streamable-http", "url": "https://402signal.com/mcp/v0.3.1"}]
 }
