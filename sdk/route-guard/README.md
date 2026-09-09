@@ -149,10 +149,10 @@ See [the response contract](../../docs/route-miss-http-status.md).
 
 ## Install the client
 
-Use the [v0.5.0 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0) and verify its published digest before installing:
+Use the [v0.7.0 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.0) and verify its published digest before installing:
 
 ```sh
-npm install ./402signal-route-guard-0.5.0.tgz
+npm install ./402signal-route-guard-0.7.0.tgz
 ```
 
 From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. The tarball includes TypeScript
