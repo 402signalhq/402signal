@@ -58,6 +58,14 @@
         target.focus({preventScroll: true});
       }
     }
+    for (const link of document.querySelectorAll('[data-guide-link]')) {
+      link.addEventListener('click', event => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (location.hash === '#' + link.dataset.guideLink) showGuide(true);
+        else location.hash = link.dataset.guideLink;
+      });
+    }
     window.addEventListener('hashchange', () => showGuide(true)); showGuide();
   }
   for (const button of document.querySelectorAll('[data-copy-target]')) {

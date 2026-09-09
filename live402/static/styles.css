@@ -229,3 +229,7 @@ th,td { text-align:left; vertical-align:top; padding:14px 12px; border-bottom:1p
  .nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
 }
 @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+
+/* Keep the four task groups within the existing chip navigation. */
+.developer-page .guide-group { flex: 1 1 15rem; min-width: 0; }
+.developer-page .guide-group .chip { margin: 0 .35rem .5rem 0; }
