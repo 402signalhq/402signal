@@ -837,7 +837,7 @@ class HomepagePqSectionTests(unittest.TestCase):
         self.assertIn("Awaiting anchor", html)
         self.assertNotIn('class="pq-chip is-anchored"', html)
         self.assertNotIn("Latest confirmed Tree", html)
-        self.assertIn('href="/transparency">Evidence, oversight and long-term verification</a>', html)
+        self.assertIn('href="/how#trust">Evidence, oversight and long-term verification</a>', html)
         self.assertNotIn("Latest checkpoint · Tree", html)
         self.assertIn('href="/transparency"', html)
         self.assertNotIn("View TestNet transaction", html)

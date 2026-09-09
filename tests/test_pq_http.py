@@ -184,7 +184,7 @@ class C2SPHttpTests(unittest.TestCase):
         )
         self.assertIn("Algorand MainNet", home)
         self.assertIn("Awaiting anchor", home)
-        self.assertIn("Store your verification record securely", home)
+        self.assertIn("Keep the private request, receipt and reveal", home)
         self.assertNotIn("/pq/log", home)
 
 
