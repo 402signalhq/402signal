@@ -1,116 +1,32 @@
-/** Customer fixture checks. No wallet, signing account or live transport is supplied. */
-import { readFile, realpath } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createHash } from 'node:crypto';
-import { withVerifiedRoute, verifyReceipt } from '../../sdk/route-guard/index.mjs';
+/** Bounded diagnostic worker. This is process isolation, not a sandbox. */
+import { fork } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const fixtureBytes = await readFile(resolve(root, 'tests/fixtures/route-binding-v1.json'));
-const fixtures = JSON.parse(fixtureBytes.toString('utf8'));
-if (fixtures.test_only !== true) throw new Error('Only explicit test fixtures are permitted');
-const sample = fixtures.cases.find(item => item.rail === 'base' && item.method === 'GET');
-if (!sample) throw new Error('Missing Base GET fixture');
-const reference = async (options, callback) => withVerifiedRoute(options, callback);
 const args = process.argv.slice(2);
-let adapter = reference, subject = '402signal-reference-boundary';
-if (args.length && args[0] !== '--self-test') {
-  if (args.length !== 2 || args[0] !== '--adapter') throw new Error('Usage: node run.mjs [--adapter trusted-local-module.mjs | --self-test]');
-  const path = await realpath(resolve(args[1]));
-  const source = await readFile(path);
-  if (source.length > 262144) throw new Error('Adapter module is too large');
-  // Explicitly selected local code is trusted, not sandboxed. No remote module loader.
-  const supplied = await import(pathToFileURL(path).href);
-  if (typeof supplied.authorize !== 'function') throw new Error('Adapter must export authorize(options, fakeCallback)');
-  adapter = supplied.authorize;
-  subject = 'customer-adapter-sha256:' + createHash('sha256').update(source).digest('hex');
-} else if (args.length > 1) throw new Error('Unexpected arguments');
-
-function optionsFor() {
-  return {
-    routeResponseJson: JSON.stringify(sample.response),
-    routeRequestJson: JSON.stringify(sample.request),
-    trustedLogVkey: fixtures.trusted_vkey,
-    request: { url: sample.response.url, method: sample.method, body: Buffer.from(sample.body) },
-    challenge: { status: 402, bodyText: JSON.stringify(sample.challenge) },
-    now: sample.now, // PUBLIC TEST KEY and fixture clock only. Never use in production.
-  };
+const valid = args.length === 0 || (args.length === 1 && args[0] === '--self-test')
+  || (args.length === 2 && args[0] === '--adapter');
+function failure(reason) {
+  console.log(JSON.stringify({ report_version: '2', mode: 'synthetic-fixtures',
+    test_outcome: 'harness-error', reason_code: reason, passed: 0, failed: 0,
+    incomplete: 1, next_action: 'check_trusted_adapter_and_fixture_setup_without_exporting_secrets' }, null, 2));
+  process.exitCode = 1;
 }
-const scenarios = [
-  ['matching-offer', 1, options => options],
-  ['price-changed', 0, options => {
-    const current = JSON.parse(options.challenge.bodyText);
-    current.accepts[0].amount = '30000';
-    return { ...options, challenge: { status: 402, bodyText: JSON.stringify(current) } };
-  }],
-  ['recipient-changed', 0, options => {
-    const current = JSON.parse(options.challenge.bodyText);
-    current.accepts[0].payTo = '0x1111111111111111111111111111111111111111';
-    return { ...options, challenge: { status: 402, bodyText: JSON.stringify(current) } };
-  }],
-  ['evidence-expired', 0, options => ({ ...options, now: sample.response.decision_binding.expires_at + 1 })],
-  ['original-request-changed', 0, options => ({ ...options, routeRequestJson: JSON.stringify({ ...sample.request, max_price_usd: 0.20 }) })],
-];
-async function runBoundary(subjectName, authorize) {
-  const results = [];
-  for (const [scenario, expected, change] of scenarios) {
-    let calls = 0, rejected = false, callbackTermsMatch = true;
-    const fakeCallback = async verified => {
-      calls++;
-      callbackTermsMatch = Boolean(verified && verified.accepted
-        && verified.accepted.payTo === sample.challenge.accepts[0].payTo
-        && verified.accepted.amount === sample.challenge.accepts[0].amount
-        && verified.accepted.network === sample.challenge.accepts[0].network
-        && verified.accepted.asset === sample.challenge.accepts[0].asset);
-      return { synthetic: true };
-    };
-    try { await authorize(change(optionsFor()), fakeCallback); } catch { rejected = true; }
-    const pass = calls === expected && (expected === 1 ? !rejected && callbackTermsMatch : rejected);
-    results.push({
-      subject: subjectName, scenario,
-      expected_decision: expected ? 'invoke_fake_authorization_once' : 'refuse_before_authorization',
-      observed_authorization_calls: calls,
-      observed_rejection: rejected,
-      test_outcome: pass ? 'passed' : 'failed',
-    });
-  }
-  return results;
-}
-function historicalCases() {
-  const original = optionsFor();
-  let valid = false;
-  try { verifyReceipt(original); valid = true; } catch {}
-  const changed = structuredClone(sample.response);
-  const evidence = changed.pq_trust.transparency.reveal.evidence;
-  const request = JSON.parse(evidence.request_json);
-  request.max_price_usd = 0.20;
-  evidence.request_json = JSON.stringify(request);
-  let refused = false;
-  try { verifyReceipt({ ...original, routeResponseJson: JSON.stringify(changed) }); } catch { refused = true; }
-  return [
-    { subject: '402signal-historical-verifier', scenario: 'original-saved-record', test_outcome: valid ? 'passed' : 'failed' },
-    { subject: '402signal-historical-verifier', scenario: 'saved-policy-altered', test_outcome: refused ? 'passed' : 'failed' },
-  ];
-}
-let cases;
-if (args[0] === '--self-test') {
-  const good = await runBoundary(subject, reference);
-  const unguarded = await runBoundary('deliberately-unguarded', async (options, callback) => {
-    await callback({ accepted: JSON.parse(options.challenge.bodyText).accepts[0] });
+if (!valid) failure('invalid_arguments');
+else {
+  const child = fork(fileURLToPath(new URL('./worker.mjs', import.meta.url)), args, {
+    execArgv: [], stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+    env: { PATH: process.env.PATH ?? '', ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}) },
   });
-  const refusesEverything = await runBoundary('deliberately-always-refuses', async () => { throw Error('stopped'); });
-  cases = [
-    { scenario: 'reference-passes', test_outcome: good.every(r => r.test_outcome === 'passed') ? 'passed' : 'failed' },
-    { scenario: 'detect-unguarded-adapter', test_outcome: unguarded.some(r => r.test_outcome === 'failed') ? 'passed' : 'failed' },
-    { scenario: 'detect-always-refusing-adapter', test_outcome: refusesEverything.some(r => r.test_outcome === 'failed') ? 'passed' : 'failed' },
-    ...historicalCases(),
-  ];
-} else cases = [...await runBoundary(subject, adapter), ...historicalCases()];
-const failed = cases.filter(item => item.test_outcome === 'failed').length;
-console.log(JSON.stringify({
-  report_version: '1', mode: 'synthetic-fixtures', profile: 'exact-x402-base-fixture',
-  fixture_sha256: createHash('sha256').update(fixtureBytes).digest('hex'),
-  subject, passed: cases.length - failed, failed, cases,
-  scope: 'Tests the supplied fake authorization callback and historical verifier. No wallet is supplied. Customer adapter code is trusted, not sandboxed. This does not test all payment mechanisms, a merchant, an anchor or production settlement.',
-}, null, 2));
-if (failed) process.exitCode = 1;
+  let report = null, timedOut = false, finished = false;
+  const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, 10000);
+  child.on('message', value => { report = value; });
+  const finish = (code) => {
+    if (finished) return; finished = true; clearTimeout(timer);
+    if (timedOut) return failure('worker_timeout');
+    if (!report || ![0, 1].includes(code)) return failure('worker_setup_or_execution_error');
+    console.log(JSON.stringify(report, null, 2));
+    if (code !== 0 || report.failed) process.exitCode = 1;
+  };
+  child.on('error', () => finish(null));
+  child.on('exit', finish);
+}

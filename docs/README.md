@@ -4,6 +4,8 @@ Start with the [developer guide](https://402signal.com/developers) or [repositor
 
 Current published client and guard: [route-guard v0.7.0](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.0). Separate published archives: [session-client v0.1.1](https://github.com/402signalhq/402signal/releases/tag/session-client-v0.1.1), [Algorand batch buyer v0.2.0](https://github.com/402signalhq/402signal/releases/tag/algorand-batch-buyer-v0.2.0), and [native Base MPP client v0.1.0](https://github.com/402signalhq/402signal/releases/tag/mpp-client-v0.1.0). The [dated lab results](../integration/lab/BATCH_QUALIFICATION.md) distinguish earlier two-call/two-item tests from three-call Solana continuation, three-payment Algorand groups, three-job invoices, a native Algorand lab charge and one external native Base MPP UUID purchase. A separate Base v2 continuation campaign also completed three accepted calls and independently finalized settlement and refund. Qualification covers these specific endpoints and explicit limits; it is not a high-count or universal merchant claim. Keep buyer wallets and private operator policy outside the public repository.
 
+Start free with the [offline buyer checks](../integration/buyer-checks/README.md), then use the [customer task guides](https://402signal.com/developers). Pilot teams can use the [adapter evaluation kit](adoption-pilot.md).
+
 ## Integrate a buyer
 
 - [Exact x402 request binding and the v4 guard contract](proof-carrying-route-v1.md)
