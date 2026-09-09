@@ -70,14 +70,3 @@ jobs:
           git rev-parse HEAD
           if [ -f website-evidence/results.json ]; then python3 -c 'import json; r=json.load(open("website-evidence/results.json")); print(json.dumps({k:v for k,v in r.items() if k!="results"})); [print(json.dumps(x)) for x in r.get("results",[]) if x.get("status")!="passed"]'; fi
           if [ -f website-evidence/summary.md ]; then cat website-evidence/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
-      - name: Inspect synthetic review screenshots
-        if: always()
-        run: |
-          python3 - <<'PY'
-          import base64,hashlib,pathlib
-          for name in ['review-390-home.jpg','review-1440-home.jpg']:
-              path=pathlib.Path('website-evidence',name)
-              if path.is_file():
-                  data=path.read_bytes()
-                  print('REVIEW_IMAGE',name,hashlib.sha256(data).hexdigest(),base64.b64encode(data).decode())
-          PY
