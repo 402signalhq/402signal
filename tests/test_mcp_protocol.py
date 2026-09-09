@@ -7,6 +7,15 @@ from http.client import HTTPConnection
 
 
 class McpProtocolTests(unittest.TestCase):
+    def test_discovery_admission_covers_handshake_not_paid_route(self):
+        self.assertTrue(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 1, "method": "initialize"}))
+        self.assertTrue(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}))
+        self.assertTrue(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 3, "method": "ping"}))
+        self.assertTrue(mcp.uses_discovery_admission({"jsonrpc": "2.0", "method": "notifications/initialized"}))
+        self.assertTrue(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "preview"}}))
+        self.assertFalse(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "validate"}}))
+        self.assertFalse(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "route"}}))
+
     def test_tool_envelopes_preserve_ids_and_error_semantics(self):
         for version in mcp.SUPPORTED_PROTOCOLS:
             headers = {'MCP-Protocol-Version': version}

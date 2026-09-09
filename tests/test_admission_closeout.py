@@ -60,6 +60,19 @@ class ProtectedAdmissionTests(unittest.TestCase):
   self.assertFalse(self.e.recover({},'next'))
   self.assertTrue(all(self.e.recover(self.headers,'p') for _ in range(4)))
   self.assertFalse(self.e.recover(self.headers,'p'))
+ def test_anonymous_discovery_saturation_preserves_shared_ip_customer(self):
+  from live402 import server
+  h=object.__new__(server.Handler);h.headers={}
+  with patch.object(admission,'engine',return_value=self.e),patch.object(admission,'configured',return_value=True),patch.object(server,'client_ip',return_value='shared-nat'):
+   self.assertTrue(all(h._preview_allowed() for _ in range(admission.DISCOVERY_ANONYMOUS)))
+   self.assertFalse(h._preview_allowed())
+   h.headers=self.headers
+   self.assertTrue(h._preview_allowed())
+   self.assertTrue(h._route_allowed())
+  self.assertFalse(any(k.startswith('discovery') for k in self.e.buckets))
+  self.assertTrue(any(k.startswith('discovery:anonymous:') for k in self.e.discovery_buckets))
+  self.assertTrue(any(k.startswith('discovery:customer:') for k in self.e.discovery_buckets))
+  self.assertIsNotNone(self.e.probe('https://seller.example/paid-target'))
  def test_discovery_table_churn_does_not_block_paid_target_admission(self):
   # Synthetic supported capacity only. Not a production quota claim.
   p=policy();p['max_keys']=16

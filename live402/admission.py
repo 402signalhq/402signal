@@ -22,11 +22,17 @@ from urllib.parse import urlsplit
 
 from live402 import reqctx
 
-# Unpaid preview/validate/catalog admission. Separate bucket namespace from
-# paid /route ingress and unpaid work reserve. Numeric defaults live in code so
-# image-only deploys do not require a machine policy-file rewrite.
+# Unpaid preview/validate/catalog plus unpaid GET /route challenge and MCP
+# handshake admission. Separate bucket namespace from paid /route ingress and
+# unpaid work reserve. Numeric defaults live in code so image-only deploys do
+# not require a machine policy-file rewrite.
 DISCOVERY_GLOBAL = 24
-DISCOVERY_ANONYMOUS = 4
+# Image-only default. One anonymous identity can finish a cold MCP
+# setup (initialize, initialized, tools/list) and still run preview
+# and validate. Not a published production quota.
+MCP_COLD_SETUP = 3
+MCP_COLD_FREE_TOOLS = 2
+DISCOVERY_ANONYMOUS = MCP_COLD_SETUP + MCP_COLD_FREE_TOOLS
 DISCOVERY_ANONYMOUS_TOTAL = 16
 DISCOVERY_CUSTOMER = 8
 # Paid work, unpaid discovery, and recovery each have an independent map
@@ -243,7 +249,11 @@ class Engine:
         return self.take(specifications, recovery=True) is not None
 
     def discover(self, headers, peer):
-        """Reserve unpaid discovery. Never debits ingress or unpaid route work."""
+        """Reserve unpaid discovery. Never debits ingress or unpaid route work.
+
+        Covers preview, validate, unpaid GET /route challenge construction, and
+        MCP handshake / unknown free methods. Paid /route stays on ingress.
+        """
         identity, customer = self.identity(headers, peer)
         cap = DISCOVERY_CUSTOMER if customer else DISCOVERY_ANONYMOUS
         specifications = [("discovery:global", DISCOVERY_GLOBAL), ("discovery:" + identity, cap)]
@@ -346,7 +356,7 @@ def rejected():
 
 
 def free_ingress(headers, peer):
-    """Admit unpaid preview/validate. Distinct from paid /route ingress and reserve."""
+    """Admit unpaid discovery-class work. Distinct from paid /route ingress and reserve."""
     try:
         e = engine()
         if e is None:

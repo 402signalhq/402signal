@@ -1761,7 +1761,6 @@ class PreviewRateLimitTests(unittest.TestCase):
         amounts = [str(a.get("amount")) for a in body.get("accepts") or []]
         self.assertEqual(amounts, ["3000", "3000", "3000"])
 
-
 class ProductBriefTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -2219,6 +2218,30 @@ class PublicRateLimitTests(unittest.TestCase):
         self.assertEqual(statuses[1], 200)
         self.assertEqual(statuses[2], 429)
 
+    def test_dashboard_rate_limit_429(self):
+        ip_headers = {"Fly-Client-IP": "203.0.113.73"}
+        statuses = []
+        for _ in range(3):
+            status, _raw, _hdrs = _get_full(
+                self.port, "/dashboard", extra_headers=ip_headers
+            )
+            statuses.append(status)
+        self.assertEqual(statuses[0], 200)
+        self.assertEqual(statuses[1], 200)
+        self.assertEqual(statuses[2], 429)
+
+    def test_openapi_rate_limit_429(self):
+        ip_headers = {"Fly-Client-IP": "203.0.113.74"}
+        statuses = []
+        for _ in range(3):
+            status, _raw, _hdrs = _get_full(
+                self.port, "/openapi.json", extra_headers=ip_headers
+            )
+            statuses.append(status)
+        self.assertEqual(statuses[0], 200)
+        self.assertEqual(statuses[1], 200)
+        self.assertEqual(statuses[2], 429)
+
     def test_health_unlimited_after_pulse_burst(self):
         ip_headers = {"Fly-Client-IP": "203.0.113.72"}
         for _ in range(3):
@@ -2228,6 +2251,11 @@ class PublicRateLimitTests(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(raw), {"ok": True})
+        status, raw, _hdrs = _get_full(
+            self.port, "/ready", extra_headers=ip_headers
+        )
+        self.assertIn(status, (200, 503))
+        self.assertIn("ok", json.loads(raw))
         status, raw, _hdrs = _get_full(
             self.port, "/rails", extra_headers=ip_headers
         )

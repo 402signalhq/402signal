@@ -729,6 +729,17 @@ class Handler(SimpleHTTPRequestHandler):
             return admission.free_ingress(self.headers, ip)
         return _PREVIEW_LIMITER.allow(ip, preview_rpm())
 
+    def _discovery_allowed(self) -> bool:
+        """Unpaid GET /route challenge and MCP handshake. Policy path only.
+
+        Without a policy, keep the prior unbounded challenge/handshake so
+        local and CI traffic is not coupled to the preview limiter.
+        """
+        ip = client_ip(self)
+        if admission.configured():
+            return admission.free_ingress(self.headers, ip)
+        return True
+
     def _public_allowed(self, which: str) -> bool:
         ip = client_ip(self)
         return _PUBLIC_LIMITER.allow("%s:%s" % (ip, which), public_rpm())
@@ -869,6 +880,9 @@ class Handler(SimpleHTTPRequestHandler):
             if self._wants_html():
                 html = (STATIC_DIR / "route.html").read_text(encoding="utf-8")
                 return self._html(200, html, extra_headers=allow)
+            # JSON 402 construction is discovery-class work, never paid ingress.
+            if not self._discovery_allowed():
+                return self._json(429, {"error": "rate limit"}, extra_headers=allow)
             sender = self.headers.get("Algorand-Sender") or self.headers.get("X-Algorand-Sender")
             required = payment.payment_required(self._resource_url(), algorand_sender=sender)
             extra = dict(allow)
@@ -938,18 +952,24 @@ class Handler(SimpleHTTPRequestHandler):
             code, body = validate.validate_url(url)
             return self._json(code, body, extra_headers={"Cache-Control": "no-store"})
         if parsed.path in {"/dashboard", "/dashboard.html"}:
+            if not self._public_allowed("dashboard"):
+                return self._json(429, {"error": "rate limit"})
             return self._html(
                 200,
                 pulse.dashboard_html(),
                 extra_headers={"Cache-Control": "no-store"},
             )
         if parsed.path == "/openapi.json":
+            if not self._public_allowed("openapi"):
+                return self._json(429, {"error": "rate limit"})
             return self._json(
                 200,
                 discover.openapi_spec(self._resource_url()),
                 extra_headers={"Cache-Control": "public, max-age=300"},
             )
         if parsed.path in {"/.well-known/x402", "/.well-known/x402.json"}:
+            if not self._public_allowed("x402"):
+                return self._json(429, {"error": "rate limit"})
             return self._json(
                 200,
                 discover.well_known(self._resource_url()),
@@ -974,6 +994,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(403, {"error": "origin not allowed"})
             return self._json(405, {"error": "SSE stream not offered; use POST"}, {"Allow": "POST, OPTIONS"})
         if parsed.path in {"/mcp.json", "/.well-known/mcp.json"}:
+            if not self._public_allowed("mcpjson"):
+                return self._json(429, {"error": "rate limit"})
             return self._json(
                 200,
                 mcp.manifest(),
@@ -1033,11 +1055,16 @@ class Handler(SimpleHTTPRequestHandler):
         payload = self._read_json_body()
         if payload is None:
             return
-        if mcp.is_paid_call(payload) and not self._route_allowed():
-            return self._close_error(429, "rate limit")
-        if mcp.is_preview_call(payload) and not self._preview_allowed():
-            return self._close_error(429, "rate limit")
-        if mcp.is_validate_call(payload) and not self._validate_allowed():
+        if mcp.is_paid_call(payload):
+            if not self._route_allowed():
+                return self._close_error(429, "rate limit")
+        elif mcp.is_preview_call(payload):
+            if not self._preview_allowed():
+                return self._close_error(429, "rate limit")
+        elif mcp.is_validate_call(payload):
+            if not self._validate_allowed():
+                return self._close_error(429, "rate limit")
+        elif not self._discovery_allowed():
             return self._close_error(429, "rate limit")
         code, body, extra = mcp.handle_mcp(payload, self.headers, self._mcp_resource_url())
         if extra is None and code == 402:

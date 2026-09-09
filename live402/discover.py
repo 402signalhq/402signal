@@ -90,7 +90,7 @@ def _origin_from_resource(resource_url: str) -> str:
 
 def well_known(resource_url: str = ROUTE) -> dict:
     """Bazaar-ish discovery blob. Same body for /.well-known/x402 and .json."""
-    required = payment.payment_required(resource_url)
+    required = payment.payment_required(resource_url, dynamic=False)
     origin = _origin_from_resource(resource_url)
     accepts = list(required.get("accepts") or [])
     return {
@@ -148,7 +148,7 @@ def well_known(resource_url: str = ROUTE) -> dict:
 def openapi_spec(resource_url: str = ROUTE) -> dict:
     """OpenAPI 3.1. Paid POST /route documents HTTP 402 + x-payment-info."""
     origin = _origin_from_resource(resource_url)
-    required = payment.payment_required(resource_url)
+    required = payment.payment_required(resource_url, dynamic=False)
     miss_enum = list(schema_fields.MISS_REASONS)
     # A documentation-only seller quote; never a live quote or payment authority.
     example_seller_accept = {
