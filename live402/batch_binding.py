@@ -290,6 +290,7 @@ def verify_route(result, body, *, vkey, challenge, now=None):
     from live402.pq import receipt
 
     try:
+        check(isinstance(vkey, str) and bool(vkey.strip()))
         tr = result["pq_trust"]["transparency"]
         receipt.verify_route_receipt(tr["receipt"], tr["reveal"], vkey)
         evidence = tr["reveal"]["evidence"]

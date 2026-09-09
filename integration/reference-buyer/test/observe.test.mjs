@@ -27,6 +27,10 @@ test('independent key fingerprint refuses substituted keys without consulting a 
   assert.throws(()=>approvedKey(c),/fingerprint_mismatch/);
   c.trust.approvedFingerprint=createHash('sha256').update('synthetic public key').digest('hex');assert.equal(approvedKey(c),'synthetic public key');
   writeFileSync(file,'changed key');assert.throws(()=>approvedKey(c),/fingerprint_mismatch/);
+  writeFileSync(file,'synthetic public key');
+  c.response={vkey:'offered-from-route',pq_trust:{transparency:{vkey:'offered-from-route'}}};
+  c.trustedLogVkey='offered-from-route';
+  assert.equal(approvedKey(c),'synthetic public key');
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 test('plan refuses payment authority expansion and preserves exact supported request bytes',()=>{

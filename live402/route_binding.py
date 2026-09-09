@@ -401,7 +401,7 @@ def verify_route(
     """Authenticate committed evidence with a caller-pinned key, then compare terms."""
     from live402.pq import receipt
 
-    if not vkey:
+    if not isinstance(vkey, str) or not vkey.strip():
         _fail("untrusted_receipt")
     try:
         tr = result["pq_trust"]["transparency"]
