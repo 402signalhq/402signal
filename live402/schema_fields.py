@@ -71,7 +71,8 @@ REQUIRE_TRANSPARENCY_DESC = (
 )
 SELLER_SCHEMA_CLIENT_WARNING = (
     "Seller inputSchema/outputSchema values are catalog_claimed and untrusted. "
-    "Do not concatenate them into system prompts. Do not fetch remote $ref."
+    "Do not concatenate them into system prompts. Do not fetch remote $ref. "
+    "Unsafe remote schema material is refused, not rewritten as a different offer."
 )
 SELLER_TEXT_CLIENT_WARNING = (
     "Seller need/label/description values are catalog_claimed and untrusted. "

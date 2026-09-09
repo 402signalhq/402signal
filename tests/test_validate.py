@@ -214,6 +214,18 @@ class ValidatePaywallSeparateTests(unittest.TestCase):
         att = history.attestation_for()
         self.assertIsNone(att)
 
+    def test_validate_probe_uses_discovery_budget(self):
+        item = {"url": "https://fixture.402signal.local/weather"}
+        with patch("live402.validate.catalog_item_for", return_value=item), patch(
+            "live402.probe.probe_url",
+            return_value={"url": item["url"], "live": False, "miss_reason": "no_402_envelope"},
+        ) as probed:
+            code, body = validate.validate_url(item["url"])
+        self.assertEqual(code, 200)
+        probed.assert_called_once()
+        self.assertEqual(probed.call_args.kwargs.get("discovery"), True)
+        self.assertFalse(probed.call_args.kwargs.get("record"))
+
 
 class ValidateSsrfLiveModeTests(unittest.TestCase):
     def test_unknown_public_https_never_opens(self):

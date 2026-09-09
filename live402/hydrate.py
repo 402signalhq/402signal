@@ -18,12 +18,16 @@ SCHEMA_SOFT_BYTES = 8 * 1024
 SCHEMA_MAX_BYTES = 16 * 1024
 SCHEMA_MAX_DEPTH = 6
 SCHEMA_MAX_KEYS = 64
+SCHEMA_MAX_KEY = 80
 SCHEMA_MAX_STRING = 512
 SCHEMA_MAX_ITEMS = 32
 CLIENT_SCHEMA_WARNING = (
     "Seller schemas are catalog_claimed and untrusted. "
-    "Do not concatenate them into system prompts. Do not fetch remote $ref."
+    "Do not concatenate them into system prompts. Do not fetch remote $ref. "
+    "Unsafe remote schema material is refused, not rewritten as a different offer."
 )
+_UNSAFE_SCHEMA = object()
+_REF_KEYS = frozenset({"$ref", "$dynamicref", "$recursiveref"})
 FINALIST_MIN = 5
 FINALIST_N = 8
 FINALIST_MAX = 10
@@ -65,66 +69,118 @@ def _json_bytes(obj) -> bytes | None:
     return raw
 
 
-def _is_remote_ref(val) -> bool:
+def _is_local_fragment_ref(val) -> bool:
+    """True only for opaque in-document fragments. Never resolved or fetched."""
     if not isinstance(val, str):
-        return True
+        return False
     text = val.strip()
-    if not text:
+    return bool(text) and text.startswith("#") and "://" not in text and not text.startswith("#//")
+
+
+def schema_looks_present(obj) -> bool:
+    """True when a seller blob claims a schema, including $ref-only shapes."""
+    if not isinstance(obj, dict) or not obj:
+        return False
+    if obj.get("properties") or obj.get("required") or obj.get("type"):
         return True
-    low = text.lower()
-    if low.startswith("http://") or low.startswith("https://") or low.startswith("//"):
-        return True
-    if "://" in text:
-        return True
+    for key in obj:
+        if str(key).lower() in _REF_KEYS:
+            return True
     return False
 
 
 def sanitize_untrusted_schema(obj, depth: int = 0):
-    """Strip remote $ref, bound depth/keys, never fetch $ref.
+    """Bound untrusted JSON Schema. Never fetch $ref.
 
-    Seller JSON Schema is untrusted catalog_claimed material.
+    Remote, protocol-relative, or non-fragment $ref / $dynamicRef / $recursiveRef
+    fail closed (None) so a rewritten body cannot look like a different offer.
+    Depth, key, item, string, and null-constraint overflows refuse the whole
+    schema instead of forwarding a truncated substitute. JSON null is kept.
+    Local #fragments stay as opaque strings and are never resolved.
     """
+    cleaned = _sanitize_untrusted_schema(obj, depth)
+    return None if cleaned is _UNSAFE_SCHEMA else cleaned
+
+
+def _sanitize_untrusted_schema(obj, depth: int = 0):
     if depth > SCHEMA_MAX_DEPTH:
-        return None
+        return _UNSAFE_SCHEMA
     if isinstance(obj, dict):
+        if len(obj) > SCHEMA_MAX_KEYS:
+            return _UNSAFE_SCHEMA
         out = {}
-        for i, (key, val) in enumerate(obj.items()):
-            if i >= SCHEMA_MAX_KEYS:
-                break
-            name = str(key)[:80]
-            if name == "$ref" or name.lower() == "$ref":
-                if _is_remote_ref(val):
+        for key, val in obj.items():
+            if not isinstance(key, str) or len(key) > SCHEMA_MAX_KEY:
+                return _UNSAFE_SCHEMA
+            lname = key.lower()
+            if lname in _REF_KEYS:
+                if lname == "$ref" and _is_local_fragment_ref(val):
+                    text = val.strip()
+                    if len(text) > SCHEMA_MAX_STRING:
+                        return _UNSAFE_SCHEMA
+                    out["$ref"] = text
                     continue
-                # Local fragment refs stay as opaque strings; never resolved.
-                if isinstance(val, str) and val.startswith("#"):
-                    out[name] = val[:SCHEMA_MAX_STRING]
+                return _UNSAFE_SCHEMA
+            if lname in {"$schema", "$id", "$anchor"}:
                 continue
-            if name in {"$schema", "$id", "$dynamicRef", "$recursiveRef", "$anchor"}:
-                continue
-            cleaned = sanitize_untrusted_schema(val, depth + 1)
-            if cleaned is not None:
-                out[name] = cleaned
+            cleaned = _sanitize_untrusted_schema(val, depth + 1)
+            if cleaned is _UNSAFE_SCHEMA:
+                return _UNSAFE_SCHEMA
+            out[key] = cleaned
         return out
     if isinstance(obj, list):
-        return [sanitize_untrusted_schema(x, depth + 1) for x in obj[:SCHEMA_MAX_ITEMS] if x is not None]
+        if len(obj) > SCHEMA_MAX_ITEMS:
+            return _UNSAFE_SCHEMA
+        out = []
+        for item in obj:
+            cleaned = _sanitize_untrusted_schema(item, depth + 1)
+            if cleaned is _UNSAFE_SCHEMA:
+                return _UNSAFE_SCHEMA
+            out.append(cleaned)
+        return out
     if isinstance(obj, str):
-        return obj[:SCHEMA_MAX_STRING]
+        if len(obj) > SCHEMA_MAX_STRING:
+            return _UNSAFE_SCHEMA
+        return obj
     if isinstance(obj, (int, float, bool)) or obj is None:
         return obj
-    return None
+    return _UNSAFE_SCHEMA
+
+
+def schema_is_unusable(obj) -> bool:
+    """True when a claimed/live schema must not be forwarded."""
+    cleaned, _n, truncated = _bounded_schema(obj)
+    if truncated:
+        return True
+    return schema_looks_present(obj) and not isinstance(cleaned, dict)
+
+
+def forward_untrusted_schema(obj) -> dict | None:
+    """Return a bounded schema only when it is safe to expose. Else None.
+
+    Oversize, overflow, remote/relative $ref, and other limit hits refuse the
+    whole schema. The caller must keep any signed/observed original intact
+    and not emit a rewritten substitute.
+    """
+    cleaned, _n, truncated = _bounded_schema(obj)
+    if truncated or not isinstance(cleaned, dict) or not cleaned:
+        return None
+    return cleaned
 
 
 def _bounded_schema(obj) -> tuple[dict | None, int, bool]:
-    """Return (schema, bytes, truncated). Over SCHEMA_MAX_BYTES is dropped.
+    """Return (schema, bytes, truncated). Oversize or unsafe $ref is dropped.
 
-    Remote $ref is stripped. This function never fetches $ref.
+    This function never fetches $ref. Unsafe material is refused entirely.
     """
     if not isinstance(obj, dict) or not obj:
         return None, 0, False
     original = _json_bytes(obj)
     if original is not None and len(original) > SCHEMA_MAX_BYTES:
         return None, len(original), True
-    cleaned = sanitize_untrusted_schema(obj)
+    cleaned = _sanitize_untrusted_schema(obj)
+    if cleaned is _UNSAFE_SCHEMA:
+        return None, len(original) if original is not None else 0, True
     if not isinstance(cleaned, dict) or not cleaned:
         return None, 0, False
     raw = _json_bytes(cleaned)
