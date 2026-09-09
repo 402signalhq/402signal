@@ -63,7 +63,7 @@ jobs:
         run: |
           status=0
           node integration/website/browser.mjs || status=1
-          node integration/website/extended.mjs
+          node integration/website/extended.mjs || status=1
           node integration/website/recipes.mjs || status=1
           exit "$status"
       - name: Record exact qualification revision
@@ -72,3 +72,14 @@ jobs:
           git rev-parse HEAD
           if [ -f website-evidence/results.json ]; then python3 -c 'import json; r=json.load(open("website-evidence/results.json")); print(json.dumps({k:v for k,v in r.items() if k!="results"})); [print(json.dumps(x)) for x in r.get("results",[]) if x.get("status")!="passed"]'; fi
           if [ -f website-evidence/summary.md ]; then cat website-evidence/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Retain synthetic browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: website-evidence-${{ github.sha }}
+          retention-days: 3
+          if-no-files-found: error
+          path: |
+            website-evidence/*.png
+            website-evidence/*results.json
+            website-evidence/summary.md
