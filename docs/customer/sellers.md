@@ -34,4 +34,4 @@ Fix the authoritative discovery-source metadata when appropriate. Listing refres
 
 Paid execution should be tested separately with your own approved buyer and budget. Never label an unpaid readiness check as a complete payment test. Do not send private wallet keys, payment credentials or confidential data in URLs or reports.
 
-Browser guide: https://402signal.com/developers#sellers
+Browser guide: https://402signal.com/developers/check-api-listing (same section on https://402signal.com/developers#sellers)

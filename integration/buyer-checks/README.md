@@ -35,8 +35,8 @@ The report identifies the top-level adapter source hash and fixture hash. Record
 
 Seven passing fixture checks do not establish successful seller payment, output quality, chain confirmation, Falcon anchor verification, native MPP coverage or session recovery. Use the documented suites for those mechanisms. This runner does not change payment behavior or the guard's error codes.
 
-Human guide: https://402signal.com/developers#quickstart
-Buyer integration: https://402signal.com/developers#route-binding
+Human guide: https://402signal.com/developers/test-buyer
+Buyer integration: https://402signal.com/developers/check-offer
 
 ## Version 2 report and execution limits
 

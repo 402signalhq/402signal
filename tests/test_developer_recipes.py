@@ -33,7 +33,7 @@ class DeveloperRecipes(unittest.TestCase):
             self.assertIn('https://402signal.com' + path, (guides.STATIC / 'sitemap.xml').read_text())
     def test_unknown_paths_do_not_read_files_or_enable_probes(self):
         with patch('live402.validate.validate_url', side_effect=AssertionError('unexpected probe')):
-            for path in ['/developers/../server.py', '/developers/not-a-guide', '/developers/test-buyer/extra', '/developers/../../data', '/developers/not-a-guide.md']:
+            for path in ['/developers/../server.py', '/developers/not-a-guide', '/developers/test-buyer/extra', '/developers/../../data', '/developers/not-a-guide.md', '/guides', '/developers/sellers']:
                 self.assertEqual(self.request(path)[0], 404)
             self.assertEqual(self.request('/developers/check-api-listing?endpoint=https://127.0.0.1/private')[0], 200)
     def test_recovery_scopes_and_literal_commands_survive_markdown(self):
@@ -55,3 +55,18 @@ class DeveloperRecipes(unittest.TestCase):
             self.assertIn(package['tag'], package['archive'])
         self.assertIn('route-guard-v0.7.0', LLMS_TXT); self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
         self.assertEqual(self.request('/capabilities.json', 'HEAD')[2], '')
+        for package in record['packages']:
+            self.assertIn(package['recipe'], guides.PATHS)
+            self.assertEqual(self.request(package['recipe'])[0], 200)
+            self.assertEqual(self.request(package['recipe'] + '.md')[0], 200)
+        self.assertNotRegex(text, r'(?<![\w-])(?:/guides|/developers/sellers)(?![\w-])')
+        self.assertNotRegex(LLMS_TXT, r'(?<![\w-])(?:/guides|/developers/sellers)(?![\w-])')
+    def test_copied_briefs_point_at_retrievable_recipes(self):
+        html = (guides.STATIC / 'developers.html').read_text()
+        for path in ('/developers/test-buyer', '/developers/check-offer', '/developers/native-mpp', '/developers/sessions-and-invoices', '/developers/check-api-listing', '/developers/recover-routing-attempt', '/developers/evidence'):
+            self.assertIn('https://402signal.com' + path, html)
+        self.assertNotRegex(html, r'(?<![\w-])(?:/guides|/developers/sellers)(?![\w-])')
+        listing = guides.markdown('check-api-listing')
+        self.assertIn('https://402signal.com/developers/check-api-listing', listing)
+        self.assertNotIn('/developers/sellers', listing)
+        self.assertNotIn('/guides', listing)
