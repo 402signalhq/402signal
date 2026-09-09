@@ -6,6 +6,8 @@ A qualifying hosted observation costs **$0.003 USDC**. Completed normal misses a
 
 [Website](https://402signal.com/) · [Choose an integration](https://402signal.com/developers) · [Customer guide index](docs/customer/README.md) · [Free catalog](https://402signal.com/catalog) · [OpenAPI](https://402signal.com/openapi.json) · [MCP](https://402signal.com/mcp.json)
 
+Discoverable via third-party catalogues such as PayAPI Market (https://payapi.market/mcp); agents still pay https://402signal.com/route directly. Discovery locations are not endorsements.
+
 ## Building or testing a payment client?
 
 Start without a funded wallet. From a reviewed checkout, use Node.js 22 or newer:
