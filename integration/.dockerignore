@@ -1,0 +1,25 @@
+# Lab Fly image context (integration/). Unrelated packages and build
+# outputs stay out of the image. Do not weaken credential gates here.
+**/.git
+**/node_modules
+**/dist
+**/*.sqlite*
+**/*.sqlite-wal
+**/*.sqlite-shm
+
+batch-buyer
+buyer-checks
+mcp
+mpp-client
+reference-buyer
+session-client
+tests
+website
+
+lab/test
+lab/reports
+lab/work
+lab/tools
+lab/owner-runtime
+lab/solana-session-contracts/test
+mpp-algorand/test
