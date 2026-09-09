@@ -8,6 +8,10 @@ Use Node 24 on a private POSIX filesystem. Run `npm ci --ignore-scripts` in this
 
 The examples search AgentsTools using an exact GET URL or Parallel using the opt-in `parallel-search-json-v1` POST profile with a bounded query and `mode: "one-shot"`. Choose `sellerId: "agentstools"` or `"parallel"` in the operator configuration. They preserve query encoding and exact POST body bytes and compares the full seller challenge with the signed route before seller signing. `runSearch` is for a new job only. A validated normal unpaid miss completes the job without returning its reserved budget. Failed confirmation or an ambiguous outcome stops with the reservation held. Do not rerun it with a new ID. Use the RouteClient's explicit recovery for the existing routing attempt; seller ambiguity can be reconciled only by observing the original authorization's chain effects. A matching payment receipt does not establish result quality.
 
+## Observation-only onboarding
+
+Start with [offline, plan and one explicitly authorized observation](OBSERVE.md) when no seller purchase is wanted. It fixes the checking budget at 0.003 USDC and disables seller execution. The original full purchase workflow below remains separate.
+
 ## Operator entry point
 
 The operator reads a private local JSON configuration containing `directory`, `trustedLogVkey`, and `policy`. Optional `sellerPaymentClient: "mppx"` uses the separately pinned MPP-client x402 adapter for the seller payment; the default is `"x402"`. Neither option enables native MPP settlement. Install dependencies in `../mpp-client` as well before testing or using that adapter. Policy fields are `buyerAddress`, `routerUrl`, `routerPayTo`, `rpcUrl`, `campaignMaximumAtomic`, `buyerNativeFeeAtomic: "0"`, and `sellers`. Each seller declares `id`, exact base `url`, `method`, `payTo`, `maximumAtomic` and `maxLifetimeSeconds`. Obtain the log verification key independently. Pin recipients from the actual inspected seller offers, not from a language model.

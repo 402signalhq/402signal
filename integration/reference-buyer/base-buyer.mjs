@@ -35,6 +35,7 @@ export async function sdkPayload({ challenge, account }) {
 /** Existing buyer-owned signer only. No private key, custody or global Fetch setup. */
 export class BaseBuyer {
   #account;
+  #routingOnly;
   #journal;
   #policy;
   #fetch;
@@ -55,11 +56,14 @@ export class BaseBuyer {
     createSellerPayload,
     sellerAuthorizationTiming = "zero",
     confirmationIntervalMs = 1500,
+    routingOnly = false,
   }) {
     check(
       account && typeof account.signTypedData === "function",
       "buyer_account_required",
     );
+    check(typeof routingOnly === "boolean", "invalid_routing_only_policy");
+    this.#routingOnly = routingOnly;
     address(account.address);
     https(policy.routerUrl);
     https(policy.rpcUrl);
@@ -68,7 +72,7 @@ export class BaseBuyer {
     check(
       policy.buyerNativeFeeAtomic === "0" &&
         Array.isArray(policy.sellers) &&
-        policy.sellers.length > 0 &&
+        (routingOnly ? policy.sellers.length === 0 : policy.sellers.length > 0) &&
         policy.sellers.length <= 4,
       "invalid_buyer_policy",
     );
@@ -103,7 +107,18 @@ export class BaseBuyer {
     );
     this.#sellerTiming = sellerAuthorizationTiming;
   }
+  reserveObservation(id, routeRequestJson) {
+    check(this.#routingOnly && this.#policy.campaignMaximumAtomic === "3000", "observation_policy_required");
+    const request = strictJson(routeRequestJson);
+    let url; try { url = new URL(request.url); } catch {}
+    check(url && url.protocol === "https:" && !url.username && !url.password && !url.hash &&
+      request.require_route_binding === true && canonical(request.networks) === '["base"]' &&
+      typeof request.max_price_usd === "number" && Number.isFinite(request.max_price_usd) && request.max_price_usd >= 0 &&
+      Object.keys(request).every(k => ['url','need','networks','max_price_usd','require_route_binding'].includes(k)) && (request.need === undefined || typeof request.need === 'string' && request.need.trim().length > 0 && request.need.length <= 256), "observation_request_refused");
+    this.#journal.reserve(id, {routeRequestJson}, "3000");
+  }
   reserve(id, request) {
+    check(!this.#routingOnly, "seller_execution_disabled");
     https(request.url);
     check(
       ["GET", "POST"].includes(request.method) &&
@@ -140,6 +155,7 @@ export class BaseBuyer {
     );
   }
   async #sign(id, stage, challenge, expected) {
+    check(!this.#routingOnly || stage === "router", "seller_execution_disabled");
     const job = this.#journal.job(id);
     check(job.state === "reserved", "job_finished");
     const q = terms(challenge, expected, this.#account.address, this.#now());
@@ -337,6 +353,7 @@ export class BaseBuyer {
     id,
     { outcome, routeRequestJson, trustedLogVkey, challenge },
   ) {
+    check(!this.#routingOnly, "seller_execution_disabled");
     const job = this.#journal.job(id);
     check(
       this.#journal.get(id, "router_confirmation") &&
@@ -440,6 +457,7 @@ export class BaseBuyer {
     };
   }
   async sellerChallenge(id) {
+    check(!this.#routingOnly, "seller_execution_disabled");
     const r = this.#journal.job(id).request;
     check(
       this.#journal.get(id, "router_confirmation"),

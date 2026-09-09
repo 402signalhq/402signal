@@ -1,5 +1,7 @@
 # Test a buyer before it spends
 
+For the separate reference lifecycle suites, run `node integration/buyer-checks/lifecycle.mjs routing` or read [observation-only onboarding](../reference-buyer/OBSERVE.md). These reports do not enlarge the five customer-adapter cases or certify customer signing code.
+
 This is an offline example for the exact x402 guard, using an existing synthetic Base fixture. It makes the acceptance and refusal boundaries visible without a funded wallet. It is not a hosted test endpoint or a conformance certification.
 
 ## Run the reference

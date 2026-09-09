@@ -49,7 +49,7 @@ jobs:
         run: |
           node integration/buyer-checks/run.mjs
           node integration/buyer-checks/run.mjs --self-test
-          node --test integration/buyer-checks/report.test.mjs
+          node --test integration/buyer-checks/report.test.mjs integration/buyer-checks/skill-path.test.mjs
           node integration/buyer-checks/run.mjs --adapter ./integration/buyer-checks/example-adapter.mjs
       - name: Install locked browser and schema-test dependencies
         working-directory: integration/website
