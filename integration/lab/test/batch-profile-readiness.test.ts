@@ -167,6 +167,15 @@ test("optional batch errors map credentials and supported-kinds fetch failures",
     "batch_provider_unavailable",
   );
   assert.equal(
+    optionalBatchProfileError(
+      new Error("Failed to initialize: no supported payment kinds loaded from any facilitator."),
+    ),
+    "batch_provider_unavailable",
+  );
+  const chained = new Error("Failed to initialize: no supported payment kinds loaded from any facilitator.");
+  chained.cause = new Error("batch_provider_credentials_unavailable");
+  assert.equal(optionalBatchProfileError(chained), "batch_provider_credentials_unavailable");
+  assert.equal(
     optionalBatchProfileError(new LabError("solana_rpc_unavailable", 503)),
     "solana_rpc_unavailable",
   );
@@ -175,6 +184,7 @@ test("optional batch errors map credentials and supported-kinds fetch failures",
   assert.equal(optionalBatchProfileError(new LabError("solana_session_deployment_scope_refused")), undefined);
   assert.equal(optionalBatchProfileError(new LabError("solana_rpc_refused")), undefined);
   assert.equal(optionalBatchProfileError(new LabError("solana_continuation_scope_refused")), undefined);
+  assert.equal(optionalBatchProfileError(new Error("Failed to initialize seller ledger")), undefined);
   assert.equal(optionalBatchProfileError(new TypeError("fetch failed")), undefined);
   assert.equal(optionalBatchProfileError(new DOMException("The operation was aborted due to timeout", "TimeoutError")), undefined);
 });
@@ -234,6 +244,79 @@ test("missing batch credentials keep seller boot and refuse the batch profile cl
   } finally {
     await loaded?.close();
     await l.close();
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test("facilitator initialize with no supported kinds keeps seller boot and refuses the batch profile closed", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "batch-ready-init-kinds-"));
+  const campaignPath = join(dir, "base.json");
+  writeFileSync(campaignPath, JSON.stringify(campaign()));
+  const hook = mock.method(BaseBatchMerchant.prototype, "initialize", async () => {
+    throw new Error("Failed to initialize: no supported payment kinds loaded from any facilitator.");
+  });
+  let loaded: Awaited<ReturnType<typeof configuredBatchHttpMerchants>> | undefined;
+  const l = await lab();
+  try {
+    loaded = await configuredBatchHttpMerchants(mainnetSeller, envFor(campaignPath, join(dir, "tokens.json")));
+    assert.equal(loaded.merchants.length, 1);
+    assert.deepEqual(loaded.merchants[0]!.unavailable, {
+      profile: "base-batch",
+      error: "batch_provider_unavailable",
+    });
+    const app = server(l.seller, undefined, loaded.merchants);
+    app.listen(0, "127.0.0.1");
+    await once(app, "listening");
+    const originUrl = `http://127.0.0.1:${(app.address() as any).port}`;
+    try {
+      const ready = await http(originUrl + "/ready", "GET");
+      assert.equal(ready.status, 200);
+      assert.equal(ready.body.ok, true);
+      assert.equal(ready.body.unavailable_profiles[0].error, "batch_provider_unavailable");
+      const challenge = await http(originUrl + "/base/payload/sha256", "GET");
+      assert.equal(challenge.status, 402);
+      assert.equal(challenge.body.accepts[0].scheme, "exact");
+      const catalog = await http(originUrl + "/catalog.json", "GET");
+      assert.equal(catalog.status, 200);
+      assert(!JSON.stringify(catalog.body).includes("/base/batch/sha256"));
+      const unpaid = await http(originUrl + "/base/batch/sha256", "GET");
+      assert.equal(unpaid.status, 503);
+      assert.equal(unpaid.body.new_payment_allowed, false);
+      assert.equal(unpaid.headers.get("payment-required"), null);
+    } finally {
+      if (app.listening) await new Promise<void>((resolve) => { app.close(() => resolve()); app.closeAllConnections(); });
+    }
+  } finally {
+    hook.mock.restore();
+    await loaded?.close();
+    await l.close();
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test("session initialize with no supported kinds keeps seller boot and refuses the session profile closed", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "batch-ready-session-kinds-"));
+  const sessionPath = join(dir, "solana.json");
+  writeFileSync(sessionPath, JSON.stringify(sessionCampaign()));
+  const hook = mock.method(optionalSessionRuntime, "createSession", async () => {
+    throw new Error("Failed to initialize: no supported payment kinds loaded from any facilitator.");
+  });
+  let loaded: Awaited<ReturnType<typeof configuredBatchHttpMerchants>> | undefined;
+  try {
+    loaded = await configuredBatchHttpMerchants(mainnetSeller, sessionEnv(sessionPath));
+    assert.equal(loaded.merchants.length, 1);
+    assert.deepEqual(loaded.merchants[0]!.unavailable, {
+      profile: "solana-session",
+      error: "batch_provider_unavailable",
+    });
+    await assertExactReadyAndSessionRefused(
+      loaded.merchants,
+      "solana-session",
+      "batch_provider_unavailable",
+    );
+  } finally {
+    hook.mock.restore();
+    await loaded?.close();
     rmSync(dir, { recursive: true });
   }
 });
