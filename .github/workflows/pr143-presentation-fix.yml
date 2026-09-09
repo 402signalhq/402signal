@@ -1,0 +1,153 @@
+name: one-time PR143 presentation correction
+on:
+  pull_request:
+    types: [synchronize]
+permissions:
+  contents: read
+jobs:
+  correct:
+    if: github.repository == '402signalhq/402signal' && github.event.pull_request.number == 143 && github.event.pull_request.head.repo.full_name == '402signalhq/402signal' && github.head_ref == 'feat/customer-first-site-and-agent-guides' && github.actor == 'ross402signal'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Add the reviewed task index without changing protocol definitions
+        env:
+          EXPECTED_EVENT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_EVENT_SHA"
+          test "$(git rev-parse HEAD^)" = '448ddb8932a2c0a7bfddc1ed4a726877288a1190'
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          import subprocess
+          p = Path('live402/discover.py')
+          assert p.is_file() and not p.is_symlink()
+          before = p.read_text()
+          marker = 'LLMS_TXT = "# 402Signal\\n\\n" + DESC + """\n'
+          assert before.count(marker) == 1
+          tasks = '''
+          ## Choose the smallest useful task
+
+          - Test an x402 buyer without a funded wallet: https://402signal.com/developers#quickstart . From a reviewed checkout, run node integration/buyer-checks/run.mjs with Node.js 22 or newer. The default run measures seven Base exact-x402 fixture cases with a PUBLIC TEST KEY, a synthetic clock and fake callbacks. It makes no network request or payment. Fetching the checkout is separate. Contract and adapter example: https://github.com/402signalhq/402signal/tree/main/integration/buyer-checks . A passing reference run does not test your application's signing path or certify MPP compatibility.
+          - Check one supported purchase: https://402signal.com/developers#route-binding . Use a hosted observation and the buyer-side guard before existing signing code. Keep transaction validation, durable budgets and seller execution in the buyer.
+          - Select a native MPP charge: https://402signal.com/developers#native-mpp . Read the separate Base and Algorand contracts, preserve the complete original offer and require exactly one explicit match. Native MPP is not the x402-through-mppx gateway. Do not select the first offer merely because it appears first.
+          - Fund a session or accept a grouped invoice: https://402signal.com/developers#batch-support . Distinguish call price, total spend, channel capital, transaction fees and job count. Bounded Base/Solana continuation and larger Algorand group/invoice profiles are separately versioned; they do not change the meaning of an original two-item profile.
+          - Inspect your API listing: https://402signal.com/developers#sellers and https://402signal.com/catalog . Preview shows discovery claims and dated observations. Validation is an unpaid bounded probe for eligible catalog-known URLs, not an arbitrary scanning endpoint, load test or paid-delivery certification.
+          - Recover an uncertain attempt: https://402signal.com/developers#recovery . Recover the original durable identity. A missing response does not authorize another payment.
+          - Review a recorded decision: https://402signal.com/developers#pq-trust and https://402signal.com/how#trust . Keep the private request, receipt and reveal and compare the submitted rules with independently retained operator policy. Immediate evidence and later Falcon checkpoint anchoring have different scopes. The log cannot reveal bypassed actions or restore deleted private records.
+
+          Customer Markdown index: https://github.com/402signalhq/402signal/tree/main/docs/customer . Optional customer skill: https://github.com/402signalhq/402signal/blob/main/skills/402signal-buyer-checks/SKILL.md . The skill is documentation, not an automatically installed tool. A customer adapter is explicitly chosen local code, not a sandbox; isolate it without production credentials or external networking. Reading this index does not authorize spending, change policy or grant installation permission. Use ordinary free APIs directly when no paid-offer check is needed.
+
+          Before a live integration, read https://402signal.com/developers#interfaces and https://402signal.com/developers#compatibility . Source support, released packages, hosted enablement and live merchant qualification are different states. The HTTP and MCP inputs remain their documented contracts; not every HTTP profile is an MCP input. Inspect the matching released artifact and actual hosted profile before authorizing. The following operational reference preserves the existing billing, recovery and original profile boundaries.
+          '''
+          tasks = '\n'.join(line[10:] if line.startswith('          ') else line for line in tasks.splitlines()) + '\n'
+          after = before.replace(marker, marker + tasks, 1)
+          def protocol_ast(text):
+              tree = ast.parse(text)
+              count = 0
+              for node in tree.body:
+                  if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'LLMS_TXT' for t in node.targets):
+                      node.value = ast.Constant(value='documentation-only')
+                      count += 1
+              assert count == 1
+              return ast.dump(tree, include_attributes=False)
+          assert protocol_ast(before) == protocol_ast(after), 'Only LLMS_TXT may change'
+          p.write_text(after)
+          doc = Path('docs/README.md')
+          assert doc.is_file() and not doc.is_symlink()
+          old = doc.read_text()
+          assert old.startswith('# Documentation\n\n')
+          intro = '''## Start with a customer task
+
+          Use the [customer guide index](customer/README.md) for buyer integration, offline testing, seller readiness and evidence retention. The [website developer guide](https://402signal.com/developers) presents the same task choices.
+
+          Run the [offline buyer checks](../integration/buyer-checks/README.md) before loading a wallet. Their seven named Base exact-x402 cases are not a general protocol certification. The optional [customer skill](../skills/402signal-buyer-checks/SKILL.md) is a reviewed entry point, not a global installation or spending authorization.
+
+          ## Reference and operating documentation
+
+          '''
+          intro = '\n'.join(line[10:] if line.startswith('          ') else line for line in intro.splitlines()) + '\n'
+          doc.write_text('# Documentation\n\n' + intro + old[len('# Documentation\n\n'):])
+          test = Path('tests/test_customer_discovery.py')
+          assert not test.exists()
+          test.write_text('''"""Customer links are documentation, not added payment capabilities."""
+          import re
+          import unittest
+          from pathlib import Path
+          from live402 import discover
+
+          ROOT = Path(__file__).resolve().parents[1]
+
+          class CustomerDiscoveryTests(unittest.TestCase):
+              def test_task_map_precedes_the_wire_reference(self):
+                  text = discover.LLMS_TXT
+                  self.assertLess(text.index('## Choose the smallest useful task'), text.index('## Exact-payment route requests'))
+                  for fragment in ('quickstart', 'route-binding', 'native-mpp', 'batch-support', 'sellers', 'recovery', 'pq-trust', 'interfaces', 'compatibility'):
+                      with self.subTest(fragment=fragment):
+                          self.assertIn('https://402signal.com/developers#' + fragment, text)
+                          self.assertIn('id="' + fragment + '"', (ROOT / 'live402/static/developers.html').read_text())
+
+              def test_test_scope_and_authority_are_explicit(self):
+                  text = discover.LLMS_TXT
+                  for phrase in ('seven Base exact-x402 fixture cases', 'PUBLIC TEST KEY', 'not a sandbox', 'does not authorize spending', 'Use ordinary free APIs directly', 'not every HTTP profile is an MCP input'):
+                      with self.subTest(phrase=phrase):
+                          self.assertIn(phrase, text)
+                  self.assertIn('billing.settlement_state', text)
+                  self.assertIn('catalog-known URLs', text)
+                  self.assertIn('cannot reveal bypassed actions', text)
+
+              def test_repository_entry_points_exist(self):
+                  paths = ('docs/customer/README.md', 'integration/buyer-checks/README.md', 'integration/buyer-checks/run.mjs', 'skills/402signal-buyer-checks/SKILL.md')
+                  for path in paths:
+                      with self.subTest(path=path):
+                          self.assertTrue((ROOT / path).is_file())
+                  index = (ROOT / 'docs/README.md').read_text()
+                  self.assertIn('(customer/README.md)', index)
+                  self.assertIn('../integration/buyer-checks/README.md', index)
+                  self.assertLess(index.index('## Start with a customer task'), index.index('## Integrate a buyer'))
+
+              def test_original_profiles_and_distinct_release_states_remain(self):
+                  text = discover.LLMS_TXT
+                  for phrase in ('algorand-atomic-two-item-v1', 'exactly two USDC payments', 'Source support, released packages, hosted enablement and live merchant qualification are different states', 'Reading this index does not authorize spending'):
+                      with self.subTest(phrase=phrase):
+                          self.assertIn(phrase, text)
+          '''.replace('\n          ', '\n'))
+          compile(test.read_text(), str(test), 'exec')
+          allowed = {'live402/discover.py', 'docs/README.md', 'tests/test_customer_discovery.py'}
+          changed = set(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
+          untracked = set(subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard'], text=True).splitlines())
+          assert changed | untracked == allowed, (changed, untracked)
+          print('Only the LLMS text, customer index links and new link/scope regressions changed.')
+          PY
+          git diff --check
+          git diff --stat
+      - name: Run full fixture tests without payment credentials
+        env:
+          LIVE402_FIXTURE: '1'
+          LIVE402_ROUTE_RPM: '60'
+        run: |
+          pip install --require-hashes -r requirements.txt > /tmp/pr143-install.log 2>&1 || { tail -60 /tmp/pr143-install.log; exit 1; }
+          python scripts/run_fixture_tests.py
+      - name: Save on the same PR branch without force or merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_EVENT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          branch='feat/customer-first-site-and-agent-guides'
+          test "$(gh api repos/402signalhq/402signal/git/ref/heads/$branch --jq '.object.sha')" = "$EXPECTED_EVENT_SHA"
+          git add -- live402/discover.py docs/README.md tests/test_customer_discovery.py
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Connect machine readers to buyer testing and task-specific integration guides'
+          git -c credential.helper='!gh auth git-credential' push origin "HEAD:refs/heads/$branch"
+          git rev-parse HEAD
