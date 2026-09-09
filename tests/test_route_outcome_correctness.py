@@ -246,6 +246,59 @@ class PaidReplayConsistencyTests(unittest.TestCase):
         self.assertEqual(second[1].get("miss_reason"), "constraints_unmet")
         self.assertEqual(second[1].get("billing"), body.get("billing"))
 
+    def test_saved_empty_constraint_miss_through_paid_assembly(self):
+        saved = {
+            "live": False,
+            "payable": False,
+            "invocable": False,
+            "selected_payment": None,
+            "miss_reason": "constraints_unmet",
+            "unresolved_constraints": [],
+            "unmet_constraints": [],
+            "stop_reason": "constraints_unmet",
+            "tried": 2,
+            "candidates_probed": 2,
+            "probed_count": 2,
+            "compared": [{"url": "https://wx.example/news", "live": True, "selected": False}],
+            "last": {"url": "https://wx.example/news", "status": 402, "latency_ms": 18},
+            "evaluation_complete": True,
+            "candidate_evaluation_complete": True,
+            "probe_budget_exhausted": False,
+        }
+        with patch("live402.facilitator.verify", return_value=_verified()), patch(
+            "live402.probe.route_need", return_value=dict(saved)
+        ), patch("live402.facilitator.settle") as settle:
+            code, body, extra = handle_route({"need": "crypto news"}, self.headers, RESOURCE)
+        self.assertEqual(code, 200)
+        self.assertTrue(is_normal_miss(body))
+        self.assertNotEqual(body.get("miss_reason"), "no_candidates")
+        self.assertNotEqual(body.get("miss_reason"), "constraints_unmet")
+        self.assertIn(body.get("miss_reason"), {"no_402_envelope", "no_payto"})
+        self.assertFalse(body.get("unmet_constraints"))
+        _assert_never_settled(self, body)
+        settle.assert_not_called()
+        self.assertIsNone(extra)
+
+    def test_saved_schema_miss_winner_through_paid_assembly(self):
+        winner = _winner("solana")
+        winner["invocable"] = False
+        winner["miss_reason"] = "no_input_schema"
+        with patch("live402.facilitator.verify", return_value=_verified()), patch(
+            "live402.probe.route_need", return_value=dict(winner)
+        ), patch("live402.facilitator.settle", return_value=_settled()) as settle:
+            code, body, extra = handle_route({"need": "web search"}, self.headers, RESOURCE)
+        self.assertEqual(code, 200)
+        self.assertTrue(body.get("live"))
+        self.assertTrue(body.get("payable"))
+        self.assertFalse(body.get("invocable"))
+        self.assertIsNone(body.get("miss_reason"))
+        self.assertTrue(body.get("billing", {}).get("settled"))
+        settle.assert_called_once()
+        self.assertIn("PAYMENT-RESPONSE", extra or {})
+        ev = pq_events.private_evidence_v3_from_route(body, {"need": "web search"})
+        self.assertIsNone(ev["decision"]["miss_reason"])
+        self.assertEqual(ev["decision"]["outcome"], "winner")
+
     def test_capacity_miss_stays_503_unsettled_and_not_a_normal_miss(self):
         miss = _miss("probe_capacity")
         miss["retryable"] = True
@@ -309,6 +362,81 @@ class PaidReplayConsistencyTests(unittest.TestCase):
         self.assertTrue(miss.get("unresolved_constraints"))
 
 
+class SavedCaseAssemblyTests(unittest.TestCase):
+    """Original contradictory bodies must go through run_probe, not a helper-only rewrite."""
+
+    def test_empty_constraint_miss_with_observed_candidates_is_not_no_candidates(self):
+        saved = {
+            "live": False,
+            "payable": False,
+            "invocable": False,
+            "selected_payment": None,
+            "miss_reason": "constraints_unmet",
+            "unresolved_constraints": [],
+            "unmet_constraints": [],
+            "stop_reason": "constraints_unmet",
+            "tried": 2,
+            "candidates_probed": 2,
+            "probed_count": 2,
+            "compared": [{"url": "https://wx.example/news", "live": True, "selected": False}],
+            "last": {"url": "https://wx.example/news", "status": 402, "latency_ms": 18},
+            "evaluation_complete": True,
+            "candidate_evaluation_complete": True,
+            "probe_budget_exhausted": False,
+        }
+        with patch("live402.probe.route_need", return_value=dict(saved)):
+            code, body = route.run_probe({"need": "crypto news"})
+        self.assertEqual(code, 503)
+        _assert_never_settled(self, body)
+        self.assertNotEqual(body.get("miss_reason"), "no_candidates")
+        self.assertNotEqual(body.get("miss_reason"), "constraints_unmet")
+        self.assertIn(body.get("miss_reason"), {"no_402_envelope", "no_payto"})
+        self.assertFalse(body.get("unmet_constraints"))
+
+    def test_saved_live_winner_with_schema_miss_is_informational(self):
+        winner = _winner("solana")
+        winner["invocable"] = False
+        winner["miss_reason"] = "no_input_schema"
+        with patch("live402.probe.route_need", return_value=dict(winner)):
+            code, body = route.run_probe({
+                "need": "web search",
+                "url": None,
+            })
+        # url is empty so need-routing is used.
+        self.assertEqual(code, 200)
+        self.assertTrue(body.get("live"))
+        self.assertTrue(body.get("payable"))
+        self.assertFalse(body.get("invocable"))
+        self.assertIsInstance(body.get("selected_payment"), dict)
+        self.assertIsNone(body.get("miss_reason"))
+        ev = pq_events.private_evidence_v3_from_route(body, {"need": "web search"})
+        self.assertIsNone(ev["decision"]["miss_reason"])
+        self.assertEqual(ev["decision"]["outcome"], "winner")
+        self.assertIs(ev["observation"]["invocable"], False)
+
+    def test_empty_constraint_miss_without_candidates_is_no_candidates(self):
+        saved = {
+            "live": False,
+            "payable": False,
+            "invocable": False,
+            "selected_payment": None,
+            "miss_reason": "constraints_unmet",
+            "unresolved_constraints": [],
+            "tried": 0,
+            "candidates_probed": 0,
+            "compared": [],
+            "stop_reason": "constraints_unmet",
+            "evaluation_complete": True,
+            "candidate_evaluation_complete": True,
+            "probe_budget_exhausted": False,
+        }
+        with patch("live402.probe.route_need", return_value=dict(saved)):
+            code, body = route.run_probe({"need": "image generation"})
+        self.assertEqual(code, 503)
+        _assert_never_settled(self, body)
+        self.assertEqual(body.get("miss_reason"), "no_candidates")
+
+
 class ClassifyHelpersTests(unittest.TestCase):
     def test_classify_does_not_invent_constraints(self):
         live = {
@@ -322,16 +450,28 @@ class ClassifyHelpersTests(unittest.TestCase):
         self.assertEqual(unmet, [])
         self.assertEqual(reason, "no_402_envelope")
 
-    def test_publish_rewrites_empty_constraint_miss(self):
-        result = {
+    def test_publish_does_not_call_observed_candidates_no_candidates(self):
+        empty = {
             "miss_reason": "constraints_unmet",
             "stop_reason": "constraints_unmet",
             "unresolved_constraints": [],
             "live": False,
         }
-        select.publish_constraint_outcome(result)
-        self.assertNotEqual(result.get("miss_reason"), "constraints_unmet")
-        self.assertNotEqual(result.get("stop_reason"), "constraints_unmet")
+        select.publish_constraint_outcome(empty)
+        self.assertEqual(empty.get("miss_reason"), "no_candidates")
+        observed = {
+            "miss_reason": "constraints_unmet",
+            "stop_reason": "constraints_unmet",
+            "unresolved_constraints": [],
+            "live": False,
+            "tried": 1,
+            "candidates_probed": 1,
+            "last": {"url": "https://wx.example/x", "status": 402},
+        }
+        select.publish_constraint_outcome(observed)
+        self.assertNotEqual(observed.get("miss_reason"), "no_candidates")
+        self.assertNotEqual(observed.get("miss_reason"), "constraints_unmet")
+        self.assertEqual(observed.get("miss_reason"), "no_402_envelope")
 
 
 if __name__ == "__main__":

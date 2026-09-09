@@ -1367,6 +1367,35 @@ def clear_informational_schema_miss(result: dict) -> dict:
     return result
 
 
+def has_observed_candidates(result: dict) -> bool:
+    """True when this request already evaluated at least one candidate."""
+    if not isinstance(result, dict):
+        return False
+    for key in ("candidates_probed", "probed_count", "tried"):
+        try:
+            if int(result.get(key) or 0) > 0:
+                return True
+        except (TypeError, ValueError):
+            pass
+    compared = result.get("compared")
+    if isinstance(compared, list) and compared:
+        return True
+    last = result.get("last")
+    return isinstance(last, dict) and bool(last)
+
+
+def observed_candidate_miss(result: dict) -> str:
+    """Existing miss for a non-empty evaluated set. Never no_candidates."""
+    pay_miss = payment_completeness_miss(result)
+    if pay_miss:
+        return pay_miss
+    last = result.get("last") if isinstance(result.get("last"), dict) else {}
+    for raw in (last.get("miss_reason"), result.get("miss_reason")):
+        if raw and raw not in {"constraints_unmet", "no_candidates"}:
+            return str(raw)
+    return "no_402_envelope"
+
+
 def publish_constraint_outcome(result: dict) -> dict:
     """Final public constraint fields. constraints_unmet requires named unmet bounds."""
     if not isinstance(result, dict):
@@ -1376,10 +1405,12 @@ def publish_constraint_outcome(result: dict) -> dict:
         return result
     unmet = result.get("unmet_constraints") if isinstance(result.get("unmet_constraints"), list) else []
     unmet = [name for name in unmet if isinstance(name, str) and name.strip()]
-    if not unmet:
-        pay_miss = payment_completeness_miss(result)
-        result["miss_reason"] = pay_miss or "no_candidates"
-        if result.get("stop_reason") == "constraints_unmet":
-            result["stop_reason"] = "candidate_set_exhausted"
-        return result
-    return attach_constraint_records(result, unmet)
+    if unmet:
+        return attach_constraint_records(result, unmet)
+    if has_observed_candidates(result):
+        result["miss_reason"] = observed_candidate_miss(result)
+    else:
+        result["miss_reason"] = "no_candidates"
+    if result.get("stop_reason") == "constraints_unmet":
+        result["stop_reason"] = "candidate_set_exhausted"
+    return result

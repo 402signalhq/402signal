@@ -319,18 +319,7 @@ def canonicalize_private_evidence_v3(raw: dict) -> dict:
     unresolved = pol.get("unresolved")
     if not isinstance(unresolved, list):
         unresolved = []
-    names: list[str] = []
-    for item in unresolved:
-        if isinstance(item, dict):
-            name = item.get("name")
-            text = str(name).strip() if name is not None else ""
-        elif item is None:
-            text = ""
-        else:
-            text = str(item).strip()
-        if text:
-            names.append(text)
-    unresolved = names
+    unresolved = [str(x) for x in unresolved if x is not None and str(x).strip()]
     selected = None
     if pay:
         selected = {
