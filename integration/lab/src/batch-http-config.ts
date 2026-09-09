@@ -12,7 +12,61 @@ import {
 import { BaseBatchLedger } from "./base-batch-ledger.js";
 import { http } from "./transport.js";
 import { CdpBatchReadOnlyProvider } from "./base-batch-cdp-provider.js";
-import { assert, parseJson } from "./json.js";
+import { assert, LabError, parseJson } from "./json.js";
+const OPTIONAL_BATCH_PROFILE_ERRORS = [
+  "batch_provider_credentials_unavailable",
+  "base_batch_cdp_tokens_required",
+  "batch_provider_unavailable",
+  "batch_provider_supported_invalid",
+] as const;
+const BASE_BATCH_HTTP_PATH = "/base/batch/sha256";
+/** Credential/provider discovery failures stay closed for that profile only. */
+export function optionalBatchProfileError(error: unknown): string | undefined {
+  const text = error instanceof LabError ? error.code : error instanceof Error ? error.message : String(error);
+  const matched = OPTIONAL_BATCH_PROFILE_ERRORS.find((code) => text.includes(code));
+  if (matched) return matched;
+  if (text.includes("Failed to fetch supported kinds")) return "batch_provider_unavailable";
+  return undefined;
+}
+export function refuseClosedBatchMerchant(
+  path: string,
+  authorizationHeader: BatchHttpMerchant["authorizationHeader"],
+  profile: string,
+  error: string,
+): BatchHttpMerchant {
+  return {
+    path,
+    authorizationHeader,
+    unavailable: { profile, error },
+    request: async () => ({
+      status: 503,
+      body: {
+        error,
+        new_payment_allowed: false,
+        billing: {
+          settled: false,
+          settlement_attempted: false,
+          settlement_state: "not_attempted",
+        },
+      },
+    }),
+  };
+}
+async function loadOptionalBatchProfile(
+  merchants: BatchHttpMerchant[],
+  path: string,
+  authorizationHeader: BatchHttpMerchant["authorizationHeader"],
+  profile: string,
+  load: () => Promise<void>,
+) {
+  try {
+    await load();
+  } catch (error) {
+    const code = optionalBatchProfileError(error);
+    if (!code) throw error;
+    merchants.push(refuseClosedBatchMerchant(path, authorizationHeader, profile, code));
+  }
+}
 export const BASE_BATCH_OPT_IN = "reviewed-two-voucher-profile-v1";
 export const SOLANA_SESSION_OPT_IN = "reviewed-owner-open-push-v1";
 export const SOLANA_CONTINUATION_OPT_IN = "reviewed-owner-push-continuation-v2";
@@ -190,23 +244,31 @@ async function configuredExistingBatchHttpMerchants(
     if (base) {
       const c = config(env.LAB_BASE_BATCH_CONFIG);
       assert(
-        c.url === seller.config.origin + "/base/batch/sha256" &&
+        c.url === seller.config.origin + BASE_BATCH_HTTP_PATH &&
           c.channelConfig.receiver.toLowerCase() ===
             seller.config.rails.base.payTo.toLowerCase(),
         "base_batch_deployment_scope_refused",
       );
-      assert(env.LAB_BASE_BATCH_CDP_TOKENS, "base_batch_cdp_tokens_required");
-      const provider = new CdpBatchReadOnlyProvider(
-        env.LAB_BASE_BATCH_CDP_TOKENS,
-        c.campaignId,
+      await loadOptionalBatchProfile(
+        merchants,
+        BASE_BATCH_HTTP_PATH,
+        "payment-signature",
+        "base-batch",
+        async () => {
+          assert(env.LAB_BASE_BATCH_CDP_TOKENS, "base_batch_cdp_tokens_required");
+          const provider = new CdpBatchReadOnlyProvider(
+            env.LAB_BASE_BATCH_CDP_TOKENS,
+            c.campaignId,
+          );
+          const merchant = new BaseBatchMerchant(pool, c, provider);
+          await merchant.initialize({ migrateSchema: false });
+          merchants.push({
+            path: merchant.path,
+            authorizationHeader: "payment-signature",
+            request: merchant.request.bind(merchant),
+          });
+        },
       );
-      const merchant = new BaseBatchMerchant(pool, c, provider);
-      await merchant.initialize({ migrateSchema: false });
-      merchants.push({
-        path: merchant.path,
-        authorizationHeader: "payment-signature",
-        request: merchant.request.bind(merchant),
-      });
     }
     if (solana) {
       const c = config(env.LAB_SOLANA_SESSION_CONFIG);
@@ -267,22 +329,30 @@ async function configuredExistingBatchHttpMerchants(
       });
     }
     if (baseV2Config) {
-      assert(env.LAB_BASE_BATCH_CDP_TOKENS, "base_batch_cdp_tokens_required");
-      const provider = new CdpBatchReadOnlyProvider(
-        env.LAB_BASE_BATCH_CDP_TOKENS,
-        baseV2Config.campaignId,
+      await loadOptionalBatchProfile(
+        merchants,
+        BASE_BATCH_HTTP_PATH,
+        "payment-signature",
+        "base-batch-continuation",
+        async () => {
+          assert(env.LAB_BASE_BATCH_CDP_TOKENS, "base_batch_cdp_tokens_required");
+          const provider = new CdpBatchReadOnlyProvider(
+            env.LAB_BASE_BATCH_CDP_TOKENS,
+            baseV2Config.campaignId,
+          );
+          const merchant = new BaseBatchContinuationMerchant(
+            pool,
+            baseV2Config,
+            provider,
+          );
+          await merchant.initialize({ migrateSchema: false });
+          merchants.push({
+            path: merchant.path,
+            authorizationHeader: "payment-signature",
+            request: merchant.request.bind(merchant),
+          });
+        },
       );
-      const merchant = new BaseBatchContinuationMerchant(
-        pool,
-        baseV2Config,
-        provider,
-      );
-      await merchant.initialize({ migrateSchema: false });
-      merchants.push({
-        path: merchant.path,
-        authorizationHeader: "payment-signature",
-        request: merchant.request.bind(merchant),
-      });
     }
     if (solanaV2Config) {
       const c = solanaV2Config;
