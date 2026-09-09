@@ -184,32 +184,42 @@ function continuationConfig(
   }
   return c;
 }
-function continuationRpc(url: string) {
-  const readonly = new Set([
-    "getGenesisHash",
-    "getLatestBlockhash",
-    "getSlot",
-    "getAccountInfo",
-    "getTransaction",
-    "getSignatureStatuses",
-    "getMinimumBalanceForRentExemption",
-    "getFeeForMessage",
-    "getBalance",
-  ]);
+const SOLANA_READONLY_RPC = new Set([
+  "getGenesisHash",
+  "getLatestBlockhash",
+  "getSlot",
+  "getAccountInfo",
+  "getTransaction",
+  "getSignatureStatuses",
+  "getMinimumBalanceForRentExemption",
+  "getFeeForMessage",
+  "getBalance",
+]);
+/** Read-only RPC. Transport failures stay optional; write methods stay fatal. */
+export function solanaReadonlyRpc(url: string) {
   return async (method: string, params: unknown[]) => {
-    assert(readonly.has(method), "readonly_rpc_required");
-    const response = await http(url, "POST", {
-      jsonrpc: "2.0",
-      id: 1,
-      method,
-      params,
-    });
-    assert(
-      response.status === 200 && response.body && !response.body.error,
-      "solana_rpc_unavailable",
-    );
-    return response.body.result;
+    assert(SOLANA_READONLY_RPC.has(method), "readonly_rpc_required");
+    try {
+      const response = await http(url, "POST", {
+        jsonrpc: "2.0",
+        id: 1,
+        method,
+        params,
+      });
+      assert(
+        response.status === 200 && response.body && !response.body.error,
+        "solana_rpc_unavailable",
+      );
+      return response.body.result;
+    } catch (error) {
+      if (error instanceof LabError && error.code === "solana_rpc_unavailable")
+        throw error;
+      throw new LabError("solana_rpc_unavailable", 503);
+    }
   };
+}
+function continuationRpc(url: string) {
+  return solanaReadonlyRpc(url);
 }
 /** Independently gated self-test modules. No keys or new service are provisioned. */
 async function configuredExistingBatchHttpMerchants(
@@ -326,34 +336,9 @@ async function configuredExistingBatchHttpMerchants(
         "authorization",
         "solana-session",
         async () => {
-          const readonly = new Set([
-            "getGenesisHash",
-            "getLatestBlockhash",
-            "getSlot",
-            "getAccountInfo",
-            "getTransaction",
-            "getSignatureStatuses",
-            "getMinimumBalanceForRentExemption",
-            "getFeeForMessage",
-            "getBalance",
-          ]);
-          const rpc = async (method: string, params: unknown[]) => {
-            assert(readonly.has(method), "readonly_rpc_required");
-            const response = await http(c.rpcUrl, "POST", {
-              jsonrpc: "2.0",
-              id: 1,
-              method,
-              params,
-            });
-            assert(
-              response.status === 200 && response.body && !response.body.error,
-              "solana_rpc_unavailable",
-            );
-            return response.body.result;
-          };
           const merchant = await optionalSessionRuntime.createSession({
             ledger: new BaseBatchLedger(pool, "solana-merchant-" + c.campaignId),
-            rpc,
+            rpc: solanaReadonlyRpc(c.rpcUrl),
             url: c.url,
             policy: c.policy,
             perCallAtomic: c.perCallAtomic,

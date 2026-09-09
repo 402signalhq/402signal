@@ -13,6 +13,7 @@ import {
   SOLANA_CONTINUATION_OPT_IN,
   optionalBatchProfileError,
   optionalSessionRuntime,
+  solanaReadonlyRpc,
 } from "../src/batch-http-config.js";
 import { BaseBatchMerchant } from "../src/base-batch-merchant.js";
 import { BASE_USDC } from "../src/base-batch-observer.js";
@@ -174,6 +175,8 @@ test("optional batch errors map credentials and supported-kinds fetch failures",
   assert.equal(optionalBatchProfileError(new LabError("solana_session_deployment_scope_refused")), undefined);
   assert.equal(optionalBatchProfileError(new LabError("solana_rpc_refused")), undefined);
   assert.equal(optionalBatchProfileError(new LabError("solana_continuation_scope_refused")), undefined);
+  assert.equal(optionalBatchProfileError(new TypeError("fetch failed")), undefined);
+  assert.equal(optionalBatchProfileError(new DOMException("The operation was aborted due to timeout", "TimeoutError")), undefined);
 });
 
 test("missing batch credentials keep seller boot and refuse the batch profile closed", async () => {
@@ -280,59 +283,95 @@ test("batch supported-kinds credential failure is isolated and does not crash se
   }
 });
 
-test("solana session RPC unavailability keeps seller boot and refuses the session profile closed", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "batch-ready-solana-"));
+function transportFailure(kind: "reject" | "timeout") {
+  if (kind === "timeout") {
+    const error = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    return error;
+  }
+  return new TypeError("fetch failed");
+}
+
+async function loadSolanaProfileThroughRpc(
+  kind: "session" | "continuation",
+  fail: "reject" | "timeout",
+) {
+  const dir = mkdtempSync(join(tmpdir(), `batch-ready-solana-${kind}-${fail}-`));
   const sessionPath = join(dir, "solana.json");
-  writeFileSync(sessionPath, JSON.stringify(sessionCampaign()));
-  const hook = mock.method(optionalSessionRuntime, "createSession", async () => {
-    throw new LabError("solana_rpc_unavailable", 503);
+  writeFileSync(
+    sessionPath,
+    JSON.stringify(kind === "session" ? sessionCampaign() : continuationCampaign()),
+  );
+  const fetchHook = mock.method(globalThis, "fetch", async (url: any) => {
+    assert.equal(String(url), "https://rpc.example/");
+    throw transportFailure(fail);
+  });
+  const runtime = kind === "session" ? "createSession" : "createContinuation";
+  const createHook = mock.method(optionalSessionRuntime, runtime, async (args: any) => {
+    await args.rpc("getLatestBlockhash", [{ commitment: "confirmed" }]);
+    throw new Error("rpc_transport_should_have_refused");
   });
   let loaded: Awaited<ReturnType<typeof configuredBatchHttpMerchants>> | undefined;
   try {
-    loaded = await configuredBatchHttpMerchants(mainnetSeller, sessionEnv(sessionPath));
-    assert.equal(loaded.merchants.length, 1);
-    assert.deepEqual(loaded.merchants[0]!.unavailable, {
-      profile: "solana-session",
-      error: "solana_rpc_unavailable",
-    });
-    await assertExactReadyAndSessionRefused(loaded.merchants, "solana-session", "solana_rpc_unavailable");
-  } finally {
-    hook.mock.restore();
+    loaded = await configuredBatchHttpMerchants(
+      mainnetSeller,
+      kind === "session"
+        ? sessionEnv(sessionPath)
+        : {
+            LAB_SOLANA_PUSH_CONTINUATION: SOLANA_CONTINUATION_OPT_IN,
+            LAB_SOLANA_CONTINUATION_CONFIG: sessionPath,
+            LAB_BATCH_DATABASE_URL: "postgresql://127.0.0.1/lab_batch_readiness",
+          },
+    );
+    return { dir, loaded, profile: kind === "session" ? "solana-session" : "solana-session-continuation" };
+  } catch (error) {
     await loaded?.close();
     rmSync(dir, { recursive: true });
+    throw error;
+  } finally {
+    fetchHook.mock.restore();
+    createHook.mock.restore();
+  }
+}
+
+test("solana readonly RPC remaps fetch reject and timeout, not write-method programming errors", async () => {
+  const rpc = solanaReadonlyRpc("https://rpc.example/");
+  const fetchHook = mock.method(globalThis, "fetch", async () => {
+    throw new TypeError("fetch failed");
+  });
+  try {
+    await assert.rejects(rpc("getGenesisHash", []), /solana_rpc_unavailable/);
+    fetchHook.mock.mockImplementation(async () => {
+      throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    });
+    await assert.rejects(rpc("getLatestBlockhash", [{ commitment: "confirmed" }]), /solana_rpc_unavailable/);
+    await assert.rejects(rpc("sendTransaction", []), /readonly_rpc_required/);
+  } finally {
+    fetchHook.mock.restore();
   }
 });
 
-test("solana continuation RPC unavailability keeps seller boot and refuses the session profile closed", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "batch-ready-solana-v2-"));
-  const sessionPath = join(dir, "solana.json");
-  writeFileSync(sessionPath, JSON.stringify(continuationCampaign()));
-  const hook = mock.method(optionalSessionRuntime, "createContinuation", async () => {
-    throw new LabError("solana_rpc_unavailable", 503);
-  });
-  let loaded: Awaited<ReturnType<typeof configuredBatchHttpMerchants>> | undefined;
-  try {
-    loaded = await configuredBatchHttpMerchants(mainnetSeller, {
-      LAB_SOLANA_PUSH_CONTINUATION: SOLANA_CONTINUATION_OPT_IN,
-      LAB_SOLANA_CONTINUATION_CONFIG: sessionPath,
-      LAB_BATCH_DATABASE_URL: "postgresql://127.0.0.1/lab_batch_readiness",
+for (const kind of ["session", "continuation"] as const) {
+  for (const fail of ["reject", "timeout"] as const) {
+    test(`solana ${kind} ${fail} transport failure keeps seller boot and refuses the session profile closed`, async () => {
+      const run = await loadSolanaProfileThroughRpc(kind, fail);
+      try {
+        assert.equal(run.loaded.merchants.length, 1);
+        assert.deepEqual(run.loaded.merchants[0]!.unavailable, {
+          profile: run.profile,
+          error: "solana_rpc_unavailable",
+        });
+        await assertExactReadyAndSessionRefused(
+          run.loaded.merchants,
+          run.profile,
+          "solana_rpc_unavailable",
+        );
+      } finally {
+        await run.loaded.close();
+        rmSync(run.dir, { recursive: true });
+      }
     });
-    assert.equal(loaded.merchants.length, 1);
-    assert.deepEqual(loaded.merchants[0]!.unavailable, {
-      profile: "solana-session-continuation",
-      error: "solana_rpc_unavailable",
-    });
-    await assertExactReadyAndSessionRefused(
-      loaded.merchants,
-      "solana-session-continuation",
-      "solana_rpc_unavailable",
-    );
-  } finally {
-    hook.mock.restore();
-    await loaded?.close();
-    rmSync(dir, { recursive: true });
   }
-});
+}
 
 test("invalid batch opt-in and deployment scope still fail closed before isolation", async () => {
   const dir = mkdtempSync(join(tmpdir(), "batch-ready-fatal-"));
