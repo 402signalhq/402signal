@@ -29,6 +29,10 @@ DISCOVERY_GLOBAL = 24
 DISCOVERY_ANONYMOUS = 4
 DISCOVERY_ANONYMOUS_TOTAL = 16
 DISCOVERY_CUSTOMER = 8
+# Paid work, unpaid discovery, and recovery each have an independent map
+# capped at policy.max_keys. Combined resident counters stay within this many
+# maps times max_keys.
+COUNTER_POOLS = 3
 
 class Unavailable(Exception):
     pass
@@ -118,6 +122,7 @@ class Engine:
         self.lock = threading.Lock()
         self.buckets = {}
         self.recovery_buckets = {}
+        self.discovery_buckets = {}
         self.pinned = set()
         if policy.version == 2:
             initial = {"ingress:global": policy.ingress["global"],
@@ -135,6 +140,14 @@ class Engine:
                         for digest in policy.customers})
         self._preallocate(self.recovery_buckets, initial)
         self.recovery_pinned = set(initial)
+        discovery_initial = {"discovery:global": DISCOVERY_GLOBAL}
+        if policy.version == 2:
+            discovery_initial["discovery:anonymous-total"] = DISCOVERY_ANONYMOUS_TOTAL
+        self._preallocate(self.discovery_buckets, discovery_initial)
+        self.discovery_pinned = set(discovery_initial)
+
+    def counter_slot_bound(self):
+        return COUNTER_POOLS * self.policy.max_keys
 
     def _preallocate(self, pool, specifications):
         now = self.clock()
@@ -143,10 +156,14 @@ class Engine:
             bucket.balance = self._initial_balance(capacity, now)
             pool[key] = bucket
 
-    def take(self, specifications, *, recovery=False):
+    def take(self, specifications, *, recovery=False, discovery=False):
         with self.lock:
-            pool = self.recovery_buckets if recovery else self.buckets
-            pinned = self.recovery_pinned if recovery else self.pinned
+            if recovery:
+                pool, pinned = self.recovery_buckets, self.recovery_pinned
+            elif discovery:
+                pool, pinned = self.discovery_buckets, self.discovery_pinned
+            else:
+                pool, pinned = self.buckets, self.pinned
             now = self.clock()
             requested = dict(specifications)
             missing = [key for key in requested if key not in pool]
@@ -232,7 +249,7 @@ class Engine:
         specifications = [("discovery:global", DISCOVERY_GLOBAL), ("discovery:" + identity, cap)]
         if not customer and self.policy.version == 2:
             specifications.append(("discovery:anonymous-total", DISCOVERY_ANONYMOUS_TOTAL))
-        return self.take(specifications)
+        return self.take(specifications, discovery=True)
 
     def probe(self, url, *, discovery=False):
         parsed = urlsplit(url)
@@ -242,14 +259,14 @@ class Engine:
         origin = hashlib.sha256(origin.encode()).hexdigest()
         # Queries and paths cannot rotate a host's budget. Separate origins can
         # still consume only the configured global work capacity.
-        # Unpaid discovery probes use a distinct key namespace so they cannot
-        # exhaust paid /route target admission.
+        # Unpaid discovery probes use a distinct map so they cannot occupy
+        # paid /route target-admission slots.
         if discovery:
             return self.take([
                 ("discovery-probe:global", self.policy.target["global"]),
                 ("discovery-probe:" + origin, self.policy.target["origin"]),
                 ("discovery-failure:" + origin, self.policy.target["failures"]),
-            ])
+            ], discovery=True)
         return self.take([("probe:global", self.policy.target["global"]), ("probe:" + origin, self.policy.target["origin"]), ("failure:" + origin, self.policy.target["failures"])])
 
     def probe_complete(self, lease, healthy):

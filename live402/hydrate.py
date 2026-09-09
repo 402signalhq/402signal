@@ -18,6 +18,7 @@ SCHEMA_SOFT_BYTES = 8 * 1024
 SCHEMA_MAX_BYTES = 16 * 1024
 SCHEMA_MAX_DEPTH = 6
 SCHEMA_MAX_KEYS = 64
+SCHEMA_MAX_KEY = 80
 SCHEMA_MAX_STRING = 512
 SCHEMA_MAX_ITEMS = 32
 CLIENT_SCHEMA_WARNING = (
@@ -93,6 +94,8 @@ def sanitize_untrusted_schema(obj, depth: int = 0):
 
     Remote, protocol-relative, or non-fragment $ref / $dynamicRef / $recursiveRef
     fail closed (None) so a rewritten body cannot look like a different offer.
+    Depth, key, item, string, and null-constraint overflows refuse the whole
+    schema instead of forwarding a truncated substitute. JSON null is kept.
     Local #fragments stay as opaque strings and are never resolved.
     """
     cleaned = _sanitize_untrusted_schema(obj, depth)
@@ -101,17 +104,21 @@ def sanitize_untrusted_schema(obj, depth: int = 0):
 
 def _sanitize_untrusted_schema(obj, depth: int = 0):
     if depth > SCHEMA_MAX_DEPTH:
-        return None
+        return _UNSAFE_SCHEMA
     if isinstance(obj, dict):
+        if len(obj) > SCHEMA_MAX_KEYS:
+            return _UNSAFE_SCHEMA
         out = {}
-        for i, (key, val) in enumerate(obj.items()):
-            if i >= SCHEMA_MAX_KEYS:
-                break
-            name = str(key)[:80]
-            lname = name.lower()
+        for key, val in obj.items():
+            if not isinstance(key, str) or len(key) > SCHEMA_MAX_KEY:
+                return _UNSAFE_SCHEMA
+            lname = key.lower()
             if lname in _REF_KEYS:
                 if lname == "$ref" and _is_local_fragment_ref(val):
-                    out["$ref"] = val.strip()[:SCHEMA_MAX_STRING]
+                    text = val.strip()
+                    if len(text) > SCHEMA_MAX_STRING:
+                        return _UNSAFE_SCHEMA
+                    out["$ref"] = text
                     continue
                 return _UNSAFE_SCHEMA
             if lname in {"$schema", "$id", "$anchor"}:
@@ -119,25 +126,25 @@ def _sanitize_untrusted_schema(obj, depth: int = 0):
             cleaned = _sanitize_untrusted_schema(val, depth + 1)
             if cleaned is _UNSAFE_SCHEMA:
                 return _UNSAFE_SCHEMA
-            if cleaned is not None:
-                out[name] = cleaned
+            out[key] = cleaned
         return out
     if isinstance(obj, list):
+        if len(obj) > SCHEMA_MAX_ITEMS:
+            return _UNSAFE_SCHEMA
         out = []
-        for item in obj[:SCHEMA_MAX_ITEMS]:
-            if item is None:
-                continue
+        for item in obj:
             cleaned = _sanitize_untrusted_schema(item, depth + 1)
             if cleaned is _UNSAFE_SCHEMA:
                 return _UNSAFE_SCHEMA
-            if cleaned is not None:
-                out.append(cleaned)
+            out.append(cleaned)
         return out
     if isinstance(obj, str):
-        return obj[:SCHEMA_MAX_STRING]
+        if len(obj) > SCHEMA_MAX_STRING:
+            return _UNSAFE_SCHEMA
+        return obj
     if isinstance(obj, (int, float, bool)) or obj is None:
         return obj
-    return None
+    return _UNSAFE_SCHEMA
 
 
 def schema_is_unusable(obj) -> bool:
@@ -151,8 +158,9 @@ def schema_is_unusable(obj) -> bool:
 def forward_untrusted_schema(obj) -> dict | None:
     """Return a bounded schema only when it is safe to expose. Else None.
 
-    Oversize and remote/relative $ref are refused. The caller must keep any
-    signed/observed original intact and not emit a rewritten substitute.
+    Oversize, overflow, remote/relative $ref, and other limit hits refuse the
+    whole schema. The caller must keep any signed/observed original intact
+    and not emit a rewritten substitute.
     """
     cleaned, _n, truncated = _bounded_schema(obj)
     if truncated or not isinstance(cleaned, dict) or not cleaned:

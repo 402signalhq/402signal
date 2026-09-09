@@ -60,6 +60,28 @@ class ProtectedAdmissionTests(unittest.TestCase):
   self.assertFalse(self.e.recover({},'next'))
   self.assertTrue(all(self.e.recover(self.headers,'p') for _ in range(4)))
   self.assertFalse(self.e.recover(self.headers,'p'))
+ def test_discovery_table_churn_does_not_block_paid_target_admission(self):
+  # Synthetic supported capacity only. Not a production quota claim.
+  p=policy();p['max_keys']=16
+  e=admission.Engine(admission.Policy(p),lambda:self.now)
+  self.assertEqual(len(e.pinned),6)
+  for i in range(8):
+   lease=e.discover({}, 'preview-%d'%i)
+   self.assertIsNotNone(lease)
+   lease.finish(False)
+  self.assertFalse(any(k.startswith('discovery') for k in e.buckets))
+  self.assertTrue(any(k.startswith('discovery:anonymous:') for k in e.discovery_buckets))
+  self.assertLessEqual(len(e.buckets), e.policy.max_keys)
+  self.assertLessEqual(len(e.discovery_buckets), e.policy.max_keys)
+  self.assertLessEqual(len(e.recovery_buckets), e.policy.max_keys)
+  self.assertLessEqual(len(e.buckets)+len(e.discovery_buckets)+len(e.recovery_buckets), e.counter_slot_bound())
+  paid=e.probe('https://seller.example/paid-target')
+  self.assertIsNotNone(paid)
+  self.assertTrue(e.ingress(self.headers,'partner'))
+  extra=e.discover({}, 'preview-fresh')
+  self.assertIsNotNone(extra)
+  extra.finish(False)
+  self.assertLessEqual(len(e.buckets)+len(e.discovery_buckets)+len(e.recovery_buckets), e.counter_slot_bound())
  def test_recovery_map_saturation_does_not_evict_spent_or_customer_buckets(self):
   p=policy();p['max_keys']=16;p['recovery']['global']=100;p['recovery']['anonymous_total']=90
   e=admission.Engine(admission.Policy(p),lambda:self.now)

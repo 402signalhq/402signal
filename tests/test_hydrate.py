@@ -352,6 +352,59 @@ class LiveSchemaBoundTests(unittest.TestCase):
         self.assertEqual(result.get("miss_reason"), "no_input_schema")
         self.assertTrue(result.get("payable"))
 
+    def _payable_live(self, schema, url="https://wx.example/live-bound"):
+        envelope = {
+            "x402Version": 2,
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": payment.BASE_CAIP2,
+                    "asset": payment.USDC_BASE,
+                    "amount": "20000",
+                    "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "maxTimeoutSeconds": 60,
+                }
+            ],
+            "inputSchema": schema,
+        }
+        result = {
+            "url": url,
+            "live": True,
+            "status": 402,
+            "has_402_challenge": True,
+            "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "envelope": envelope,
+            "accepts": envelope["accepts"],
+        }
+        return result, envelope
+
+    def _assert_schema_refused(self, schema, url):
+        original = json.loads(json.dumps(schema))
+        result, envelope = self._payable_live(schema, url)
+        result = probe.attach_invocable_target(result, None, envelope)
+        self.assertIs(result.get("envelope"), envelope)
+        self.assertEqual(result["envelope"]["inputSchema"], original)
+        target = result.get("target") or {}
+        self.assertIsNone(target.get("inputSchema"))
+        self.assertTrue(target.get("schema_refused"))
+        self.assertTrue(target.get("untrusted"))
+        self.assertFalse(result.get("invocable"))
+        self.assertTrue(result.get("payable"))
+        self.assertEqual(result.get("miss_reason"), "no_input_schema")
+
+    def _assert_schema_usable(self, schema, url):
+        original = json.loads(json.dumps(schema))
+        result, envelope = self._payable_live(schema, url)
+        result = probe.attach_invocable_target(result, None, envelope)
+        self.assertIs(result.get("envelope"), envelope)
+        self.assertEqual(result["envelope"]["inputSchema"], original)
+        target = result.get("target") or {}
+        self.assertEqual(target.get("inputSchema"), original)
+        self.assertTrue(target.get("untrusted"))
+        self.assertNotIn("schema_refused", target)
+        self.assertTrue(result.get("invocable"))
+        self.assertTrue(result.get("payable"))
+
     def test_safe_live_schema_still_forwarded_and_marked_untrusted(self):
         envelope = {
             "x402Version": 2,
@@ -387,6 +440,66 @@ class LiveSchemaBoundTests(unittest.TestCase):
         self.assertNotIn("schema_refused", target)
         self.assertTrue(result.get("invocable"))
         self.assertEqual(result.get("schema_source"), "envelope")
+
+    def test_overlimit_required_list_refuses_whole_schema(self):
+        names = ["p%02d" % i for i in range(hydrate.SCHEMA_MAX_ITEMS + 1)]
+        schema = {
+            "type": "object",
+            "properties": {name: {"type": "string"} for name in names},
+            "required": names,
+        }
+        self._assert_schema_refused(schema, "https://wx.example/live-required-overflow")
+
+    def test_overlimit_object_keys_refuses_whole_schema(self):
+        names = ["k%02d" % i for i in range(hydrate.SCHEMA_MAX_KEYS + 1)]
+        schema = {
+            "type": "object",
+            "properties": {name: {"type": "string"} for name in names},
+            "required": ["k00"],
+        }
+        self._assert_schema_refused(schema, "https://wx.example/live-key-overflow")
+
+    def test_overlimit_string_refuses_whole_schema(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "q": {"type": "string", "description": "x" * (hydrate.SCHEMA_MAX_STRING + 1)},
+            },
+            "required": ["q"],
+        }
+        self._assert_schema_refused(schema, "https://wx.example/live-string-overflow")
+
+    def test_remote_ref_beyond_depth_cutoff_refuses_whole_schema(self):
+        nested = {"$ref": "https://evil.example/beyond.json"}
+        for _ in range(hydrate.SCHEMA_MAX_DEPTH + 1):
+            nested = {"wrap": nested}
+        schema = {
+            "type": "object",
+            "properties": {"q": {"type": "string"}},
+            "required": ["q"],
+            "extra": nested,
+        }
+        self._assert_schema_refused(schema, "https://wx.example/live-deep-ref")
+
+    def test_null_const_constraint_is_kept_and_usable(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "flag": {"const": None},
+                "q": {"type": "string"},
+            },
+            "required": ["q"],
+        }
+        self._assert_schema_usable(schema, "https://wx.example/live-null-const")
+
+    def test_in_limit_required_list_stays_usable(self):
+        names = ["p%02d" % i for i in range(hydrate.SCHEMA_MAX_ITEMS)]
+        schema = {
+            "type": "object",
+            "properties": {name: {"type": "string"} for name in names},
+            "required": names,
+        }
+        self._assert_schema_usable(schema, "https://wx.example/live-required-limit")
 
 
 if __name__ == "__main__":

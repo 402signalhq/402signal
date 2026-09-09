@@ -148,8 +148,9 @@ class AdmissionTests(unittest.TestCase):
             self.assertNotIn("unpaid:global", self.e.buckets)
         else:
             self.assertEqual(self.e.buckets["unpaid:global"].balance, unpaid_balance)
-        self.assertGreaterEqual(self.e.buckets.get("discovery:global").balance if "discovery:global" in self.e.buckets else 0, 0)
-        self.assertLess(self.e.buckets["discovery:global"].balance, admission.DISCOVERY_GLOBAL)
+        self.assertNotIn("discovery:global", self.e.buckets)
+        self.assertIn("discovery:global", self.e.discovery_buckets)
+        self.assertLess(self.e.discovery_buckets["discovery:global"].balance, admission.DISCOVERY_GLOBAL)
 
     def test_discovery_exhaustion_does_not_consume_paid_route_admission(self):
         handler = object.__new__(server.Handler);handler.headers={}
