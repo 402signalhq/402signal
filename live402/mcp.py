@@ -345,6 +345,11 @@ def is_validate_call(payload: dict) -> bool:
     return isinstance(params, dict) and params.get("name") == "validate"
 
 
+def uses_discovery_admission(payload: dict) -> bool:
+    """Unpaid MCP surfaces: preview, handshake, ping, notifications, unknown methods."""
+    return not is_paid_call(payload) and not is_validate_call(payload)
+
+
 def _preview_result(args: dict) -> dict:
     need = ""
     if isinstance(args, dict) and isinstance(args.get("need"), str):

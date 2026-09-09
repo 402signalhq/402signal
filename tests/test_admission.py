@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from email.message import Message
 from unittest.mock import patch
 
-from live402 import admission, probe, reqctx, server
+from live402 import admission, discover, probe, reqctx, server
 
 KEY = "synthetic-customer-key-for-cloud-tests-only"
 DIGEST = hashlib.sha256(KEY.encode()).hexdigest()
@@ -170,6 +170,25 @@ class AdmissionTests(unittest.TestCase):
             self.assertTrue(handler._preview_allowed())
             self.assertTrue(handler._validate_allowed())
 
+    def test_get_route_challenge_shares_discovery_not_paid_ingress(self):
+        handler = object.__new__(server.Handler)
+        handler.headers = {}
+        unpaid_before = self.e.buckets.get("unpaid:global")
+        unpaid_balance = unpaid_before.balance if unpaid_before else None
+        with patch.object(admission, "engine", return_value=self.e), patch.object(admission, "configured", return_value=True), patch.object(server, "client_ip", return_value="peer"):
+            self.assertTrue(all(handler._preview_allowed() for _ in range(admission.DISCOVERY_ANONYMOUS)))
+            self.assertFalse(handler._preview_allowed())
+            self.assertNotIn("ingress:global", self.e.buckets)
+            self.assertTrue(handler._route_allowed())
+        if unpaid_balance is None:
+            self.assertNotIn("unpaid:global", self.e.buckets)
+        else:
+            self.assertEqual(self.e.buckets["unpaid:global"].balance, unpaid_balance)
+        self.assertIn("ingress:global", self.e.buckets)
+        self.assertNotIn("discovery:global", self.e.buckets)
+        self.assertIn("discovery:global", self.e.discovery_buckets)
+        self.assertLess(self.e.discovery_buckets["discovery:global"].balance, admission.DISCOVERY_GLOBAL)
+
     def test_discovery_probe_does_not_exhaust_paid_target_budget(self):
         url = "https://seller.example/x402"
         for _ in range(2):
@@ -182,6 +201,16 @@ class AdmissionTests(unittest.TestCase):
         self.e.probe_complete(paid, False)
         paid2 = self.e.probe(url)
         self.assertIsNotNone(paid2)
+
+    def test_public_docs_omit_live_rail_enrichment(self):
+        with patch("live402.algo_tx.algorand_accept_extra") as enrich, patch("live402.algod.suggested_params") as params:
+            spec = discover.openapi_spec()
+            known = discover.well_known()
+            enrich.assert_not_called()
+            params.assert_not_called()
+        accepts = spec["paths"]["/route"]["post"]["responses"]["402"]["content"]["application/json"]["example"]["accepts"]
+        self.assertEqual(len(accepts), 3)
+        self.assertEqual(len(known.get("accepts") or []), 3)
 
     def test_symlink_policy_is_refused_without_reading_target(self):
         with tempfile.TemporaryDirectory() as d:
@@ -245,6 +274,75 @@ class AdmissionTests(unittest.TestCase):
                 self.assertEqual(request("POST",{"Content-Type":"application/json","X-402Signal-Key":"other"*12})[0],429)
         finally:
             httpd.shutdown();httpd.server_close();thread.join(timeout=5)
+
+    def test_http_unpaid_challenge_preview_validate_stay_in_discovery(self):
+        import http.client
+        class QuietHandler(server.Handler):
+            def log_message(self, *args): pass
+        httpd = server.BoundedThreadingHTTPServer(("127.0.0.1", 0), QuietHandler)
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        def request(method, path, body=None, headers=None):
+            c = http.client.HTTPConnection("127.0.0.1", httpd.server_port, timeout=5)
+            try:
+                c.request(method, path, body=body, headers=headers or {})
+                r = c.getresponse()
+                raw = r.read()
+                try:
+                    payload = json.loads(raw.decode("utf-8"))
+                except Exception:
+                    payload = raw
+                return r.status, payload
+            finally:
+                c.close()
+        unpaid_before = self.e.buckets.get("unpaid:global")
+        unpaid_balance = unpaid_before.balance if unpaid_before else None
+        try:
+            with patch.object(admission, "engine", return_value=self.e), patch.object(admission, "configured", return_value=True), patch.object(server, "client_ip", return_value="peer"):
+                status, body = request("GET", "/route", headers={"Accept": "application/json"})
+                self.assertEqual(status, 402)
+                self.assertEqual(body.get("amount"), "$0.003")
+                amounts = [str(a.get("amount")) for a in body.get("accepts") or []]
+                self.assertEqual(amounts, ["3000", "3000", "3000"])
+                status, body = request("GET", "/preview?need=weather")
+                self.assertEqual(status, 200)
+                self.assertTrue(body.get("not_probed"))
+                status, _body = request("GET", "/validate?url=https://fixture.402signal.local/weather")
+                self.assertEqual(status, 200)
+                status, body = request(
+                    "POST",
+                    "/mcp",
+                    body=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
+                    headers={"Content-Type": "application/json"},
+                )
+                self.assertEqual(status, 200)
+                self.assertEqual((body.get("result") or {}).get("serverInfo", {}).get("name"), "402Signal")
+                status, body = request("GET", "/route", headers={"Accept": "application/json"})
+                self.assertEqual(status, 429)
+                self.assertEqual(body.get("error"), "rate limit")
+                status, body = request(
+                    "POST",
+                    "/mcp",
+                    body=json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}),
+                    headers={"Content-Type": "application/json"},
+                )
+                self.assertEqual(status, 429)
+                status, body = request("POST", "/route", body="{}", headers={"Content-Type": "application/json"})
+                self.assertEqual(status, 402)
+                self.assertEqual(body.get("amount"), "$0.003")
+                status, html = request("GET", "/route", headers={"Accept": "text/html"})
+                self.assertEqual(status, 200)
+                self.assertIn("POST", str(html))
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=5)
+        if unpaid_balance is None:
+            self.assertNotIn("unpaid:global", self.e.buckets)
+        else:
+            self.assertEqual(self.e.buckets["unpaid:global"].balance, unpaid_balance)
+        self.assertNotIn("discovery:global", self.e.buckets)
+        self.assertLess(self.e.discovery_buckets["discovery:global"].balance, admission.DISCOVERY_GLOBAL)
 
 
 

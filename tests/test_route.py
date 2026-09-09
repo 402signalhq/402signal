@@ -1761,6 +1761,50 @@ class PreviewRateLimitTests(unittest.TestCase):
         amounts = [str(a.get("amount")) for a in body.get("accepts") or []]
         self.assertEqual(amounts, ["3000", "3000", "3000"])
 
+    def test_get_route_json_shares_preview_limiter(self):
+        ip_headers = {"Fly-Client-IP": "203.0.113.62"}
+        statuses = []
+        for _ in range(3):
+            status, raw, _hdrs = _get_full(
+                self.port, "/route", extra_headers={"Accept": "application/json", **ip_headers}
+            )
+            statuses.append(status)
+            if status == 402:
+                body = json.loads(raw)
+                self.assertEqual(body.get("amount"), "$0.003")
+                amounts = [str(a.get("amount")) for a in body.get("accepts") or []]
+                self.assertEqual(amounts, ["3000", "3000", "3000"])
+        self.assertEqual(statuses, [402, 402, 429])
+        status, body = _json_post(
+            self.port, "/route", {}, extra_headers=ip_headers
+        )
+        self.assertEqual(status, 402)
+        amounts = [str(a.get("amount")) for a in body.get("accepts") or []]
+        self.assertEqual(amounts, ["3000", "3000", "3000"])
+
+    def test_mcp_handshake_shares_preview_limiter(self):
+        ip_headers = {"Fly-Client-IP": "203.0.113.63"}
+        payload = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
+        statuses = []
+        for _ in range(3):
+            status, _body = _json_post(
+                self.port, "/mcp", payload, extra_headers=ip_headers
+            )
+            statuses.append(status)
+        self.assertEqual(statuses, [200, 200, 429])
+        status, body = _json_post(
+            self.port,
+            "/mcp",
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+            extra_headers=ip_headers,
+        )
+        self.assertEqual(status, 429)
+        status, body = _json_post(
+            self.port, "/route", {}, extra_headers=ip_headers
+        )
+        self.assertEqual(status, 402)
+        self.assertEqual(body.get("amount"), "$0.003")
+
 
 class ProductBriefTests(unittest.TestCase):
     @classmethod
@@ -2213,6 +2257,30 @@ class PublicRateLimitTests(unittest.TestCase):
         for _ in range(3):
             status, _raw, _hdrs = _get_full(
                 self.port, "/rails", extra_headers=ip_headers
+            )
+            statuses.append(status)
+        self.assertEqual(statuses[0], 200)
+        self.assertEqual(statuses[1], 200)
+        self.assertEqual(statuses[2], 429)
+
+    def test_dashboard_rate_limit_429(self):
+        ip_headers = {"Fly-Client-IP": "203.0.113.73"}
+        statuses = []
+        for _ in range(3):
+            status, _raw, _hdrs = _get_full(
+                self.port, "/dashboard", extra_headers=ip_headers
+            )
+            statuses.append(status)
+        self.assertEqual(statuses[0], 200)
+        self.assertEqual(statuses[1], 200)
+        self.assertEqual(statuses[2], 429)
+
+    def test_openapi_rate_limit_429(self):
+        ip_headers = {"Fly-Client-IP": "203.0.113.74"}
+        statuses = []
+        for _ in range(3):
+            status, _raw, _hdrs = _get_full(
+                self.port, "/openapi.json", extra_headers=ip_headers
             )
             statuses.append(status)
         self.assertEqual(statuses[0], 200)
