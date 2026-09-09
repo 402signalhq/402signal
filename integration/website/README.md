@@ -14,8 +14,11 @@ node integration/website/extended.mjs
 ```
 
 Install the pinned Playwright Chromium/WebKit binaries in this isolated testing
-environment before running the browser scripts. The production image does not
-need browser or schema-test dependencies.
+environment before running the browser scripts. CI downloads those same
+Playwright-hosted builds (hash-checked) and Ubuntu libraries for them; it does
+not install Google Chrome from apt. A failed or skipped browser job is not
+customer-experience qualification. The production image does not need browser
+or schema-test dependencies.
 
 The exporter starts the actual Python HTTP handler on loopback in fixture mode,
 then saves its generated OpenAPI and MCP descriptions, transparency, dashboard,
