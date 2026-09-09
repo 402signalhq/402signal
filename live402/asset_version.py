@@ -1,33 +1,22 @@
-"""Shared frontend asset version. Presentation only.
+"""Shared frontend asset version and final human-page presentation pass.
 
 Fingerprint is the git SHA of the commit being built or started.
 This is not a public SHA/status endpoint and never reads FLY_IMAGE_REF.
 """
-
 from __future__ import annotations
-
 import hashlib
 import os
 import re
 import subprocess
 from pathlib import Path
+from live402.site_chrome import prepare_generated_html
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-
-# Human HTML must revalidate so release N cannot pair with N-1 assets.
 HTML_REVALIDATE = "no-cache, must-revalidate"
-# Fingerprinted assets only. Query string is part of the cache key.
 ASSET_LONG_CACHE = "public, max-age=31536000, immutable"
-
-ASSET_PATHS = (
-    "/styles.css",
-    "/app.js",
-    "/dashboard.js",
-    "/transparency.js",
-)
+ASSET_PATHS = ("/styles.css", "/app.js", "/dashboard.js", "/transparency.js")
 ASSET_FILES = tuple(p.lstrip("/") for p in ASSET_PATHS)
-
 _TOKEN = re.compile(r"^[A-Za-z0-9._-]{7,64}$")
 _GIT_SHA = re.compile(r"^[0-9a-f]{7,40}$")
 _cached: str | None = None
@@ -39,7 +28,6 @@ def reset_for_tests() -> None:
 
 
 def asset_version() -> str:
-    """Stable per-process token used as ?v= on static asset URLs."""
     global _cached
     if _cached is None:
         _cached = _resolve()
@@ -52,9 +40,9 @@ def versioned_url(path: str, version: str | None = None) -> str:
 
 
 def stamp_html(html: str, version: str | None = None) -> str:
-    """Rewrite unversioned frontend asset URLs. Idempotent if already stamped."""
+    """Finalize known generated human pages and fingerprint assets, idempotently."""
     ver = version or asset_version()
-    out = html
+    out = prepare_generated_html(html)
     for path in ASSET_PATHS:
         stamped = versioned_url(path, ver)
         for attr in ("href", "src"):
@@ -78,16 +66,11 @@ def _resolve() -> str:
         if token:
             return token
     git = _git_rev_parse() or _git_head_file()
-    if git:
-        return git
-    return _content_fingerprint()
+    return git or _content_fingerprint()
 
 
 def _version_files() -> list[Path]:
-    return [
-        REPO_ROOT / ".asset-version",
-        Path("/app/.asset-version"),
-    ]
+    return [REPO_ROOT / ".asset-version", Path("/app/.asset-version")]
 
 
 def _sanitize(raw: str) -> str:
@@ -102,26 +85,15 @@ def _sanitize(raw: str) -> str:
         return ""
     if not _TOKEN.match(text):
         return ""
-    if _GIT_SHA.fullmatch(low):
-        return low
-    return text
+    return low if _GIT_SHA.fullmatch(low) else text
 
 
 def _git_rev_parse() -> str:
     try:
-        proc = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=str(REPO_ROOT),
-            capture_output=True,
-            text=True,
-            timeout=2,
-            check=False,
-        )
+        proc = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=2, check=False)
     except (OSError, subprocess.SubprocessError):
         return ""
-    if proc.returncode != 0:
-        return ""
-    return _sanitize(proc.stdout)
+    return _sanitize(proc.stdout) if proc.returncode == 0 else ""
 
 
 def _git_head_file(root: Path | None = None) -> str:
@@ -133,18 +105,16 @@ def _git_head_file(root: Path | None = None) -> str:
         return ""
     if raw.startswith("ref:"):
         ref = raw.split(":", 1)[1].strip()
-        ref_path = repo / ".git" / ref
         try:
-            return _sanitize(ref_path.read_text(encoding="utf-8"))
+            return _sanitize((repo / ".git" / ref).read_text(encoding="utf-8"))
         except OSError:
             return _sanitize(_packed_ref(repo, ref))
     return _sanitize(raw)
 
 
 def _packed_ref(repo: Path, ref: str) -> str:
-    packed = repo / ".git" / "packed-refs"
     try:
-        lines = packed.read_text(encoding="utf-8").splitlines()
+        lines = (repo / ".git" / "packed-refs").read_text(encoding="utf-8").splitlines()
     except OSError:
         return ""
     for line in lines:

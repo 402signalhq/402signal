@@ -1,78 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Before an agent pays, someone should check the quote · 402Signal</title>
-  <meta name="description" content="Why a current offer check belongs between API discovery and an agent payment." />
-  <link rel="canonical" href="https://402signal.com/insights/pre-spend-routing" />
-  <meta property="og:title" content="Before an agent pays, someone should check the quote · 402Signal" />
-  <meta property="og:description" content="Why a current offer check belongs between API discovery and an agent payment." />
-  <meta property="og:url" content="https://402signal.com/insights/pre-spend-routing" />
-  <meta property="og:type" content="article" />
-  <meta property="og:site_name" content="402Signal" />
-  <meta property="og:image" content="https://402signal.com/og.png" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Before an agent pays, someone should check the quote · 402Signal" />
-  <meta name="twitter:description" content="Why a current offer check belongs between API discovery and an agent payment." />
-  <meta name="twitter:image" content="https://402signal.com/og.png" />
-  <meta name="twitter:site" content="@402Signal" />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/styles.css" />
-</head>
-<body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <div class="page article-page">
-    <header class="site">
-      <a class="brand" href="/">
-        <span class="mark">402</span>
-        <span class="brand-name">402Signal</span>
-      </a>
-      <nav class="nav" aria-label="Primary">
-        <a href="/catalog">Explore</a>
-        <a href="/developers">Developers</a>
-        <a href="/transparency">Transparency</a>
-        <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-      </nav>
-    </header>
-
-    <main id="main">
-<article class="article"><p class="eyebrow">A note from the builder</p><h1>Before an agent pays, someone should check the quote.</h1><p class="article-meta">September 5, 2026 · Ross</p>
-        <p class="lede">Finding an API is a useful first step. Before a buyer spends, it also needs to know what the endpoint is offering now.</p>
-        <figure class="article-hero"><img src="/og.png" width="1200" height="630" alt="402Signal highlights one route through a network of possible paid API paths across Base, Solana, and Algorand." /></figure>
-        <h2>A listing is the start of a decision</h2>
-        <p>Is the endpoint responding? Does it return a payment offer on a network the buyer supports? Is the price within budget, and can the buyer form the request? These are concrete questions to answer before signing.</p>
-        <p>That is the role of 402Signal. Send a capability or URL and your constraints. It checks candidate offers during that request, applies those constraints and returns a qualifying route or a reason to stop.</p>
-        <h2>Keep the last decision with the buyer</h2>
-        <p>An offer can change between discovery and purchase. With bound evidence and the optional local guard integrated, the buyer compares the seller's current offer and exact request with the signed observation. A changed recipient, price or request, or expired evidence, stops the payment handoff.</p>
-        <p>The buyer still validates the actual transaction, controls its budget and signs in its own wallet. The check does not guarantee that the answer will be useful, operate escrow or decide whether a refund is owed.</p>
-        <h2>Pay for the observation; keep its record</h2>
-        <p>A qualifying observation costs $0.003 USDC. A normal typed miss costs $0. The seller's charge and any network fees are separate. The routing fee pays for the check even if the buyer then decides not to purchase.</p>
-        <p>A payment receipt records money moving. Routing evidence records what was observed and why the offer passed the buyer's rules. Commitments in the public log make changes to a saved private record detectable.</p>
-        <p>The immediate receipt uses an Ed25519 log signature. Falcon-1024 authorizes the checkpoint transaction anchored on Algorand MainNet. Confirmation of that later checkpoint is separate from the route response and from the seller's payment.</p>
-        <p>Keep your verification record privately. Private replay records can retain it, but they are not a recovery service. The public commitment cannot reconstruct your private record.</p>
-        <p>If you are building an agent buyer, an SDK or a payment policy, start with a request your app already makes. The useful test is whether a current observation and a reason to stop improve that purchase decision.</p>
-        <p><a class="btn" href="/developers">Read the integration guide</a> <a class="btn secondary" href="/catalog">Explore the free catalog</a></p>
-      </article>
-    </main>
-    <footer class="foot">
-      <p>402Signal</p>
-      <p>
-        <a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a>
-        <a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a>
-        <a href="/how">How it works</a>
-        <a href="/openapi.json">OpenAPI</a>
-        <a href="/mcp.json">MCP</a>
-        <a href="/transparency">Transparency</a>
-        <a href="/contact">Contact</a>
-        <a href="/contact#security">Security reporting</a>
-        <a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a>
-        <a href="mailto:ross@402signal.com">ross@402signal.com</a>
-      </p>
-    </footer>
-  </div>
-
-</body>
-</html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Why a payment request needs a buyer decision · 402Signal</title><meta name="description" content="A readable guide to API discovery, current payment offers, buyer authorization and evidence. Learn where x402 and MPP clients need explicit policy and recovery boundaries." /><link rel="canonical" href="https://402signal.com/insights/pre-spend-routing" /><meta property="og:title" content="Why a payment request needs a buyer decision" /><meta property="og:description" content="A listing, a quote, a signature and a settled payment are different facts." /><meta property="og:url" content="https://402signal.com/insights/pre-spend-routing" /><meta property="og:type" content="article" /><meta property="og:site_name" content="402Signal" /><meta property="og:image" content="https://402signal.com/og.png" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:site" content="@402Signal" /><link rel="icon" href="/favicon.svg" type="image/svg+xml" /><link rel="stylesheet" href="/styles.css" /></head>
+<body><a class="skip-link" href="#main">Skip to content</a><div class="page customer-site article-page"><header class="site"><a class="brand" href="/"><span class="mark">402</span><span class="brand-name">402Signal</span></a><nav class="nav" aria-label="Primary"><a href="/#product">Product</a><a href="/developers">Developers</a><a href="/catalog">Explore</a><a href="/#pricing">Pricing</a><a href="/how#trust">Trust</a></nav></header><main id="main" class="article">
+<section class="hero compact"><p class="eyebrow">A buyer's view of agent payments</p><h1>A payment request is not permission to pay.</h1><p class="lede">An agent can find an API and read its price. Its application still needs to decide whether this offer is the one it is allowed to accept.</p></section>
+<section class="block"><h2>Discovery is the start, not the decision.</h2><p>A catalog describes services. It may include a price, supported network and an input schema. Those details help a buyer find candidates, but the seller's current response can differ from the listing.</p><p>402Signal keeps advertised metadata separate from observed terms. Free preview finds candidates. A supported live route evaluates the current offer against the requirements submitted by the buyer.</p></section>
+<section class="block"><h2>Check the agreement before the signature.</h2><p>Imagine a buyer planning thousands of requests at two cents each. A twenty-cent offer may still fit the wallet's balance while violating the task's budget. A wallet able to pay is not proof that the operator approved the deal.</p><p>Keep enforceable requirements in trusted application code. The local guard compares supported bound evidence with the current request and offer before invoking the buyer's authorization callback. It does not rescue a payment path that bypasses that check.</p><p>Multiple offers need an explicit choice too. The native MPP adapters select under pinned requirements and refuse ambiguity, rather than allowing response order to decide.</p></section>
+<section class="block"><h2>The price can be smaller than the commitment.</h2><p>A channel can require more funds up front than one API call consumes. The supported session clients separate the original checked opening from the buyer's continuation policy. Later calls do not make the old observation fresh or silently authorize a top-up.</p><p>A group's total, an invoice's price and its job count also need separate interpretation. Each integration guide defines the mechanism it supports; one passing example does not establish compatibility with every merchant.</p></section>
+<section class="block"><h2>A missing response leaves a question, not an answer.</h2><p>A timeout can occur after an economic action. Supported recovery uses the original durable attempt and read-only evidence where available. Uncertainty should not quietly become a new authorization.</p><p>Retained evidence helps an operator investigate which requirements reached the check and which terms it observed. Compare it with approved policy and actual payment records. The public transparency log is not a private-record backup or a recorder of every agent action.</p></section>
+<section class="block"><h2>Where 402Signal fits</h2><p>Keep your existing wallet and payment SDK. Add the independent offer check and the supported local verification or buyer workflow when they solve a problem in your application.</p><p>A fixed trusted endpoint with an adequate existing client may not need another hosted check. A team integrating several services and mechanisms may value the common decision, evidence and recovery boundaries.</p><div class="hero-actions"><a class="btn" href="/developers#quickstart">Run the offline checks</a><a href="/developers">Choose a buyer integration</a><a href="/how#trust">Understand the evidence</a></div></section>
+</main><footer class="foot"><p>402Signal</p><p><a href="https://github.com/402signalhq/402signal" rel="noopener noreferrer">GitHub</a><a href="https://x.com/402Signal" rel="noopener noreferrer">@402Signal</a><a href="/how">How it works</a><a href="/openapi.json">OpenAPI</a><a href="/mcp.json">MCP</a><a href="/transparency">Transparency</a><a href="/contact">Contact</a><a href="/contact#security">Security reporting</a><a href="https://github.com/402signalhq/402signal/blob/main/LICENSE" rel="noopener noreferrer">License</a><a href="mailto:ross@402signal.com">ross@402signal.com</a></p></footer></div></body></html>
