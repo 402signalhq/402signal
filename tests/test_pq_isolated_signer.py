@@ -671,7 +671,7 @@ class SignerClientProtocolTests(unittest.TestCase):
         self.assertNotIn("View TestNet transaction", text)
         self.assertNotIn("placeholder", text.lower())
         self.assertNotIn("YOUR_TXID", text)
-        self.assertIn("A record of what was checked.", text)
+        self.assertIn("A record you can check later.", text)
         self.assertIn("Awaiting anchor", text)
         self.assertIn("PQ Trust", text)
         self.assertIn("Checkpoints are anchored on Algorand MainNet. Pending records are not yet confirmed on-chain.", text)
