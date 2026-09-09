@@ -2,8 +2,8 @@
 
 An explicit two-item USDC batch adapter for a merchant implementing the
 `402signal-atomic-batch` version 1 manifest. Ordinary single-payment x402 sellers
-are incompatible with this contract. This reference has synthetic qualification;
-check the release evidence for any separately completed live qualification.
+are incompatible with this contract. The original two-item profile has separate
+completed controlled MainNet qualification, in addition to synthetic tests.
 
 The buyer owns its wallet, signing callback, durable ledger, campaign budget,
 HTTP transport and independently pinned route-proof verifier. No wallet keys go
@@ -32,7 +32,9 @@ network and every exact transaction in one confirmed round. Provider success
 alone is not independent chain confirmation. Group settlement does not guarantee
 HTTP delivery, output quality, refunds or simultaneous delivery of both results.
 
-Build from the repository with `npm run build` in this directory, then `npm pack`.
+Download the [v0.2.0 release](https://github.com/402signalhq/402signal/releases/tag/algorand-batch-buyer-v0.2.0)
+[archive](https://github.com/402signalhq/402signal/releases/download/algorand-batch-buyer-v0.2.0/402signal-algorand-batch-buyer-0.2.0.tgz)
+and verify its published digest. To reproduce it, run `npm run build` in this directory, then `npm pack`.
 Distribution is a release tarball unless a release explicitly says otherwise;
 this source directory is not a claim of npm-registry publication.
 
@@ -49,4 +51,4 @@ The existing `algorandBatchManifest` helper and campaign CLI describe the fixed-
 
 The optional `./manifest` and `./manifest-store` exports add two versioned profiles: 2–15 ordered equal-price USDC payments plus one sponsor, or a merchant-declared 2–64-job invoice paid in one transfer plus a sponsor. The original two-item API remains unchanged. The invoice limit is a payload budget, not a chain limit; unknown per-job allocation remains unknown.
 
-See [the exact profiles and economics](../../../docs/algorand-manifests-v2.md) and [the buyer-owned guard example](examples/manifest.ts). Install the locally packed route-guard package alongside this package to compile the example. New profiles have synthetic SDK/HTTP/restart qualification; live provider campaigns remain separately gated.
+See [the exact profiles and economics](../../../docs/algorand-manifests-v2.md) and [the buyer-owned guard example](examples/manifest.ts). Install the locally packed route-guard package alongside this package to compile the example. New profiles have synthetic SDK/HTTP/restart qualification. On September 8, 2026, controlled MainNet campaigns completed a three-payment group (1000 atomic USDC each, plus one sponsor transaction) and a three-job invoice (one 3000-atomic payment, plus one sponsor transaction), with accepted resource receipts and independent confirmation of every transaction in a common round. Each used one separate 3000-atomic routing payment. This does not qualify the maximum 15-payment or 64-job limits, arbitrary merchants, or commercial facilitator pricing.

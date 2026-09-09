@@ -29,7 +29,9 @@ The cloud adapter reloads this file before every provider call. The owner must r
 
 Native JSON is `{campaignId,url,policy,rpcUrl,perCallAtomic,maxCalls}`. Copy the complete reviewed owner-session policy, including payer, operator/recipient, program-data pins, deposit/session limits, salt, grace period and voucher expiry. The recipient must equal the owned Solana seller. RPC permits only the configured read-method list. The cloud merchant cannot sign, broadcast, close, top up or delegate.
 
-## Activate and run the bounded sequence
+## Activate and run the v1 qualification sequence
+
+The sequence below describes the original v1 two-call examples. The separately gated [v2 continuation client](../session-client/README.md) retains the initial funding proof and applies a fixed local policy to later calls; it does not require a new paid observation per voucher.
 
 Prepare source/configuration pins, journals, balances, fee quotes and credentials before enabling the relevant flags. Treat activation as a temporary campaign; keep configuration immutable once its ledger is bound. Do not probe the native session endpoint early: its first ordinary unpaid GET persists the campaign's challenge with a validity of at most 60 seconds. A later campaign expiry does not extend that challenge or a signed routing observation.
 

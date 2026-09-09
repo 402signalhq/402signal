@@ -75,6 +75,10 @@ Larger Algorand groups cover 2 to 15 job payments plus sponsorship. Aggregate in
 
 The hosted router observes one explicitly requested batch/session API. It does not deposit capital, aggregate seller payments or issue vouchers. The checking fee is separate from merchant economics. See the [batch contract](docs/batch-observation-v1.md), [buyer adapters](integration/batch-buyer/algorand/README.md) and [dated controlled qualification](integration/lab/BATCH_QUALIFICATION.md). Do not treat that earlier bounded qualification as universal or as evidence for every newer continuation profile.
 
+**Batch and session support:** the published v0.7 client includes a separate v5 guard for the supported profiles. Earlier controlled MainNet tests completed the two-call Base/Solana and two-item Algorand examples, including independently confirmed settlement. On September 8, 2026, separate tests completed three-call Solana continuation, a three-payment Algorand group, a one-payment three-job invoice, and one native Algorand MPP charge at owner-operated lab endpoints. A separate native Base MPP UUID purchase completed at an external endpoint with independently finalized routing and merchant payments. A separate Base v2 continuation campaign completed three accepted calls, with 3000 atomic USDC paid to the merchant and 1000 refunded after independently finalized settlement. These are bounded compatibility tests.
+
+Separate published archives: [session-client v0.1.1](https://github.com/402signalhq/402signal/releases/tag/session-client-v0.1.1), [Algorand batch buyer v0.2.0](https://github.com/402signalhq/402signal/releases/tag/algorand-batch-buyer-v0.2.0), and [native Base MPP client v0.1.0](https://github.com/402signalhq/402signal/releases/tag/mpp-client-v0.1.0). Verify each archive against its published digest; these are GitHub release assets, not npm registry publications.
+
 ## Outcomes, recovery and evidence
 
 Read `live`, `payable`, `selected_payment` and `billing` together. HTTP 200 alone does not authorize a seller payment.
