@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from live402 import asset_version, catalog, discover, history, mcp, payment, pulse, rails, ready, reqctx, validate
-from live402 import admission, http_body, replay
+from live402 import admission, http_body, replay, developer_guides
 from live402.http_body import BodyReadError
 from live402.route import handle_route, recover_route
 
@@ -657,6 +657,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _read_human_html(self) -> str | None:
         parsed = urlparse(self.path)
+        if parsed.path in developer_guides.PATHS:
+            return developer_guides.render(developer_guides.PATHS[parsed.path])
         if parsed.path in HUMAN_DYNAMIC_PATHS:
             return self._transparency_html()
         injected = self._homepage_html()
@@ -771,6 +773,15 @@ class Handler(SimpleHTTPRequestHandler):
             "/.well-known/security.txt",
             "/.well-known/x402list.txt",
         }
+        if parsed.path in developer_guides.MARKDOWN_PATHS or parsed.path == "/capabilities.json":
+            self._omit_body = self.command == "HEAD"
+            try:
+                if parsed.path == "/capabilities.json":
+                    return self._bytes(200, (STATIC_DIR / "capabilities.json").read_bytes(), "application/json; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
+                text = developer_guides.markdown(developer_guides.MARKDOWN_PATHS[parsed.path])
+                return self._bytes(200, text.encode("utf-8"), "text/markdown; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
+            finally:
+                self._omit_body = False
         human = self._read_human_html()
         if human is not None:
             extra = (
@@ -833,6 +844,15 @@ class Handler(SimpleHTTPRequestHandler):
         if self._deny_private_store():
             return
         parsed = urlparse(self.path)
+        if parsed.path in developer_guides.MARKDOWN_PATHS or parsed.path == "/capabilities.json":
+            self._omit_body = self.command == "HEAD"
+            try:
+                if parsed.path == "/capabilities.json":
+                    return self._bytes(200, (STATIC_DIR / "capabilities.json").read_bytes(), "application/json; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
+                text = developer_guides.markdown(developer_guides.MARKDOWN_PATHS[parsed.path])
+                return self._bytes(200, text.encode("utf-8"), "text/markdown; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
+            finally:
+                self._omit_body = False
         human = self._read_human_html()
         if human is not None:
             extra = (

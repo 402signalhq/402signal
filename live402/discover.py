@@ -1250,6 +1250,19 @@ Sitemap: https://402signal.com/sitemap.xml
 
 LLMS_TXT = "# 402Signal\n\n" + DESC + """
 
+## Start with the task
+
+Free offline checks: https://402signal.com/developers/test-buyer
+Add a purchase check: https://402signal.com/developers/check-offer
+Select native MPP: https://402signal.com/developers/native-mpp
+Sessions and invoices: https://402signal.com/developers/sessions-and-invoices
+Inspect a listed API: https://402signal.com/developers/check-api-listing
+Recover a routing attempt: https://402signal.com/developers/recover-routing-attempt
+Reconcile a seller payment: https://402signal.com/developers/reconcile-seller-payment
+Verify retained evidence: https://402signal.com/developers/evidence
+Each recipe also has a .md URL. Exact packages, checksums and scope: https://402signal.com/capabilities.json
+Use ordinary free APIs directly when no paid-offer check is needed. A hosted offer check, local verification guard and optional durable buyer client are different components.
+
 ## What 402Signal checks
 
 402Signal checks a current paid API offer against a buyer's rules. We support Base, Solana, and Algorand. A qualifying observation costs $0.003 USDC (3000 atomic, 6 decimals). Normal typed misses are not settled. Catalog search and preview are free; they do not perform a new live endpoint check. Seller payment, network fees and channel funding are separate.
@@ -1285,8 +1298,8 @@ The routing fee pays for the qualifying observation even if the buyer declines t
 
 ## Client, guard and recovery
 
-Published client and guard: https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0
-Verify the published digest, then npm install ./402signal-route-guard-0.5.0.tgz . Node.js >=22 is required. This is a release archive, not an npm registry publication. Package exports include @402signal/route-guard, /client, /file-store, /recovery and the separate /batch guard. Full API: https://github.com/402signalhq/402signal/tree/main/sdk/route-guard
+Published client and guard: https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.0
+Verify the published digest, then npm install ./402signal-route-guard-0.7.0.tgz . Node.js >=22 is required. This is a release archive, not an npm registry publication. Package exports include @402signal/route-guard, /client, /file-store, /recovery and the separate /batch guard. Full API: https://github.com/402signalhq/402signal/tree/main/sdk/route-guard
 
 Set require_route_binding:true for a v4 exact-payment receipt. Preserve the original route request JSON, raw response JSON, exact seller URL/method/body and raw unpaid challenge. Immediately before signing, call withVerifiedRoute using an independently trusted log verification key. It checks the signature, inclusion, request binding, observed terms and expiry before invoking your buyer-owned callback. Unsupported, changed, malformed or expired evidence fails closed. The default freshness window is 60 seconds and is never renewed by replay, issuance or human approval.
 
@@ -1298,13 +1311,13 @@ Optional customer access keys identify a workload class; they are not wallet pri
 
 ## Batch and session support
 
-Supported profiles cover Base batch settlement, Solana MPP push sessions and Algorand two-item atomic groups. Controlled MainNet tests are complete for these profiles, including merchant payments and independently confirmed settlement at owner-operated lab endpoints. The published v0.5 client provides separate exact-payment and v5 batch/session guards. Controlled lab examples demonstrate specific contracts and limits. An ordinary v4 receipt does not authorize a batch or session.
+Supported profiles include Base batch settlement, Solana MPP push sessions, Algorand explicit atomic groups and aggregate invoices, and separate native Base and Algorand MPP charges. These are specific profiles, not a network/method cross-product. Dated controlled MainNet examples cover specific documented campaigns at owner-operated lab endpoints; they do not qualify every profile limit or external merchant. The published v0.7 client provides separate exact-payment and v5 batch/session guards. Controlled lab examples demonstrate specific contracts and limits. An ordinary v4 receipt does not authorize a batch or session.
 
 The separate v5 proof binds one exact HTTPS GET API, merchant_profile, all buyer_limits and the raw observed challenge. It is a short-lived observation, not permission to deposit, issue vouchers or sign an arbitrary transaction. The router fee remains $0.003 per qualifying API observation; merchant charges, capital, fees and rent remain separate.
 
 - Base base-x402-batch-v1: explicit EVM channel terms, receiver authorizer and buyer call/cumulative/capital caps. Voucher acceptance is distinct from eventual on-chain payout.
 - Solana solana-mpp-session-v1: native MPP push sessions with a pinned program, operator and recipient. An observed session cap or minimum voucher increment does not establish the merchant's per-call price. The buyer owns opening, voucher signing and closing. This is not cross-channel batch settlement.
-- Algorand algorand-atomic-two-item-v1: exactly two USDC payments to the same recipient for one exact HTTPS GET API, with item/total caps, sponsor terms and independently pinned job hashes. A complete versioned manifest is required. Atomic chain execution does not guarantee atomic HTTP delivery. The separate algorand-atomic-batch-v1 profile is the controlled lab example.
+- Algorand algorand-atomic-two-item-v1: exactly two USDC payments to the same recipient for one exact HTTPS GET API, with item/total caps, sponsor terms and independently pinned job hashes. A complete versioned manifest is required. Atomic chain execution does not guarantee atomic HTTP delivery. The separate algorand-atomic-batch-v1 profile is the controlled lab example. algorand-atomic-multi-item-v1 permits 2..15 explicit job payments plus sponsorship; algorand-aggregate-invoice-v1 permits 2..64 explicit jobs in one invoice payment plus sponsorship. Invoice totals are not known per-job prices. See https://402signal.com/developers/sessions-and-invoices .
 
 See https://github.com/402signalhq/402signal/blob/main/docs/batch-observation-v1.md . Profile-specific buyer adapters still validate chain state and transaction contents and retain durable one-shot intent. Never automatically sign or send again after uncertainty.
 
