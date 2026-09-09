@@ -9,7 +9,10 @@ import { privateKeyToAccount } from "viem/accounts";
 import {
   configuredBatchHttpMerchants,
   BASE_BATCH_OPT_IN,
+  SOLANA_SESSION_OPT_IN,
+  SOLANA_CONTINUATION_OPT_IN,
   optionalBatchProfileError,
+  optionalSessionRuntime,
 } from "../src/batch-http-config.js";
 import { BaseBatchMerchant } from "../src/base-batch-merchant.js";
 import { BASE_USDC } from "../src/base-batch-observer.js";
@@ -61,6 +64,88 @@ function envFor(campaignPath: string, tokens?: string) {
   };
 }
 
+function sessionCampaign(extra: Record<string, unknown> = {}) {
+  return {
+    campaignId: "session-" + randomUUID().slice(0, 8),
+    url: origin + "/solana/session/sha256",
+    policy: { recipient: "native-recipient", depositAtomic: "4000" },
+    rpcUrl: "https://rpc.example/",
+    perCallAtomic: "1000",
+    maxCalls: 2,
+    ...extra,
+  };
+}
+
+function sessionEnv(sessionPath: string) {
+  return {
+    LAB_SOLANA_PUSH_SESSION: SOLANA_SESSION_OPT_IN,
+    LAB_SOLANA_SESSION_CONFIG: sessionPath,
+    LAB_BATCH_DATABASE_URL: "postgresql://127.0.0.1/lab_batch_readiness",
+  };
+}
+
+function continuationCampaign(extra: Record<string, unknown> = {}) {
+  return {
+    version: 2,
+    campaignId: "cont-" + randomUUID().slice(0, 8),
+    url: origin + "/solana/session/sha256",
+    rpcUrl: "https://rpc.example/",
+    policy: {
+      recipient: "native-recipient",
+      depositAtomic: "4000",
+      voucherExpiresAt: Math.floor(Date.now() / 1000) + 7200,
+      gracePeriod: 900,
+    },
+    expiresAt: Date.now() + 600000,
+    perCallAtomic: "1000",
+    maxCalls: 3,
+    ...extra,
+  };
+}
+
+async function assertExactReadyAndSessionRefused(
+  merchants: Awaited<ReturnType<typeof configuredBatchHttpMerchants>>["merchants"],
+  profile: string,
+  error: string,
+) {
+  const l = await lab();
+  const app = server(l.seller, undefined, merchants);
+  app.listen(0, "127.0.0.1");
+  await once(app, "listening");
+  const originUrl = `http://127.0.0.1:${(app.address() as any).port}`;
+  try {
+    const ready = await http(originUrl + "/ready", "GET");
+    assert.equal(ready.status, 200);
+    assert.equal(ready.body.ok, true);
+    assert.equal(ready.body.unavailable_profiles.length, 1);
+    assert.equal(ready.body.unavailable_profiles[0].profile, profile);
+    assert.equal(ready.body.unavailable_profiles[0].path, "/solana/session/sha256");
+    assert.equal(ready.body.unavailable_profiles[0].error, error);
+    assert.equal(ready.body.unavailable_profiles[0].new_payment_allowed, false);
+    const challenge = await http(originUrl + "/solana/payload/sha256", "GET");
+    assert.equal(challenge.status, 402);
+    assert.equal(challenge.body.accepts[0].scheme, "exact");
+    const catalog = await http(originUrl + "/catalog.json", "GET");
+    assert.equal(catalog.status, 200);
+    assert(!JSON.stringify(catalog.body).includes("/solana/session/sha256"));
+    const unpaid = await http(originUrl + "/solana/session/sha256", "GET");
+    assert.equal(unpaid.status, 503);
+    assert.equal(unpaid.body.error, error);
+    assert.equal(unpaid.body.new_payment_allowed, false);
+    assert.equal(unpaid.body.accepts, undefined);
+    assert.equal(unpaid.headers.get("payment-required"), null);
+    const paid = await http(originUrl + "/solana/session/sha256", "GET", undefined, {
+      Authorization: "Payment synthetic",
+    });
+    assert.equal(paid.status, 503);
+    assert.equal(paid.body.new_payment_allowed, false);
+    assert.equal(paid.body.billing.settlement_attempted, false);
+  } finally {
+    if (app.listening) await new Promise<void>((resolve) => { app.close(() => resolve()); app.closeAllConnections(); });
+    await l.close();
+  }
+}
+
 test("optional batch errors map credentials and supported-kinds fetch failures", () => {
   assert.equal(
     optionalBatchProfileError(new LabError("base_batch_cdp_tokens_required")),
@@ -80,8 +165,15 @@ test("optional batch errors map credentials and supported-kinds fetch failures",
     optionalBatchProfileError(new Error("Failed to fetch supported kinds from facilitator")),
     "batch_provider_unavailable",
   );
+  assert.equal(
+    optionalBatchProfileError(new LabError("solana_rpc_unavailable", 503)),
+    "solana_rpc_unavailable",
+  );
   assert.equal(optionalBatchProfileError(new LabError("base_batch_deployment_scope_refused")), undefined);
   assert.equal(optionalBatchProfileError(new LabError("batch_config_refused")), undefined);
+  assert.equal(optionalBatchProfileError(new LabError("solana_session_deployment_scope_refused")), undefined);
+  assert.equal(optionalBatchProfileError(new LabError("solana_rpc_refused")), undefined);
+  assert.equal(optionalBatchProfileError(new LabError("solana_continuation_scope_refused")), undefined);
 });
 
 test("missing batch credentials keep seller boot and refuse the batch profile closed", async () => {
@@ -188,10 +280,66 @@ test("batch supported-kinds credential failure is isolated and does not crash se
   }
 });
 
+test("solana session RPC unavailability keeps seller boot and refuses the session profile closed", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "batch-ready-solana-"));
+  const sessionPath = join(dir, "solana.json");
+  writeFileSync(sessionPath, JSON.stringify(sessionCampaign()));
+  const hook = mock.method(optionalSessionRuntime, "createSession", async () => {
+    throw new LabError("solana_rpc_unavailable", 503);
+  });
+  let loaded: Awaited<ReturnType<typeof configuredBatchHttpMerchants>> | undefined;
+  try {
+    loaded = await configuredBatchHttpMerchants(mainnetSeller, sessionEnv(sessionPath));
+    assert.equal(loaded.merchants.length, 1);
+    assert.deepEqual(loaded.merchants[0]!.unavailable, {
+      profile: "solana-session",
+      error: "solana_rpc_unavailable",
+    });
+    await assertExactReadyAndSessionRefused(loaded.merchants, "solana-session", "solana_rpc_unavailable");
+  } finally {
+    hook.mock.restore();
+    await loaded?.close();
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test("solana continuation RPC unavailability keeps seller boot and refuses the session profile closed", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "batch-ready-solana-v2-"));
+  const sessionPath = join(dir, "solana.json");
+  writeFileSync(sessionPath, JSON.stringify(continuationCampaign()));
+  const hook = mock.method(optionalSessionRuntime, "createContinuation", async () => {
+    throw new LabError("solana_rpc_unavailable", 503);
+  });
+  let loaded: Awaited<ReturnType<typeof configuredBatchHttpMerchants>> | undefined;
+  try {
+    loaded = await configuredBatchHttpMerchants(mainnetSeller, {
+      LAB_SOLANA_PUSH_CONTINUATION: SOLANA_CONTINUATION_OPT_IN,
+      LAB_SOLANA_CONTINUATION_CONFIG: sessionPath,
+      LAB_BATCH_DATABASE_URL: "postgresql://127.0.0.1/lab_batch_readiness",
+    });
+    assert.equal(loaded.merchants.length, 1);
+    assert.deepEqual(loaded.merchants[0]!.unavailable, {
+      profile: "solana-session-continuation",
+      error: "solana_rpc_unavailable",
+    });
+    await assertExactReadyAndSessionRefused(
+      loaded.merchants,
+      "solana-session-continuation",
+      "solana_rpc_unavailable",
+    );
+  } finally {
+    hook.mock.restore();
+    await loaded?.close();
+    rmSync(dir, { recursive: true });
+  }
+});
+
 test("invalid batch opt-in and deployment scope still fail closed before isolation", async () => {
   const dir = mkdtempSync(join(tmpdir(), "batch-ready-fatal-"));
   const campaignPath = join(dir, "base.json");
+  const sessionPath = join(dir, "solana.json");
   writeFileSync(campaignPath, JSON.stringify(campaign({ url: origin + "/base/batch/sha256?x=1" })));
+  writeFileSync(sessionPath, JSON.stringify(sessionCampaign({ url: origin + "/solana/session/sha256?x=1" })));
   try {
     await assert.rejects(configuredBatchHttpMerchants(mainnetSeller, {
       LAB_BASE_BATCH: "yes",
@@ -199,6 +347,14 @@ test("invalid batch opt-in and deployment scope still fail closed before isolati
       LAB_BATCH_DATABASE_URL: "postgresql://127.0.0.1/lab_batch_readiness",
     }));
     await assert.rejects(configuredBatchHttpMerchants(mainnetSeller, envFor(campaignPath)));
+    await assert.rejects(configuredBatchHttpMerchants(mainnetSeller, {
+      LAB_SOLANA_PUSH_SESSION: "yes",
+      LAB_SOLANA_SESSION_CONFIG: sessionPath,
+      LAB_BATCH_DATABASE_URL: "postgresql://127.0.0.1/lab_batch_readiness",
+    }));
+    await assert.rejects(configuredBatchHttpMerchants(mainnetSeller, sessionEnv(sessionPath)));
+    writeFileSync(sessionPath, JSON.stringify(sessionCampaign({ rpcUrl: "http://rpc.example/" })));
+    await assert.rejects(configuredBatchHttpMerchants(mainnetSeller, sessionEnv(sessionPath)));
   } finally {
     rmSync(dir, { recursive: true });
   }
