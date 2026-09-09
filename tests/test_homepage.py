@@ -183,6 +183,25 @@ class HomepageProductTests(unittest.TestCase):
         for anchor in ("quickstart", "request", "route-binding", "batch-support", "recovery", "interfaces", "policy-guide", "pq-trust"):
             self.assertIn(anchor, _parse(self.devs).ids)
 
+    def test_retired_guide_paths_are_not_advertised(self):
+        bad = re.compile(r"(?<![\w-])(?:/guides|/developers/sellers)(?![\w-])")
+        for path, html in self.pages.items():
+            self.assertIsNone(bad.search(html), path)
+        for name in ("index.html", "catalog.html", "how.html", "developers.html", "contact.html", "route.html", "pre-spend-routing.html", "capabilities.json", "sitemap.xml", "app.js"):
+            self.assertIsNone(bad.search(_read(name)), name)
+        from live402 import discover
+        self.assertIsNone(bad.search(discover.LLMS_TXT))
+        self.assertIsNone(bad.search(json.dumps(discover.openapi_spec())))
+        chrome = site_chrome.header_html() + site_chrome.footer_html() + repr(site_chrome.NAV) + repr(site_chrome.FOOTER) + repr(site_chrome.GENERATED_PAGE_META)
+        self.assertIsNone(bad.search(chrome))
+        for rel in ("README.md", "docs/README.md", "docs/customer/README.md", "docs/customer/sellers.md", "docs/customer/start.md", "docs/customer/publication.md", "skills/402signal-buyer-checks/SKILL.md", "integration/buyer-checks/README.md"):
+            self.assertIsNone(bad.search(ROOT.joinpath(rel).read_text(encoding="utf-8")), rel)
+        self.assertEqual(_get_full(self.port, "/guides")[0], 404)
+        self.assertEqual(_get_full(self.port, "/developers/sellers")[0], 404)
+        seller_surfaces = self.home + self.catalog + self.pages["/contact"] + self.devs
+        self.assertIn("/developers/check-api-listing", seller_surfaces)
+        self.assertIn("sellers", _parse(self.devs).ids)
+
     def test_task_panels_and_copied_briefs_have_real_targets(self):
         doc = _parse(self.devs)
         panels = [attrs for tag, attrs in doc.nodes if "data-guide" in attrs]
