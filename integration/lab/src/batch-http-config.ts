@@ -23,12 +23,35 @@ const OPTIONAL_BATCH_PROFILE_ERRORS = [
 ] as const;
 const BASE_BATCH_HTTP_PATH = "/base/batch/sha256";
 const SOLANA_SESSION_HTTP_PATH = "/solana/session/sha256";
+function errorTexts(error: unknown): string[] {
+  const texts: string[] = [];
+  let current: unknown = error;
+  for (let i = 0; i < 6 && current; i++) {
+    if (current instanceof LabError) texts.push(current.code);
+    if (current instanceof Error) {
+      texts.push(current.message);
+      const code = (current as unknown as { code?: unknown }).code;
+      if (typeof code === "string") texts.push(code);
+      current = current.cause;
+      continue;
+    }
+    texts.push(String(current));
+    break;
+  }
+  return texts;
+}
 /** Credential/provider discovery failures stay closed for that profile only. */
 export function optionalBatchProfileError(error: unknown): string | undefined {
-  const text = error instanceof LabError ? error.code : error instanceof Error ? error.message : String(error);
+  const texts = errorTexts(error);
+  const text = texts.join("\n");
   const matched = OPTIONAL_BATCH_PROFILE_ERRORS.find((code) => text.includes(code));
   if (matched) return matched;
-  if (text.includes("Failed to fetch supported kinds")) return "batch_provider_unavailable";
+  if (
+    text.includes("Failed to fetch supported kinds") ||
+    text.includes("no supported payment kinds") ||
+    texts.some((item) => /no_supported_kinds|NOSUPPORTEDKINDS/i.test(item))
+  )
+    return "batch_provider_unavailable";
   if ((error as { code?: string })?.code === "ERR_MODULE_NOT_FOUND" &&
       /merchant-session|@solana\/mpp|mppx/.test(text))
     return "solana_session_unavailable";
