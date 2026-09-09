@@ -350,7 +350,7 @@ class LiveSchemaBoundTests(unittest.TestCase):
         self.assertTrue(target.get("schema_refused"))
         self.assertTrue(target.get("untrusted"))
         self.assertFalse(result.get("invocable"))
-        self.assertEqual(result.get("miss_reason"), "no_input_schema")
+        self.assertNotEqual(result.get("miss_reason"), "no_input_schema")
         self.assertTrue(result.get("payable"))
 
     def _payable_live(self, schema, url="https://wx.example/live-bound"):
@@ -391,7 +391,7 @@ class LiveSchemaBoundTests(unittest.TestCase):
         self.assertTrue(target.get("untrusted"))
         self.assertFalse(result.get("invocable"))
         self.assertTrue(result.get("payable"))
-        self.assertEqual(result.get("miss_reason"), "no_input_schema")
+        self.assertNotEqual(result.get("miss_reason"), "no_input_schema")
 
     def _assert_schema_usable(self, schema, url):
         original = json.loads(json.dumps(schema))

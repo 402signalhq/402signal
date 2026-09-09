@@ -310,5 +310,8 @@ def attach_policy(result: dict, body: dict | None) -> dict:
     # were supplied.
     result["interpreted_constraints"] = dict(applied)
     result["applied_constraints"] = dict(applied)
-    result["unresolved_constraints"] = compiled["unresolved_constraints"]
+    result["unresolved_constraints"] = select.merge_unresolved_constraints(
+        compiled["unresolved_constraints"],
+        result.get("unmet_constraints") if result.get("miss_reason") == "constraints_unmet" else None,
+    )
     return result
