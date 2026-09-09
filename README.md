@@ -29,10 +29,10 @@ For an existing integration, use `url` instead of discovery. `networks` is a har
 
 ## Install the buyer client
 
-The [v0.5.0 release](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.5.0) contains the Node/TypeScript client, private attempt store and offline guard. Download the [verified archive](https://github.com/402signalhq/402signal/releases/download/route-guard-v0.5.0/402signal-route-guard-0.5.0.tgz) and check its published digest before installing. Node.js 22 or newer is required; this is a release tarball, not an npm registry publication.
+The [v0.7.0 release](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.0) contains the Node/TypeScript client, private attempt store and offline guard. Download the [verified archive](https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.0/402signal-route-guard-0.7.0.tgz) and check its published digest before installing. Node.js 22 or newer is required; this is a release tarball, not an npm registry publication.
 
 ```sh
-npm install ./402signal-route-guard-0.5.0.tgz
+npm install ./402signal-route-guard-0.7.0.tgz
 ```
 
 Use `RouteClient` to retain an attempt before submission, then `withVerifiedRoute` immediately before the buyer's own signing callback. The guard checks signed evidence, exact request identity, current seller terms and expiry against an independently trusted log key. It does not sign transactions or implement a wallet.
@@ -42,13 +42,15 @@ Use `RouteClient` to retain an attempt before submission, then `withVerifiedRout
 - [x402 gateway adapter for mppx](integration/mpp-client/README.md)
 - [MCP adapter](integration/mcp/README.md)
 
+Separate published archives: [session-client v0.1.1](https://github.com/402signalhq/402signal/releases/tag/session-client-v0.1.1), [Algorand batch buyer v0.2.0](https://github.com/402signalhq/402signal/releases/tag/algorand-batch-buyer-v0.2.0), and [native Base MPP client v0.1.0](https://github.com/402signalhq/402signal/releases/tag/mpp-client-v0.1.0). Verify each archive against its published digest; these are GitHub release assets, not npm registry publications.
+
 Customer access keys identify a 402Signal integration or workload class. They are not wallet private keys. Keep access credentials, payment authorizations and attempt stores private.
 
 ## Supported requests and batch scope
 
 Exact x402 observations cover Base, Solana and Algorand. The ordinary request path uses GET, with a narrowly justified empty-object POST fallback. The opt-in `parallel-search-json-v1` profile accepts an exact, bounded JSON search request only at `https://parallelmpp.dev/api/search`. Its body is bound to the observation and is not broadcast through discovery. This is not an arbitrary POST proxy. See the [exact-request contract](docs/proof-carrying-route-v1.md).
 
-**Batch and session support:** the published v0.5 client includes a separate v5 guard for the profiles below. Controlled MainNet tests are complete for the profiles below, including merchant payments and independently confirmed settlement. These examples use owner-operated lab endpoints with explicit limits.
+**Batch and session support:** the published v0.7 client includes a separate v5 guard for the profiles below. Earlier controlled MainNet tests completed the two-call Base/Solana and two-item Algorand examples, including independently confirmed settlement. On September 8, 2026, separate tests completed three-call Solana continuation, a three-payment Algorand group, a one-payment three-job invoice, and one native Algorand MPP charge at owner-operated lab endpoints. A separate native Base MPP UUID purchase completed at an external endpoint with independently finalized routing and merchant payments. A separate Base v2 continuation campaign completed three accepted calls, with 3000 atomic USDC paid to the merchant and 1000 refunded after independently finalized settlement. These are bounded compatibility tests.
 
 | Profile | Supported scope | Buyer responsibility |
 |---|---|---|
@@ -56,7 +58,7 @@ Exact x402 observations cover Base, Solana and Algorand. The ordinary request pa
 | Solana native MPP push sessions | A supported channel, operator and recipient | Own opening, voucher signing, fees/rent and closing; no claim of cross-channel batch settlement |
 | Algorand two-item atomic grouping | One exact HTTPS GET API, two USDC payments to one recipient, explicit item/total caps and job hashes | Validate the full group and sponsor terms; atomic chain execution does not promise atomic HTTP delivery |
 
-The router observes one explicitly requested API; it does not aggregate seller payments, deposit capital or issue vouchers. The $0.003 observation fee is separate from merchant economics. The [batch contract](docs/batch-observation-v1.md), [Algorand buyer adapter](integration/batch-buyer/algorand/README.md) and [lab qualification guide](integration/lab/BATCH_QUALIFICATION.md) describe the bounded mechanisms and the controlled live test scope. The x402 mppx gateway adapter is separate from native MPP sessions.
+The router observes one explicitly requested API; it does not aggregate seller payments, deposit capital or issue vouchers. The $0.003 observation fee is separate from merchant economics. The [batch contract](docs/batch-observation-v1.md), [Algorand buyer adapter](integration/batch-buyer/algorand/README.md) and [lab qualification guide](integration/lab/BATCH_QUALIFICATION.md) describe the bounded mechanisms and the controlled live test scope. The x402 mppx gateway adapter, native MPP charge adapters and native MPP sessions are distinct integrations. [Continuation policies](integration/session-client/README.md) allow bounded use of an already funded session without treating its original observation as fresh or purchasing another observation per call.
 
 ## Outcomes, recovery and evidence
 

@@ -8,7 +8,12 @@ The current version supports 1–64 sequential calls and a fixed buyer deadline 
 up to 24hours. Synthetic qualification covers 3, 10 and 64calls over two hours,
 including process restart and lost responses. These are client bounds, not chain
 throughput limits or a promise of merchant availability. Live qualification of
-this continuation version is separate from the earlier two-call lab tests.
+this continuation version is separate from the earlier two-call lab tests. On
+September 8, 2026, a controlled MainNet Solana campaign completed three accepted
+calls, independently confirmed 3000 atomic USDC to the merchant and a 1000-atomic
+buyer refund, with all rent subsequently returned. A separate Base continuation campaign
+also completed three accepted calls, independently finalized 3000 atomic USDC
+to the merchant and a 1000-atomic buyer refund, leaving no capital in the channel. This does not qualify 64 calls or a 24-hour live session.
 
 ## What stays fixed
 
@@ -28,7 +33,9 @@ final chain settlement or a guarantee that an API delivered useful work.
 
 ## Install and runtime
 
-Install a reviewed package archive with `npm install ./402signal-session-client-0.1.1.tgz`.
+Download the [v0.1.1 release](https://github.com/402signalhq/402signal/releases/tag/session-client-v0.1.1)
+[archive](https://github.com/402signalhq/402signal/releases/download/session-client-v0.1.1/402signal-session-client-0.1.1.tgz),
+verify its published digest, then run `npm install ./402signal-session-client-0.1.1.tgz`.
 The archive includes the guard and funding/settlement primitives it uses; an
 installed customer does not need the 402Signal repository or lab checkout.
 `PROVENANCE.json` records the copied source hashes. Node24 is required.
