@@ -195,7 +195,10 @@ async function main() {
     try { await seller.initialize(); } catch { ledger.close(); throw new LabError('seller_initialization_failed', 503); }
     const batches=await configuredBatchHttpMerchants(seller);
     const app = server(seller, configuredAlgorandBatchSeller(seller),batches.merchants); app.listen(c.port, c.host); await once(app, 'listening');
-    print({ listening: app.address(), mode: c.mode, traffic_class: 'self_test', public_directory_submission: false });
+    const unavailable_profiles = batches.merchants.flatMap(m => m.unavailable ?
+      [{ profile: m.unavailable.profile, path: m.path, error: m.unavailable.error }] : []);
+    print({ listening: app.address(), mode: c.mode, traffic_class: 'self_test', public_directory_submission: false,
+      ...(unavailable_profiles.length ? { unavailable_profiles } : {}) });
     const stop = () => { app.close(() => { void batches.close().finally(()=>{ledger.close();process.exit(0);}); }); setTimeout(() => process.exit(1), 10000).unref(); };
     process.once('SIGINT', stop); process.once('SIGTERM', stop); return;
   }

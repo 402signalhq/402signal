@@ -18,6 +18,7 @@ async function readBody(req: IncomingMessage): Promise<string> {
 }
 export interface BatchHttpMerchant {
  path:string; authorizationHeader:'payment-signature'|'authorization';
+ unavailable?:{profile:string;error:string};
  recover?:(request:ManifestRecoveryRequest)=>Promise<Outcome & {recoveryOnly:true}>;
  request(url:string,authorization?:string,recoveryOnly?:boolean):Promise<Outcome|{status:number;bodyText:string;headers?:Record<string,string>}>;
 }
@@ -73,7 +74,11 @@ export function server(seller: Seller, atomicBatch?: AlgorandBatchSeller, batchM
         if (path === '/health') return send(res, { status: 200, body: { ok: true, mode: seller.config.mode } }, req.method === 'HEAD');
         if (path === '/ready') {
           const capacity = seller.ledger.capacity(), ok = seller.ready && capacity.ready;
-          return send(res, { status: ok ? 200 : 503, body: { ok, payment_capacity_remaining: capacity.remaining } }, req.method === 'HEAD');
+          const unavailable_profiles = batchMerchants.flatMap(m => m.unavailable ? [{
+            profile: m.unavailable.profile, path: m.path, error: m.unavailable.error, new_payment_allowed: false as const,
+          }] : []);
+          return send(res, { status: ok ? 200 : 503, body: { ok, payment_capacity_remaining: capacity.remaining,
+            ...(unavailable_profiles.length ? { unavailable_profiles } : {}) } }, req.method === 'HEAD');
         }
         if (path === '/openapi.json') return send(res, { status: 200, body: seller.openapi() }, req.method === 'HEAD');
         if (['/catalog.json', '/.well-known/x402.json'].includes(path)) return send(res, { status: 200, body: seller.catalog() }, req.method === 'HEAD');
