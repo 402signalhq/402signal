@@ -727,6 +727,16 @@ class PaywallTests(unittest.TestCase):
         self.assertNotIn("Signal402", llms)
         self.assertIn("https://glama.ai/mcp/servers/402signalhq/402signal", llms)
         self.assertIn("https://smithery.ai/servers/live402/signal", llms)
+        self.assertIn("https://payapi.market/api/402signal", llms)
+        self.assertIn("https://payapi.market/mcp", llms)
+        self.assertIn(
+            "These links are discovery locations, not endorsements or service guarantees.",
+            llms,
+        )
+        self.assertIn(
+            "Paid checks still use POST https://402signal.com/route on Base, Solana, and Algorand",
+            llms,
+        )
         self.assertIn("api.cdp.coinbase.com/platform/v2/x402/discovery/search?query=402signal", llms)
         self.assertIn("facilitator.goplausible.xyz/discovery/resources", llms)
         self.assertIn("facilitator.goplausible.xyz/dashboard/merchants/56466a9400d70f08", llms)
@@ -837,6 +847,8 @@ class PaywallTests(unittest.TestCase):
         self.assertIn("Seller payment, channel funding and network costs are separate", readme)
         self.assertIn("https://402signal.com/developers", readme)
         self.assertIn("wallet, signing authority and final payment decision", readme)
+        self.assertIn("PayAPI Market (https://payapi.market/mcp)", readme)
+        self.assertIn("agents still pay https://402signal.com/route directly", readme)
 
     def test_empty_need_and_url_returns_402(self):
         """CDP validate POSTs empty JSON; must 402 with bazaar, not 400."""

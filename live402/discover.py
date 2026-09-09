@@ -1353,9 +1353,13 @@ MCP example:
 
 These links are discovery locations, not endorsements or service guarantees.
 
+Free third-party catalogues may help agents find us; confirm any returned `base_url` or MCP endpoint resolves to https://402signal.com (or https://402signal.com/mcp) before paying. Paid checks still use POST https://402signal.com/route on Base, Solana, and Algorand; $0.003 USDC only when a qualifying live route is found. Canonical rails: https://402signal.com/rails
+
 - Glama: https://glama.ai/mcp/servers/402signalhq/402signal
 - MCP Registry: https://registry.modelcontextprotocol.io/?q=402signal
 - Smithery: https://smithery.ai/servers/live402/signal
+- PayAPI Market listing: https://payapi.market/api/402signal
+- PayAPI Market free catalogue MCP: https://payapi.market/mcp
 - Agentic Market: https://agentic.market/services/402signal-com
 - GoPlausible: https://facilitator.goplausible.xyz/dashboard/merchants/56466a9400d70f08
 - x402scan: https://www.x402scan.com/recipient/0xb18fc2275f36dae99eb215caeff03b431f887d16
