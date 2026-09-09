@@ -1,0 +1,104 @@
+name: one-time PR143 presentation correction
+on:
+  pull_request:
+    types: [synchronize]
+permissions:
+  contents: read
+jobs:
+  correct:
+    if: github.repository == '402signalhq/402signal' && github.event.pull_request.number == 143 && github.event.pull_request.head.repo.full_name == '402signalhq/402signal' && github.head_ref == 'feat/customer-first-site-and-agent-guides'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Apply only the reviewed page and expectation changes
+        env:
+          EXPECTED_EVENT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_EVENT_SHA"
+          test "$(git rev-parse HEAD^)" = '15f176e9253cad256e30183ab91a0ebeb15058f1'
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          import subprocess
+          def change(path, edits):
+              p = Path(path)
+              assert p.is_file() and not p.is_symlink(), path
+              before = p.read_text()
+              after = before
+              for old, new in edits:
+                  assert old in after, (path, 'expected text missing', old)
+                  after = after.replace(old, new)
+              if path.endswith('.py'):
+                  a, b = ast.parse(before), ast.parse(after)
+                  names = lambda t: sorted(n.name for n in ast.walk(t) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name.startswith('test_'))
+                  asserts = lambda t: sum(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr.startswith('assert') for n in ast.walk(t))
+                  assert names(a) == names(b), (path, 'test inventory changed')
+                  assert asserts(b) >= asserts(a), (path, 'assertions were removed')
+              p.write_text(after)
+          change('live402/static/index.html', [
+              ('<a href="/how#trust">Evidence, oversight and long-term verification</a></div></section>', '<a href="/how#trust">Evidence, oversight and long-term verification</a><div class="pq-status-row" aria-label="MainNet checkpoint status"><span class="pq-kicker">Checkpoint status</span><p class="pq-chip"><!--PQ_LATEST-->Awaiting anchor</p><a href="/transparency">View confirmed coverage</a></div><p class="policy-hint">This status describes a checkpoint, not every current record. Inspect coverage and confirmation in the log.</p></div></section>'),
+          ])
+          change('live402/static/how.html', [
+              ('A later refusal does not reverse a paid check.</p>', 'A later refusal does not reverse a paid check. <a href="/developers#recovery">Billing and recovery</a>.</p>'),
+          ])
+          change('live402/static/developers.html', [
+              ('<dt>Completed normal miss</dt><dd>HTTP 200 with', '<dt>Completed normal miss</dt><dd>A completed normal miss returns HTTP 200 with'),
+              ('<a href="/openapi.json">OpenAPI</a> defines HTTP inputs.', '<a href="/openapi.json">OpenAPI</a> defines HTTP inputs. <a href="/rails">GET /rails</a> lists supported payment rails.'),
+          ])
+          for name in ['test_pq_isolated_signer.py','test_pq_testnet_d.py','test_transparency.py']:
+              path = Path('tests', name)
+              text = path.read_text()
+              replacements = [
+                  ('A record of what was checked.', 'A record you can check later.'),
+                  ('Store your verification record securely', 'Keep the private request, receipt and reveal'),
+                  ('check its integrity later', 'Evidence, oversight and long-term verification'),
+                  ('Check the offer before your agent pays.', 'Check the deal before your agent pays.'),
+                  ('class="pq-trust"', 'id="pq-log"'),
+                  ('<title>Routing history you can verify</title>', '<title>Inspect decision checkpoints · 402Signal PQ Trust</title>'),
+              ]
+              change(str(path), [(old,new) for old,new in replacements if old in text])
+          change('tests/test_website_mainnet_presentation.py', [
+              ('class="pq-trust"', 'id="pq-log"'),
+              ('Checkpoints are anchored on Algorand MainNet.', 'Later Algorand MainNet checkpoints'),
+              ('Check the terms. Then choose to pay.', 'Check the offer. Keep the decision yours.'),
+          ])
+          change('tests/test_route.py', [
+              ('Check the offer before your agent pays.', 'Check the deal before your agent pays.'),
+              ('$0.003 USDC when a supported offer qualifies under your rules', 'A qualifying hosted check costs $0.003 USDC'),
+              ('Completed checks with no match are free', 'Completed no-match checks are free'),
+              ('Pre-spend checks for paid APIs', 'Buyer-side checks for x402 and MPP'),
+              ('self.assertIn("POST /route", devs)', 'self.assertIn("https://402signal.com/route", devs)'),
+              ('self.assertIn(\'"need": "erc20 token balance"\', devs)', 'self.assertIn(\'"need":"web search"\', devs)'),
+              ('self.assertIn(\'"url": "https://seller.example/x402"\', devs)', 'self.assertIn("<code>url</code> for an exact endpoint", devs)'),
+              ('self.assertIn("Discover a capability", devs)', 'self.assertIn("<code>need</code> to find candidates", devs)'),
+              ('self.assertIn(catalog, readme.splitlines()[2])', 'self.assertIn("**$0.003 USDC**", readme)\n        self.assertIn("Completed normal misses are not settled", readme)\n        self.assertIn("Seller payment, channel funding and network costs are separate", readme)\n        self.assertIn("https://402signal.com/developers", readme)\n        self.assertIn("wallet, signing authority and final payment decision", readme)'),
+          ])
+          allowed = {'live402/static/index.html','live402/static/how.html','live402/static/developers.html','tests/test_pq_isolated_signer.py','tests/test_pq_testnet_d.py','tests/test_transparency.py','tests/test_website_mainnet_presentation.py','tests/test_route.py'}
+          changed = set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())
+          assert changed == allowed, changed
+          print('Eight reviewed files corrected. Test inventories preserved; assertions not removed.')
+          PY
+          git diff --check
+          git diff --stat
+          git diff -- tests
+      - name: Save the correction on this PR branch only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_EVENT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          branch='feat/customer-first-site-and-agent-guides'
+          remote="$(gh api repos/402signalhq/402signal/git/ref/heads/$branch --jq '.object.sha')"
+          test "$remote" = "$EXPECTED_EVENT_SHA"
+          git add -- live402/static/index.html live402/static/how.html live402/static/developers.html tests/test_pq_isolated_signer.py tests/test_pq_testnet_d.py tests/test_transparency.py tests/test_website_mainnet_presentation.py tests/test_route.py
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Restore confirmed-only anchor status and reconcile customer-page assertions'
+          git -c credential.helper='!gh auth git-credential' push origin "HEAD:refs/heads/$branch"
+          git rev-parse HEAD
