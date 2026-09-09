@@ -149,13 +149,13 @@ See [the response contract](../../docs/route-miss-http-status.md).
 
 ## Install the client
 
-Use the [v0.7.0 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.0) and verify its published digest before installing:
+Use the [v0.7.1 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.1) and verify its published digest before installing. This is a GitHub release archive, not an npm-registry package:
 
 ```sh
-npm install ./402signal-route-guard-0.7.0.tgz
+npm install ./402signal-route-guard-0.7.1.tgz
 ```
 
-From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. The tarball includes TypeScript
+From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.1.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
 declarations, the local guard and HTTP client. Node 22 or newer is required.
 No install script or wallet dependency is included. Windows callers can supply
 their own durable store; the supplied filesystem adapter runs on POSIX, including WSL.
@@ -269,6 +269,13 @@ not enable native MPP routing-fee collection or automatic payment retries.
 Import `verifyBatchRoute` or `withVerifiedBatchRoute` from `@402signal/route-guard/batch` for the separate v5 observation contract. It binds an exact supported GET, raw challenge, merchant profile and independent buyer limits to signed evidence. Base batch settlement, native Solana MPP push sessions and Algorand two-item same-payee USDC grouping have separate explicit profiles. Availability depends on the server enabling a qualified profile. See [the profile contract](../../docs/batch-observation-v1.md).
 
 The fee is $0.003 for a qualifying API observation. Merchant requests, cumulative vouchers, deposits, network/provider charges and refunds are separate. A session cap is never treated as its unit price. This guard does not fund a channel, authorize an entire batch, guarantee a refund, or assess delivery quality. The caller must still validate and durably reserve each actual wallet action. Native Solana cross-channel batching, arbitrary Algorand groups and generic POST batches are outside these profiles. The original v4 exact-payment guard remains separate.
+
+## Pin precedence (0.7.1)
+
+A pinned or trusted log key wins. A key offered in the same route response never
+becomes the pin. Rotate the log key only by updating the independently configured
+pin. Already-installed 0.7.0 clients are not updated by a server image deploy;
+install this GitHub release tarball.
 
 ## Native charge observations (0.7.0)
 
