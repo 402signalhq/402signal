@@ -276,6 +276,27 @@ def issue(event: dict) -> dict:
     }
 
 
+def resolve_verify_vkey(vkey: str | None, receipt: dict | None = None) -> str:
+    """Pinned/trusted key wins. Never adopt a key carried on the receipt.
+
+    An explicit pin (even empty/whitespace) does not fall through to sqlite,
+    env, or a response-offered ``vkey`` field. Rotation requires updating the
+    pin. When no pin is supplied, precedence matches public trust surfaces:
+    env/trust first, then sqlite meta.vkey.
+    """
+    if receipt is not None and not isinstance(receipt, dict):
+        raise ReceiptError("invalid receipt")
+    if vkey is not None:
+        pin = vkey.strip() if isinstance(vkey, str) else ""
+        if not pin:
+            raise ReceiptError("missing checkpoint or vkey")
+        return pin
+    vk = str(trust.vkey() or "").strip() or str(store.meta_get("vkey") or "").strip()
+    if not vk:
+        raise ReceiptError("missing checkpoint or vkey")
+    return vk
+
+
 def verify_route_receipt(receipt: dict, reveal: dict, vkey: str | None = None) -> dict:
     """Fail-closed v3/v4 check: version, reveal, commitment, leaf, inclusion, Ed25519."""
     if not isinstance(receipt, dict) or not isinstance(reveal, dict):
@@ -313,9 +334,12 @@ def verify_route_receipt(receipt: dict, reveal: dict, vkey: str | None = None) -
     expected_leaf = merkle.leaf_hash(body).hex()
     if expected_leaf != leaf_hex.lower():
         raise ReceiptError("leaf hash mismatch")
+    if version in {events.TYPE_ROUTE_DECISION_V4, events.TYPE_ROUTE_DECISION_V5}:
+        if not isinstance(vkey, str) or not vkey.strip():
+            raise ReceiptError("untrusted log origin")
     checked = verify_receipt(receipt, vkey)
     if version in {events.TYPE_ROUTE_DECISION_V4, events.TYPE_ROUTE_DECISION_V5}:
-        if not vkey or checked["body"]["origin"] != ckpt.vkey_parse(vkey)["name"]:
+        if checked["body"]["origin"] != ckpt.vkey_parse(vkey.strip())["name"]:
             raise ReceiptError("untrusted log origin")
         if type(receipt.get("index")) is not int:
             raise ReceiptError("invalid receipt index")
@@ -326,7 +350,7 @@ def verify_receipt(receipt: dict, vkey: str | None = None) -> dict:
     if not isinstance(receipt, dict):
         raise ReceiptError("invalid receipt")
     note = receipt.get("checkpoint")
-    vk = vkey or store.meta_get("vkey") or trust.vkey()
+    vk = resolve_verify_vkey(vkey, receipt)
     if not note or not vk:
         raise ReceiptError("missing checkpoint or vkey")
     try:

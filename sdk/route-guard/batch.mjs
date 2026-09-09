@@ -92,8 +92,14 @@ const hex32 = (s) => {
   return Buffer.from(s, "hex");
 };
 
+/** Independently pinned key only. A key offered in the same response is never the pin. */
+function pinnedLogVkey(vkey) {
+  if (typeof vkey !== "string" || !vkey.trim()) fail("untrusted_receipt");
+  return vkey.trim();
+}
+
 function authenticate(tr, vkey) {
-  if (typeof vkey !== "string") fail("untrusted_receipt");
+  vkey = pinnedLogVkey(vkey);
   const keyParts = /^([^+\s]+)\+([0-9a-f]{8})\+(.+)$/.exec(vkey);
   if (!keyParts) fail("untrusted_receipt");
   const [, origin, kidHex, key64] = keyParts;
