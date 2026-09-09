@@ -8,7 +8,7 @@ from scripts.mcp_registry_preflight import MAX_RESPONSE_BYTES, NoRedirect, publi
 
 
 class RegistryPreflightTests(unittest.TestCase):
-    manifest = {"name": "io.github.402signalhq/402signal", "version": "0.3.1", "remotes": []}
+    manifest = {"name": "io.github.402signalhq/402signal", "version": "0.3.2", "remotes": []}
 
     def opener(self, payload, status=200):
         response = io.BytesIO(payload)
@@ -23,7 +23,7 @@ class RegistryPreflightTests(unittest.TestCase):
         opener = self.opener(self.entry())
         self.assertFalse(publication_needed(self.manifest, opener))
         request = opener.open.call_args.args[0]
-        self.assertIn("io.github.402signalhq%2F402signal/versions/0.3.1", request.full_url)
+        self.assertIn("io.github.402signalhq%2F402signal/versions/0.3.2", request.full_url)
         self.assertEqual(opener.open.call_args.kwargs, {"timeout": 30})
 
     def test_only_404_allows_publication(self):
