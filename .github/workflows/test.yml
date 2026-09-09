@@ -73,7 +73,7 @@ jobs:
         run: |
           node scripts/check_route_guard_package.mjs
           node scripts/check_native_mpp_package.mjs
-      - name: Check lab Fly image native Algorand layout (no registry or Fly)
+      - name: Check Dockerfile.fly native Algorand layout (no registry or Fly)
         run: node scripts/check_lab_mpp_algorand_image_layout.mjs
       - name: Build and test buyer and seller (synthetic payments)
         env:

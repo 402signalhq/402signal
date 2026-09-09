@@ -1,4 +1,4 @@
-# Lab Fly image context (integration/). Unrelated packages and build
+# Context for integration/lab/Dockerfile.fly. Unrelated packages and build
 # outputs stay out of the image. Do not weaken credential gates here.
 **/.git
 **/node_modules

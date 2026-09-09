@@ -1,5 +1,5 @@
-# Used only if someone builds with context integration/lab. The Fly image
-# uses integration/ as context and integration/.dockerignore.
+# Local Dockerfile context (integration/lab). Fly publishes use
+# Dockerfile.fly with integration/.dockerignore.
 node_modules
 dist
 reports

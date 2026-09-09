@@ -14,20 +14,24 @@ npm --prefix integration/lab test
 PYTHONPATH=.:tests LIVE402_FIXTURE=1 python -m unittest discover -s integration/tests -v
 ```
 
-For a buyer container, first run the build above to synchronize sdk/, then
-build the Fly image from the `integration/` context. `integration/lab/Dockerfile`
-is the Fly image build file; there is no separate `Dockerfile.fly`.
+For a local buyer container (lab-only context), first run the build above to
+synchronize sdk/, then:
 
 ```sh
-podman build --build-arg NODE_IMAGE=YOUR_REVIEWED_NODE_24_IMAGE \
-  -f integration/lab/Dockerfile -t localhost/402signal-lab:reviewed integration
+podman build --build-arg NODE_IMAGE=YOUR_REVIEWED_NODE_24_IMAGE -t localhost/402signal-lab:reviewed integration/lab
 ```
 
-The runtime image copies the locked `integration/mpp-algorand` package to
-`/mpp-algorand` (sources plus production `node_modules`) so compiled seller
+Fly lab publishes use `integration/lab/Dockerfile.fly` with the `integration/`
+context so the locked `integration/mpp-algorand` package is copied to
+`/mpp-algorand` (sources plus production `node_modules`). Compiled seller
 registration can load `lab-merchant.mjs` without a post-build symlink. The
 package's repository-relative `../../sdk/route-guard` imports use a second
 copy of the already-required lab SDK at `/sdk`.
+
+```sh
+podman build --build-arg NODE_IMAGE=YOUR_REVIEWED_NODE_24_IMAGE \
+  -f integration/lab/Dockerfile.fly -t localhost/402signal-lab:reviewed integration
+```
 
 Pin NODE_IMAGE to a reviewed digest before publishing. The default image command
 runs an offline demo. Existing live configurations, public verification-key pins
