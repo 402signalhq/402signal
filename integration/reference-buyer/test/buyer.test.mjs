@@ -1,3 +1,5 @@
+import { observeOnce, observationPlan } from "../observe.mjs";
+import { verifyReceipt } from "@402signal/route-guard";
 import { mppxSellerPayload } from "../mppx-seller.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -96,6 +98,7 @@ function setup(options = {}) {
       },
     ];
   }
+  if (options.routingOnly) { policy.sellers = []; policy.campaignMaximumAtomic = "3000"; }
   const journal = new BuyerJournal(join(dir, "ledger"), policy);
   const rpc = async (method, args) => {
     const transaction = args?.[0];
@@ -184,6 +187,7 @@ function setup(options = {}) {
     rpc,
     now: () => selected.now,
     confirmationIntervalMs: 0,
+    routingOnly: options.routingOnly ?? false,
     ...options.buyerOptions,
   });
   const q = {
@@ -937,4 +941,47 @@ test("six pending observations remain unknown without releasing signing authorit
     await assert.rejects(buyer.signRouting("job",wire(s.q)),/stage_already_claimed/);
     assert.deepEqual(s.counts(),{signatures:1,paid:0,unpaid:0});
   } finally {s.close();}
+});
+
+function observationConfig(s) {
+  return {version:1,directory:s.dir,policy:s.policy,routeRequestJson:JSON.stringify(fixture.request),
+    trust:{approvedKeyFile:'/private/approved-public-key.txt',approvedFingerprint:'a'.repeat(64),provenance:'synthetic fixture only'}};
+}
+for (const lostBody of [false,true]) test('observation-only real routing signature, lost body='+lostBody+' never reaches a seller',async()=>{
+ const s=setup({routingOnly:true});let ordinary=0,recovery=0;
+ const transport=async(url,init)=>{
+  assert.equal(url,s.policy.routerUrl);assert.equal(init.method,'POST');
+  if(init.body==='{}')return new Response(JSON.stringify({error:'recovery_unavailable',recovery_only:true,new_payment_allowed:false}),{status:503});
+  if(!init.headers['PAYMENT-SIGNATURE'])return new Response(JSON.stringify(s.q),{status:402,headers:{'PAYMENT-REQUIRED':b64(s.q)}});
+  if(init.headers['Replay-Only']==='1')recovery++;else ordinary++;
+  if(lostBody && !init.headers['Replay-Only'])return new Response(new ReadableStream({start(controller){controller.error(new Error('synthetic lost body'));}}),{status:200});
+  return new Response(s.outcome.response.bodyText,{status:200,headers:{'PAYMENT-RESPONSE':s.outcome.response.paymentResponse}});
+ };
+ const client=()=>new RouteClient({store:new FileAttemptStore(join(s.dir,'attempts')),recoveryProfile:'http-route-v1',fetch:transport});
+ const config=observationConfig(s);
+ try {
+  assert.equal(observationPlan(config).maximum402SignalFeeUSDC,'0.003');
+  const result=await observeOnce({id:'job',config,buyer:s.buyer,client:client(),journal:s.journal,verifyReceipt,trustedLogVkey:fixture.trusted_vkey});
+  assert.equal(result.receiptVerification,'signature_and_inclusion_verified');assert.equal(result.chainConfirmation,'confirmed');
+  assert.equal(result.sellerExecution,'disabled');assert.equal(ordinary,1);assert.equal(s.journal.job('job').reserved,3000);
+  assert.deepEqual(s.counts(),{signatures:1,paid:0,unpaid:0});
+  await assert.rejects(s.buyer.sellerChallenge('job'),/seller_execution_disabled/);
+  await assert.rejects(observeOnce({id:'job',config,buyer:s.buyer,client:client(),journal:s.journal,verifyReceipt,trustedLogVkey:fixture.trusted_vkey}));
+  await assert.rejects(observeOnce({id:'new-job',config,buyer:s.buyer,client:client(),journal:s.journal,verifyReceipt,trustedLogVkey:fixture.trusted_vkey}));
+  const again=await observeOnce({id:'job',config,buyer:s.buyer,client:client(),journal:s.journal,verifyReceipt,trustedLogVkey:fixture.trusted_vkey,recover:true});
+  assert.equal(again.sellerExecution,'disabled');assert.equal(ordinary,1);assert.ok(recovery>=1);assert.equal(s.counts().signatures,1);
+ }finally{s.close();}
+});
+test('observation-only reservations survive reopening and cannot become seller campaigns',()=>{
+ const s=setup({routingOnly:true});const config=observationConfig(s);
+ try {
+  s.buyer.reserveObservation('job',config.routeRequestJson);
+  const second=new BuyerJournal(join(s.dir,'ledger'),s.policy);
+  try {assert.throws(()=>second.reserve('job',{routeRequestJson:config.routeRequestJson},'3000'));assert.throws(()=>second.reserve('other',{},'3000'));}finally{second.close();}
+  assert.throws(()=>new BaseBuyer({account:s.account,journal:s.journal,policy:s.policy}),/invalid_buyer_policy/);
+  assert.throws(()=>s.buyer.reserve('other',agentsToolsSearch('x')),/seller_execution_disabled/);
+  assert.throws(()=>observationPlan({...config,policy:{...config.policy,buyerNativeFeeAtomic:'1'}}));
+  assert.throws(()=>observationPlan({...config,policy:{...config.policy,campaignMaximumAtomic:'6000'}}));
+  assert.throws(()=>observationPlan({...config,trust:null}));
+ }finally{s.close();}
 });

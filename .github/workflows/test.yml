@@ -59,6 +59,7 @@ jobs:
           npm --prefix integration/mpp-client ci --ignore-scripts --no-audit --no-fund
           npm --prefix integration/mpp-algorand ci --ignore-scripts --no-audit --no-fund
           npm --prefix integration/reference-buyer test
+          node integration/buyer-checks/lifecycle.mjs all
           npm --prefix integration/mpp-client test
           npm --prefix integration/mpp-algorand test
           npm --prefix integration/reference-buyer audit --package-lock-only --ignore-scripts --audit-level=high

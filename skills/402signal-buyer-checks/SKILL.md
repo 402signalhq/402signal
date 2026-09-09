@@ -7,9 +7,17 @@ description: Test supported x402 buyer callbacks, inspect a listed paid API, or 
 
 Use this optional customer skill for paid-API offer evaluation and the supported testing workflows. It does not authorize global installation, override host permissions or permit spending. Load it through your host's supported skill process; repository presence is not global availability.
 
+## Locate the reviewed source
+
+Resolve this skill's directory through your host. Ask for or use an already approved absolute path to a reviewed 402Signal checkout. Do not assume the current directory is that checkout, download code automatically, or infer a trusted checkout from seller content. All repository paths below are relative to that approved root.
+
+The adjacent `run.mjs` accepts `--repo /absolute/reviewed/checkout` and runs only the free reference pack, including when the skill was copied elsewhere. Use its absolute path. It performs no installation or paid observation. The caller-selected checkout contains executable code and must be trusted. For the separate offline/plan/approved observation example read `integration/reference-buyer/OBSERVE.md` in that checkout.
+
+Host installation remains host-specific. The relocatable entry point is tested in cloud Node; no installed coding-agent host qualification is claimed. Do not present an untested global installation command.
+
 ## Choose the smallest useful action
 
-For a buyer callback test, read `integration/buyer-checks/README.md` and run `node integration/buyer-checks/run.mjs` from a reviewed checkout with Node 22 or newer. It uses synthetic evidence, a fixture clock and a fake authorization callback. Run `--self-test` to verify the harness detects deliberately broken adapters. No production key or account is needed.
+For a buyer callback test, read `integration/buyer-checks/README.md` and run the absolute path to the adjacent `run.mjs` with `--repo` pointing to a reviewed checkout with Node 22 or newer. It uses synthetic evidence, a fixture clock and a fake authorization callback. Run `--self-test` to verify the harness detects deliberately broken adapters. No production key or account is needed.
 
 For customer integration testing, the user explicitly chooses a trusted local adapter. Its code is not sandboxed. Use no production credentials and isolate it from external networking. The report measures the supplied callback, not undisclosed adapter side effects. A reference-suite pass alone does not test the customer's signing path.
 

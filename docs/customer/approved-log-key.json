@@ -1,0 +1,12 @@
+{
+  "version": "2026-09-09-1",
+  "origin": "402signal.com/pq/log/mainnet-v1",
+  "epoch": "mainnet-v1",
+  "algorithm": "ed25519 signed note",
+  "vkey": "402signal.com/pq/log/mainnet-v1+e6b81414+AaIa9f1eNnNFArj9fz9/kpEGRitH7ZPmgAeDRNvTLSyC",
+  "fingerprint_algorithm": "sha256 of trimmed UTF-8 vkey text",
+  "fingerprint": "cc99b21db1ce0bd3b8551bc7a76e83cbc4768290d39672a6bc1bfd772ed83970",
+  "reviewed_at": "2026-09-09",
+  "provenance": "Release owner compared the public /pq/log/trust key with the separately retained, verified PR143 predeployment trust identity. This is a reviewed public-key pin, not a completed key-ceremony audit or a private signing key.",
+  "rotation": "Stop on mismatch. Obtain and independently approve a reviewed successor record; preserve old pins with historical evidence. Never replace a pin using only the route response."
+}
