@@ -1,8 +1,20 @@
 {
   "record_version": 1,
   "reviewed_at": "2026-09-09",
-  "source_baseline": "a743b655866e52951efe751be0fefacf3f82ac33",
+  "source_baseline": "0b6ba91531526a9c5bb19ff7b2bf10733f29df5a",
   "packages": [
+    {
+      "tag": "route-guard-v0.7.1",
+      "published_at": "2026-09-09T21:06:46Z",
+      "source_revision": "0b6ba91531526a9c5bb19ff7b2bf10733f29df5a",
+      "archive": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.1/402signal-route-guard-0.7.1.tgz",
+      "sha256": "574633f724e00967603ece1f4bea7bd23572b9a37098a58bb2b72267b9013a30",
+      "checksum_file": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.1/SHA256SUMS",
+      "checksum_file_sha256": "f80949c928a7ce4598cc57c474964d9837247e6069d90f52b2313f3009f95125",
+      "distribution": "GitHub release archive; not npm registry",
+      "state": "published",
+      "recipe": "/developers/check-offer"
+    },
     {
       "tag": "route-guard-v0.7.0",
       "published_at": "2026-09-08T21:23:36Z",
@@ -68,7 +80,7 @@
         "Algorand"
       ],
       "mechanism": "supported exact offers",
-      "package": "route-guard-v0.7.0",
+      "package": "route-guard-v0.7.1",
       "runtime": "Node >=22; FileAttemptStore requires private POSIX storage",
       "request": "GET; bounded POST only where explicitly supported by its separate request profile",
       "offline_scope": "5 Base exact customer-adapter cases; 2 reference historical-verifier cases, not a production signing test",
