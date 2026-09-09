@@ -24,6 +24,15 @@ test('self-test rejects generic errors, no guard, and universal refusal', () => 
   for (const name of ['detect-unexpected-exceptions', 'detect-unguarded-adapter', 'detect-always-refusing-adapter'])
     assert.equal(report.cases.find(c => c.scenario === name).test_outcome, 'passed');
 });
+test('worker failure after a report stays incomplete', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'buyer-late-error-'));
+  try {
+    const path = join(dir, 'adapter.mjs');
+    const guard = new URL('../../sdk/route-guard/index.mjs', import.meta.url).href;
+    writeFileSync(path, `import {withVerifiedRoute} from ${JSON.stringify(guard)}; process.on('beforeExit', () => {process.exitCode=1}); export const authorize=withVerifiedRoute;`);
+    const {status, report} = invoke(['--adapter', path]); assert.equal(status, 1); assert.equal(report.test_outcome, 'harness-error'); assert.equal(report.incomplete, 1);
+  } finally { rmSync(dir, {recursive:true, force:true}); }
+});
 test('setup failure, logging and timeout cannot claim safety', () => {
   const dir = mkdtempSync(join(tmpdir(), 'buyer-report-'));
   try {

@@ -23,7 +23,7 @@ else {
   const finish = (code) => {
     if (finished) return; finished = true; clearTimeout(timer);
     if (timedOut) return failure('worker_timeout');
-    if (!report || ![0, 1].includes(code)) return failure('worker_setup_or_execution_error');
+    if (!report || ![0, 1].includes(code) || (code === 0) !== (report.failed === 0)) return failure('worker_setup_or_execution_error');
     console.log(JSON.stringify(report, null, 2));
     if (code !== 0 || report.failed) process.exitCode = 1;
   };
