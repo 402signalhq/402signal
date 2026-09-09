@@ -1,21 +1,17 @@
 name: website browser evidence
-
 on:
   pull_request:
   push:
     branches: [main]
-
 permissions:
   contents: read
-
 concurrency:
   group: website-browser-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
   browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -33,6 +29,11 @@ jobs:
           test -n "$node_dir"
           "$node_dir/node" -e 'if (Number(process.versions.node.split(".")[0]) !== 24) process.exit(1)'
           printf '%s\n' "$node_dir" >> "$GITHUB_PATH"
+      - name: Run offline buyer checks and consumer-adapter regressions
+        run: |
+          node integration/buyer-checks/run.mjs
+          node integration/buyer-checks/run.mjs --self-test
+          node integration/buyer-checks/run.mjs --adapter ./integration/buyer-checks/example-adapter.mjs
       - name: Install locked browser and schema-test dependencies
         working-directory: integration/website
         run: |
@@ -43,11 +44,22 @@ jobs:
         run: node integration/website/schema-check.mjs
       - name: Test customer flows and mobile layouts with synthetic data
         run: |
-          node integration/website/browser.mjs
-          node integration/website/extended.mjs
+          status=0
+          node integration/website/browser.mjs || status=1
+          node integration/website/extended.mjs || status=1
+          exit "$status"
       - name: Record exact qualification revision
         if: always()
         run: |
           git rev-parse HEAD
-          if [ -f website-evidence/results.json ]; then cat website-evidence/results.json; fi
+          if [ -f website-evidence/results.json ]; then python3 -c 'import json; r=json.load(open("website-evidence/results.json")); print(json.dumps({k:v for k,v in r.items() if k!="results"})); [print(json.dumps(x)) for x in r.get("results",[]) if x.get("status")!="passed"]'; fi
           if [ -f website-evidence/summary.md ]; then cat website-evidence/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Emit public source for visual review
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import base64,gzip,hashlib,pathlib
+          for name in ['index.html','how.html','developers.html','styles.css','app.js','catalog.html']:
+              data=pathlib.Path('live402/static',name).read_bytes()
+              print('PUBLIC_REVIEW_SOURCE',name,hashlib.sha256(data).hexdigest(),base64.b64encode(gzip.compress(data,mtime=0)).decode())
+          PY
