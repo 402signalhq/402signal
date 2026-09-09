@@ -729,6 +729,17 @@ class Handler(SimpleHTTPRequestHandler):
             return admission.free_ingress(self.headers, ip)
         return _PREVIEW_LIMITER.allow(ip, preview_rpm())
 
+    def _discovery_allowed(self) -> bool:
+        """Unpaid GET /route challenge and MCP handshake. Policy path only.
+
+        Without a policy, keep the prior unbounded challenge/handshake so
+        local and CI traffic is not coupled to the preview limiter.
+        """
+        ip = client_ip(self)
+        if admission.configured():
+            return admission.free_ingress(self.headers, ip)
+        return True
+
     def _public_allowed(self, which: str) -> bool:
         ip = client_ip(self)
         return _PUBLIC_LIMITER.allow("%s:%s" % (ip, which), public_rpm())
@@ -870,7 +881,7 @@ class Handler(SimpleHTTPRequestHandler):
                 html = (STATIC_DIR / "route.html").read_text(encoding="utf-8")
                 return self._html(200, html, extra_headers=allow)
             # JSON 402 construction is discovery-class work, never paid ingress.
-            if not self._preview_allowed():
+            if not self._discovery_allowed():
                 return self._json(429, {"error": "rate limit"}, extra_headers=allow)
             sender = self.headers.get("Algorand-Sender") or self.headers.get("X-Algorand-Sender")
             required = payment.payment_required(self._resource_url(), algorand_sender=sender)
@@ -1047,10 +1058,13 @@ class Handler(SimpleHTTPRequestHandler):
         if mcp.is_paid_call(payload):
             if not self._route_allowed():
                 return self._close_error(429, "rate limit")
+        elif mcp.is_preview_call(payload):
+            if not self._preview_allowed():
+                return self._close_error(429, "rate limit")
         elif mcp.is_validate_call(payload):
             if not self._validate_allowed():
                 return self._close_error(429, "rate limit")
-        elif not self._preview_allowed():
+        elif not self._discovery_allowed():
             return self._close_error(429, "rate limit")
         code, body, extra = mcp.handle_mcp(payload, self.headers, self._mcp_resource_url())
         if extra is None and code == 402:
