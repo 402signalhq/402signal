@@ -11,11 +11,10 @@ const out = resolve(root, 'website-evidence');
 const results = JSON.parse(await readFile(resolve(out, 'results.json'), 'utf8'));
 const exported = new Map([
   ['/transparency', 'transparency.html'], ['/transparency-confirmed', 'transparency-confirmed.html'],
-  ['/dashboard', 'dashboard.html'],
-  ['/route', 'route.html'], ['/pulse', 'pulse.json'],
+  ['/dashboard', 'dashboard.html'], ['/route', 'route.html'], ['/pulse', 'pulse.json'],
 ]);
 const statics = new Map([
-  ['/', 'index.html'], ['/how', 'how.html'], ['/catalog', 'catalog.html'],
+  ['/', 'index.html'], ['/how', 'how.html'], ['/catalog', 'catalog.html'], ['/developers', 'developers.html'],
   ['/styles.css', 'styles.css'], ['/app.js', 'app.js'],
   ['/dashboard.js', 'dashboard.js'], ['/transparency.js', 'transparency.js'],
   ['/favicon.svg', 'favicon.svg'], ['/og.png', 'og.png'], ['/hero-routing.png', 'hero-routing.png'],
@@ -43,9 +42,7 @@ async function layout(page) {
     const width = document.documentElement.clientWidth;
     const bad = [];
     for (const node of document.querySelectorAll('main h1, main h2, main p, main input, main select, main button, .map-node, .nav')) {
-      if (!node.getClientRects().length) continue;
-      // A table/pre may intentionally scroll internally, not the whole page.
-      if (node.closest('.table-scroll, .table-wrap, pre')) continue;
+      if (!node.getClientRects().length || node.closest('.table-scroll, .table-wrap, pre')) continue;
       const r = node.getBoundingClientRect();
       if (r.left < -1 || r.right > width + 1) bad.push({tag: node.tagName, id: node.id, cls: node.className, left: r.left, right: r.right, width});
     }
@@ -78,9 +75,9 @@ try {
             assert.equal(response.status(), 200);
             await page.waitForLoadState('networkidle');
             assert.equal(await page.locator('h1').count(), 1);
-            assert.equal(await page.locator('nav[aria-label="Primary"] a').count(), 4);
+            assert.equal(await page.locator('nav[aria-label="Primary"] a').count(), 5);
             await layout(page);
-            if (width === 390) await page.screenshot({fullPage: true, path: resolve(out, `${engine}-390-${path.slice(1)}.png`)});
+            if ([390, 1440].includes(width)) await page.screenshot({fullPage: true, path: resolve(out, `${engine}-${width}-${path.slice(1)}.png`)});
           });
         }
         if ([320, 375, 390, 1440].includes(width)) {
@@ -112,7 +109,7 @@ try {
         });
         if (width === 390) {
           await page.setViewportSize({width: 844, height: 390});
-          for (const path of ['/', '/how', '/catalog', '/transparency']) {
+          for (const path of ['/', '/how', '/catalog', '/transparency', '/developers#sellers']) {
             await check(`${engine}/landscape ${path}`, async () => {
               await page.goto(origin + path); await layout(page);
             });
@@ -124,8 +121,8 @@ try {
   }
 } finally {
   await new Promise(done => server.close(done));
-  results.scope = 'Chromium and WebKit responsive and mobile emulation, including actual fixture-server-rendered transparency/dashboard/route pages. Portrait widths 320–1440 and 844x390 landscape. No physical device, production data, paid request or external browser call.';
+  results.scope = 'Chromium and WebKit responsive and mobile emulation, including actual fixture-server-rendered transparency/dashboard/route pages. Portrait widths 320 to 1440 and 844x390 landscape. No physical device, production data, paid request or external browser call.';
   await writeFile(resolve(out, 'results.json'), JSON.stringify(results, null, 2));
-  await writeFile(resolve(out, 'summary.md'), `# Website qualification\n\n${results.passed} passed; ${results.failed} failed.\n\n${results.scope}\n\nScreenshots are generated in website-evidence. A passing geometry test is not a substitute for human visual review.\n`);
+  await writeFile(resolve(out, 'summary.md'), `# Website qualification\n\n${results.passed} passed; ${results.failed} failed.\n\n${results.scope}\n\nScreenshots are generated in website-evidence. Geometry tests do not replace visual inspection.\n`);
 }
 if (results.failed) process.exitCode = 1;

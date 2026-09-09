@@ -1,21 +1,17 @@
 name: website browser evidence
-
 on:
   pull_request:
   push:
     branches: [main]
-
 permissions:
   contents: read
-
 concurrency:
   group: website-browser-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
   browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -27,12 +23,33 @@ jobs:
         run: |
           pip install --require-hashes -r requirements.txt > /tmp/website-python.log 2>&1 || { tail -60 /tmp/website-python.log; exit 1; }
           python integration/website/export_fixture.py
+      - name: Check customer-page contracts with concise diagnostics
+        run: |
+          LIVE402_FIXTURE=1 PYTHONPATH=. python3 - <<'PY'
+          import io,unittest
+          class Result(unittest.TextTestResult):
+              def addFailure(self,test,err):
+                  print('FAIL',test.id(),str(err[1])[:600])
+                  super().addFailure(test,err)
+              def addError(self,test,err):
+                  print('ERROR',test.id(),err[0].__name__,str(err[1])[:600])
+                  super().addError(test,err)
+          suite=unittest.defaultTestLoader.discover('tests',pattern='test_homepage.py')
+          result=unittest.TextTestRunner(stream=io.StringIO(),resultclass=Result).run(suite)
+          print('Customer contracts:',result.testsRun,'run,',len(result.failures),'failed,',len(result.errors),'errors')
+          if not result.wasSuccessful(): raise SystemExit(1)
+          PY
       - name: Select runner-provided Node 24
         run: |
           node_dir="$(find "$RUNNER_TOOL_CACHE/node" -mindepth 3 -maxdepth 3 -type d -path '*/24.*/x64/bin' -print | sort -V | tail -n 1)"
           test -n "$node_dir"
           "$node_dir/node" -e 'if (Number(process.versions.node.split(".")[0]) !== 24) process.exit(1)'
           printf '%s\n' "$node_dir" >> "$GITHUB_PATH"
+      - name: Run offline buyer checks and consumer-adapter regressions
+        run: |
+          node integration/buyer-checks/run.mjs
+          node integration/buyer-checks/run.mjs --self-test
+          node integration/buyer-checks/run.mjs --adapter ./integration/buyer-checks/example-adapter.mjs
       - name: Install locked browser and schema-test dependencies
         working-directory: integration/website
         run: |
@@ -43,11 +60,13 @@ jobs:
         run: node integration/website/schema-check.mjs
       - name: Test customer flows and mobile layouts with synthetic data
         run: |
-          node integration/website/browser.mjs
-          node integration/website/extended.mjs
+          status=0
+          node integration/website/browser.mjs || status=1
+          node integration/website/extended.mjs || status=1
+          exit "$status"
       - name: Record exact qualification revision
         if: always()
         run: |
           git rev-parse HEAD
-          if [ -f website-evidence/results.json ]; then cat website-evidence/results.json; fi
+          if [ -f website-evidence/results.json ]; then python3 -c 'import json; r=json.load(open("website-evidence/results.json")); print(json.dumps({k:v for k,v in r.items() if k!="results"})); [print(json.dumps(x)) for x in r.get("results",[]) if x.get("status")!="passed"]'; fi
           if [ -f website-evidence/summary.md ]; then cat website-evidence/summary.md >> "$GITHUB_STEP_SUMMARY"; fi

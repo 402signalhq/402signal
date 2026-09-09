@@ -46,7 +46,7 @@ jobs:
           # The fixture suite sends many requests from one loopback IP. Production
           # keeps the fail-closed 12/minute default; rate tests set their own cap.
           LIVE402_ROUTE_RPM: "60"
-        run: python -m unittest discover -s tests
+        run: python scripts/run_fixture_tests.py
       - name: Check local route guard (no install or live network)
         run: |
           node --version
