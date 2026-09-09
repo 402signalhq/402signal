@@ -23,6 +23,22 @@ jobs:
         run: |
           pip install --require-hashes -r requirements.txt > /tmp/website-python.log 2>&1 || { tail -60 /tmp/website-python.log; exit 1; }
           python integration/website/export_fixture.py
+      - name: Check customer-page contracts with concise diagnostics
+        run: |
+          LIVE402_FIXTURE=1 PYTHONPATH=. python3 - <<'PY'
+          import io,unittest
+          class Result(unittest.TextTestResult):
+              def addFailure(self,test,err):
+                  print('FAIL',test.id(),str(err[1])[:600])
+                  super().addFailure(test,err)
+              def addError(self,test,err):
+                  print('ERROR',test.id(),err[0].__name__,str(err[1])[:600])
+                  super().addError(test,err)
+          suite=unittest.defaultTestLoader.discover('tests',pattern='test_homepage.py')
+          result=unittest.TextTestRunner(stream=io.StringIO(),resultclass=Result).run(suite)
+          print('Customer contracts:',result.testsRun,'run,',len(result.failures),'failed,',len(result.errors),'errors')
+          if not result.wasSuccessful(): raise SystemExit(1)
+          PY
       - name: Select runner-provided Node 24
         run: |
           node_dir="$(find "$RUNNER_TOOL_CACHE/node" -mindepth 3 -maxdepth 3 -type d -path '*/24.*/x64/bin' -print | sort -V | tail -n 1)"
@@ -54,12 +70,14 @@ jobs:
           git rev-parse HEAD
           if [ -f website-evidence/results.json ]; then python3 -c 'import json; r=json.load(open("website-evidence/results.json")); print(json.dumps({k:v for k,v in r.items() if k!="results"})); [print(json.dumps(x)) for x in r.get("results",[]) if x.get("status")!="passed"]'; fi
           if [ -f website-evidence/summary.md ]; then cat website-evidence/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
-      - name: Emit public source for visual review
+      - name: Inspect synthetic review screenshots
         if: always()
         run: |
           python3 - <<'PY'
-          import base64,gzip,hashlib,pathlib
-          for name in ['index.html','how.html','developers.html','styles.css','app.js','catalog.html']:
-              data=pathlib.Path('live402/static',name).read_bytes()
-              print('PUBLIC_REVIEW_SOURCE',name,hashlib.sha256(data).hexdigest(),base64.b64encode(gzip.compress(data,mtime=0)).decode())
+          import base64,hashlib,pathlib
+          for name in ['review-390-home.jpg','review-1440-home.jpg']:
+              path=pathlib.Path('website-evidence',name)
+              if path.is_file():
+                  data=path.read_bytes()
+                  print('REVIEW_IMAGE',name,hashlib.sha256(data).hexdigest(),base64.b64encode(data).decode())
           PY
