@@ -282,17 +282,17 @@ class ObservedNetworksFailClosedTests(unittest.TestCase):
         self.assertEqual(capped[-1]["url"], rows[-1]["url"])
         self.assertTrue(capped[-1]["selected"])
 
-    def test_payable_true_invocable_false_no_input_schema_200(self):
+    def test_payable_true_invocable_false_optional_schema_is_not_top_level_miss(self):
         item = self._item("https://wx.example/payable-only", "base")
         hit = _live_observed(item["url"], rail="base", invocable=False, schema=False)
         self.assertTrue(hit.get("payable"))
         self.assertFalse(hit.get("invocable"))
-        self.assertEqual(hit.get("miss_reason"), "no_input_schema")
         result = self._route([item], self._probe_by_url({item["url"]: hit}))
         self.assertTrue(result.get("live"))
         self.assertTrue(result.get("payable"))
         self.assertFalse(result.get("invocable"))
-        self.assertEqual(result.get("miss_reason"), "no_input_schema")
+        self.assertNotEqual(result.get("miss_reason"), "no_input_schema")
+        self.assertIsNone(result.get("miss_reason"))
         self.assertIsInstance(result.get("selected_payment"), dict)
         self.assertEqual(result.get("stop_reason"), "winner_selected")
 
@@ -306,6 +306,11 @@ class ObservedNetworksFailClosedTests(unittest.TestCase):
         self.assertFalse(result.get("live"))
         self.assertEqual(result.get("miss_reason"), "constraints_unmet")
         self.assertIn("require_invocable", result.get("unmet_constraints") or [])
+        unresolved_names = {
+            row.get("name") if isinstance(row, dict) else row
+            for row in (result.get("unresolved_constraints") or [])
+        }
+        self.assertIn("require_invocable", unresolved_names)
         self.assertIsNone(result.get("selected_payment"))
 
     def test_tiny_price_and_min_observations_unmet_stay_distinct(self):
@@ -335,6 +340,16 @@ class ObservedNetworksFailClosedTests(unittest.TestCase):
         self.assertEqual(obs_result.get("miss_reason"), "constraints_unmet")
         self.assertEqual(price_result.get("unmet_constraints"), ["max_price_usd"])
         self.assertEqual(obs_result.get("unmet_constraints"), ["min_observations"])
+        price_unresolved = {
+            row.get("name") if isinstance(row, dict) else row
+            for row in (price_result.get("unresolved_constraints") or [])
+        }
+        obs_unresolved = {
+            row.get("name") if isinstance(row, dict) else row
+            for row in (obs_result.get("unresolved_constraints") or [])
+        }
+        self.assertIn("max_price_usd", price_unresolved)
+        self.assertIn("min_observations", obs_unresolved)
 
     def test_run_probe_echoes_applied_structured_constraints(self):
         item = self._item("https://wx.example/base-weather", "base")

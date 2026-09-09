@@ -36,7 +36,9 @@ GUIDANCE = (
     "settlement has settlement_state=settled; and an ambiguous settlement has "
     "settlement_state=unknown. Inspect billing before retrying, and never reuse an "
     "authorization whose settlement state is unknown. Seller payment is separate. "
-    "If inputSchema is missing, live may still be true with invocable:false and miss_reason no_input_schema. "
+    "If inputSchema is missing on an otherwise live payable route, invocable is false and miss_reason is omitted; "
+    "no_input_schema is only the top-level miss when invocation schema is required and unmet. "
+    "constraints_unmet includes the named unmet bounds in unresolved_constraints. "
     "GET /mcp.json lists the MCP route tool (type mcp, toolName route); "
     "POST /mcp initialize and tools/list need no payment; tools/call route is the paid probe. "
     "GET /preview?need= is a free request-time catalog search (not_probed:true). Optional prefer_network=base|solana|algorand is a weak ranking preference (still searches all rails). Optional networks= is a hard policy lock. GET /rails lists pay-in rails. "
@@ -271,7 +273,15 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "Tiny-price and high-min-observation misses stay distinct."
                 ),
             },
-            "unresolved_constraints": {"type": "array"},
+            "unresolved_constraints": {
+                "type": "array",
+                "description": (
+                    "Unparsed policy phrases and, when miss_reason is constraints_unmet, "
+                    "the named bounds that no evaluated live candidate satisfied. "
+                    "Empty only when no such requirement exists; constraints_unmet never "
+                    "uses an empty list."
+                ),
+            },
             "candidate_evaluation_complete": {
                 "type": "boolean",
                 "description": (

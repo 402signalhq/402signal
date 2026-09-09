@@ -2056,8 +2056,10 @@ class FixtureTargetTests(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         self.assertTrue(body["live"])
+        self.assertTrue(body.get("payable"))
         self.assertFalse(body.get("invocable"))
-        self.assertEqual(body.get("miss_reason"), "no_input_schema")
+        self.assertNotEqual(body.get("miss_reason"), "no_input_schema")
+        self.assertIsNone(body.get("miss_reason"))
         target = body.get("target")
         self.assertIsInstance(target, dict)
         for key in (

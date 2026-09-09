@@ -609,7 +609,9 @@ def attach_invocable_target(result: dict, item: dict | None = None, envelope: di
         result["schema_source"] = source
         target["schema_source"] = source
     if result["payable"] and not result["invocable"]:
-        result["miss_reason"] = "no_input_schema"
+        # Optional schema absence is invocable:false, not a top-level failure.
+        if result.get("miss_reason") == "no_input_schema":
+            result.pop("miss_reason", None)
     elif not live:
         result["invocable"] = False
         result["payable"] = False
@@ -2308,6 +2310,8 @@ def _attach_selection(body: dict, probed: list, winner, objective: str, constrai
             winner["selected_payment"] = selected
             body["selected_payment"] = selected
             _align_target_with_selected(winner, selected)
+            select.clear_informational_schema_miss(winner)
+            select.clear_informational_schema_miss(body)
         else:
             winner.pop("selected_payment", None)
             body.pop("selected_payment", None)
@@ -2354,6 +2358,7 @@ def _stop_reason(
     probe_budget_exhausted: bool,
     some_live: bool,
     probe_ceiling: int | None = None,
+    constraint_miss: bool = False,
 ) -> str:
     if winner:
         return "winner_selected"
@@ -2366,7 +2371,7 @@ def _stop_reason(
     cap = PROBE_CEILING if probe_ceiling is None else int(probe_ceiling)
     if untested and len(probed) >= cap:
         return "probe_limit_reached"
-    if some_live:
+    if some_live and constraint_miss:
         return "constraints_unmet"
     if complete:
         return "candidate_set_exhausted"
@@ -2792,6 +2797,9 @@ def route_need(
         winner = None
     evaluation_complete = _candidate_evaluation_complete(ranked, probed)
     some_live = any(isinstance(r, dict) and r.get("live") for r in probed)
+    live_miss_reason, live_unmet = ("", [])
+    if not winner and some_live:
+        live_miss_reason, live_unmet = select.classify_non_winner(probed, cons)
     stop_reason = _stop_reason(
         winner=winner,
         ranked=ranked,
@@ -2799,6 +2807,7 @@ def route_need(
         probe_budget_exhausted=bool(probe_budget_exhausted),
         some_live=some_live,
         probe_ceiling=ceiling,
+        constraint_miss=live_miss_reason == "constraints_unmet" and bool(live_unmet),
     )
     funnel = {
         "discovery_matches": discovery_matches,
@@ -2863,10 +2872,16 @@ def route_need(
     elif untested and len(probed) >= ceiling:
         body["miss_reason"] = "probe_limit_reached"
     elif some_live:
-        body["miss_reason"] = "constraints_unmet"
-        unmet = select.collect_unmet_constraints(probed, cons)
-        if unmet:
-            body["unmet_constraints"] = unmet
+        if live_miss_reason == "constraints_unmet" and live_unmet:
+            body["miss_reason"] = "constraints_unmet"
+            body["unmet_constraints"] = live_unmet
+            select.attach_constraint_records(body, live_unmet)
+        elif live_miss_reason:
+            body["miss_reason"] = public_miss_reason(live_miss_reason) or live_miss_reason
+        elif last and last.get("miss_reason"):
+            body["miss_reason"] = public_miss_reason(last.get("miss_reason")) or last.get("miss_reason")
+        else:
+            body["miss_reason"] = "no_402_envelope"
     elif last and last.get("miss_reason"):
         body["miss_reason"] = public_miss_reason(last.get("miss_reason")) or last.get("miss_reason")
     elif untested:

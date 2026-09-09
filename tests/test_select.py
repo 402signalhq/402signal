@@ -686,6 +686,12 @@ class RouteNeedSelectTests(unittest.TestCase):
         self.assertFalse(any(row.get("selected") for row in compared))
         self.assertEqual(result.get("stop_reason"), "constraints_unmet")
         self.assertTrue(result.get("candidate_evaluation_complete"))
+        unresolved_names = {
+            row.get("name") if isinstance(row, dict) else row
+            for row in (result.get("unresolved_constraints") or [])
+        }
+        self.assertIn("max_amount_atomic", unresolved_names)
+        self.assertTrue(result.get("unresolved_constraints"))
 
     def test_default_objective_first_equal_live_wins(self):
         first = self._item("https://first.example/weather", network="solana")

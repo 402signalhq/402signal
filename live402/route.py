@@ -155,6 +155,7 @@ def _direct_url_result(body: dict, url: str, need: str, deadline: float) -> tupl
     if selected:
         result["selected_payment"] = selected
         probe._align_target_with_selected(result, selected)
+        select.clear_informational_schema_miss(result)
         if result.get("reputation") is None:
             try:
                 from live402 import reputation as reputation_mod
@@ -163,12 +164,24 @@ def _direct_url_result(body: dict, url: str, need: str, deadline: float) -> tupl
             except Exception:
                 pass
         result["stop_reason"] = "winner_selected"
+        select.publish_constraint_outcome(result)
         return 200, result
 
     if result.get("live"):
-        result["miss_reason"] = "constraints_unmet"
-        result["stop_reason"] = "constraints_unmet"
+        reason, unmet = select.classify_non_winner([result], constraints)
         result["challenge_observed"] = True if result.get("challenge_observed") is None else result.get("challenge_observed")
+        if reason == "constraints_unmet" and unmet:
+            result["miss_reason"] = "constraints_unmet"
+            result["stop_reason"] = "constraints_unmet"
+            result["unmet_constraints"] = unmet
+        else:
+            result["miss_reason"] = (
+                probe.public_miss_reason(reason) or reason
+                or probe.public_miss_reason(result.get("miss_reason"))
+                or result.get("miss_reason")
+                or "no_402_envelope"
+            )
+            result["stop_reason"] = "candidate_set_exhausted"
     else:
         result["stop_reason"] = "candidate_set_exhausted"
         if result.get("miss_reason"):
@@ -178,6 +191,7 @@ def _direct_url_result(body: dict, url: str, need: str, deadline: float) -> tupl
     result["invocable"] = False
     result["payable"] = False
     result["selected_payment"] = None
+    select.publish_constraint_outcome(result)
     return 503, result
 
 
@@ -216,15 +230,25 @@ def run_probe(body: dict, deadline: float | None = None) -> tuple[int, dict]:
     result.setdefault("traction", "unknown")
     policy_mod.attach_policy(result, body)
     if result.get("live") and select.http200_winner_ok(result, objective, constraints):
+        select.clear_informational_schema_miss(result)
+        select.publish_constraint_outcome(result)
         return 200, result
     if result.get("live"):
-        result["miss_reason"] = result.get("miss_reason") or "constraints_unmet"
-        if result.get("miss_reason") == "no_input_schema":
+        reason, unmet = select.classify_non_winner([result], constraints)
+        if reason == "constraints_unmet" and unmet:
             result["miss_reason"] = "constraints_unmet"
-        result["stop_reason"] = "constraints_unmet"
-        unmet = select.collect_unmet_constraints([result], constraints)
-        if unmet:
+            result["stop_reason"] = "constraints_unmet"
             result["unmet_constraints"] = unmet
+        else:
+            result["miss_reason"] = (
+                probe.public_miss_reason(reason) or reason
+                or probe.public_miss_reason(result.get("miss_reason"))
+                or result.get("miss_reason")
+                or "no_402_envelope"
+            )
+            if result.get("miss_reason") == "constraints_unmet":
+                result["miss_reason"] = "no_402_envelope"
+            result["stop_reason"] = "candidate_set_exhausted"
         _preserve_observed_facts(result)
         result["live"] = False
         result["invocable"] = False
@@ -234,6 +258,7 @@ def run_probe(body: dict, deadline: float | None = None) -> tuple[int, dict]:
         result.setdefault("payable", False)
         result.setdefault("invocable", False)
         result.setdefault("selected_payment", None)
+    select.publish_constraint_outcome(result)
     return 503, result
 
 
@@ -383,8 +408,22 @@ def _downgrade_unbillable_result(result: dict) -> dict:
     out.pop("_batch_observation", None)
     out.pop("batch_binding", None)
     out["error"] = "route result failed billable winner validation"
-    out["miss_reason"] = out.get("miss_reason") or "constraints_unmet"
-    out["stop_reason"] = "constraints_unmet"
+    reason = out.get("miss_reason")
+    unmet = out.get("unmet_constraints") if isinstance(out.get("unmet_constraints"), list) else []
+    unmet = [name for name in unmet if isinstance(name, str) and name.strip()]
+    if reason == "constraints_unmet" and not unmet:
+        out["miss_reason"] = select.payment_completeness_miss(out) or "no_402_envelope"
+        out["stop_reason"] = "candidate_set_exhausted"
+    elif reason == "no_input_schema" and out.get("live") and out.get("payable"):
+        # Unqualified: schema was required or the purported winner was not billable.
+        out["miss_reason"] = "no_input_schema"
+        out["stop_reason"] = out.get("stop_reason") or "candidate_set_exhausted"
+    elif reason:
+        out["miss_reason"] = reason
+        out["stop_reason"] = "constraints_unmet" if reason == "constraints_unmet" else (out.get("stop_reason") or "candidate_set_exhausted")
+    else:
+        out["miss_reason"] = select.payment_completeness_miss(out) or "no_402_envelope"
+        out["stop_reason"] = "candidate_set_exhausted"
     _preserve_observed_facts(out)
     out["live"] = False
     out["payable"] = False

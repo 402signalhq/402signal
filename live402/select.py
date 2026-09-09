@@ -1268,3 +1268,149 @@ def collect_unmet_constraints(results, constraints) -> list[str]:
             seen.add(name)
             names.append(name)
     return names
+
+
+def payment_completeness_miss(result) -> str | None:
+    """Existing miss when a live observation is not a complete payable option."""
+    if not isinstance(result, dict) or not result.get("live"):
+        return None
+    if _is_payable(result):
+        return None
+    if not result.get("payTo"):
+        return "no_payto"
+    return "no_402_envelope"
+
+
+def classify_non_winner(results, constraints) -> tuple[str, list[str]]:
+    """Classify a completed non-winner. Never emit constraints_unmet with no names.
+
+    Returns (miss_reason, unmet_names). An empty miss_reason means the caller
+    should keep its existing last-probe / no-candidate logic.
+    """
+    rows = [row for row in (results or []) if isinstance(row, dict)]
+    cons = constraints if isinstance(constraints, dict) else {}
+    unmet = collect_unmet_constraints(rows, cons)
+    if unmet:
+        return "constraints_unmet", unmet
+    live_rows = [row for row in rows if row.get("live")]
+    if not live_rows:
+        return "", []
+    for row in live_rows:
+        pay_miss = payment_completeness_miss(row)
+        if pay_miss:
+            return pay_miss, []
+    if any(row.get("payTo_pending") for row in live_rows):
+        return "no_payto", []
+    last = live_rows[-1]
+    existing = last.get("miss_reason")
+    if existing == "no_input_schema" and cons.get("require_invocable"):
+        return "no_input_schema", []
+    if existing and existing not in {"constraints_unmet", "no_input_schema"}:
+        return str(existing), []
+    return "no_402_envelope", []
+
+
+def unresolved_name(row) -> str | None:
+    """Machine-readable constraint name from a policy or unmet record."""
+    if isinstance(row, dict):
+        name = row.get("name")
+        return str(name).strip() if name is not None and str(name).strip() else None
+    if row is None:
+        return None
+    text = str(row).strip()
+    return text or None
+
+
+def merge_unresolved_constraints(existing, unmet_names) -> list[dict]:
+    """Union policy-unresolved records with named unmet bounds. No invented names."""
+    merged: list[dict] = []
+    seen: set[str] = set()
+    extra = [{"name": name, "reason": "unmet"} for name in (unmet_names or []) if isinstance(name, str) and name.strip()]
+    for row in list(existing or []) + extra:
+        name = unresolved_name(row)
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        if isinstance(row, dict):
+            item = dict(row)
+            item["name"] = name
+            merged.append(item)
+        else:
+            merged.append({"name": name, "reason": "unmet"})
+    return merged
+
+
+def attach_constraint_records(result: dict, unmet_names) -> dict:
+    """Publish truthful unmet names. Does not invent constraints to fill a list."""
+    if not isinstance(result, dict):
+        return result
+    names = [name for name in (unmet_names or []) if isinstance(name, str) and name.strip()]
+    if names:
+        result["unmet_constraints"] = names
+    merged = merge_unresolved_constraints(result.get("unresolved_constraints"), names)
+    if merged:
+        result["unresolved_constraints"] = merged
+    return result
+
+
+def clear_informational_schema_miss(result: dict) -> dict:
+    """Optional schema absence is invocable=false, not a top-level failure."""
+    if not isinstance(result, dict):
+        return result
+    if (
+        result.get("live")
+        and result.get("payable")
+        and result.get("selected_payment") is not None
+        and result.get("miss_reason") == "no_input_schema"
+    ):
+        result.pop("miss_reason", None)
+    return result
+
+
+def has_observed_candidates(result: dict) -> bool:
+    """True when this request already evaluated at least one candidate."""
+    if not isinstance(result, dict):
+        return False
+    for key in ("candidates_probed", "probed_count", "tried"):
+        try:
+            if int(result.get(key) or 0) > 0:
+                return True
+        except (TypeError, ValueError):
+            pass
+    compared = result.get("compared")
+    if isinstance(compared, list) and compared:
+        return True
+    last = result.get("last")
+    return isinstance(last, dict) and bool(last)
+
+
+def observed_candidate_miss(result: dict) -> str:
+    """Existing miss for a non-empty evaluated set. Never no_candidates."""
+    pay_miss = payment_completeness_miss(result)
+    if pay_miss:
+        return pay_miss
+    last = result.get("last") if isinstance(result.get("last"), dict) else {}
+    for raw in (last.get("miss_reason"), result.get("miss_reason")):
+        if raw and raw not in {"constraints_unmet", "no_candidates"}:
+            return str(raw)
+    return "no_402_envelope"
+
+
+def publish_constraint_outcome(result: dict) -> dict:
+    """Final public constraint fields. constraints_unmet requires named unmet bounds."""
+    if not isinstance(result, dict):
+        return result
+    clear_informational_schema_miss(result)
+    if result.get("miss_reason") != "constraints_unmet":
+        return result
+    unmet = result.get("unmet_constraints") if isinstance(result.get("unmet_constraints"), list) else []
+    unmet = [name for name in unmet if isinstance(name, str) and name.strip()]
+    if unmet:
+        return attach_constraint_records(result, unmet)
+    if has_observed_candidates(result):
+        result["miss_reason"] = observed_candidate_miss(result)
+    else:
+        result["miss_reason"] = "no_candidates"
+    if result.get("stop_reason") == "constraints_unmet":
+        result["stop_reason"] = "candidate_set_exhausted"
+    return result

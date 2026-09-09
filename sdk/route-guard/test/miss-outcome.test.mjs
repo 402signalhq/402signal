@@ -37,6 +37,16 @@ test('ambiguous, malformed, failed and paid outcomes never classify as normal HT
   for (const raw of ['{', 'null', JSON.stringify(body()).replace('"live":false','"live":true,"live":false')])
     assert.equal(isUnsettledRouteMiss({httpStatus:200,routeResponseJson:raw,paymentResponseHeader:null}),false);
 });
+test('a live payable winner without miss_reason is not an unsettled miss', () => {
+  const winner = {live:true, payable:true, invocable:false, selected_payment:{rail:'solana'},
+    billing:{model:'success_only_v1', condition:'live_eligible_route_found',
+      asset:'USDC', amount_atomic:'3000', display_amount:'$0.003', rail:'solana',
+      settlement_attempted:true, settled:true, settlement_state:'settled'}};
+  assert.equal(classify(winner, 200), false);
+  const leftover = {...winner, miss_reason:'no_input_schema'};
+  leftover.billing = {...winner.billing};
+  assert.equal(classify(leftover, 200), false);
+});
 test('a normal HTTP success miss never reaches the guarded seller authorization callback', () => {
   let calls=0;
   assert.throws(() => withVerifiedRoute({routeResponseJson:JSON.stringify(body())}, () => calls++));

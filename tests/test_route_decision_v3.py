@@ -64,6 +64,27 @@ def _evidence(**over):
 
 
 class V3EvidenceTests(unittest.TestCase):
+    def test_canonicalize_keeps_stringified_constraint_records(self):
+        """Historical receipts stringify policy.unresolved; they do not extract .name."""
+        rec = {"name": "max_price_usd", "reason": "unmet"}
+        ev = events.canonicalize_private_evidence_v3(
+            {
+                "evidence_version": 1,
+                "request": {"need": "x", "url": None},
+                "policy": {
+                    "objective": "cheapest",
+                    "constraints": {},
+                    "unresolved": [rec, "networks"],
+                },
+                "decision": {"miss_reason": "constraints_unmet", "outcome": "miss", "winner_url": None},
+                "observation": {},
+                "comparison": {},
+                "scoring": {},
+            }
+        )
+        self.assertEqual(ev["policy"]["unresolved"], [str(rec), "networks"])
+        self.assertNotEqual(ev["policy"]["unresolved"], ["max_price_usd", "networks"])
+
     def test_public_leaf_is_minimal(self):
         leaf, reveal = events.route_decision_event_v3(evidence=_evidence(), ts=1756723344)
         self.assertEqual(leaf["type"], events.TYPE_ROUTE_DECISION_V3)
