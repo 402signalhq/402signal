@@ -170,5 +170,5 @@ def validate_url(url: str) -> tuple[int, dict]:
         return 200, _not_listed_body(raw)
     if not fixtures.fixture_mode() and not probe.safe_target(raw):
         return 200, _ssrf_body(raw)
-    result = probe.probe_url(raw, catalog_item=item, record=False)
+    result = probe.probe_url(raw, catalog_item=item, record=False, discovery=True)
     return 200, public_validate_body(result)

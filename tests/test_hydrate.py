@@ -246,7 +246,28 @@ class HydrationBoundTests(unittest.TestCase):
 
 
 class UntrustedSchemaTests(unittest.TestCase):
-    def test_remote_ref_stripped_local_fragment_kept(self):
+    def test_local_fragment_kept_without_remote_material(self):
+        raw = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://listed.example/schema",
+            "type": "object",
+            "properties": {
+                "city": {"type": "string", "$ref": "#/definitions/city"},
+            },
+            "definitions": {"city": {"type": "string"}},
+        }
+        cleaned = hydrate.sanitize_untrusted_schema(raw)
+        self.assertIsInstance(cleaned, dict)
+        self.assertNotIn("$schema", cleaned)
+        self.assertNotIn("$id", cleaned)
+        self.assertEqual(cleaned["properties"]["city"]["$ref"], "#/definitions/city")
+        bounded, _n, trunc = hydrate._bounded_schema(raw)
+        self.assertFalse(trunc)
+        blob = json.dumps(bounded)
+        self.assertNotIn("https://listed.example", blob)
+        self.assertIn("#/definitions/city", blob)
+
+    def test_remote_ref_is_refused_not_rewritten(self):
         raw = {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "$id": "https://evil.example/schema",
@@ -258,16 +279,22 @@ class UntrustedSchemaTests(unittest.TestCase):
             },
             "definitions": {"city": {"type": "string"}},
         }
-        cleaned = hydrate.sanitize_untrusted_schema(raw)
-        self.assertNotIn("$ref", cleaned)
-        self.assertNotIn("$schema", cleaned)
-        self.assertNotIn("$id", cleaned)
-        self.assertEqual(cleaned["properties"]["city"]["$ref"], "#/definitions/city")
-        self.assertNotIn("$ref", cleaned["properties"].get("nested") or {})
-        bounded, _n, _trunc = hydrate._bounded_schema(raw)
-        blob = json.dumps(bounded)
-        self.assertNotIn("https://evil.example", blob)
-        self.assertIn("#/definitions/city", blob)
+        self.assertIsNone(hydrate.sanitize_untrusted_schema(raw))
+        self.assertIsNone(hydrate.forward_untrusted_schema(raw))
+        self.assertTrue(hydrate.schema_is_unusable(raw))
+        bounded, _n, trunc = hydrate._bounded_schema(raw)
+        self.assertIsNone(bounded)
+        self.assertTrue(trunc)
+
+    def test_relative_and_dynamic_refs_are_refused(self):
+        for raw in (
+            {"type": "object", "$ref": "./other.json"},
+            {"type": "object", "$dynamicRef": "#node"},
+            {"type": "object", "properties": {"x": {"$recursiveRef": "#"}}},
+            {"$ref": ""},
+        ):
+            self.assertIsNone(hydrate.forward_untrusted_schema(raw), raw)
+            self.assertTrue(hydrate.schema_is_unusable(raw), raw)
 
     def test_claimed_contract_is_untrusted(self):
         stash = {}
@@ -281,6 +308,85 @@ class UntrustedSchemaTests(unittest.TestCase):
         self.assertEqual(contract.get("origin"), hydrate.ORIGIN_CLAIMED)
         self.assertTrue(contract.get("untrusted"))
         self.assertIn("system prompts", contract.get("client_warning") or "")
+
+
+class LiveSchemaBoundTests(unittest.TestCase):
+    def test_unsafe_live_schema_refused_original_envelope_kept(self):
+        original = {
+            "$ref": "https://evil.example/full.json",
+            "type": "object",
+            "properties": {"q": {"type": "string"}},
+            "required": ["q"],
+        }
+        envelope = {
+            "x402Version": 2,
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": payment.BASE_CAIP2,
+                    "asset": payment.USDC_BASE,
+                    "amount": "20000",
+                    "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "maxTimeoutSeconds": 60,
+                }
+            ],
+            "inputSchema": original,
+        }
+        result = {
+            "url": "https://wx.example/live-ref",
+            "live": True,
+            "status": 402,
+            "has_402_challenge": True,
+            "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "envelope": envelope,
+            "accepts": envelope["accepts"],
+        }
+        result = probe.attach_invocable_target(result, None, envelope)
+        self.assertIs(result.get("envelope"), envelope)
+        self.assertEqual(result["envelope"]["inputSchema"]["$ref"], "https://evil.example/full.json")
+        target = result.get("target") or {}
+        self.assertIsNone(target.get("inputSchema"))
+        self.assertTrue(target.get("schema_refused"))
+        self.assertTrue(target.get("untrusted"))
+        self.assertFalse(result.get("invocable"))
+        self.assertEqual(result.get("miss_reason"), "no_input_schema")
+        self.assertTrue(result.get("payable"))
+
+    def test_safe_live_schema_still_forwarded_and_marked_untrusted(self):
+        envelope = {
+            "x402Version": 2,
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": payment.BASE_CAIP2,
+                    "asset": payment.USDC_BASE,
+                    "amount": "20000",
+                    "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "maxTimeoutSeconds": 60,
+                }
+            ],
+            "inputSchema": {
+                "type": "object",
+                "properties": {"q": {"type": "string"}},
+                "required": ["q"],
+            },
+        }
+        result = {
+            "url": "https://wx.example/live-safe",
+            "live": True,
+            "status": 402,
+            "has_402_challenge": True,
+            "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "envelope": envelope,
+            "accepts": envelope["accepts"],
+        }
+        result = probe.attach_invocable_target(result, None, envelope)
+        target = result.get("target") or {}
+        self.assertEqual(target.get("inputSchema"), envelope["inputSchema"])
+        self.assertTrue(target.get("untrusted"))
+        self.assertNotIn("schema_refused", target)
+        self.assertTrue(result.get("invocable"))
+        self.assertEqual(result.get("schema_source"), "envelope")
 
 
 if __name__ == "__main__":

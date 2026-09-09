@@ -578,14 +578,29 @@ def attach_invocable_target(result: dict, item: dict | None = None, envelope: di
     challenge_observed = HTTP 402 + parseable x402.
     payable = at least one complete CURRENT observed payment option.
     invocable = payable + input schema. Fail closed. Never fill from catalog.
+    Live/claimed schemas are forwarded only when bounded and free of remote $ref.
+    Observed envelope bytes stay on result['envelope']; they are not rewritten.
     """
+    from live402 import hydrate
+
     env = envelope if isinstance(envelope, dict) else result.get("envelope")
     if isinstance(env, dict):
         result["envelope"] = env
     target = build_target(item, env)
     result["target"] = target
     schema, source = extract_input_schema_source(item, env)
-    has_schema = isinstance(schema, dict) and bool(schema.get("properties") or schema.get("required"))
+    forwarded = hydrate.forward_untrusted_schema(schema)
+    refused = bool(schema is not None and forwarded is None and hydrate.schema_is_unusable(schema))
+    target["inputSchema"] = forwarded
+    target["outputSchema"] = hydrate.forward_untrusted_schema(extract_output_schema(item, env))
+    if forwarded is not None:
+        target["untrusted"] = True
+        target["client_warning"] = hydrate.CLIENT_SCHEMA_WARNING
+    elif refused:
+        target["schema_refused"] = True
+        target["untrusted"] = True
+        target["client_warning"] = hydrate.CLIENT_SCHEMA_WARNING
+    has_schema = isinstance(forwarded, dict) and bool(forwarded.get("properties") or forwarded.get("required"))
     live = bool(result.get("live"))
     result["challenge_observed"] = bool(live)
     result["payable"] = bool(live and select._is_payable(result))
@@ -1833,12 +1848,12 @@ def _fixture_probe(url: str, catalog_item: dict | None = None, batch_id: str | N
     return _finalize_probe(result, batch_id=batch_id, record=record)
 
 
-def probe_url(url: str, catalog_item: dict | None = None, deadline: float | None = None, batch_id: str | None = None, record: bool = True, request_profile=None) -> dict:
+def probe_url(url: str, catalog_item: dict | None = None, deadline: float | None = None, batch_id: str | None = None, record: bool = True, request_profile=None, discovery: bool = False) -> dict:
     if request_profile is not None:
         from live402 import probe_profile
         probe_profile.validate(request_profile, url)
     try:
-        work_lease = admission.reserve_probe(url)
+        work_lease = admission.reserve_probe(url, discovery=True) if discovery else admission.reserve_probe(url)
     except Exception:
         # No network call or history write for an admission denial.
         return {"url": url, "live": False, "payable": False, "invocable": False,

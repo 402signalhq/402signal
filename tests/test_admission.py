@@ -134,13 +134,53 @@ class AdmissionTests(unittest.TestCase):
             self.assertFalse(handler._route_allowed())
             legacy.assert_not_called()
 
-    def test_preview_and_validate_share_unpaid_capacity(self):
+    def test_preview_and_validate_share_discovery_not_unpaid(self):
         handler = object.__new__(server.Handler);handler.headers=self.headers
+        unpaid_before = self.e.buckets.get("unpaid:global")
+        unpaid_balance = unpaid_before.balance if unpaid_before else None
         with patch.object(admission, "engine", return_value=self.e), patch.object(admission, "configured", return_value=True), patch.object(server, "client_ip", return_value="peer"):
-            self.assertTrue(all(handler._preview_allowed() for _ in range(5)))
-            self.assertTrue(all(handler._validate_allowed() for _ in range(5)))
+            self.assertTrue(all(handler._preview_allowed() for _ in range(4)))
+            self.assertTrue(all(handler._validate_allowed() for _ in range(4)))
             self.assertFalse(handler._preview_allowed())
             self.assertFalse(handler._validate_allowed())
+            self.assertTrue(handler._route_allowed())
+        if unpaid_balance is None:
+            self.assertNotIn("unpaid:global", self.e.buckets)
+        else:
+            self.assertEqual(self.e.buckets["unpaid:global"].balance, unpaid_balance)
+        self.assertGreaterEqual(self.e.buckets.get("discovery:global").balance if "discovery:global" in self.e.buckets else 0, 0)
+        self.assertLess(self.e.buckets["discovery:global"].balance, admission.DISCOVERY_GLOBAL)
+
+    def test_discovery_exhaustion_does_not_consume_paid_route_admission(self):
+        handler = object.__new__(server.Handler);handler.headers={}
+        with patch.object(admission, "engine", return_value=self.e), patch.object(admission, "configured", return_value=True), patch.object(server, "client_ip", return_value="peer"):
+            self.assertTrue(all(handler._preview_allowed() for _ in range(admission.DISCOVERY_ANONYMOUS)))
+            self.assertFalse(handler._preview_allowed())
+            self.assertFalse(handler._validate_allowed())
+            self.assertTrue(all(handler._route_allowed() for _ in range(3)))
+            self.assertIsNotNone(self.e.reserve({}, "peer"))
+            self.assertIsNotNone(self.e.reserve({}, "peer"))
+
+    def test_unpaid_exhaustion_does_not_block_discovery(self):
+        handler = object.__new__(server.Handler);handler.headers={}
+        self.assertTrue(all(self.e.reserve({}, "peer") for _ in range(2)))
+        self.assertIsNone(self.e.reserve({}, "peer"))
+        with patch.object(admission, "engine", return_value=self.e), patch.object(admission, "configured", return_value=True), patch.object(server, "client_ip", return_value="peer"):
+            self.assertTrue(handler._preview_allowed())
+            self.assertTrue(handler._validate_allowed())
+
+    def test_discovery_probe_does_not_exhaust_paid_target_budget(self):
+        url = "https://seller.example/x402"
+        for _ in range(2):
+            lease = self.e.probe(url, discovery=True)
+            self.assertIsNotNone(lease)
+            self.e.probe_complete(lease, False)
+        self.assertIsNone(self.e.probe(url, discovery=True))
+        paid = self.e.probe(url)
+        self.assertIsNotNone(paid)
+        self.e.probe_complete(paid, False)
+        paid2 = self.e.probe(url)
+        self.assertIsNotNone(paid2)
 
     def test_symlink_policy_is_refused_without_reading_target(self):
         with tempfile.TemporaryDirectory() as d:

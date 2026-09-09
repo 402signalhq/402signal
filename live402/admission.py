@@ -22,6 +22,14 @@ from urllib.parse import urlsplit
 
 from live402 import reqctx
 
+# Unpaid preview/validate/catalog admission. Separate bucket namespace from
+# paid /route ingress and unpaid work reserve. Numeric defaults live in code so
+# image-only deploys do not require a machine policy-file rewrite.
+DISCOVERY_GLOBAL = 24
+DISCOVERY_ANONYMOUS = 4
+DISCOVERY_ANONYMOUS_TOTAL = 16
+DISCOVERY_CUSTOMER = 8
+
 class Unavailable(Exception):
     pass
 
@@ -217,7 +225,16 @@ class Engine:
         # Recovery has its own bounded pool and never replenishes economic work.
         return self.take(specifications, recovery=True) is not None
 
-    def probe(self, url):
+    def discover(self, headers, peer):
+        """Reserve unpaid discovery. Never debits ingress or unpaid route work."""
+        identity, customer = self.identity(headers, peer)
+        cap = DISCOVERY_CUSTOMER if customer else DISCOVERY_ANONYMOUS
+        specifications = [("discovery:global", DISCOVERY_GLOBAL), ("discovery:" + identity, cap)]
+        if not customer and self.policy.version == 2:
+            specifications.append(("discovery:anonymous-total", DISCOVERY_ANONYMOUS_TOTAL))
+        return self.take(specifications)
+
+    def probe(self, url, *, discovery=False):
         parsed = urlsplit(url)
         if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
             return None
@@ -225,6 +242,14 @@ class Engine:
         origin = hashlib.sha256(origin.encode()).hexdigest()
         # Queries and paths cannot rotate a host's budget. Separate origins can
         # still consume only the configured global work capacity.
+        # Unpaid discovery probes use a distinct key namespace so they cannot
+        # exhaust paid /route target admission.
+        if discovery:
+            return self.take([
+                ("discovery-probe:global", self.policy.target["global"]),
+                ("discovery-probe:" + origin, self.policy.target["origin"]),
+                ("discovery-failure:" + origin, self.policy.target["failures"]),
+            ])
         return self.take([("probe:global", self.policy.target["global"]), ("probe:" + origin, self.policy.target["origin"]), ("failure:" + origin, self.policy.target["failures"])])
 
     def probe_complete(self, lease, healthy):
@@ -290,11 +315,11 @@ def reserve(headers):
         raise Unavailable("work capacity unavailable")
     return lease
 
-def reserve_probe(url):
+def reserve_probe(url, *, discovery=False):
     e = engine()
     if e is None:
         return None
-    lease = e.probe(url)
+    lease = e.probe(url, discovery=discovery)
     if lease is None:
         raise Unavailable("work capacity unavailable")
     return lease
@@ -304,11 +329,12 @@ def rejected():
 
 
 def free_ingress(headers, peer):
+    """Admit unpaid preview/validate. Distinct from paid /route ingress and reserve."""
     try:
         e = engine()
-        if e is None or not e.ingress(headers, peer):
+        if e is None:
             return False
-        lease = e.reserve(headers, peer)
+        lease = e.discover(headers, peer)
         if lease is None:
             return False
         lease.finish(False)
