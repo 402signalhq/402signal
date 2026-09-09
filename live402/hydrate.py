@@ -27,7 +27,36 @@ CLIENT_SCHEMA_WARNING = (
     "Unsafe remote schema material is refused, not rewritten as a different offer."
 )
 _UNSAFE_SCHEMA = object()
+_CTX_SCHEMA = "schema"
+_CTX_SCHEMA_MAP = "schema_map"
+_CTX_LITERAL = "literal"
 _REF_KEYS = frozenset({"$ref", "$dynamicref", "$recursiveref"})
+_STRIP_META_KEYS = frozenset({"$schema"})
+_REFUSE_IDENTITY_KEYS = frozenset({"$anchor", "$dynamicanchor", "$recursiveanchor"})
+_REFUSE_DIALECT_KEYS = frozenset({"$vocabulary"})
+_SCHEMA_MAP_KEYS = frozenset({
+    "$defs",
+    "definitions",
+    "dependencies",
+    "dependentRequired",
+    "dependentSchemas",
+    "patternProperties",
+    "properties",
+})
+_LITERAL_KEYS = frozenset({"const", "default", "enum", "examples"})
+_KNOWN_DOLLAR_KEYS = frozenset({
+    "$anchor",
+    "$comment",
+    "$defs",
+    "$dynamicanchor",
+    "$dynamicref",
+    "$id",
+    "$recursiveanchor",
+    "$recursiveref",
+    "$ref",
+    "$schema",
+    "$vocabulary",
+})
 FINALIST_MIN = 5
 FINALIST_N = 8
 FINALIST_MAX = 10
@@ -77,6 +106,30 @@ def _is_local_fragment_ref(val) -> bool:
     return bool(text) and text.startswith("#") and "://" not in text and not text.startswith("#//")
 
 
+def _is_local_json_pointer_ref(val) -> bool:
+    """Same-document JSON Pointer. Meaning does not depend on $id/$anchor names."""
+    if not _is_local_fragment_ref(val):
+        return False
+    text = val.strip()
+    return text == "#" or text.startswith("#/")
+
+
+def _is_strippable_schema_id(val) -> bool:
+    """Root $id we can drop without changing same-document JSON Pointer refs."""
+    if not isinstance(val, str):
+        return False
+    text = val.strip()
+    return bool(text) and not text.startswith("#")
+
+
+def _child_context(key: str) -> str:
+    if key in _LITERAL_KEYS:
+        return _CTX_LITERAL
+    if key in _SCHEMA_MAP_KEYS or key.lower() == "$defs":
+        return _CTX_SCHEMA_MAP
+    return _CTX_SCHEMA
+
+
 def schema_looks_present(obj) -> bool:
     """True when a seller blob claims a schema, including $ref-only shapes."""
     if not isinstance(obj, dict) or not obj:
@@ -92,48 +145,42 @@ def schema_looks_present(obj) -> bool:
 def sanitize_untrusted_schema(obj, depth: int = 0):
     """Bound untrusted JSON Schema. Never fetch $ref.
 
+    Traversal is schema-context-aware: schema-object keywords, property-name
+    maps (properties / patternProperties / dependentSchemas / $defs /
+    definitions), and literal JSON (const / enum / default / examples) are
+    distinct. Property names and literal values are preserved exactly.
+
     Remote, protocol-relative, or non-fragment $ref / $dynamicRef / $recursiveRef
     fail closed (None) so a rewritten body cannot look like a different offer.
-    Depth, key, item, string, and null-constraint overflows refuse the whole
-    schema instead of forwarding a truncated substitute. JSON null is kept.
-    Local #fragments stay as opaque strings and are never resolved.
+    Local JSON Pointer $ref stays an opaque string and is never resolved.
+    $anchor and other local-identity constructs that would change meaning if
+    $id/$anchor were stripped are refused, not rewritten. Unhandled dialect
+    keywords refuse the whole schema. Depth, key, item, string, and
+    null-constraint overflows also refuse the whole schema instead of
+    forwarding a truncated substitute. JSON null is kept.
     """
     cleaned = _sanitize_untrusted_schema(obj, depth)
     return None if cleaned is _UNSAFE_SCHEMA else cleaned
 
 
-def _sanitize_untrusted_schema(obj, depth: int = 0):
+def _sanitize_untrusted_schema(obj, depth: int = 0, ctx: str = _CTX_SCHEMA, *, root: bool = True):
     if depth > SCHEMA_MAX_DEPTH:
         return _UNSAFE_SCHEMA
     if isinstance(obj, dict):
         if len(obj) > SCHEMA_MAX_KEYS:
             return _UNSAFE_SCHEMA
-        out = {}
-        for key, val in obj.items():
-            if not isinstance(key, str) or len(key) > SCHEMA_MAX_KEY:
-                return _UNSAFE_SCHEMA
-            lname = key.lower()
-            if lname in _REF_KEYS:
-                if lname == "$ref" and _is_local_fragment_ref(val):
-                    text = val.strip()
-                    if len(text) > SCHEMA_MAX_STRING:
-                        return _UNSAFE_SCHEMA
-                    out["$ref"] = text
-                    continue
-                return _UNSAFE_SCHEMA
-            if lname in {"$schema", "$id", "$anchor"}:
-                continue
-            cleaned = _sanitize_untrusted_schema(val, depth + 1)
-            if cleaned is _UNSAFE_SCHEMA:
-                return _UNSAFE_SCHEMA
-            out[key] = cleaned
-        return out
+        if ctx == _CTX_LITERAL:
+            return _sanitize_literal_dict(obj, depth)
+        if ctx == _CTX_SCHEMA_MAP:
+            return _sanitize_schema_map(obj, depth)
+        return _sanitize_schema_object(obj, depth, root=root)
     if isinstance(obj, list):
         if len(obj) > SCHEMA_MAX_ITEMS:
             return _UNSAFE_SCHEMA
+        child_ctx = _CTX_LITERAL if ctx == _CTX_LITERAL else _CTX_SCHEMA
         out = []
         for item in obj:
-            cleaned = _sanitize_untrusted_schema(item, depth + 1)
+            cleaned = _sanitize_untrusted_schema(item, depth + 1, child_ctx, root=False)
             if cleaned is _UNSAFE_SCHEMA:
                 return _UNSAFE_SCHEMA
             out.append(cleaned)
@@ -145,6 +192,63 @@ def _sanitize_untrusted_schema(obj, depth: int = 0):
     if isinstance(obj, (int, float, bool)) or obj is None:
         return obj
     return _UNSAFE_SCHEMA
+
+
+def _sanitize_literal_dict(obj: dict, depth: int):
+    out = {}
+    for key, val in obj.items():
+        if not isinstance(key, str) or len(key) > SCHEMA_MAX_KEY:
+            return _UNSAFE_SCHEMA
+        cleaned = _sanitize_untrusted_schema(val, depth + 1, _CTX_LITERAL, root=False)
+        if cleaned is _UNSAFE_SCHEMA:
+            return _UNSAFE_SCHEMA
+        out[key] = cleaned
+    return out
+
+
+def _sanitize_schema_map(obj: dict, depth: int):
+    out = {}
+    for key, val in obj.items():
+        if not isinstance(key, str) or len(key) > SCHEMA_MAX_KEY:
+            return _UNSAFE_SCHEMA
+        cleaned = _sanitize_untrusted_schema(val, depth + 1, _CTX_SCHEMA, root=False)
+        if cleaned is _UNSAFE_SCHEMA:
+            return _UNSAFE_SCHEMA
+        out[key] = cleaned
+    return out
+
+
+def _sanitize_schema_object(obj: dict, depth: int, *, root: bool):
+    out = {}
+    for key, val in obj.items():
+        if not isinstance(key, str) or len(key) > SCHEMA_MAX_KEY:
+            return _UNSAFE_SCHEMA
+        lname = key.lower()
+        if lname.startswith("$") and lname not in _KNOWN_DOLLAR_KEYS:
+            return _UNSAFE_SCHEMA
+        if lname in _REF_KEYS:
+            if lname == "$ref" and _is_local_json_pointer_ref(val):
+                text = val.strip()
+                if len(text) > SCHEMA_MAX_STRING:
+                    return _UNSAFE_SCHEMA
+                out["$ref"] = text
+                continue
+            return _UNSAFE_SCHEMA
+        if lname in _REFUSE_IDENTITY_KEYS or lname in _REFUSE_DIALECT_KEYS:
+            return _UNSAFE_SCHEMA
+        if lname == "$id":
+            if root and _is_strippable_schema_id(val):
+                continue
+            return _UNSAFE_SCHEMA
+        if lname in _STRIP_META_KEYS:
+            continue
+        cleaned = _sanitize_untrusted_schema(
+            val, depth + 1, _child_context(key), root=False
+        )
+        if cleaned is _UNSAFE_SCHEMA:
+            return _UNSAFE_SCHEMA
+        out[key] = cleaned
+    return out
 
 
 def schema_is_unusable(obj) -> bool:

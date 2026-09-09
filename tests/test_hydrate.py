@@ -291,6 +291,7 @@ class UntrustedSchemaTests(unittest.TestCase):
             {"type": "object", "$ref": "./other.json"},
             {"type": "object", "$dynamicRef": "#node"},
             {"type": "object", "properties": {"x": {"$recursiveRef": "#"}}},
+            {"type": "object", "$ref": "#node"},
             {"$ref": ""},
         ):
             self.assertIsNone(hydrate.forward_untrusted_schema(raw), raw)
@@ -500,6 +501,96 @@ class LiveSchemaBoundTests(unittest.TestCase):
             "required": names,
         }
         self._assert_schema_usable(schema, "https://wx.example/live-required-limit")
+
+    def test_required_property_named_dollar_id_is_preserved(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "$id": {"type": "string"},
+                "q": {"type": "string"},
+            },
+            "required": ["$id", "q"],
+            "additionalProperties": False,
+        }
+        self._assert_schema_usable(schema, "https://wx.example/live-prop-id")
+        result, envelope = self._payable_live(schema, "https://wx.example/live-prop-id")
+        result = probe.attach_invocable_target(result, None, envelope)
+        target_schema = (result.get("target") or {}).get("inputSchema") or {}
+        self.assertEqual(set((target_schema.get("properties") or {})), {"$id", "q"})
+        self.assertEqual(target_schema.get("required"), ["$id", "q"])
+
+    def test_literal_property_named_dollar_ref_is_preserved(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "$ref": {"type": "string"},
+                "q": {"type": "string"},
+            },
+            "required": ["$ref", "q"],
+            "additionalProperties": False,
+        }
+        self._assert_schema_usable(schema, "https://wx.example/live-prop-ref")
+        result, envelope = self._payable_live(schema, "https://wx.example/live-prop-ref")
+        result = probe.attach_invocable_target(result, None, envelope)
+        target_schema = (result.get("target") or {}).get("inputSchema") or {}
+        self.assertEqual(set((target_schema.get("properties") or {})), {"$ref", "q"})
+        self.assertEqual(target_schema.get("required"), ["$ref", "q"])
+
+    def test_schema_map_keys_preserve_keyword_looking_names(self):
+        schema = {
+            "type": "object",
+            "properties": {"q": {"type": "string"}},
+            "patternProperties": {"$id": {"type": "string"}},
+            "dependentSchemas": {"$ref": {"type": "object", "properties": {"ok": {"type": "boolean"}}}},
+            "required": ["q"],
+        }
+        self._assert_schema_usable(schema, "https://wx.example/live-schema-maps")
+
+    def test_const_enum_keyword_looking_keys_are_preserved(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "q": {"type": "string"},
+                "mode": {
+                    "const": {"$ref": "https://example.com/x", "$id": "not-a-keyword"},
+                },
+                "choice": {
+                    "enum": [
+                        {"$schema": "https://json-schema.org/draft/2020-12/schema"},
+                        {"$anchor": "x"},
+                    ],
+                },
+                "sample": {
+                    "default": {"$dynamicRef": "#node"},
+                    "examples": [{"$recursiveRef": "#"}],
+                },
+            },
+            "required": ["q"],
+        }
+        self._assert_schema_usable(schema, "https://wx.example/live-literal-keywords")
+
+    def test_anchor_dependent_local_ref_is_refused(self):
+        schema = {
+            "type": "object",
+            "$anchor": "root",
+            "properties": {"q": {"type": "string"}},
+            "required": ["q"],
+        }
+        self._assert_schema_refused(schema, "https://wx.example/live-anchor")
+
+    def test_nested_id_with_local_ref_is_refused(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "q": {"type": "string"},
+                "inner": {
+                    "$id": "https://listed.example/nested",
+                    "$ref": "#",
+                },
+            },
+            "required": ["q"],
+        }
+        self._assert_schema_refused(schema, "https://wx.example/live-nested-id")
 
 
 if __name__ == "__main__":
