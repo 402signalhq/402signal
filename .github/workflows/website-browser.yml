@@ -56,6 +56,16 @@ jobs:
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npm audit --package-lock-only --ignore-scripts --audit-level=high
+          # Qualification uses Playwright's hash-verified Chromium/WebKit, not
+          # Google Chrome. Hosted runners preconfigure Chrome apt; a Hash Sum
+          # mismatch there fails apt-get update inside --with-deps. Keep apt
+          # integrity checks; only stop consulting that unused repo.
+          shopt -s nullglob
+          for src in /etc/apt/sources.list.d/google-chrome*.list \
+                     /etc/apt/sources.list.d/google-chrome*.sources; do
+            sudo mv "$src" "${src}.unused-for-playwright"
+            echo "Unused Chrome apt source set aside: $src"
+          done
           ./node_modules/.bin/playwright install --with-deps chromium webkit > /tmp/browser-install.log 2>&1 || { tail -80 /tmp/browser-install.log; exit 1; }
       - name: Validate published examples and unchanged MCP scope
         run: node integration/website/schema-check.mjs
