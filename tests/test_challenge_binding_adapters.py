@@ -213,34 +213,12 @@ class ChallengeBindingAdapterTests(unittest.TestCase):
             rb.observed_challenge(402, {}, json.dumps(env).encode())
         self.assertEqual(str(exc.exception), "unsupported_extension")
 
-    def test_empty_object_input_schema_binds_and_stays_in_the_hash(self):
+    def test_unknown_top_level_input_schema_still_fails(self):
         env = _stock_envelope()
         env["inputSchema"] = {"type": "object"}
-        observed = rb.observed_challenge(402, {}, json.dumps(env).encode())
-        self.assertEqual(observed["inputSchema"], {"type": "object"})
-        self.assertNotEqual(rb.digest(observed), rb.digest(_stock_envelope()))
-        binding = rb.build(
-            _bound_with(observed, STOCK_URL),
-            {"need": "weather", "require_route_binding": True},
-            now=1001,
-        )
-        self.assertEqual(binding["selected_index"], 0)
-
-    def test_non_object_input_schema_still_fails(self):
-        env = _stock_envelope()
-        env["inputSchema"] = "object"
         with self.assertRaises(rb.BindingError) as exc:
             rb.observed_challenge(402, {}, json.dumps(env).encode())
         self.assertEqual(str(exc.exception), "unsupported_challenge")
-
-    def test_header_and_body_catalog_project_to_the_same_challenge(self):
-        env = _stock_envelope()
-        wrapped = {**env, "catalog": {"docs": "https://seller.example/docs"}}
-        observed = rb.observed_challenge(
-            402, _header(wrapped), json.dumps(wrapped).encode()
-        )
-        self.assertEqual(rb.canonical(observed), rb.canonical(env))
-        self.assertNotIn("catalog", observed)
 
     def test_icon_url_is_hashed_not_rewritten(self):
         env = _stock_envelope()
@@ -269,7 +247,7 @@ class ChallengeBindingAdapterTests(unittest.TestCase):
                 self.assertEqual(snap["binding_observation"]["quote_sha256"], rb.digest(env))
                 self.assertIsNone(snap.get("binding_error_reason"))
 
-    def test_probe_binds_body_only_catalog_and_empty_schema(self):
+    def test_probe_binds_body_only_catalog_and_matching_alias(self):
         env = _stock_envelope()
         catalog_body = json.dumps({**env, "catalog": {"docs": "https://seller.example/llms.txt"}}).encode()
         snap = _observe_probe(STOCK_URL, {}, catalog_body)
@@ -279,19 +257,26 @@ class ChallengeBindingAdapterTests(unittest.TestCase):
         self.assertNotIn("catalog", snap["envelope"])
         self.assertIsNone(snap.get("binding_error_reason"))
 
-        both = {**env, "catalog": {"docs": "https://seller.example/llms.txt"}}
-        snap = _observe_probe(STOCK_URL, _header(both), json.dumps(both).encode())
+        alias_body = json.dumps({**env, "paymentRequirements": env["accepts"]}).encode()
+        snap = _observe_probe(STOCK_URL, {}, alias_body)
         self.assertTrue(snap["live"])
         self.assertIsNotNone(snap["binding_observation"])
         self.assertEqual(snap["binding_observation"]["quote_sha256"], rb.digest(env))
+        self.assertNotIn("paymentRequirements", snap["envelope"])
+
+    def test_probe_keeps_header_catalog_and_empty_schema_unbound(self):
+        env = _stock_envelope()
+        both = {**env, "catalog": {"docs": "https://seller.example/llms.txt"}}
+        snap = _observe_probe(STOCK_URL, _header(both), json.dumps(both).encode())
+        self.assertTrue(snap["live"])
+        self.assertIsNone(snap["binding_observation"])
+        self.assertEqual(snap["binding_error_reason"], "ambiguous_challenge")
 
         empty = {**env, "inputSchema": {"type": "object"}}
         snap = _observe_probe(STOCK_URL, {}, json.dumps(empty).encode())
         self.assertTrue(snap["live"])
-        self.assertIsNotNone(snap["binding_observation"])
-        self.assertEqual(snap["envelope"]["inputSchema"], {"type": "object"})
-        self.assertEqual(snap["binding_observation"]["quote_sha256"], rb.digest(empty))
-        self.assertIsNone(snap.get("binding_error_reason"))
+        self.assertIsNone(snap["binding_observation"])
+        self.assertEqual(snap["binding_error_reason"], "unsupported_challenge")
 
     def test_probe_keeps_true_accept_mismatch_unbound(self):
         env = _stock_envelope()
@@ -304,7 +289,7 @@ class ChallengeBindingAdapterTests(unittest.TestCase):
 
 
 class BindableExactWinnerTests(unittest.TestCase):
-    """Payable exact winners with live-style wrappers/empty schema must bind."""
+    """Payable exact winners with wrapper-only extras must bind after extraction."""
 
     setUp = binding_tests.BindingTests.setUp
     cleanup = binding_tests.BindingTests.cleanup
@@ -314,22 +299,6 @@ class BindableExactWinnerTests(unittest.TestCase):
         ranked = dict(winner)
         ranked["_probed"] = [winner, *others]
         return ranked
-
-    def test_empty_schema_exact_winner_settles_and_stays_selectable(self):
-        winner = bound_winner()
-        winner["envelope"] = {**winner["envelope"], "inputSchema": {"type": "object"}}
-        winner["binding_observation"]["quote_sha256"] = rb.digest(winner["envelope"])
-        out, calls = self.execute((200, winner))
-        self.assertEqual(out[0], 200)
-        self.assertEqual(calls, (1, 1, 1, 1))
-        self.assertTrue(out[1]["billing"]["settled"])
-        self.assertEqual(out[1]["decision_binding"]["quote_sha256"], rb.digest(winner["envelope"]))
-        rows = out[1].get("compared") or []
-        if rows:
-            by_url = {row["url"]: row for row in rows}
-            self.assertTrue(by_url[winner["url"]]["selected"])
-            self.assertTrue(by_url[winner["url"]]["selectable"])
-            self.assertIsNone(by_url[winner["url"]]["excluded_reason"])
 
     def test_catalog_wrapper_winner_settles(self):
         winner = bound_winner()
@@ -344,11 +313,25 @@ class BindableExactWinnerTests(unittest.TestCase):
         env = out[1].get("envelope") or {}
         self.assertNotIn("catalog", env)
 
-    def test_empty_schema_peer_is_selectable_after_binding_fallthrough(self):
+    def test_empty_schema_winner_stays_503_without_unguarded_settle(self):
+        winner = bound_winner()
+        winner["envelope"] = {**winner["envelope"], "inputSchema": {"type": "object"}}
+        winner.pop("binding_observation", None)
+        winner["binding_error_reason"] = "unsupported_challenge"
+        out, calls = self.execute((200, winner))
+        self.assertEqual(out[0], 503)
+        self.assertEqual(calls, (1, 1, 0, 0))
+        self.assertFalse(out[1]["billing"]["settled"])
+        self.assertEqual(out[1]["binding_error"], "route_binding_unavailable")
+        self.assertEqual(out[1]["binding_error_reason"], "unsupported_challenge")
+
+    def test_projected_wrapper_peer_is_selectable_after_binding_fallthrough(self):
         cheap = mismatch_resource(bound_winner(url="https://cheap.example/x", amount="1000"))
         nxt = bound_winner(url="https://stable.example/x", amount="5000")
-        nxt["envelope"] = {**nxt["envelope"], "inputSchema": {"type": "object"}}
-        nxt["binding_observation"]["quote_sha256"] = rb.digest(nxt["envelope"])
+        wrapped = {**nxt["envelope"], "catalog": {"docs": "https://seller.example/docs"}}
+        observed = rb.observed_challenge(402, {}, json.dumps(wrapped).encode())
+        nxt["envelope"] = observed
+        nxt["binding_observation"]["quote_sha256"] = rb.digest(observed)
         out, calls = self.execute((200, self._ranked_with_pool(cheap, nxt)))
         self.assertEqual(out[0], 200)
         self.assertEqual(calls, (1, 1, 1, 1))

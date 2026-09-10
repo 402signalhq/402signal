@@ -96,28 +96,10 @@ test("unknown extensions still fail closed", () => {
   reject(o, "unsupported_extension");
 });
 
-test("empty-object inputSchema is hashed observational metadata, not a quote match", () => {
+test("unknown top-level inputSchema still fails closed", () => {
   const o = options();
   const env = structuredClone(f.challenge);
   env.inputSchema = {type: "object"};
   o.challenge.bodyText = JSON.stringify(env);
-  reject(o, "quote_changed");
-});
-
-test("non-object inputSchema still fails closed", () => {
-  const o = options();
-  const env = structuredClone(f.challenge);
-  env.inputSchema = "object";
-  o.challenge.bodyText = JSON.stringify(env);
   reject(o, "unsupported_challenge");
-});
-
-test("header and body catalog extras project to the same challenge", () => {
-  const o = options();
-  const env = f.challenge;
-  const wrapped = {...env, catalog: {docs: "https://example.com/docs"}};
-  o.challenge.paymentRequired = header(wrapped);
-  o.challenge.bodyText = JSON.stringify(wrapped);
-  const result = verifyRoute(o);
-  assert.deepEqual(result.accepted, env.accepts[0]);
 });

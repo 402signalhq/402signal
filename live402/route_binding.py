@@ -126,9 +126,7 @@ def request_context(url: str, method: str, body: bytes = b"") -> dict:
     }
 
 
-_PAYMENT_REQUIRED_KEYS = frozenset(
-    {"x402Version", "accepts", "resource", "error", "extensions", "inputSchema"}
-)
+_PAYMENT_REQUIRED_KEYS = ("x402Version", "accepts", "resource", "error", "extensions")
 _CHALLENGE_WRAPPERS = ("payment_required", "paymentRequired", "x402")
 _WRAPPER_ONLY_KEYS = frozenset({"catalog", "paymentRequirements"})
 _KNOWN_EXTENSIONS = frozenset({"bazaar", "builder-code", "payment-identifier"})
@@ -198,10 +196,7 @@ def observed_challenge(status, headers: dict, body: bytes) -> dict:
                     _fail("invalid_json")
             except (ValueError, TypeError):
                 _fail("invalid_json")
-            extracted = _body_challenge(strict_json(decoded))
-            if extracted is None:
-                _fail("ambiguous_challenge")
-            candidates.append(extracted)
+            candidates.append(strict_json(decoded))
     if body:
         try:
             val = strict_json(body)
@@ -229,9 +224,7 @@ def validate_envelope(env: dict) -> None:
         _fail("unsupported_challenge")
     # New protocol extensions need explicit review before this guard can attest
     # to their meaning. Known extension data still participates in the full hash.
-    if set(env) - _PAYMENT_REQUIRED_KEYS:
-        _fail("unsupported_challenge")
-    if "inputSchema" in env and type(env["inputSchema"]) is not dict:
+    if set(env) - {"x402Version", "accepts", "resource", "error", "extensions"}:
         _fail("unsupported_challenge")
     exts = env.get("extensions", {})
     if type(exts) is not dict or set(exts) - _KNOWN_EXTENSIONS:
