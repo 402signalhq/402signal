@@ -26,8 +26,10 @@ Missing input schema on an otherwise live payable route is `invocable:false`, no
 a top-level `miss_reason`; `no_input_schema` is used only when schema is required
 and unmet. An explicit empty-object `inputSchema` (type object, empty or omitted
 properties/required) advertises no required inputs and is invocable when the
-route is payable. That is not a guarantee the seller call succeeds. Bare `{}`
-and missing schema stay `invocable:false`.
+route is payable. A bazaar HTTP GET that advertises empty `queryParams` (or an
+empty-object `queryParams` schema) and no required body is the same signal.
+That is not a guarantee the seller call succeeds. Bare `{}` and missing schema
+stay `invocable:false`.
 
 Clients must inspect both decision fields and billing. HTTP 200 alone grants no
 seller-payment authority. The route-guard SDK's `isUnsettledRouteMiss` recognizes

@@ -219,6 +219,7 @@ def route_constraint_properties() -> dict:
                 "If true, drop live hits without an input schema. "
                 "An explicit empty-object schema (type object, no properties or required fields) "
                 "advertises no required inputs and counts as present. "
+                "A bazaar HTTP GET with empty queryParams and no required body is the same signal. "
                 "It does not guarantee the seller call succeeds. "
                 "Absent or refused schema is not invocable."
             ),

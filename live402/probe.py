@@ -499,6 +499,110 @@ def _schema_looks_extracted(schema) -> bool:
     return bool(schema.get("properties") or schema.get("required") or schema.get("type"))
 
 
+_ZERO_INPUT_METHODS = frozenset({"GET", "HEAD"})
+_HTTP_INPUT_TYPES = frozenset({"http", "https"})
+_CANONICAL_EMPTY_OBJECT = {"type": "object"}
+
+
+def _bazaar_input_schema_map(bazaar: dict) -> dict:
+    schema = bazaar.get("schema") if isinstance(bazaar.get("schema"), dict) else {}
+    props = (schema.get("properties") or {}).get("input") if isinstance(schema, dict) else None
+    if not isinstance(props, dict):
+        return {}
+    inner = props.get("properties") if isinstance(props.get("properties"), dict) else {}
+    return inner if isinstance(inner, dict) else {}
+
+
+def _method_from_schema(method_schema) -> str | None:
+    if not isinstance(method_schema, dict):
+        return None
+    const = method_schema.get("const")
+    if isinstance(const, str) and const.strip():
+        return const.strip().upper()
+    enum = method_schema.get("enum")
+    if isinstance(enum, list) and len(enum) == 1 and isinstance(enum[0], str) and enum[0].strip():
+        return enum[0].strip().upper()
+    return None
+
+
+def _bazaar_http_method(inp: dict | None, inner: dict) -> str | None:
+    if isinstance(inp, dict):
+        method = str(inp.get("method") or "").strip().upper()
+        if method:
+            return method
+    return _method_from_schema(inner.get("method") if inner else None)
+
+
+def _bazaar_http_type_ok(inp: dict | None, inner: dict) -> bool:
+    if isinstance(inp, dict) and inp.get("type") is not None:
+        return str(inp.get("type") or "").strip().lower() in _HTTP_INPUT_TYPES
+    type_schema = inner.get("type") if inner else None
+    if isinstance(type_schema, dict) and type_schema.get("const") is not None:
+        return str(type_schema.get("const") or "").strip().lower() in _HTTP_INPUT_TYPES
+    return True
+
+
+def _is_empty_query_params_signal(value) -> bool:
+    if not isinstance(value, dict):
+        return False
+    if value == {}:
+        return True
+    return is_empty_object_input_contract(value)
+
+
+def _schema_requires_input_fields(schema) -> bool:
+    if not isinstance(schema, dict):
+        return False
+    if is_empty_object_input_contract(schema) or schema == {}:
+        return False
+    props = schema.get("properties")
+    if isinstance(props, dict) and props:
+        return True
+    required = schema.get("required")
+    if isinstance(required, list) and required:
+        return True
+    return False
+
+
+def bazaar_zero_input_get_contract(bazaar: dict | None) -> dict | None:
+    """Explicit bazaar HTTP GET with empty queryParams and no required body.
+
+    Returns the seller queryParams schema when it is already an empty-object
+    contract, otherwise ``{type:object}`` for ``queryParams: {}``. Titles,
+    descriptions, and other bazaar metadata are not enough.
+    """
+    if not isinstance(bazaar, dict):
+        return None
+    info = bazaar.get("info") if isinstance(bazaar.get("info"), dict) else {}
+    inp = info.get("input") if isinstance(info, dict) else None
+    if not isinstance(inp, dict):
+        inp = None
+    inner = _bazaar_input_schema_map(bazaar)
+    if not _bazaar_http_type_ok(inp, inner):
+        return None
+    if _bazaar_http_method(inp, inner) not in _ZERO_INPUT_METHODS:
+        return None
+    body_info = inp.get("body") if isinstance(inp, dict) and "body" in inp else None
+    body_schema = inner.get("body") if "body" in inner else None
+    if body_info is not None and not isinstance(body_info, dict):
+        return None
+    if isinstance(body_info, dict) and body_info and not is_empty_object_input_contract(body_info):
+        return None
+    if _schema_requires_input_fields(body_schema):
+        return None
+    qp_info = inp.get("queryParams") if isinstance(inp, dict) and "queryParams" in inp else None
+    qp_schema = inner.get("queryParams") if "queryParams" in inner else None
+    info_empty = isinstance(inp, dict) and "queryParams" in inp and _is_empty_query_params_signal(qp_info)
+    schema_empty = _is_empty_query_params_signal(qp_schema)
+    if not info_empty and not schema_empty:
+        return None
+    if is_empty_object_input_contract(qp_schema):
+        return qp_schema
+    if is_empty_object_input_contract(qp_info):
+        return qp_info
+    return dict(_CANONICAL_EMPTY_OBJECT)
+
+
 def extract_input_schema_source(item: dict | None, envelope: dict | None = None) -> tuple[dict | None, str | None]:
     """Return (schema, source). source is envelope, catalog, or bazaar."""
     if isinstance(envelope, dict) and "inputSchema" in envelope:
@@ -516,8 +620,11 @@ def extract_input_schema_source(item: dict | None, envelope: dict | None = None)
         inp = info.get("input") or {}
         if isinstance(inp, dict) and isinstance(inp.get("inputSchema"), dict):
             bazaar_schema = inp["inputSchema"]
-            if bazaar_schema or is_empty_object_input_contract(bazaar_schema):
+            if _schema_looks_extracted(bazaar_schema):
                 return bazaar_schema, "bazaar"
+        zero = bazaar_zero_input_get_contract(bazaar)
+        if zero is not None:
+            return zero, "bazaar"
         schema = bazaar.get("schema") or {}
         props = (schema.get("properties") or {}).get("input") if isinstance(schema, dict) else None
         if not isinstance(props, dict):
@@ -525,8 +632,18 @@ def extract_input_schema_source(item: dict | None, envelope: dict | None = None)
         inner = props.get("properties") if isinstance(props.get("properties"), dict) else {}
         for key in ("body", "queryParams", "inputSchema"):
             cand = inner.get(key) if inner else props.get(key)
-            if isinstance(cand, dict) and (
-                cand.get("properties") or cand.get("required") or is_empty_object_input_contract(cand)
+            if not isinstance(cand, dict):
+                continue
+            if key == "queryParams" and (
+                is_empty_object_input_contract(cand) or cand == {}
+            ):
+                continue
+            if (
+                cand.get("properties")
+                or cand.get("required")
+                or cand.get("type")
+                or is_empty_object_input_contract(cand)
+                or any(str(name).lower() in {"$ref", "$dynamicref", "$recursiveref"} for name in cand)
             ):
                 return cand, "bazaar"
         if props.get("properties") or props.get("required"):
@@ -688,8 +805,9 @@ def attach_invocable_target(result: dict, item: dict | None = None, envelope: di
     payable = at least one complete CURRENT observed payment option.
     invocable = payable + a usable input schema. An explicit empty-object
     contract (type object, no listed inputs) advertises no required inputs.
-    Bare {}, absent, null, or refused schema stays non-invocable. Never invent
-    a schema from catalog when the envelope has none.
+    A bazaar HTTP GET with empty queryParams and no required body is the same
+    signal. Bare {}, absent, null, or refused schema stays non-invocable.
+    Never invent a schema from catalog when the envelope has none.
     Live/claimed schemas are forwarded only when bounded and free of remote $ref.
     Observed envelope bytes stay on result['envelope']; they are not rewritten.
     """

@@ -374,6 +374,8 @@ def _bazaar_schema_present(blob: dict | None) -> bool:
         or probe.is_empty_object_input_contract(props)
     ):
         return True
+    if probe.bazaar_zero_input_get_contract(bazaar) is not None:
+        return True
     return False
 
 
