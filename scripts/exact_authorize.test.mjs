@@ -142,6 +142,50 @@ test("wrapExactAuthorize teaches a constraint miss and does not call the seller 
   }
 });
 
+test("HTTP 503 with miss markers and binding_error prefers binding_unavailable", async () => {
+  const dest = mkdtempSync(join(tmpdir(), "exact-auth-bind-miss-"));
+  try {
+    linkGuard(dest);
+    const { wrapExactAuthorize } = await loadWrap(dest);
+    let seller = 0;
+    const body = {
+      ...missBody(),
+      binding_error: "route_binding_unavailable",
+      binding_error_reason: "route_binding_unavailable",
+      route_outcome: { version: 1, code: "binding_failed", next_action: "fix_request_or_compatibility" },
+    };
+    await withClient(dest, async (_url, init) => {
+      if (init.body === "{}" && init.headers["Replay-Only"] === "1") {
+        return new Response(JSON.stringify({ error: "recovery_unavailable", recovery_only: true, new_payment_allowed: false }), { status: 503 });
+      }
+      if (!init.headers["PAYMENT-SIGNATURE"]) {
+        return new Response(JSON.stringify({ x402Version: 2, accepts: [{ scheme: "exact", network: "eip155:8453", asset: "USDC", payTo: "0x22", amount: "3000" }] }), { status: 402 });
+      }
+      return new Response(JSON.stringify(body), { status: 503 });
+    }, async ({ client }) => {
+      const out = await wrapExactAuthorize({
+        id: "job-bind-miss",
+        requestJson: JSON.stringify(fixture.request),
+        client,
+        trustedLogVkey: fixture.trusted_vkey,
+        signRouting: async () => "synthetic-routing-authorization-no-signature",
+        signSeller: async () => {
+          seller += 1;
+        },
+      });
+      assert.equal(out.state, "binding_unavailable");
+      assert.equal(out.keep_calling_route, true);
+      assert.equal(out.binding_error_reason, "route_binding_unavailable");
+      assert.equal(out.next_action, "fix_request_or_compatibility");
+      assert.equal(out.outcome.response.status, 503);
+      assert.equal(out.outcome.response.bodyText.includes("constraints_unmet"), true);
+      assert.equal(seller, 0);
+    });
+  } finally {
+    rmSync(dest, { recursive: true, force: true });
+  }
+});
+
 test("binding_unavailable is policy working and keeps /route available", async () => {
   const dest = mkdtempSync(join(tmpdir(), "exact-auth-bind-"));
   try {

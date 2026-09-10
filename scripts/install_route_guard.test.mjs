@@ -5,6 +5,14 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import {
+  formatIdealTreeError,
+  inspectInstallEnvironment,
+  installVerifiedArchive,
+  isIdealTreeFailure,
+  isKnownBadNpm,
+  selectInstallPlan,
+} from "./install_route_guard.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const installer = join(root, "scripts/install_route_guard.mjs");
@@ -133,7 +141,180 @@ test("reviewed local archive verifies and installs into a fresh buyer directory"
     assert.match(readFileSync(join(dest, "exact-authorize.mjs"), "utf8"), /wrapExactAuthorize/);
     assert.match(readFileSync(join(dest, "exact-authorize.d.ts"), "utf8"), /wrapExactAuthorize/);
     assert.equal(installed.wrap, "exact-authorize.mjs");
+    assert.equal(typeof installed.installer.tool, "string");
   } finally {
     rmSync(dest, { recursive: true, force: true });
   }
+});
+
+test("Debian npm 9 on Node 20 is a known-bad installer", () => {
+  assert.equal(isKnownBadNpm({ nodeVersion: "20.19.2", npmVersion: "9.2.0" }), true);
+  assert.equal(isKnownBadNpm({ nodeVersion: "22.14.0", npmVersion: "9.2.0" }), true);
+  assert.equal(isKnownBadNpm({ nodeVersion: "22.14.0", npmVersion: "10.9.2" }), false);
+  assert.equal(isKnownBadNpm({ nodeVersion: "20.19.2", npmVersion: "10.8.2" }), false);
+  assert.equal(isKnownBadNpm({ nodeVersion: "20.19.2", npmVersion: null }), false);
+});
+
+test("idealTree stderr is classified as the known npm failure", () => {
+  assert.equal(
+    isIdealTreeFailure({ stderr: 'npm ERR! Tracker "idealTree" already exists' }),
+    true,
+  );
+  assert.equal(
+    isIdealTreeFailure({ message: "Tracker 'idealTree' already exists" }),
+    true,
+  );
+  assert.equal(isIdealTreeFailure({ stderr: "npm ERR! ENOENT" }), false);
+});
+
+test("known-bad npm with bun present prefers bun over npm", () => {
+  const plan = selectInstallPlan({
+    knownBadNpm: true,
+    available: { npm: true, bun: true, pnpm: false },
+  });
+  assert.deepEqual(plan, ["bun"]);
+});
+
+test("known-bad npm with only pnpm prefers pnpm over npm", () => {
+  const plan = selectInstallPlan({
+    knownBadNpm: true,
+    available: { npm: true, bun: false, pnpm: true },
+  });
+  assert.deepEqual(plan, ["pnpm"]);
+});
+
+test("supported npm is tried first and keeps bun/pnpm as idealTree fallbacks", () => {
+  const plan = selectInstallPlan({
+    knownBadNpm: false,
+    available: { npm: true, bun: true, pnpm: true },
+  });
+  assert.deepEqual(plan, ["npm", "bun", "pnpm"]);
+});
+
+test("inspectInstallEnvironment flags Debian npm 9 without spawning a real broken npm", () => {
+  const execFile = (tool, args) => {
+    if (tool === "npm" && args[0] === "--version") return "9.2.0\n";
+    if (tool === "bun" && args[0] === "--version") return "1.2.5\n";
+    throw Object.assign(new Error(`missing ${tool}`), { status: 127 });
+  };
+  const env = inspectInstallEnvironment({ nodeVersion: "20.19.2", execFile });
+  assert.equal(env.npmVersion, "9.2.0");
+  assert.equal(env.available.npm, true);
+  assert.equal(env.available.bun, true);
+  assert.equal(env.available.pnpm, false);
+  assert.equal(env.knownBadNpm, true);
+  assert.equal(env.belowNodeFloor, true);
+});
+
+test("install falls back after mocked idealTree and records the tool", () => {
+  const calls = [];
+  const execFile = (tool) => {
+    calls.push(tool);
+    if (tool === "npm") {
+      throw Object.assign(new Error("Command failed: npm"), {
+        stderr: 'npm ERR! Tracker "idealTree" already exists\n',
+        status: 1,
+      });
+    }
+  };
+  const result = installVerifiedArchive({
+    archive: "/tmp/402signal-route-guard-0.7.2.tgz",
+    destination: "/tmp/dest",
+    execFile,
+    env: {
+      nodeVersion: "22.14.0",
+      npmVersion: "10.9.2",
+      knownBadNpm: false,
+      available: { npm: true, bun: true, pnpm: false },
+    },
+  });
+  assert.deepEqual(calls, ["npm", "bun"]);
+  assert.equal(result.tool, "bun");
+  assert.equal(result.fallback, true);
+  assert.equal(result.reason, "idealTree");
+});
+
+test("known-bad npm skips npm when bun is present", () => {
+  const calls = [];
+  const result = installVerifiedArchive({
+    archive: "/tmp/402signal-route-guard-0.7.2.tgz",
+    destination: "/tmp/dest",
+    execFile: (tool) => {
+      calls.push(tool);
+    },
+    env: {
+      nodeVersion: "20.19.2",
+      npmVersion: "9.2.0",
+      knownBadNpm: true,
+      available: { npm: true, bun: true, pnpm: true },
+    },
+  });
+  assert.deepEqual(calls, ["bun"]);
+  assert.equal(result.tool, "bun");
+  assert.equal(result.fallback, true);
+  assert.equal(result.reason, "known_bad_npm");
+});
+
+test("idealTree without fallback explains the Node/npm floor", () => {
+  let thrown;
+  try {
+    installVerifiedArchive({
+      archive: "/tmp/402signal-route-guard-0.7.2.tgz",
+      destination: "/tmp/dest",
+      execFile: () => {
+        throw Object.assign(new Error("Command failed: npm"), {
+          stderr: 'npm ERR! Tracker "idealTree" already exists\n',
+        });
+      },
+      env: {
+        nodeVersion: "20.19.2",
+        npmVersion: "9.2.0",
+        knownBadNpm: true,
+        available: { npm: true, bun: false, pnpm: false },
+      },
+    });
+  } catch (error) {
+    thrown = error;
+  }
+  assert.ok(thrown);
+  assert.match(thrown.message, /Tracker "idealTree" already exists/);
+  assert.match(thrown.message, /Node 20\.19\.2/);
+  assert.match(thrown.message, /npm 9\.2\.0/);
+  assert.match(thrown.message, /Digest verify already passed/);
+  assert.match(thrown.message, /Node 22\+ with npm 10\+/);
+  assert.match(thrown.message, /bun or pnpm/);
+  assert.match(
+    formatIdealTreeError({
+      nodeVersion: "20.19.2",
+      npmVersion: "9.2.0",
+      available: { bun: false, pnpm: false },
+    }),
+    /No bun or pnpm fallback is on PATH/,
+  );
+});
+
+test("non-idealTree npm failures do not silently switch installers", () => {
+  let thrown;
+  try {
+    installVerifiedArchive({
+      archive: "/tmp/402signal-route-guard-0.7.2.tgz",
+      destination: "/tmp/dest",
+      execFile: () => {
+        throw Object.assign(new Error("Command failed: npm"), {
+          stderr: "npm ERR! code EACCES\n",
+        });
+      },
+      env: {
+        nodeVersion: "22.14.0",
+        npmVersion: "10.9.2",
+        knownBadNpm: false,
+        available: { npm: true, bun: true, pnpm: false },
+      },
+    });
+  } catch (error) {
+    thrown = error;
+  }
+  assert.ok(thrown);
+  assert.match(thrown.message, /EACCES|Command failed: npm/);
+  assert.doesNotMatch(thrown.message, /idealTree/);
 });
