@@ -1993,15 +1993,16 @@ def _one_request(
         from live402 import route_binding
 
         try:
+            # Use the extracted PaymentRequired object so wrapper-only extras
+            # (catalog, matching paymentRequirements) do not brick an otherwise
+            # payable exact winner. Accepts and resource.url are never rewritten.
             strict_env = route_binding.observed_challenge(status, hdrs, body)
-            if route_binding.canonical(strict_env) == route_binding.canonical(envelope):
-                binding_observation = {
-                    "request": route_binding.request_context(url, method, data or b""),
-                    "observed_at": int(time.time()),
-                    "quote_sha256": route_binding.digest(strict_env),
-                }
-            else:
-                binding_error_reason = "ambiguous_challenge"
+            envelope = strict_env
+            binding_observation = {
+                "request": route_binding.request_context(url, method, data or b""),
+                "observed_at": int(time.time()),
+                "quote_sha256": route_binding.digest(strict_env),
+            }
         except route_binding.BindingError as exc:
             from live402 import route_observability
             binding_error_reason = route_observability.binding_reason(exc)

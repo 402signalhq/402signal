@@ -279,6 +279,7 @@ const PAYMENT_REQUIRED_KEYS = [
   "resource",
   "error",
   "extensions",
+  "inputSchema",
 ];
 const CHALLENGE_WRAPPERS = ["payment_required", "paymentRequired", "x402"];
 const WRAPPER_ONLY_KEYS = new Set(["catalog", "paymentRequirements"]);
@@ -344,12 +345,15 @@ function challengeFrom(input) {
   if (input.status !== 402) fail("not_402");
   const candidates = [];
   for (const value of [input.paymentRequired, input.xPaymentRequired]) {
-    if (value !== undefined)
-      candidates.push(
+    if (value !== undefined) {
+      const extracted = bodyChallenge(
         parse(
           new TextDecoder("utf-8", { fatal: true }).decode(decode64(value)),
         ),
       );
+      if (!extracted) fail("ambiguous_challenge");
+      candidates.push(extracted);
+    }
   }
   if (input.bodyText) {
     const extracted = bodyChallenge(parse(input.bodyText));
@@ -363,7 +367,11 @@ function challengeFrom(input) {
   const env = candidates[0];
   if (
     env.x402Version !== 2 ||
-    Object.keys(env).some((k) => !PAYMENT_REQUIRED_KEYS.includes(k))
+    Object.keys(env).some((k) => !PAYMENT_REQUIRED_KEYS.includes(k)) ||
+    (Object.hasOwn(env, "inputSchema") &&
+      (!env.inputSchema ||
+        typeof env.inputSchema !== "object" ||
+        Array.isArray(env.inputSchema)))
   )
     fail("unsupported_challenge");
   if (

@@ -54,10 +54,12 @@ actual payment effects before signing.
 Observation unwraps a seller HTTP wrapper only when the extracted PaymentRequired
 object is unambiguous. Nested `payment_required` / `paymentRequired` / `x402`
 bodies, plus known wrapper-only keys (`catalog`, and a `paymentRequirements`
-alias that equals `accepts`), are projected away before comparison. Unknown
-top-level extras such as `inputSchema` remain and fail closed. Header and body
-still have to agree on the extracted challenge. Accept fields and `resource.url`
-are never rewritten to invent a match.
+alias that equals `accepts`), are projected away on every wire channel before
+comparison. A top-level `inputSchema` object is hashed observational metadata,
+not payment terms; it is not fetched or rewritten. Unknown top-level extras
+remain and fail closed. Header and body still have to agree on the extracted
+challenge. Accept fields and `resource.url` are never rewritten to invent a
+match.
 
 For a queryful GET with an empty body, `resource.url` may describe the endpoint:
 it must equal either the complete actual URL or its exact byte prefix before the
@@ -75,6 +77,7 @@ optional HTTPS icon URL of at most 2048 characters that satisfies the same
 host/userinfo/fragment restrictions as a resource URL. Every value and tag
 position remains in the complete challenge hash. An accept may carry an
 `outputSchema` object as hashed observational metadata; it is not payment terms.
+The envelope may likewise carry a top-level `inputSchema` object.
 This tolerance is not a claim of strict x402 schema conformance; the protocol's
 five-tag limit is narrower. Metadata grants no trust or payment authority. Other
 resource fields remain limited to `url`, `description` and `mimeType`; unknown
