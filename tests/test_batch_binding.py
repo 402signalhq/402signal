@@ -238,6 +238,7 @@ class BatchTests(unittest.TestCase):
 
     def test_feature_default_off_and_incompatible_discovery_or_post(self):
         v = vector(0)
+        # Admit refuse is _bad_request 400, not unpaid HTTP 402.
         with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": ""}):
             self.assertEqual(route._bad_request(buyer(v["request"]))[0], 400)
         for change in [

@@ -36,6 +36,8 @@ Ordinary exact x402 (`scheme=exact`, no group extension) is a different job and 
 
 `BATCH_OBSERVATION_PROFILES` is a rollout gate. Tokens are codecs, or legacy lab profile names mapped to codecs. Empty keeps the job off. Do not advertise those tokens as the buyer API.
 
+An unpaid `POST /route` HTTP 402 is the router payment challenge. It is not proof that caps were admitted. When the allowlist is empty, a chk_grp request with otherwise valid `mpp` or `exact` caps is refused as unsupported / invalid_need after verification and before any seller probe. No routing settlement is attempted for that refuse.
+
 ## Lab
 
 `merchant_profile` is accepted only with `lab_test` on live admission, and offline for signed fixtures. Lab stays internal for codec qualification.

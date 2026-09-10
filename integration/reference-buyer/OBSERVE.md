@@ -14,7 +14,7 @@ node integration/buyer-checks/lifecycle.mjs routing
 
 Offline reports five adapter and two historical checks. The synthetic plan reports maximum checking fee `0.003`, buyer network fee `0`, `sellerExecution: disabled`, zero network requests and `signerLoaded: false`. Its `purpose: synthetic-plan` prevents spending even if an acknowledgment is supplied. These commands also work from another directory when invoked with absolute paths. Plan reads the configured public verification-key file, never an account module or payment credential.
 
-Obtaining code and installing dependencies are separate network operations. The guard's reviewed GitHub archive is `402signal-route-guard-0.7.2.tgz`. Verify the digest in `/capabilities.json` before installing. Its checksum file is named `SHA256SUMS`, not `SHA256SUMS.txt`. See `/capabilities.json` for exact download URLs. A GitHub archive is not an npm-registry release. This source example uses the checkout's guard through its existing locked local dependency:
+Obtaining code and installing dependencies are separate network operations. The current published guard archive is `402signal-route-guard-0.7.1.tgz`. The intended chk_grp verifier `402signal-route-guard-0.7.2.tgz` stays pending in `/capabilities.json` until that GitHub release exists; do not treat a pending row as an install URL. When the 0.7.2 release exists, verify the published digest and use `SHA256SUMS` (not `SHA256SUMS.txt`). A GitHub archive is not an npm-registry release. This source example uses the checkout's guard through its existing locked local dependency:
 
 ```sh
 cd integration/reference-buyer

@@ -278,7 +278,11 @@ def _required_pair(resource_url: str, error: str | None = None, bazaar: dict | N
 
 
 def _bad_request(body: dict) -> tuple[int, dict] | None:
-    """Body errors after a successful verify. Unpaid callers always get 402."""
+    """Body errors after a successful verify. Unpaid callers always get 402.
+
+    That unpaid 402 is the router payment challenge. It is not evidence that
+    chk_grp caps were admitted or that batch validation passed.
+    """
     if "lab_test" in body and (body.get("lab_test") != lab_traffic.PROTOCOL
                                   or not lab_traffic.is_lab_url(body.get("url"))):
         return 400, {"error": "lab target is not configured", "live": False}
@@ -847,8 +851,9 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
     """Returns (status, json_body, extra_headers). Never probes before verify.
 
     Unpaid requests always 402 (empty JSON / missing need+url included) so
-    CDP validate and bazaar crawlers can index. Body 400 only after verify
-    succeeds, and we do not settle on 400.
+    CDP validate and bazaar crawlers can index. That 402 is the router
+    payment challenge, not proof that body or chk_grp caps admission passed.
+    Body 400 only after verify succeeds, and we do not settle on 400.
     """
     if replay.recovery_requested(headers):
         return recover_route(body, headers, resource_url)
