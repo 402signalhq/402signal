@@ -74,13 +74,16 @@ jobs:
           node scripts/check_route_guard_package.mjs
           node scripts/check_native_mpp_package.mjs
       - name: Qualify packed route-guard archive and historical 0.7.1 verifier
-        # Install from the packed tarball, not the source tree. 0.7.1 is the
-        # published historical_verifier. No Fly secret, no BATCH enable, no spend.
+        # Digest-check local 0.7.2 pack + SHA256SUMS before install/import.
+        # 0.7.1 is the published historical_verifier. No Fly secret, no BATCH
+        # enable, no spend. Local qualify is not gated on a GitHub download.
         run: |
           pack_dir="$RUNNER_TEMP/route-guard-pack"
           node scripts/pack_route_guard.mjs --destination="$pack_dir"
           node scripts/check_route_guard_archive.mjs "$pack_dir/402signal-route-guard-0.7.2.tgz" \
+            --checksum-file "$pack_dir/SHA256SUMS" \
             --historical-verifier https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.1/402signal-route-guard-0.7.1.tgz
+          PACK_DIR="$pack_dir" node --test scripts/check_route_guard_archive.test.mjs
       - name: Check Dockerfile.fly native Algorand layout (no registry or Fly)
         run: node scripts/check_lab_mpp_algorand_image_layout.mjs
       - name: Qualify lab start-seller contract (offline, no image)
