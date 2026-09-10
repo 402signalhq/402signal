@@ -136,7 +136,7 @@ def extend_http_route_schema(ordinary: dict) -> dict:
                 "description": "Exact HTTPS GET URL. Preserve query ordering and encoding. Runtime SSRF and request-context checks remain authoritative."}
     check_group = _closed({
         "url": deepcopy(endpoint),
-        "buyer_limits": {"oneOf": [deepcopy(v) for v in limits.values()]},
+        "buyer_limits": {"anyOf": [deepcopy(v) for v in limits.values()]},
         "require_route_binding": {"type": "boolean", "const": True},
     })
     check_group["title"] = "Check group offer"
@@ -148,7 +148,7 @@ def extend_http_route_schema(ordinary: dict) -> dict:
     )
     result["properties"].update({
         "probe_request": deepcopy(post),
-        "buyer_limits": {"oneOf": [deepcopy(v) for v in limits.values()]},
+        "buyer_limits": {"anyOf": [deepcopy(v) for v in limits.values()]},
     })
     result["oneOf"] = [exact, search, check_group]
     result["description"] = "Choose one closed HTTP request. Required evidence, payment, supported-method, byte, identity, economic and enabled-codec checks still apply on the server. The advertised MCP schema is separate."

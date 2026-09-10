@@ -136,6 +136,8 @@ def parse_request(body, *, enabled=False):
                     continue
             check(admitted)
     else:
+        if enabled:
+            check("lab_test" in body)
         check(requested in PROFILES)
         check(batch_codec.PROFILE_CODEC[requested] == codec)
         if inferred is not None:

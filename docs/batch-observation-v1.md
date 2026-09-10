@@ -8,7 +8,7 @@ The feature defaults off. Operators enable codecs through the comma-separated `B
 
 No discovery or arbitrary request body is supported. A buyer request contains `url`, `buyer_limits`, and `require_route_binding: true`. The URL is the exact HTTPS GET URL including its original query order and encoding. Buyers do not pass `merchant_profile`. The server auto-selects a codec from the live seller challenge. Unknown or ambiguous wires fail closed. Refuse-on-drift is unchanged: detected codec, buyer caps, and optional lab-only profile must agree.
 
-Only the existing controlled-lab `lab_test` marker, with optional lab-only `merchant_profile`, is additionally accepted for backward-compatible fixture and lab verification. Unknown keys, repeated JSON keys, unsupported policies, redirects, ambiguous challenge headers, and truncated raw responses fail closed.
+Architecture: [lab profiles vs customer auto-detect](check-group-offer-architecture.md). Live admission accepts `merchant_profile` only with `lab_test`. Offline fixture verify may still carry a historical profile. Unknown keys, repeated JSON keys, unsupported policies, redirects, ambiguous challenge headers, and truncated raw responses fail closed.
 
 ## Buyer caps
 

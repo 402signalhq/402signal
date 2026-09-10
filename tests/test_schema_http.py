@@ -20,6 +20,7 @@ class HttpSchemaTests(unittest.TestCase):
         self.assertNotIn('merchant_profile', schema['properties'])
         self.assertEqual(schema['oneOf'][2]['title'], 'Check group offer')
         self.assertNotIn('merchant_profile', schema['oneOf'][2]['properties'])
+        self.assertIn('anyOf', schema['oneOf'][2]['properties']['buyer_limits'])
         self.assertEqual(schema['anyOf'], list(schema_fields.NEED_OR_URL_ANYOF))
 
     def test_mcp_keeps_the_existing_advertised_input(self):
