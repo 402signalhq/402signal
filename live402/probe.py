@@ -2415,20 +2415,8 @@ def _attach_route_funnel(
 
 
 def _selection_set(probed: list, constraints: dict | None = None) -> list:
-    """Live hits. First unexpected payTo change is not selectable.
-
-    A later second observation of the same dest clears payTo_pending
-    (established). accept_payTo_change opts into first-change selection.
-    Catalog claimed vs observed (payTo_changed) stays in the set.
-    All-pending windows return empty unless that opt-in is set.
-    """
-    live_hits = [r for r in probed if isinstance(r, dict) and r.get("live")]
-    cons = constraints if isinstance(constraints, dict) else {}
-    if not cons.get("accept_payTo_change"):
-        live_hits = [r for r in live_hits if not r.get("payTo_pending")]
-    if any(not r.get("payTo_changed") for r in live_hits):
-        return [r for r in live_hits if not r.get("payTo_changed")]
-    return live_hits
+    """Live hits that may enter pick_winner. Same gates as select.selection_set."""
+    return select.selection_set(probed, constraints)
 
 
 # History may reorder only among close need scores. Wider than one token
