@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,13 +51,14 @@ test("unpublished capabilities row is not an install URL", () => {
   const dir = mkdtempSync(join(tmpdir(), "route-guard-install-pending-"));
   try {
     const pending = JSON.parse(readFileSync(capabilitiesPath, "utf8"));
-    pending.packages[0] = {
-      ...pending.packages[0],
+    const publishedIdx = pending.packages.findIndex((row) => row.tag === "route-guard-v0.7.2");
+    pending.packages[publishedIdx] = {
+      ...pending.packages[publishedIdx],
       state: "pending",
       digest_status: "provisional-until-release",
     };
-    delete pending.packages[0].archive;
-    delete pending.packages[0].sha256;
+    delete pending.packages[publishedIdx].archive;
+    delete pending.packages[publishedIdx].sha256;
     const capabilities = join(dir, "capabilities.json");
     writeFileSync(capabilities, JSON.stringify(pending));
     writeFileSync(join(dir, "402signal-route-guard-0.7.2.tgz"), "x");
@@ -84,9 +85,13 @@ test("reviewed local archive verifies and installs into a fresh buyer directory"
     t.skip("PACK_DIR not set");
     return;
   }
+  const tgz = join(packDir, "402signal-route-guard-0.7.2.tgz");
+  if (!existsSync(tgz)) {
+    t.skip("PACK_DIR is the pending 0.7.3 candidate, not the published 0.7.2 installer pin");
+    return;
+  }
   const dest = mkdtempSync(join(tmpdir(), "route-guard-install-ok-"));
   try {
-    const tgz = join(packDir, "402signal-route-guard-0.7.2.tgz");
     const sums = join(packDir, "SHA256SUMS");
     const verify = runInstaller([
       "--verify-only",

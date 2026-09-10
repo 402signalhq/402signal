@@ -56,7 +56,7 @@ class DeveloperRecipes(unittest.TestCase):
     def test_public_release_record_and_current_discovery(self):
         from live402.discover import LLMS_TXT
         status, _, text = self.request('/capabilities.json'); self.assertEqual(status, 200)
-        record = json.loads(text); self.assertEqual(len(record['packages']), 6)
+        record = json.loads(text); self.assertEqual(len(record['packages']), 7)
         for package in record['packages']:
             self.assertRegex(package['source_revision'], r'^[0-9a-f]{40}$')
             if package.get('state') == 'pending':
