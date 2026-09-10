@@ -281,6 +281,7 @@ const PAYMENT_REQUIRED_KEYS = [
   "extensions",
 ];
 const CHALLENGE_WRAPPERS = ["payment_required", "paymentRequired", "x402"];
+const WRAPPER_ONLY_KEYS = new Set(["catalog", "paymentRequirements"]);
 const KNOWN_EXTENSIONS = new Set([
   "bazaar",
   "builder-code",
@@ -316,8 +317,8 @@ function projectPaymentRequired(val) {
   )
     fail("ambiguous_challenge");
   const out = {};
-  for (const key of PAYMENT_REQUIRED_KEYS) {
-    if (key in val) out[key] = val[key];
+  for (const key of Object.keys(val)) {
+    if (!WRAPPER_ONLY_KEYS.has(key)) out[key] = val[key];
   }
   return out;
 }

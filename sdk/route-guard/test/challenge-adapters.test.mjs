@@ -95,3 +95,11 @@ test("unknown extensions still fail closed", () => {
   o.challenge.bodyText = JSON.stringify(env);
   reject(o, "unsupported_extension");
 });
+
+test("unknown top-level inputSchema still fails closed", () => {
+  const o = options();
+  const env = structuredClone(f.challenge);
+  env.inputSchema = {type: "object"};
+  o.challenge.bodyText = JSON.stringify(env);
+  reject(o, "unsupported_challenge");
+});

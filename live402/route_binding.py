@@ -128,6 +128,7 @@ def request_context(url: str, method: str, body: bytes = b"") -> dict:
 
 _PAYMENT_REQUIRED_KEYS = ("x402Version", "accepts", "resource", "error", "extensions")
 _CHALLENGE_WRAPPERS = ("payment_required", "paymentRequired", "x402")
+_WRAPPER_ONLY_KEYS = frozenset({"catalog", "paymentRequirements"})
 _KNOWN_EXTENSIONS = frozenset({"bazaar", "builder-code", "payment-identifier"})
 _RESOURCE_KEYS = frozenset(
     {"url", "description", "mimeType", "serviceName", "tags", "iconUrl"}
@@ -149,13 +150,13 @@ ICON_URL_MAX = 2048
 
 
 def _project_payment_required(val):
-    """PaymentRequired view. Wrapper keys are not hashed; payment aliases must agree."""
+    """Drop known HTTP wrappers only. Unknown extras stay and fail closed."""
     if type(val) is not dict or ("accepts" not in val and "x402Version" not in val):
         return None
     alias = val.get("paymentRequirements")
     if alias is not None and canonical(alias) != canonical(val.get("accepts")):
         _fail("ambiguous_challenge")
-    return {key: val[key] for key in _PAYMENT_REQUIRED_KEYS if key in val}
+    return {key: val[key] for key in val if key not in _WRAPPER_ONLY_KEYS}
 
 
 def _body_challenge(val):

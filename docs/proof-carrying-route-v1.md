@@ -53,10 +53,11 @@ actual payment effects before signing.
 
 Observation unwraps a seller HTTP wrapper only when the extracted PaymentRequired
 object is unambiguous. Nested `payment_required` / `paymentRequired` / `x402`
-bodies, and extra non-challenge keys such as catalog metadata, are projected
-away before comparison. A `paymentRequirements` alias must equal `accepts`.
-Header and body still have to agree on the extracted challenge. Accept fields
-and `resource.url` are never rewritten to invent a match.
+bodies, plus known wrapper-only keys (`catalog`, and a `paymentRequirements`
+alias that equals `accepts`), are projected away before comparison. Unknown
+top-level extras such as `inputSchema` remain and fail closed. Header and body
+still have to agree on the extracted challenge. Accept fields and `resource.url`
+are never rewritten to invent a match.
 
 For a queryful GET with an empty body, `resource.url` may describe the endpoint:
 it must equal either the complete actual URL or its exact byte prefix before the

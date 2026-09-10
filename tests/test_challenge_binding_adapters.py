@@ -212,6 +212,13 @@ class ChallengeBindingAdapterTests(unittest.TestCase):
             rb.observed_challenge(402, {}, json.dumps(env).encode())
         self.assertEqual(str(exc.exception), "unsupported_extension")
 
+    def test_unknown_top_level_input_schema_still_fails(self):
+        env = _stock_envelope()
+        env["inputSchema"] = {"type": "object"}
+        with self.assertRaises(rb.BindingError) as exc:
+            rb.observed_challenge(402, {}, json.dumps(env).encode())
+        self.assertEqual(str(exc.exception), "unsupported_challenge")
+
     def test_icon_url_is_hashed_not_rewritten(self):
         env = _stock_envelope()
         left = rb.digest(env)
