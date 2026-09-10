@@ -358,6 +358,20 @@ class ConstraintTests(unittest.TestCase):
         claimed_mismatch = _hit(url="https://claim.example/x", payTo_changed=True)
         self.assertIs(select.pick_winner([claimed_mismatch], "best", None), claimed_mismatch)
 
+    def test_binding_ineligible_is_not_selectable(self):
+        failed = _hit(url="https://fail.example/x", amount=1000)
+        failed["binding_ineligible"] = True
+        ok = _hit(url="https://ok.example/x", amount=5000)
+        self.assertIsNone(select.pick_winner([failed], "cheapest", None))
+        self.assertIs(select.pick_winner([failed, ok], "cheapest", None), ok)
+        self.assertEqual(select.selection_set([failed, ok]), [ok])
+        rows = {row["url"]: row for row in select.comparison([failed, ok], ok, "cheapest")}
+        self.assertFalse(rows[failed["url"]]["selectable"])
+        self.assertEqual(rows[failed["url"]]["excluded_reason"], "binding_unavailable")
+        self.assertTrue(rows[ok["url"]]["selected"])
+        self.assertTrue(rows[ok["url"]]["selectable"])
+        self.assertIsNone(rows[ok["url"]]["excluded_reason"])
+
     def test_all_changed_window_empty_unless_opt_in(self):
         a = _hit(url="https://a.example/x", payTo_pending=True)
         b = _hit(url="https://b.example/x", payTo_pending=True)

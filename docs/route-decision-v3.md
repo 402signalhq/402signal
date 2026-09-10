@@ -64,8 +64,11 @@ rows (`url`, `rail`, `live`, `invocable`, `selected`, `selectable`,
 `payTo_pending`, `payTo_changed`, `risk`, `excluded_reason`,
 `amount_atomic`, `latency_ms`, and selected_payment identity). Missing
 `payTo_pending` / `payTo_changed` default false; missing `risk` defaults
-to `[]`; missing `selectable` / `excluded_reason` are null. The digest is
-private evidence. The public leaf does not list candidates.
+to `[]`; missing `selectable` / `excluded_reason` are null. Binding
+fall-through may change which row is `selected` and may set
+`excluded_reason: binding_unavailable` on skipped losers; that still
+enters only this private digest. The public leaf does not receive
+`compared[]` or list candidates.
 
 ## Commitment
 

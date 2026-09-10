@@ -11,7 +11,9 @@ private persistence modules described below. The root verifier stays offline.
 Release tarballs can be installed with npm; the package is not yet published to
 the npm registry. Do not assume a registry package with this name is this code.
 Request the server's opt-in v4 contract with `require_route_binding: true`;
-existing v3 receipts fail closed in this guard. See the
+existing v3 receipts fail closed in this guard. The hosted check may fall
+through to the next already-probed selectable bindable winner; this guard
+still refuses unguarded payment when local verification fails. See the
 [developer walkthrough](https://402signal.com/developers#route-binding).
 
 ## Offline example
@@ -97,9 +99,25 @@ this guard. This proves matched observed terms, not delivery, identity, output
 quality or safety of a compromised buyer runtime.
 
 Routing remains **$0.003 USDC only when a valid live route is found**. Normal typed
-misses are not settled. Seller payment is separate. A settled routing request
-whose required receipt later fails is still billed: inspect `billing`, preserve
-that outcome and do not retry payment to repair it.
+misses are not settled. Seller payment is separate. When `require_route_binding`
+is true, the hosted `/route` check may fall through among already-probed
+selectable candidates that can still bind; it does not settle an unguarded
+winner. HTTP 503 `binding_error: route_binding_unavailable` means none remained
+bindable. A local guard refusal is still a stop: do not pay the seller without a
+matching proof. A settled routing request whose required receipt later fails is
+still billed: inspect `billing`, preserve that outcome and do not retry payment
+to repair it.
+
+The JSON body may include slim `compared[]` rows (cap 5). Additive fields used
+for selectability are `selectable`, `payTo_pending`, `payTo_changed`, `risk`,
+and `excluded_reason`. `excluded_reason` is null on the winner and otherwise
+one of `payTo_pending`, `payTo_changed`, `constraints_unmet`,
+`incomplete_payment`, `not_cheapest_comparable`, `ranked_below_winner`, or
+`binding_unavailable` (an already-probed row that could not build valid
+binding or evidence and was skipped). These rows are operator-visible; the
+public transparency leaf does not receive the full array. The TypeScript
+`ComparedRow` type documents this shape additively and is not required by the
+verifier API.
 
 ## Tests
 

@@ -293,7 +293,7 @@ class HomepageProductTests(unittest.TestCase):
         self.assertNotIn(".blur()", self.js)
 
     def test_runtime_installation_and_guard_responsibilities(self):
-        self.assertWords(self.devs, ("Node.js 22 or newer", "Node 24", "POSIX", "not an npm registry release", "sha256sum --check SHA256SUMS", "PUBLIC TEST KEY", "independent trusted configuration", "default observation window is 60 seconds", "transaction effects", "prevent", "scaffolding, not complete wallet code"))
+        self.assertWords(self.devs, ("Node.js 22 or newer", "Node 24", "POSIX", "not an npm registry release", "sha256sum --check SHA256SUMS", "PUBLIC TEST KEY", "independent trusted configuration", "default observation window is 60 seconds", "transaction effects", "prevent", "scaffolding, not complete wallet code", "next already-probed selectable", "local guard refusal", "excluded_reason: binding_unavailable"))
         self.assertIn("withVerifiedRoute", self.devs)
         self.assertIn("verifyReceipt", self.devs)
 

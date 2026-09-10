@@ -2570,6 +2570,10 @@ def _attach_selection(body: dict, probed: list, winner, objective: str, constrai
                 pass
     body["compared"] = select.comparison(probed, winner if selected else None, objective, constraints)
     body["tried"] = sum(r.get("miss_reason") != "probe_capacity" for r in probed)
+    # Private already-probed pool for pre-settle binding fall-through.
+    # The response body must not be an element of this list (JSON cycle).
+    if isinstance(probed, list) and probed and body not in probed:
+        body["_probed"] = list(probed)
     return body
 
 
@@ -3050,7 +3054,7 @@ def route_need(
     }
     if winner:
         body = _attach_route_funnel(
-            _attach_selection(winner, probed, winner, obj, cons),
+            _attach_selection(dict(winner), probed, winner, obj, cons),
             **funnel,
         )
         metas = _commit_route_batch(batch_id, probed)

@@ -419,13 +419,16 @@ def v3_unbound_fields() -> tuple[str, ...]:
 ROUTE_BINDING_DESC = (
     "Opt in to proof_carrying_route_v1 and a signed v4 receipt. Requires exact "
     "x402 v2 terms observed on the same HTTPS URL, method and probe body, without "
-    "redirects or unresolved policy. Unprovable binding is a free typed miss. "
-    "Implies require_transparency; a receipt failure after settlement still reports "
-    "settled=true. Buyer must verify with a pinned log key and recheck the actual "
-    "seller challenge immediately before signing. Preserve raw response JSON. "
-    "The default 60-second freshness window starts at observation, not receipt "
-    "issuance. Expiry or a changed seller challenge does not undo a settled routing "
-    "fee. Default false; existing requests keep the v3 receipt path. This is not a "
+    "redirects or unresolved policy. If the ranked winner cannot bind, the router "
+    "may fall through to the next already-probed selectable candidate that can; "
+    "there is no unguarded settle. HTTP 503 route_binding_unavailable only when "
+    "none remain bindable (a free typed miss). Implies require_transparency; a "
+    "receipt failure after settlement still reports settled=true. Buyer must "
+    "verify with a pinned log key and recheck the actual seller challenge "
+    "immediately before signing. Preserve raw response JSON. The default "
+    "60-second freshness window starts at observation, not receipt issuance. "
+    "Expiry or a changed seller challenge does not undo a settled routing fee. "
+    "Default false; existing requests keep the v3 receipt path. This is not a "
     "payment authorization. Guide: https://402signal.com/developers#route-binding"
 )
 

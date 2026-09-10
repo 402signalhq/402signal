@@ -1993,6 +1993,7 @@ class ProductBriefTests(unittest.TestCase):
                 "incomplete_payment",
                 "not_cheapest_comparable",
                 "ranked_below_winner",
+                "binding_unavailable",
             },
         )
         self.assertNotIn("reliability", compared_props)

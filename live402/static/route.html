@@ -45,7 +45,7 @@
         <div class="hero-actions"><a class="btn" href="/developers#quickstart">Developer docs</a><a class="btn secondary" href="/catalog">Try a free preview</a></div>
       </section>
       <section class="block"><h2>Make the result useful before signing</h2>
-        <p>Add <code>"require_route_binding": true</code> for signed evidence of a supported seller request and observed payment offer. Integrate the buyer guard to compare the current offer before your own payment code signs.</p>
+        <p>Add <code>"require_route_binding": true</code> for signed evidence of a supported seller request and observed payment offer. The hosted check may then select the next already-probed selectable candidate that can bind. Integrate the buyer guard to compare the current offer before your own payment code signs; a local guard refusal must not become an unguarded payment.</p>
         <p>Changed terms or expired evidence stop that handoff. They do not undo an already-settled routing fee or guarantee the seller's output.</p>
         <p><a href="/developers#route-binding">Supported request shapes and buyer verification</a></p>
       </section>

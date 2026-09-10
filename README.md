@@ -31,7 +31,7 @@ The [seller guide](docs/customer/sellers.md) explains how to compare seller clai
 
 ## Check an offer before signing
 
-Send a capability or exact API URL with your buyer's constraints. The hosted API observes the supported current offer and returns a qualifying route or an explicit reason to stop. Request `require_route_binding=true` and integrate the local guard for buyer-side comparison before signing.
+Send a capability or exact API URL with your buyer's constraints. The hosted API observes the supported current offer and returns a qualifying route or an explicit reason to stop. Request `require_route_binding=true` and integrate the local guard for buyer-side comparison before signing. When that flag is on, the hosted check may fall through to the next already-probed selectable candidate that can bind; a local guard refusal is still a stop.
 
 ```sh
 curl -sS -D - https://402signal.com/route \
