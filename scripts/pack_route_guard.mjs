@@ -99,6 +99,8 @@ console.log(
       filename,
       tarball,
       version: metadata.version,
+      npm: execFileSync("npm", ["--version"], { encoding: "utf8" }).trim(),
+      packCommand: "npm pack ./sdk/route-guard --ignore-scripts",
       packSha256,
       sumsSha256,
       gzipMtime: 0,
