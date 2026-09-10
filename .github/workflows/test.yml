@@ -83,7 +83,8 @@ jobs:
           node scripts/check_route_guard_archive.mjs "$pack_dir/402signal-route-guard-0.7.2.tgz" \
             --checksum-file "$pack_dir/SHA256SUMS" \
             --historical-verifier https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.1/402signal-route-guard-0.7.1.tgz
-          PACK_DIR="$pack_dir" node --test scripts/check_route_guard_archive.test.mjs
+          PACK_DIR="$pack_dir" node --test scripts/check_route_guard_archive.test.mjs \
+            scripts/install_route_guard.test.mjs scripts/exact_authorize.test.mjs
       - name: Check Dockerfile.fly native Algorand layout (no registry or Fly)
         run: node scripts/check_lab_mpp_algorand_image_layout.mjs
       - name: Qualify lab start-seller contract (offline, no image)
