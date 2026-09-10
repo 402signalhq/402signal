@@ -11,7 +11,7 @@ Start free with the [offline buyer checks](../integration/buyer-checks/README.md
 ## Integrate a buyer
 
 - [Exact x402 request binding and the v4 guard contract](proof-carrying-route-v1.md)
-- [v5 batch and session observation contracts](batch-observation-v1.md)
+- [Check group offer (v5 observation, codec auto-detect)](batch-observation-v1.md)
 - [Explicit continuation budgets and recovery for Base and Solana](../integration/session-client/README.md)
 - [Larger Algorand groups and aggregate invoices](algorand-manifests-v2.md)
 - [HTTP recovery-only request contract](route-recovery.md)

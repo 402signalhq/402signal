@@ -178,6 +178,52 @@ class BatchTests(unittest.TestCase):
             with self.assertRaises(http_body.BodyReadError):
                 http_body.loads_json_object(raw)
 
+    def test_buyer_omits_merchant_profile_and_response_names_job_codec(self):
+        v = vector(0)
+        req = {
+            "url": v["request"]["url"],
+            "buyer_limits": v["request"]["buyer_limits"],
+            "require_route_binding": True,
+        }
+        with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": "exact"}):
+            bb.parse_request(req, enabled=True)
+        with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": "sess"}):
+            with self.assertRaises(ValueError):
+                bb.parse_request(req, enabled=True)
+
+        def network(url, method, **kw):
+            self.assertIs(kw["capture_batch"], True)
+            return {"status": 402, "_batch_observation": v["observation"]}
+
+        with patch(
+            "live402.facilitator.verify", return_value=_verified()
+        ), patch(
+            "live402.facilitator.settle", return_value=_settled()
+        ), patch(
+            "live402.probe._pin_https_target",
+            return_value=(req["url"], [("synthetic",)]),
+        ), patch(
+            "live402.probe._one_request", side_effect=network
+        ), patch(
+            "live402.admission.reserve_probe", return_value=None
+        ), patch(
+            "live402.history.mark_batch_settled"
+        ), patch(
+            "live402.history.record_probe"
+        ):
+            out = route.handle_route(req, _headers(_payload()), RESOURCE)
+        self.assertEqual(out[0], 200, out)
+        self.assertEqual(out[1]["job"], "chk_grp")
+        self.assertEqual(out[1]["codec"], "exact")
+        self.assertEqual(out[1]["label"], "Check group offer")
+        self.assertNotIn("merchant_profile", out[1])
+        self.assertEqual(out[1]["compared"][0]["job"], "chk_grp")
+        self.assertEqual(out[1]["compared"][0]["codec"], "exact")
+        public = json.loads(
+            store.leaf_at(out[1]["pq_trust"]["transparency"]["index"])["body"]
+        )
+        self.assertEqual(set(public), {"type", "ts", "nonce", "commitment"})
+
     def test_feature_default_off_and_incompatible_discovery_or_post(self):
         v = vector(0)
         with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": ""}):

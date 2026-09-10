@@ -1,10 +1,11 @@
 """Public HTTP request descriptions; never runtime payment acceptance.
 
-Keep ordinary routing, the fixed-endpoint POST profile and public batch profiles
-closed and disjoint. The MCP advertisement deliberately retains its existing
-input contract. Schema validation is not transaction or economic authorization:
-raw JSON ambiguity, UTF-8 byte limits, address checksums, cross-field amounts,
-current offers and runtime profile enablement still have authoritative parsers.
+Keep ordinary routing, the fixed-endpoint POST profile and Check group offer
+closed and disjoint. Buyers send caps, not a merchant_profile enum. The MCP
+advertisement deliberately retains its existing input contract. Schema validation
+is not transaction or economic authorization: raw JSON ambiguity, UTF-8 byte
+limits, address checksums, cross-field amounts, current offers and runtime codec
+enablement still have authoritative parsers.
 """
 from __future__ import annotations
 from copy import deepcopy
@@ -130,26 +131,25 @@ def extend_http_route_schema(ordinary: dict) -> dict:
     })
     search["properties"]["probe_request"] = post
     limits = batch_limit_schemas()
-    variants = [exact, search]
     endpoint = {"type": "string", "format": "uri", "minLength": 9, "maxLength": 4096,
                 "pattern": r"^https://[^\s/?@#\\]+(?:/[^\s?#\\]*)?(?:\?[^\s#\\]*)?$",
                 "description": "Exact HTTPS GET URL. Preserve query ordering and encoding. Runtime SSRF and request-context checks remain authoritative."}
-    for profile, limit_schema in limits.items():
-        branch = _closed({
-            "url": deepcopy(endpoint),
-            "merchant_profile": {"type": "string", "const": profile},
-            "buyer_limits": deepcopy(limit_schema),
-            "require_route_binding": {"type": "boolean", "const": True},
-        })
-        branch["title"] = profile
-        branch["description"] = "HTTP-only observation, not funding or execution. Requires explicit runtime enablement. Internal owner-lab markers are outside this public client schema."
-        variants.append(branch)
+    check_group = _closed({
+        "url": deepcopy(endpoint),
+        "buyer_limits": {"oneOf": [deepcopy(v) for v in limits.values()]},
+        "require_route_binding": {"type": "boolean", "const": True},
+    })
+    check_group["title"] = "Check group offer"
+    check_group["description"] = (
+        "HTTP-only Check group offer (job chk_grp). Send url, buyer_limits caps and "
+        "require_route_binding. The server auto-selects a codec from the live seller "
+        "challenge. Buyers do not pass merchant_profile. Unknown or ambiguous wires "
+        "fail closed. Requires explicit runtime codec enablement."
+    )
     result["properties"].update({
         "probe_request": deepcopy(post),
-        "merchant_profile": {"type": "string", "enum": list(limits)},
-        # Limits may overlap; the outer oneOf binds each to its profile.
-        "buyer_limits": {"anyOf": [deepcopy(v) for v in limits.values()]},
+        "buyer_limits": {"oneOf": [deepcopy(v) for v in limits.values()]},
     })
-    result["oneOf"] = variants
-    result["description"] = "Choose one closed HTTP request profile. Required evidence, payment, supported-method, byte, identity, economic and enabled-profile checks still apply on the server. The advertised MCP schema is separate."
+    result["oneOf"] = [exact, search, check_group]
+    result["description"] = "Choose one closed HTTP request. Required evidence, payment, supported-method, byte, identity, economic and enabled-codec checks still apply on the server. The advertised MCP schema is separate."
     return result

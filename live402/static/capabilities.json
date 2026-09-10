@@ -1,6 +1,13 @@
 {
   "record_version": 1,
   "reviewed_at": "2026-09-09",
+  "check_group_offer": {
+    "job": "chk_grp",
+    "label": "Check group offer",
+    "codecs": ["exact", "sess", "mpp", "atom", "inv"],
+    "buyer_fields": ["url", "buyer_limits", "require_route_binding"],
+    "hosted_enablement_env": "BATCH_OBSERVATION_PROFILES"
+  },
   "source_baseline": "0b6ba91531526a9c5bb19ff7b2bf10733f29df5a",
   "packages": [
     {
@@ -105,6 +112,7 @@
       "offline_scope": "integration/session-client tests, distinct from exact-offer pack",
       "limits": "1..64 sequential calls, fixed buyer deadline up to 24 hours; no automatic top-up. Solana cap is not per-call price.",
       "hosted_enablement_source": "docs/batch-observation-v1.md",
+      "hosted_enablement_note": "Check group offer enablement uses BATCH_OBSERVATION_PROFILES codec tokens exact,sess,mpp,atom,inv. Buyers send caps, not a merchant_profile enum.",
       "live_qualification": "Documented controlled examples only; maximum call count and duration not certified"
     },
     {

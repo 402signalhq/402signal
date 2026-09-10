@@ -2,11 +2,10 @@
 
 import base64
 import datetime
-import os
 import re
 import time
 from urllib.parse import urlsplit
-from live402 import route_binding as rb
+from live402 import batch_codec, route_binding as rb
 from live402.batch_profiles import (
     base, solana, algorand, algorand_generic, algorand_manifest,
     base_charge, native_charge, algorand_charge,
@@ -35,38 +34,13 @@ def requested(body):
     return type(body) is dict and ("merchant_profile" in body or "buyer_limits" in body)
 
 
-def parse_request(body, *, enabled=False):
-    rb.canonical(body)
-    check(
-        type(body) is dict
-        and set(body)
-        <= {
-            "url",
-            "merchant_profile",
-            "buyer_limits",
-            "require_route_binding",
-            "lab_test",
-        }
-    )
-    check(
-        set(body)
-        >= {"url", "merchant_profile", "buyer_limits", "require_route_binding"}
-        and body["require_route_binding"] is True
-        and body["merchant_profile"] in PROFILES
-        and type(body["buyer_limits"]) is dict
-    )
-    ctx = rb.request_context(body["url"], "GET")
-    profile = body["merchant_profile"]
-    limits = body["buyer_limits"]
+def _admit_named(profile, limits):
     if profile in algorand_manifest.PROFILES:
         algorand_manifest.validate_limits(profile, limits)
-        if enabled:
-            check(profile in os.environ.get("BATCH_OBSERVATION_PROFILES", "").split(","))
-        return ctx
+        return
     if profile == "algorand-mpp-charge-v1":
         algorand_charge.validate_limits(limits)
-        if enabled: check(profile in os.environ.get("BATCH_OBSERVATION_PROFILES", "").split(","))
-        return ctx
+        return
     module = {
         "base-mpp-charge-v1": base_charge,
         "base-x402-batch-v1": base,
@@ -124,12 +98,80 @@ def parse_request(body, *, enabled=False):
             )
             and base.uint(limits["max_sponsor_fee_micro_algo"]) >= 15000
         )
+
+
+def parse_request(body, *, enabled=False):
+    rb.canonical(body)
+    check(
+        type(body) is dict
+        and set(body)
+        <= {
+            "url",
+            "merchant_profile",
+            "buyer_limits",
+            "require_route_binding",
+            "lab_test",
+        }
+    )
+    check(
+        {"url", "buyer_limits", "require_route_binding"} <= set(body)
+        and body["require_route_binding"] is True
+        and type(body["buyer_limits"]) is dict
+    )
+    ctx = rb.request_context(body["url"], "GET")
+    limits = body["buyer_limits"]
+    codec, inferred = batch_codec.limits_match(limits)
+    requested = body.get("merchant_profile")
+    if requested is None:
+        if inferred is not None:
+            _admit_named(inferred, limits)
+        else:
+            admitted = False
+            for name in ("algorand-atomic-two-item-v1", algorand_manifest.ATOMIC):
+                try:
+                    _admit_named(name, limits)
+                    admitted = True
+                    break
+                except rb.BindingError:
+                    continue
+            check(admitted)
+    else:
+        check(requested in PROFILES)
+        check(batch_codec.PROFILE_CODEC[requested] == codec)
+        if inferred is not None:
+            check(inferred == requested)
+        _admit_named(requested, limits)
     if enabled:
-        check(
-            body["merchant_profile"]
-            in os.environ.get("BATCH_OBSERVATION_PROFILES", "").split(",")
-        )
+        check(batch_codec.codec_enabled(codec))
     return ctx
+
+
+def resolve_profile(body, challenge):
+    """Detect the internal wire profile. Buyer merchant_profile is optional."""
+    detected_codec, detected_profile = batch_codec.detect(challenge)
+    limits_codec, limits_profile = batch_codec.limits_match(body["buyer_limits"])
+    check(limits_codec == detected_codec)
+    if limits_profile is not None:
+        check(limits_profile == detected_profile)
+    requested = body.get("merchant_profile")
+    if requested is not None:
+        check(requested == detected_profile)
+        check(batch_codec.PROFILE_CODEC[requested] == detected_codec)
+    return detected_profile
+
+
+def _result_identity_ok(body, result):
+    codec, _inferred = batch_codec.limits_match(body["buyer_limits"])
+    if "merchant_profile" in body:
+        check(result.get("merchant_profile") == body["merchant_profile"])
+    if (
+        "merchant_profile" not in body
+        or result.get("job") is not None
+        or result.get("codec") is not None
+    ):
+        check(result.get("job") == batch_codec.JOB and result.get("codec") == codec)
+        if "label" in result:
+            check(result["label"] == batch_codec.LABEL)
 
 
 def wire(challenge, context, profile, *, expected_realm=None, validator=None):
@@ -209,9 +251,10 @@ def build(body, observation):
     )
     observed = observation["observed_at"]
     check(type(observed) is int and observed > 0)
-    env, native_expiry = wire(observation["challenge"], ctx, body["merchant_profile"], expected_realm=body["buyer_limits"].get("realm"), validator=lambda offer: PROFILES[body["merchant_profile"]](offer, ctx, body["buyer_limits"]))
-    terms = PROFILES[body["merchant_profile"]](env, ctx, body["buyer_limits"])
-    if body["merchant_profile"] in algorand_manifest.PROFILES:
+    profile = resolve_profile(body, observation["challenge"])
+    env, native_expiry = wire(observation["challenge"], ctx, profile, expected_realm=body["buyer_limits"].get("realm"), validator=lambda offer: PROFILES[profile](offer, ctx, body["buyer_limits"]))
+    terms = PROFILES[profile](env, ctx, body["buyer_limits"])
+    if profile in algorand_manifest.PROFILES:
         quote = terms["feeQuote"]
         check(quote["observedAt"] <= observed < quote["expiresAt"])
         native_expiry = quote["expiresAt"]
@@ -219,7 +262,7 @@ def build(body, observation):
     check(expires > observed)
     result = {
         "model": MODEL,
-        "profile": body["merchant_profile"],
+        "profile": profile,
         "request": ctx,
         "buyer_limits": body["buyer_limits"],
         "challenge": observation["challenge"],
@@ -274,9 +317,9 @@ def billable(body, code, result):
             and type(result.get("status")) is int
             and result.get("status") == 402
             and result.get("url") == body["url"]
-            and result.get("merchant_profile") == body["merchant_profile"]
             and result.get("selected_payment") is None
         )
+        _result_identity_ok(body, result)
         built = build(body, result["_batch_observation"])
         validate(built, body, now=int(time.time()))
         check(rb.canonical(result.get("batch_terms")) == rb.canonical(built["terms"]))
@@ -313,10 +356,10 @@ def verify_route(result, body, *, vkey, challenge, now=None):
             and type(result.get("status")) is int
             and result.get("status") == 402
             and result.get("url") == body["url"]
-            and result.get("merchant_profile") == body["merchant_profile"]
             and result.get("selected_payment") is None
             and rb.canonical(result.get("batch_terms")) == rb.canonical(value["terms"])
         )
+        _result_identity_ok(body, result)
         return value
     except (ValueError, KeyError, TypeError, OverflowError):
         raise rb.BindingError("invalid_batch_binding") from None
