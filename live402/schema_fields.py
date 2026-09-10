@@ -217,7 +217,9 @@ def route_constraint_properties() -> dict:
             "type": "boolean",
             "description": (
                 "If true, drop live hits without an input schema. "
-                "An explicit empty object schema means no input is required and counts as present. "
+                "An explicit empty-object schema (type object, no properties or required fields) "
+                "advertises no required inputs and counts as present. "
+                "It does not guarantee the seller call succeeds. "
                 "Absent or refused schema is not invocable."
             ),
         },

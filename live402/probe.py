@@ -419,24 +419,24 @@ _EMPTY_OBJECT_CONTRACT_KEYS = frozenset(
 
 
 def is_empty_object_input_contract(schema) -> bool:
-    """True when a JSON Schema object explicitly means no input is required.
+    """True when a JSON Schema object advertises no required inputs.
 
-    Covers ``{}``, ``{type:object}``, empty ``properties`` / ``required``, and
-    the same shapes with only non-field metadata. Absent, null, remote $ref,
-    combinators, and other input-bearing keywords fail closed.
+    Requires an explicit object type plus empty or omitted ``properties`` /
+    ``required``. Bare ``{}`` is ambiguous and fails closed. Absent, null,
+    remote $ref, combinators, and other input-bearing keywords fail closed.
+    This is not a guarantee the seller call succeeds.
     """
-    if not isinstance(schema, dict):
+    if not isinstance(schema, dict) or not schema:
         return False
     if any(key not in _EMPTY_OBJECT_CONTRACT_KEYS for key in schema):
         return False
     typ = schema.get("type")
-    if typ is not None:
-        if typ == "object":
-            pass
-        elif isinstance(typ, list) and typ and all(item == "object" for item in typ):
-            pass
-        else:
-            return False
+    if typ == "object":
+        pass
+    elif isinstance(typ, list) and typ and all(item == "object" for item in typ):
+        pass
+    else:
+        return False
     if "properties" in schema:
         props = schema.get("properties")
         if not isinstance(props, dict) or props:
@@ -453,12 +453,16 @@ def is_empty_object_input_contract(schema) -> bool:
         maximum = schema.get("maxProperties")
         if type(maximum) is not int or maximum < 0:
             return False
-    if "additionalProperties" in schema and not isinstance(
-        schema.get("additionalProperties"), (bool, dict)
+    if "additionalProperties" in schema and schema.get("additionalProperties") not in (
+        True,
+        False,
+        {},
     ):
         return False
-    if "unevaluatedProperties" in schema and not isinstance(
-        schema.get("unevaluatedProperties"), (bool, dict)
+    if "unevaluatedProperties" in schema and schema.get("unevaluatedProperties") not in (
+        True,
+        False,
+        {},
     ):
         return False
     if "default" in schema and schema.get("default") not in ({}, None):
@@ -682,9 +686,10 @@ def attach_invocable_target(result: dict, item: dict | None = None, envelope: di
 
     challenge_observed = HTTP 402 + parseable x402.
     payable = at least one complete CURRENT observed payment option.
-    invocable = payable + a usable input schema. An explicit empty object
-    contract means no input is required. Absent, null, or refused schema stays
-    non-invocable. Never invent a schema from catalog when the envelope has none.
+    invocable = payable + a usable input schema. An explicit empty-object
+    contract (type object, no listed inputs) advertises no required inputs.
+    Bare {}, absent, null, or refused schema stays non-invocable. Never invent
+    a schema from catalog when the envelope has none.
     Live/claimed schemas are forwarded only when bounded and free of remote $ref.
     Observed envelope bytes stay on result['envelope']; they are not rewritten.
     """

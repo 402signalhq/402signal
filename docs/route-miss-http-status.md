@@ -24,8 +24,10 @@ describes this request's evaluated candidate set, not every service on the inter
 `constraints_unmet` includes the named unmet bounds in `unresolved_constraints`.
 Missing input schema on an otherwise live payable route is `invocable:false`, not
 a top-level `miss_reason`; `no_input_schema` is used only when schema is required
-and unmet. An explicit empty object `inputSchema` means no input is required and
-is invocable when the route is payable.
+and unmet. An explicit empty-object `inputSchema` (type object, empty or omitted
+properties/required) advertises no required inputs and is invocable when the
+route is payable. That is not a guarantee the seller call succeeds. Bare `{}`
+and missing schema stay `invocable:false`.
 
 Clients must inspect both decision fields and billing. HTTP 200 alone grants no
 seller-payment authority. The route-guard SDK's `isUnsettledRouteMiss` recognizes
