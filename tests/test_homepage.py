@@ -170,7 +170,7 @@ class HomepageProductTests(unittest.TestCase):
 
     def test_scope_is_in_guide_not_release_history_on_home(self):
         self.assertNotIn("Controlled MainNet tests are complete", self.home)
-        self.assertWords(self.devs, ("native MPP", "1 to 64", "24 hours", "2 to 15", "2 to 64", "receiver/token", "not a per-call price", "per_call_amount_atomic", "null", "hosted enablement"))
+        self.assertWords(self.devs, ("native MPP", "1 to 64", "24 hours", "2 to 15", "2 to 64", "receiver/token", "not a per-call price", "per_call_amount_atomic", "null", "hosted enablement", "Check group offer"))
         self.assertIn("Do not replace a recipient pin", self.devs)
 
     def test_navigation_and_legacy_sections(self):

@@ -41,7 +41,8 @@ class GetResourceBindingTests(unittest.TestCase):
 
     def test_metadata_mutations_remain_in_whole_quote_hash(self):
         for change in ({"serviceName":"other"},{"tags":list(reversed(FIXTURE["challenge"]["resource"]["tags"]))},
-            {"tags":["other"]},{"url":URL},{"url":URL.split("?")[0]+"?query=other"}):
+            {"tags":["other"]},{"url":URL},{"url":URL.split("?")[0]+"?query=other"},
+            {"iconUrl":"https://example.com/icon"}):
             env=copy.deepcopy(FIXTURE["challenge"]);env["resource"].update(change)
             with self.subTest(change=change), self.assertRaises(rb.BindingError): self.verify(envelope=env)
 
@@ -49,11 +50,13 @@ class GetResourceBindingTests(unittest.TestCase):
         for change in ({"serviceName":None},{"serviceName":{}},{"serviceName":""},{"serviceName":"x"*33},
             {"serviceName":"x\n"},{"serviceName":"café"},{"tags":"x"},{"tags":[None]},
             {"tags":["x"]*17},{"tags":["x"*33]},{"tags":[""]},{"tags":["x\n"]},
-            {"tags":[{}]},{"iconUrl":"https://example.com/icon"}):
+            {"tags":[{}]},{"iconUrl":None},{"iconUrl":""},{"iconUrl":"http://example.com/icon"},
+            {"iconUrl":"https://u:p@example.com/icon"},{"iconUrl":"https://example.com/icon#x"},
+            {"iconUrl":"https://example.com/" + "a"*2048}):
             env=copy.deepcopy(FIXTURE["challenge"]);env["resource"].update(change)
             with self.subTest(change=change), self.assertRaises(rb.BindingError): rb.validate_envelope(env)
         env=copy.deepcopy(FIXTURE["challenge"])
-        env["resource"].update(serviceName="x"*32,tags=["x"*32]*16)
+        env["resource"].update(serviceName="x"*32,tags=["x"*32]*16,iconUrl="https://example.com/icon")
         rb.validate_envelope(env)
 
     def test_producer_rejects_conflicting_resource_before_issuance(self):
@@ -64,9 +67,12 @@ class GetResourceBindingTests(unittest.TestCase):
             with self.assertRaises(rb.BindingError): rb.build(result,FIXTURE["request"],now=1001)
 
     def test_no_extension_float_or_conflicting_channel_expansion(self):
-        for change in ({"extensions":{"payment-identifier":{}}},{"extra":1},{"error":1.5}):
+        for change in ({"extensions":{"new-spending-mode":{}}},{"extra":1},{"error":1.5}):
             env={**FIXTURE["challenge"],**change}
             with self.assertRaises(rb.BindingError): rb.validate_envelope(env)
+        env=copy.deepcopy(FIXTURE["challenge"])
+        env["extensions"]={"bazaar":{},"builder-code":{"info":{"a":"app_one"}},"payment-identifier":{"info":{"required":False}}}
+        rb.validate_envelope(env)
         import base64
         head=base64.b64encode(json.dumps(FIXTURE["challenge"]).encode()).decode()
         bad=copy.deepcopy(FIXTURE["challenge"]);bad["resource"]["tags"].reverse()

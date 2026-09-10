@@ -11,6 +11,7 @@ GUIDES = {
     'check-offer': ('route-binding', 'Add an offer check before payment', 'Combine a hosted observation with local verification. The hosted check may use the next bindable door; refuse unguarded payment if the local guard fails.'),
     'native-mpp': ('native-mpp', 'Select the intended MPP charge', 'Preserve complete offers and require one explicit supported match before authorization.'),
     'sessions-and-invoices': ('batch-support', 'Check a session or invoice commitment', 'Separate seller call prices, cumulative spend, deposited capital and native fees.'),
+    'check-group-offer': ('check-group-offer', 'Check a group offer', 'Validate a grouped seller challenge from the live wire. Send caps, not a merchant profile.'),
     'check-api-listing': ('sellers', 'Check your API listing', 'Use free discovery and listed-endpoint readiness without initiating a seller payment.'),
     'recover-routing-attempt': ('recovery', 'Recover a lost 402Signal response', 'Recover the original routing attempt and inspect its checking-fee outcome without signing again.'),
     'reconcile-seller-payment': ('seller-recovery', 'Reconcile a seller payment after a timeout', 'Inspect the original payment without resubmitting or claiming that a missing response was recovered.'),
@@ -32,7 +33,8 @@ def panel(slug):
     for other, (anchor, _, _) in GUIDES.items():
         content = content.replace('href="#' + anchor + '"', 'href="/developers/' + other + '"')
         content = content.replace('https://402signal.com/developers#' + anchor, 'https://402signal.com/developers/' + other)
-    return content
+    from live402 import capabilities
+    return capabilities.apply_developers_copy(content)
 
 def render(slug):
     source = (STATIC / 'developers.html').read_text(encoding='utf-8')

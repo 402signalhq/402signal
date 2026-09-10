@@ -404,7 +404,9 @@ def attach_to_route(result: dict, request_body: dict | None = None) -> dict:
         return _unavailable(result, origin)
     try:
         req = request_body if isinstance(request_body, dict) else {}
-        if "merchant_profile" in req:
+        from live402 import batch_binding
+
+        if batch_binding.requested(req):
             from live402.pq import route_v5
             evidence = route_v5.evidence_from_route(result, req)
             ev, reveal = route_v5.event(evidence)

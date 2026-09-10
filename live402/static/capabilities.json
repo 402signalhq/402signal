@@ -1,8 +1,26 @@
 {
   "record_version": 1,
-  "reviewed_at": "2026-09-09",
-  "source_baseline": "0b6ba91531526a9c5bb19ff7b2bf10733f29df5a",
+  "reviewed_at": "2026-09-10",
+  "check_group_offer": {
+    "job": "chk_grp",
+    "label": "Check group offer",
+    "buyer_fields": ["url", "buyer_limits", "require_route_binding"],
+    "hosted_enablement_env": "BATCH_OBSERVATION_PROFILES",
+    "verifier_package": "route-guard-v0.7.2",
+    "historical_verifier": "route-guard-v0.7.1"
+  },
+  "source_baseline": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
   "packages": [
+    {
+      "tag": "route-guard-v0.7.2",
+      "source_revision": "776b31a9cce8052e2c42961ef7e20d265207e499",
+      "distribution": "GitHub release archive; not npm registry",
+      "state": "pending",
+      "digest_status": "provisional-until-release",
+      "provisional_pack_sha256": "f09b4e038b6bde9670afe725af4170b4f52c7323ca775bcb1b2fcbc8ab200497",
+      "provisional_sums_sha256": "be043932144d010a8c9d0e0542f8d6b396f72c27d94bc5cac05aa2befa9fefe8",
+      "recipe": "/developers/check-group-offer"
+    },
     {
       "tag": "route-guard-v0.7.1",
       "published_at": "2026-09-09T21:06:46Z",
@@ -80,7 +98,7 @@
         "Algorand"
       ],
       "mechanism": "supported exact offers",
-      "package": "route-guard-v0.7.1",
+      "package": "route-guard-v0.7.2",
       "runtime": "Node >=22; FileAttemptStore requires private POSIX storage",
       "request": "GET; bounded POST only where explicitly supported by its separate request profile",
       "offline_scope": "5 Base exact customer-adapter cases; 2 reference historical-verifier cases, not a production signing test",
@@ -105,6 +123,7 @@
       "offline_scope": "integration/session-client tests, distinct from exact-offer pack",
       "limits": "1..64 sequential calls, fixed buyer deadline up to 24 hours; no automatic top-up. Solana cap is not per-call price.",
       "hosted_enablement_source": "docs/batch-observation-v1.md",
+      "hosted_enablement_note": "Check group offer hosted enablement is the runtime BATCH_OBSERVATION_PROFILES allowlist. See check_group_offer.codecs for currently enabled tokens. Buyers send caps, not a merchant_profile enum.",
       "live_qualification": "Documented controlled examples only; maximum call count and duration not certified"
     },
     {

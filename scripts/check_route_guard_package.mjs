@@ -93,8 +93,21 @@ void rawChallenge; void challenge; void outcome; void verifyReceipt; void withVe
   const exampleEvidence = JSON.parse(run(process.execPath, [join(root, 'scripts/check_search_example.mjs'),
     join(consumer, 'build/search.js'), installed], consumer));
   assert.equal(exampleEvidence.result, 'PASS');
+  const tarballSha256 = createHash('sha256').update(await fs.readFile(tarball)).digest('hex');
+  const capabilities = await readJson(join(root, 'live402/static/capabilities.json'));
+  const pending = (capabilities.packages || []).find(
+    (entry) => entry.tag === `route-guard-v${metadata.version}`,
+  );
+  if (pending && pending.state === 'pending') {
+    assert.equal(pending.digest_status, 'provisional-until-release');
+    assert.equal(pending.sha256, undefined, 'pending package must not claim a published sha256');
+    assert.equal(pending.archive, undefined, 'pending package must not claim a published archive');
+    assert.equal(pending.checksum_file, undefined);
+    assert.equal(pending.published_at, undefined);
+    assert.equal(pending.provisional_pack_sha256, tarballSha256);
+  }
   console.log(JSON.stringify({result: 'PASS', package: metadata.name, version: metadata.version,
-    tarballSha256: createHash('sha256').update(await fs.readFile(tarball)).digest('hex'),
+    tarballSha256,
     typescript: typescript.version, nodeTypes: nodeTypes.version, node: process.versions.node,
     checks: ['fresh offline tarball install', 'all public runtime entrypoints',
       'strict NodeNext client and FileAttemptStore declarations', 'packaged search example',

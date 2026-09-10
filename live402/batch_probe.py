@@ -1,15 +1,16 @@
 """One admitted, DNS-pinned, redirect-free unpaid GET. No history write."""
 
 import time
-from live402 import admission, batch_binding as bb, probe
+from live402 import admission, batch_binding as bb, batch_codec, probe
 
 
 def run(body, deadline):
     ctx = bb.parse_request(body, enabled=True)
     url = ctx["url"]
+    codec, _inferred = batch_codec.limits_match(body["buyer_limits"])
     result = {
         "url": url,
-        "merchant_profile": body["merchant_profile"],
+        **batch_codec.identity(codec),
         "live": False,
         "payable": False,
         "invocable": False,
@@ -18,6 +19,8 @@ def run(body, deadline):
         "miss_reason": "no_402_envelope",
         "evaluation_complete": True,
     }
+    if "merchant_profile" in body:
+        result["merchant_profile"] = body["merchant_profile"]
     try:
         lease = admission.reserve_probe(url)
     except Exception:
@@ -59,6 +62,17 @@ def run(body, deadline):
             miss_reason=None,
             batch_terms=binding["terms"],
             _batch_observation=observation,
+            compared=[
+                {
+                    "url": url,
+                    **batch_codec.codes(codec),
+                    "live": True,
+                    "invocable": False,
+                    "selected": True,
+                    "selectable": True,
+                    "excluded_reason": None,
+                }
+            ],
         )
         return 200, result
     finally:

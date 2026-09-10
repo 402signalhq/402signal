@@ -100,19 +100,20 @@ class AlgorandManifestRouteTests(unittest.TestCase):
             v = vector(kind, 3, int(time.time()))
             result = self.result(v)
             with patch("live402.route.run_probe", return_value=(200,result)), patch("live402.facilitator.verify",return_value=_verified()) as verify, patch("live402.facilitator.settle",return_value=_settled()) as settle:
-                out = route.handle_route(v["request"],_headers(_payload()),RESOURCE)
+                req = old_batch.buyer(v["request"])
+                out = route.handle_route(req,_headers(_payload()),RESOURCE)
                 self.assertEqual(out[0],200,out)
                 self.assertEqual(out[1]["billing"]["amount_atomic"],"3000")
                 self.assertTrue(out[1]["billing"]["settled"])
                 self.assertEqual((verify.call_count,settle.call_count),(1,1))
                 replay.reset_memory()
-                self.assertEqual(route.handle_route(v["request"],_headers(_payload()),RESOURCE),out)
+                self.assertEqual(route.handle_route(req,_headers(_payload()),RESOURCE),out)
                 self.assertEqual((verify.call_count,settle.call_count),(1,1))
 
     def test_stale_quote_or_unknown_item_cap_never_settles(self):
         v=vector(profile.INVOICE,3,int(time.time())-46)
         with patch("live402.route.run_probe",return_value=(200,self.result(v))),patch("live402.facilitator.verify",return_value=_verified()),patch("live402.facilitator.settle")as settle:
-            out=route.handle_route(v["request"],_headers(_payload()),RESOURCE)
+            out=route.handle_route(old_batch.buyer(v["request"]),_headers(_payload()),RESOURCE)
             self.assertFalse(out[1]["billing"]["settled"])
             settle.assert_not_called()
 

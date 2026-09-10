@@ -4,14 +4,15 @@ Permanent task recipes: https://402signal.com/developers (each task has its own 
 
 Start with the [developer guide](https://402signal.com/developers) or [repository overview](../README.md). This index separates buyer contracts, operating procedures and historical release evidence. Source availability, a passing fixture and a deployed live qualification are different states.
 
-Current published client and guard: [route-guard v0.7.1](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.1). Separate published archives: [session-client v0.1.1](https://github.com/402signalhq/402signal/releases/tag/session-client-v0.1.1), [Algorand batch buyer v0.2.0](https://github.com/402signalhq/402signal/releases/tag/algorand-batch-buyer-v0.2.0), and [native Base MPP client v0.1.0](https://github.com/402signalhq/402signal/releases/tag/mpp-client-v0.1.0). The [dated lab results](../integration/lab/BATCH_QUALIFICATION.md) distinguish earlier two-call/two-item tests from three-call Solana continuation, three-payment Algorand groups, three-job invoices, a native Algorand lab charge and one external native Base MPP UUID purchase. A separate Base v2 continuation campaign also completed three accepted calls and independently finalized settlement and refund. Qualification covers these specific endpoints and explicit limits; it is not a high-count or universal merchant claim. Keep buyer wallets and private operator policy outside the public repository.
+Current published client and guard: [route-guard v0.7.2](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.2). Separate published archives: [session-client v0.1.1](https://github.com/402signalhq/402signal/releases/tag/session-client-v0.1.1), [Algorand batch buyer v0.2.0](https://github.com/402signalhq/402signal/releases/tag/algorand-batch-buyer-v0.2.0), and [native Base MPP client v0.1.0](https://github.com/402signalhq/402signal/releases/tag/mpp-client-v0.1.0). The [dated lab results](../integration/lab/BATCH_QUALIFICATION.md) distinguish earlier two-call/two-item tests from three-call Solana continuation, three-payment Algorand groups, three-job invoices, a native Algorand lab charge and one external native Base MPP UUID purchase. A separate Base v2 continuation campaign also completed three accepted calls and independently finalized settlement and refund. Qualification covers these specific endpoints and explicit limits; it is not a high-count or universal merchant claim. Keep buyer wallets and private operator policy outside the public repository.
 
 Start free with the [offline buyer checks](../integration/buyer-checks/README.md), then use the [customer task guides](https://402signal.com/developers). Pilot teams can use the [adapter evaluation kit](adoption-pilot.md).
 
 ## Integrate a buyer
 
 - [Exact x402 request binding and the v4 guard contract](proof-carrying-route-v1.md)
-- [v5 batch and session observation contracts](batch-observation-v1.md)
+- [Check group offer (v5 observation, codec auto-detect)](batch-observation-v1.md)
+- [Check group offer architecture (lab profiles vs customer auto-detect)](check-group-offer-architecture.md)
 - [Explicit continuation budgets and recovery for Base and Solana](../integration/session-client/README.md)
 - [Larger Algorand groups and aggregate invoices](algorand-manifests-v2.md)
 - [HTTP recovery-only request contract](route-recovery.md)

@@ -273,6 +273,73 @@ function context(url, method, body) {
   return { url, method, body_sha256: sha(body).toString("hex") };
 }
 
+const PAYMENT_REQUIRED_KEYS = [
+  "x402Version",
+  "accepts",
+  "resource",
+  "error",
+  "extensions",
+];
+const CHALLENGE_WRAPPERS = ["payment_required", "paymentRequired", "x402"];
+const WRAPPER_ONLY_KEYS = new Set(["catalog", "paymentRequirements"]);
+const KNOWN_EXTENSIONS = new Set([
+  "bazaar",
+  "builder-code",
+  "payment-identifier",
+]);
+const RESOURCE_KEYS = new Set([
+  "url",
+  "description",
+  "mimeType",
+  "serviceName",
+  "tags",
+  "iconUrl",
+]);
+const ACCEPT_KEYS = new Set([
+  "scheme",
+  "network",
+  "amount",
+  "asset",
+  "currency",
+  "payTo",
+  "maxTimeoutSeconds",
+  "extra",
+  "outputSchema",
+]);
+const ICON_URL_MAX = 2048;
+
+function projectPaymentRequired(val) {
+  if (!val || typeof val !== "object" || Array.isArray(val)) return;
+  if (!("accepts" in val || "x402Version" in val)) return;
+  if (
+    "paymentRequirements" in val &&
+    canonical(val.paymentRequirements) !== canonical(val.accepts)
+  )
+    fail("ambiguous_challenge");
+  const out = {};
+  for (const key of Object.keys(val)) {
+    if (!WRAPPER_ONLY_KEYS.has(key)) out[key] = val[key];
+  }
+  return out;
+}
+
+function bodyChallenge(val) {
+  if (!val || typeof val !== "object" || Array.isArray(val)) return;
+  const found = [];
+  const direct = projectPaymentRequired(val);
+  if (direct) found.push(direct);
+  for (const key of CHALLENGE_WRAPPERS) {
+    if (key in val) {
+      const projected = projectPaymentRequired(val[key]);
+      if (projected) found.push(projected);
+    }
+  }
+  if (!found.length) return;
+  if (found.some((item) => canonical(item) !== canonical(found[0])))
+    fail("ambiguous_challenge");
+  return found[0];
+}
+
 function challengeFrom(input) {
   if (input.status !== 402) fail("not_402");
   const candidates = [];
@@ -285,13 +352,8 @@ function challengeFrom(input) {
       );
   }
   if (input.bodyText) {
-    const value = parse(input.bodyText);
-    if (
-      value &&
-      typeof value === "object" &&
-      ("accepts" in value || "x402Version" in value)
-    )
-      candidates.push(value);
+    const extracted = bodyChallenge(parse(input.bodyText));
+    if (extracted) candidates.push(extracted);
   }
   if (
     !candidates.length ||
@@ -301,12 +363,7 @@ function challengeFrom(input) {
   const env = candidates[0];
   if (
     env.x402Version !== 2 ||
-    Object.keys(env).some(
-      (k) =>
-        !["x402Version", "accepts", "resource", "error", "extensions"].includes(
-          k,
-        ),
-    )
+    Object.keys(env).some((k) => !PAYMENT_REQUIRED_KEYS.includes(k))
   )
     fail("unsupported_challenge");
   if (
@@ -315,32 +372,59 @@ function challengeFrom(input) {
     env.accepts.length > 32
   )
     fail("unsupported_challenge");
-  if (env.accepts.some((a) => !a || typeof a !== "object" || Array.isArray(a)))
+  if (
+    env.accepts.some(
+      (a) =>
+        !a ||
+        typeof a !== "object" ||
+        Array.isArray(a) ||
+        (Object.hasOwn(a, "outputSchema") &&
+          (!a.outputSchema ||
+            typeof a.outputSchema !== "object" ||
+            Array.isArray(a.outputSchema))),
+    )
+  )
     fail("unsupported_challenge");
   if (
     env.extensions !== undefined &&
     (!env.extensions ||
       Array.isArray(env.extensions) ||
       typeof env.extensions !== "object" ||
-      Object.keys(env.extensions).some((k) => k !== "bazaar"))
+      Object.keys(env.extensions).some((k) => !KNOWN_EXTENSIONS.has(k)))
   )
     fail("unsupported_extension");
   if (
     env.resource != null &&
     (typeof env.resource !== "object" ||
       Array.isArray(env.resource) ||
-      Object.keys(env.resource).some(
-        (k) => !["url", "description", "mimeType", "serviceName", "tags"].includes(k),
-      ))
+      Object.keys(env.resource).some((k) => !RESOURCE_KEYS.has(k)))
   )
     fail("unsupported_resource");
   if (env.resource != null) {
     const metadata = env.resource;
-    const boundedText = value => typeof value === "string" && value.length >= 1 && value.length <= 32 && !/[^ -~]/.test(value);
-    if ((Object.hasOwn(metadata, "serviceName") && !boundedText(metadata.serviceName)) ||
-        (Object.hasOwn(metadata, "tags") && (!Array.isArray(metadata.tags) ||
-          metadata.tags.length > 16 || metadata.tags.some(tag => !boundedText(tag)))))
+    const boundedText = (value) =>
+      typeof value === "string" &&
+      value.length >= 1 &&
+      value.length <= 32 &&
+      !/[^ -~]/.test(value);
+    if (
+      (Object.hasOwn(metadata, "serviceName") &&
+        !boundedText(metadata.serviceName)) ||
+      (Object.hasOwn(metadata, "tags") &&
+        (!Array.isArray(metadata.tags) ||
+          metadata.tags.length > 16 ||
+          metadata.tags.some((tag) => !boundedText(tag))))
+    )
       fail("unsupported_resource");
+    if (Object.hasOwn(metadata, "iconUrl")) {
+      if (
+        typeof metadata.iconUrl !== "string" ||
+        metadata.iconUrl.length < 1 ||
+        metadata.iconUrl.length > ICON_URL_MAX
+      )
+        fail("unsupported_resource");
+      context(metadata.iconUrl, "GET", new Uint8Array());
+    }
   }
   return env;
 }
@@ -440,19 +524,7 @@ export function verifyRoute(options) {
       accepted.scheme !== "exact" ||
       !Number.isSafeInteger(accepted.maxTimeoutSeconds) ||
       accepted.maxTimeoutSeconds <= 0 ||
-      Object.keys(accepted).some(
-        (k) =>
-          ![
-            "scheme",
-            "network",
-            "amount",
-            "asset",
-            "currency",
-            "payTo",
-            "maxTimeoutSeconds",
-            "extra",
-          ].includes(k),
-      ) ||
+      Object.keys(accepted).some((k) => !ACCEPT_KEYS.has(k)) ||
       !resourceMatchesContext(env.resource, actual)
     )
       fail("unsupported_challenge");
