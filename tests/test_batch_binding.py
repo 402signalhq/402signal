@@ -230,6 +230,7 @@ class BatchTests(unittest.TestCase):
         self.assertNotIn("merchant_profile", out[1])
         self.assertEqual(out[1]["compared"][0]["job"], "chk_grp")
         self.assertEqual(out[1]["compared"][0]["codec"], "exact")
+        self.assertNotIn("label", out[1]["compared"][0])
         public = json.loads(
             store.leaf_at(out[1]["pq_trust"]["transparency"]["index"])["body"]
         )

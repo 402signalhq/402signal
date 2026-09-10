@@ -55,9 +55,13 @@ def codec_enabled(codec):
     return codec in allowlist()
 
 
-def identity(codec):
+def codes(codec):
     check(codec in CODECS)
-    return {"job": JOB, "codec": codec, "label": LABEL}
+    return {"job": JOB, "codec": codec}
+
+
+def identity(codec):
+    return {**codes(codec), "label": LABEL}
 
 
 def _try_json(raw):

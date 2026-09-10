@@ -24,7 +24,7 @@ Architecture: [lab profiles vs customer auto-detect](check-group-offer-architect
 
 Atomic amounts are canonical positive decimal strings bounded to uint64. An ordinary exact x402 offer (`scheme=exact` with no supported group extension) is not this job; it is refused.
 
-The HTTP result and `compared[]` carry `job`, `codec`, and human `label`. They are not written into the public leaf or the exact v5 binding key set.
+The HTTP result and `compared[]` carry the short codes `job` and `codec`. `label` is optional HTTP debug. Those fields are not written into the public leaf or the exact v5 binding key set. The commitment already binds the request and the internal wire profile that determines the codec.
 
 ## Proof and signing boundary
 

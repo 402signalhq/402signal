@@ -65,7 +65,7 @@ def run(body, deadline):
             compared=[
                 {
                     "url": url,
-                    **batch_codec.identity(codec),
+                    **batch_codec.codes(codec),
                     "live": True,
                     "invocable": False,
                     "selected": True,

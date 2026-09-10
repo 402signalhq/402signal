@@ -14,9 +14,9 @@ Named `merchant_profile` values are a **lab/testing** contract. They are not the
 }
 ```
 
-`buyer_limits` must be a real cap object for one supported codec. Buyers do not pick `merchant_profile`. The server auto-detects one internal codec from the live 402 challenge (`status`, `WWW-Authenticate`, body / `PAYMENT-REQUIRED`). If the wire is unknown or ambiguous, the request fails closed. If the detected codec drifts from the cap key set, the request fails closed.
+`buyer_limits` must be a real cap object for one supported codec. Buyers do not pick `merchant_profile`. The public schema uses `anyOf` over those cap shapes because two-item and multi-item atom key sets overlap at two hashes. Runtime still admits exactly one codec and refuses drift. The server auto-detects that codec from the live 402 challenge (`status`, `WWW-Authenticate`, body / `PAYMENT-REQUIRED`). If the wire is unknown or ambiguous, the request fails closed. If the detected codec drifts from the cap key set, the request fails closed.
 
-Returned identity is `job=chk_grp`, `codec` in `exact|sess|mpp|atom|inv`, and label `Check group offer`. The public v5 leaf stays commitment-only. Internal wire profile names stay inside the binding validators.
+Returned identity is the short codes `job=chk_grp` and `codec` in `exact|sess|mpp|atom|inv`. Those codes appear on the HTTP result and `compared[]`. The public v5 leaf stays `{type, ts, nonce, commitment}`. The commitment hashes `request_json` plus the binding; the binding’s internal `profile` determines the codec. `label` is an optional HTTP debug field (`Check group offer`) and is not part of the public leaf or the exact binding key set. Internal wire profile names stay inside the binding validators.
 
 ## Internal codecs
 
@@ -39,6 +39,11 @@ Ordinary exact x402 (`scheme=exact`, no group extension) is a different job and 
 ## Lab
 
 `merchant_profile` is accepted only with `lab_test` on live admission, and offline for signed fixtures. Lab stays internal for codec qualification.
+
+## Later / parked
+
+- `fill_cap` (“Fill the budget”) is job #2 — not this path
+- `prop_set` assemble and one-order multi-rail outbound stay parked
 
 ## What we will not do
 
