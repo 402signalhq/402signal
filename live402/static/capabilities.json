@@ -10,12 +10,12 @@
     "verifier_package": "route-guard-v0.7.2",
     "historical_verifier": "route-guard-v0.7.1"
   },
-  "source_baseline": "5ba1e3c000000000000000000000000000000000",
+  "source_baseline": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
   "packages": [
     {
       "tag": "route-guard-v0.7.2",
       "published_at": "2026-09-10T12:00:00Z",
-      "source_revision": "5ba1e3c000000000000000000000000000000000",
+      "source_revision": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
       "archive": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.2/402signal-route-guard-0.7.2.tgz",
       "sha256": "f09b4e038b6bde9670afe725af4170b4f52c7323ca775bcb1b2fcbc8ab200497",
       "checksum_file": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.2/SHA256SUMS",
