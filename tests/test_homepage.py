@@ -419,6 +419,12 @@ class HomepageProductTests(unittest.TestCase):
         self.assertIn("hits", preview)
         manifest = json.loads(_get_full(self.port, "/mcp.json")[1])
         self.assertTrue({"route", "preview", "validate"}.issubset({t["name"] for t in manifest["tools"]}))
+        by_name = {t["name"]: t.get("description") or "" for t in manifest["tools"]}
+        self.assertTrue(by_name["route"].startswith("Selects a live paid API endpoint"))
+        self.assertTrue(by_name["preview"].startswith("Discovers catalog-listed paid API endpoints"))
+        self.assertTrue(by_name["validate"].startswith(
+            "Checks unpaid readiness for one concrete HTTPS seller URL"
+        ))
         self.assertEqual(_get_full(self.port, "/mcp/v0.3.1")[0], 405)
         conn = HTTPConnection(self.host, self.port, timeout=5)
         conn.request("POST", "/route", json.dumps({"need": "weather"}), {"Content-Type": "application/json"})

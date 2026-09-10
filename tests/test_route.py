@@ -763,6 +763,12 @@ class PaywallTests(unittest.TestCase):
         body = json.loads(raw)
         names = [t.get("name") for t in body.get("tools") or []]
         self.assertIn("route", names)
+        by_name = {t.get("name"): t.get("description") or "" for t in body.get("tools") or []}
+        self.assertTrue(by_name["route"].startswith("Selects a live paid API endpoint"))
+        self.assertTrue(by_name["preview"].startswith("Discovers catalog-listed paid API endpoints"))
+        self.assertTrue(by_name["validate"].startswith(
+            "Checks unpaid readiness for one concrete HTTPS seller URL"
+        ))
         status2, raw2 = _get(self.port, "/.well-known/mcp.json")
         self.assertEqual(status2, 200)
         self.assertEqual(json.loads(raw2).get("tools"), body.get("tools"))
@@ -1903,6 +1909,10 @@ class ProductBriefTests(unittest.TestCase):
         self.assertLessEqual(len(mcp_mod.manifest()["description"]), 500)
         self.assertEqual(mcp_mod.manifest()["description"], payment.CATALOG_DESCRIPTION)
         self.assertEqual(route["description"], mcp_mod.ROUTE_DESCRIPTION)
+        preview = next(t for t in tools if t.get("name") == "preview")
+        validate = next(t for t in tools if t.get("name") == "validate")
+        self.assertEqual(preview["description"], mcp_mod.PREVIEW_DESCRIPTION)
+        self.assertEqual(validate["description"], mcp_mod.VALIDATE_DESCRIPTION)
         self.assertNotIn("Signal402", route["description"])
         self.assertEqual(
             route["inputSchema"].get("anyOf"),
