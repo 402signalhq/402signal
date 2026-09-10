@@ -1015,6 +1015,27 @@ def _payto_selectable(result: dict, constraints: dict | None = None) -> bool:
     return bool(cons.get("accept_payTo_change"))
 
 
+def selection_set(probed: list, constraints: dict | None = None) -> list:
+    """Live hits that may enter pick_winner.
+
+    First unexpected payTo change is not selectable unless accept_payTo_change.
+    A later second observation of the same dest clears payTo_pending
+    (established). Catalog claimed vs observed (payTo_changed) stays in
+    the set when every remaining live hit is changed; a stable peer
+    excludes changed rows. All-pending windows return empty unless that
+    opt-in is set.
+    """
+    if not isinstance(probed, list):
+        return []
+    live_hits = [r for r in probed if isinstance(r, dict) and r.get("live")]
+    cons = constraints if isinstance(constraints, dict) else {}
+    if not cons.get("accept_payTo_change"):
+        live_hits = [r for r in live_hits if not r.get("payTo_pending")]
+    if any(not r.get("payTo_changed") for r in live_hits):
+        return [r for r in live_hits if not r.get("payTo_changed")]
+    return live_hits
+
+
 def enough_evidence(results: list[dict], objective: str, constraints: dict | None = None) -> bool:
     """True when a completed tranche has a selectable winner; do not start another.
 
@@ -1128,8 +1149,69 @@ def _is_winner_result(result, winner) -> bool:
     return bool(url) and url == winner.get("url")
 
 
-def _compared_row(result, selected, pay) -> dict:
+def _compared_risk(result) -> list[str] | None:
+    """Copy probe risk. Omit when none; never invent a success signal."""
+    if not isinstance(result, dict):
+        return None
+    raw = result.get("risk")
+    if isinstance(raw, list):
+        items = [str(item) for item in raw if item is not None and str(item).strip()]
+        if items:
+            return items
+    if result.get("payTo_changed"):
+        return ["payTo_changed"]
+    return None
+
+
+def _in_selection_set(result, pool) -> bool:
+    return any(_is_winner_result(result, row) for row in (pool or []))
+
+
+def _compared_decision(result, results, winner, objective, constraints) -> tuple[bool, str | None]:
+    """selectable + excluded_reason from the same gates as the winner path.
+
+    selectable is True iff the row would be in selection_set, pass
+    passes_constraints, and yield a complete pick_selected_payment.
+    Winner rows are always selectable with no excluded_reason.
+    """
+    if _is_winner_result(result, winner):
+        return True, None
+    cons = constraints if isinstance(constraints, dict) else {}
+    obj = parse_objective(objective)
+    pool = selection_set(results if isinstance(results, list) else [], cons)
+    in_set = _in_selection_set(result, pool)
+    pending = bool(isinstance(result, dict) and result.get("payTo_pending"))
+    changed = bool(isinstance(result, dict) and result.get("payTo_changed"))
+    if pending and not cons.get("accept_payTo_change"):
+        return False, "payTo_pending"
+    if changed and not in_set:
+        return False, "payTo_changed"
+    if not passes_constraints(result, cons):
+        return False, "constraints_unmet"
+    pay = pick_selected_payment(result, obj, cons)
+    if not selected_payment_is_complete(pay):
+        return False, "incomplete_payment"
+    if obj == "cheapest":
+        remaining = [
+            row
+            for row in pool
+            if passes_constraints(row, cons) and _payto_selectable(row, cons)
+        ]
+        comparable = _cheapest_comparable_subset(remaining, cons)
+        if not _in_selection_set(result, comparable):
+            return bool(in_set), "not_cheapest_comparable"
+    if in_set:
+        return True, "ranked_below_winner"
+    return False, None
+
+
+def _compared_row(result, selected, pay, *, selectable=None, excluded_reason=None) -> dict:
     n_7d, success_7d = _compared_7d(result)
+    if selected:
+        selectable = True
+        excluded_reason = None
+    elif selectable is None:
+        selectable = False
     row = {
         "url": result.get("url"),
         "rail": (pay or {}).get("rail") or result.get("rail"),
@@ -1143,7 +1225,14 @@ def _compared_row(result, selected, pay) -> dict:
         "live": bool(result.get("live")),
         "invocable": bool(result.get("invocable")),
         "selected": bool(selected),
+        "selectable": bool(selectable),
+        "payTo_pending": bool(result.get("payTo_pending")),
+        "payTo_changed": bool(result.get("payTo_changed")),
+        "excluded_reason": excluded_reason,
     }
+    risk = _compared_risk(result)
+    if risk:
+        row["risk"] = risk
     if selected and pay:
         row["selected_payment"] = pay
     rep = reputation.public_row(result)
@@ -1165,6 +1254,8 @@ def comparison(results, winner, objective=None, constraints=None) -> list[dict]:
     n<3 → success_7d is None. amount_atomic / rail / selected_payment on the
     winner row are the same CURRENT OBSERVED option stored on selected_payment.
     The winner always occupies a slot even when the list is capped.
+    Each row copies payTo selectability flags from the same probe object
+    used by selection_set / pick_winner so a cheaper gated loser stays visible.
     """
     rows: list[dict] = []
     if not isinstance(results, list):
@@ -1180,12 +1271,23 @@ def comparison(results, winner, objective=None, constraints=None) -> list[dict]:
             continue
         selected = _is_winner_result(result, winner)
         pay = winner_pay if selected else pick_selected_payment(result, objective, constraints)
-        row = _compared_row(result, selected, pay)
+        selectable, excluded_reason = _compared_decision(
+            result, results, winner, objective, constraints
+        )
+        row = _compared_row(
+            result,
+            selected,
+            pay,
+            selectable=selectable,
+            excluded_reason=excluded_reason,
+        )
         if selected:
             winner_row = row
         rows.append(row)
     if winner_row is None and isinstance(winner, dict):
-        winner_row = _compared_row(winner, True, winner_pay)
+        winner_row = _compared_row(
+            winner, True, winner_pay, selectable=True, excluded_reason=None
+        )
     if winner_row is None:
         return rows[:COMPARED_CAP]
     if any(r.get("selected") for r in rows[:COMPARED_CAP]) and len(rows) <= COMPARED_CAP:

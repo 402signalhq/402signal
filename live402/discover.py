@@ -433,7 +433,11 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "description": (
                     "Slim probe rows (cap 5). The winner always occupies a slot. "
                     "success_7d is null when n_7d < 3, never an invented 0.0. "
-                    "n_7d distinguishes 3/3 from 400/400."
+                    "n_7d distinguishes 3/3 from 400/400. "
+                    "selectable / payTo_pending / payTo_changed / risk / excluded_reason "
+                    "show why a live row was not eligible to win. These flags are copied "
+                    "from the same probe objects used for selection; a cheaper gated "
+                    "loser stays visible. No private score numbers."
                 ),
                 "items": {
                     "type": "object",
@@ -448,6 +452,52 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                         "live": {"type": "boolean"},
                         "invocable": {"type": "boolean"},
                         "selected": {"type": "boolean"},
+                        "selectable": {
+                            "type": "boolean",
+                            "description": (
+                                "True iff this row would be in the request's selection set, "
+                                "pass request constraints, and yield a complete selected_payment. "
+                                "The winner is always true. Fail closed: never invented."
+                            ),
+                        },
+                        "payTo_pending": {
+                            "type": "boolean",
+                            "default": False,
+                            "description": (
+                                "First unexpected payTo rotation. Not selectable unless "
+                                "accept_payTo_change is true."
+                            ),
+                        },
+                        "payTo_changed": {
+                            "type": "boolean",
+                            "default": False,
+                            "description": (
+                                "Observed payTo differs from catalog claim or last trusted dest. "
+                                "Not selectable when a stable peer exists in this request."
+                            ),
+                        },
+                        "risk": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Omitted or empty when none. Example: [\"payTo_changed\"].",
+                        },
+                        "excluded_reason": {
+                            "type": ["string", "null"],
+                            "enum": [
+                                "payTo_pending",
+                                "payTo_changed",
+                                "constraints_unmet",
+                                "incomplete_payment",
+                                "not_cheapest_comparable",
+                                "ranked_below_winner",
+                                None,
+                            ],
+                            "description": (
+                                "Why this row was not selected. Null on the winner. "
+                                "ranked_below_winner only when selectable but lost the "
+                                "objective sort. No private scores."
+                            ),
+                        },
                         "selected_payment": {"type": ["object", "null"]},
                         "reputation": {"type": ["object", "null"]},
                         "economics": {

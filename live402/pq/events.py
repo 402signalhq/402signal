@@ -260,13 +260,66 @@ def _constraints_object(raw) -> dict:
     return out
 
 
+def _bool_default_false(val) -> bool:
+    parsed = _bool_or_none(val)
+    return False if parsed is None else parsed
+
+
+def _string_list(val) -> list[str]:
+    """Stable empty default. Omit and [] agree; never invent tokens."""
+    if not isinstance(val, list):
+        return []
+    out: list[str] = []
+    for item in val:
+        if item is None:
+            continue
+        text = str(item).strip()
+        if text:
+            out.append(text)
+    return out
+
+
+def _slim_compared_row(row: dict) -> dict:
+    """Private digest input for one compared row. Not a full dump."""
+    pay = row.get("selected_payment") if isinstance(row.get("selected_payment"), dict) else {}
+    amount = row.get("amount_atomic") if row.get("amount_atomic") is not None else pay.get("amount_atomic")
+    item = {
+        "amount_atomic": _amount_or_none(amount),
+        "excluded_reason": _str_or_none(row.get("excluded_reason")),
+        "invocable": _bool_or_none(row.get("invocable")),
+        "latency_ms": _int_or_none(row.get("latency_ms")),
+        "live": _bool_or_none(row.get("live")),
+        "payTo_changed": _bool_default_false(row.get("payTo_changed")),
+        "payTo_pending": _bool_default_false(row.get("payTo_pending")),
+        "rail": _str_or_none(row.get("rail") or pay.get("rail")),
+        "risk": _string_list(row.get("risk")),
+        "selectable": _bool_or_none(row.get("selectable")),
+        "selected": _bool_or_none(row.get("selected")),
+        "selected_payment": None,
+        "url": _str_or_none(row.get("url")),
+    }
+    if pay:
+        item["selected_payment"] = {
+            "amount_atomic": _amount_or_none(pay.get("amount_atomic")),
+            "asset": _str_or_none(pay.get("asset")),
+            "network": _str_or_none(pay.get("network")),
+            "payTo": _str_or_none(pay.get("payTo")),
+            "rail": _str_or_none(pay.get("rail")),
+            "scheme": _str_or_none(pay.get("scheme")),
+        }
+    return item
+
+
 def candidate_set_digest(compared) -> str | None:
     """Canonical private digest of compared candidates. Not written to the public leaf.
 
     Bound per row when present: url, rail, live, invocable, selected,
+    selectable, payTo_pending, payTo_changed, risk, excluded_reason,
     amount_atomic, latency_ms, and selected_payment identity
-    (rail/network/scheme/asset/amount_atomic/payTo). Catalog claims,
-    seller bodies, raw PAYMENT, and full compared[] dumps are not bound.
+    (rail/network/scheme/asset/amount_atomic/payTo). Missing payTo flags
+    default false; missing risk defaults to []. Catalog claims, seller
+    bodies, raw PAYMENT, reputation/economics, and full compared[] dumps
+    are not bound.
     """
     if not isinstance(compared, list) or not compared:
         return None
@@ -274,28 +327,7 @@ def candidate_set_digest(compared) -> str | None:
     for row in compared:
         if not isinstance(row, dict):
             continue
-        pay = row.get("selected_payment") if isinstance(row.get("selected_payment"), dict) else {}
-        amount = row.get("amount_atomic") if row.get("amount_atomic") is not None else pay.get("amount_atomic")
-        item = {
-            "amount_atomic": _amount_or_none(amount),
-            "invocable": _bool_or_none(row.get("invocable")),
-            "latency_ms": _int_or_none(row.get("latency_ms")),
-            "live": _bool_or_none(row.get("live")),
-            "rail": _str_or_none(row.get("rail") or pay.get("rail")),
-            "selected": _bool_or_none(row.get("selected")),
-            "selected_payment": None,
-            "url": _str_or_none(row.get("url")),
-        }
-        if pay:
-            item["selected_payment"] = {
-                "amount_atomic": _amount_or_none(pay.get("amount_atomic")),
-                "asset": _str_or_none(pay.get("asset")),
-                "network": _str_or_none(pay.get("network")),
-                "payTo": _str_or_none(pay.get("payTo")),
-                "rail": _str_or_none(pay.get("rail")),
-                "scheme": _str_or_none(pay.get("scheme")),
-            }
-        slim.append(item)
+        slim.append(_slim_compared_row(row))
     if not slim:
         return None
     slim.sort(key=lambda r: (r.get("url") or "", r.get("rail") or "", r.get("selected") is True))

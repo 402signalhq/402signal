@@ -60,9 +60,12 @@ Not bound:
 ## Candidate-set digest
 
 If `compared` exists, SHA-256 of the JCS of a sorted slim list of those
-rows (`url`, `rail`, `live`, `invocable`, `selected`, `amount_atomic`,
-`latency_ms`, and selected_payment identity). The digest is private
-evidence. The public leaf does not list candidates.
+rows (`url`, `rail`, `live`, `invocable`, `selected`, `selectable`,
+`payTo_pending`, `payTo_changed`, `risk`, `excluded_reason`,
+`amount_atomic`, `latency_ms`, and selected_payment identity). Missing
+`payTo_pending` / `payTo_changed` default false; missing `risk` defaults
+to `[]`; missing `selectable` / `excluded_reason` are null. The digest is
+private evidence. The public leaf does not list candidates.
 
 ## Commitment
 

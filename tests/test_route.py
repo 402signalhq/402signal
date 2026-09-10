@@ -1979,6 +1979,22 @@ class ProductBriefTests(unittest.TestCase):
         compared_props = ((live_props.get("compared") or {}).get("items") or {}).get("properties") or {}
         self.assertIn("success_7d", compared_props)
         self.assertIn("n_7d", compared_props)
+        self.assertIn("selectable", compared_props)
+        self.assertIn("payTo_pending", compared_props)
+        self.assertIn("payTo_changed", compared_props)
+        self.assertIn("risk", compared_props)
+        self.assertIn("excluded_reason", compared_props)
+        self.assertEqual(
+            set((compared_props.get("excluded_reason") or {}).get("enum") or []) - {None},
+            {
+                "payTo_pending",
+                "payTo_changed",
+                "constraints_unmet",
+                "incomplete_payment",
+                "not_cheapest_comparable",
+                "ranked_below_winner",
+            },
+        )
         self.assertNotIn("reliability", compared_props)
         self.assertIn("probe_limit_reached", (live_props.get("miss_reason") or {}).get("enum") or [])
         for path, methods in spec["paths"].items():
