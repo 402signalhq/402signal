@@ -576,6 +576,133 @@ class HistoryDbTests(unittest.TestCase):
         self.assertNotIn("schema_present", fields)
         self.assertNotIn("invocable", fields)
 
+    def _stock_trends_envelope(self, *, query_params=True, method="GET"):
+        info_input = {"type": "http", "method": method}
+        input_properties = {
+            "type": {"type": "string", "const": "http"},
+            "method": {"type": "string", "enum": [method]},
+        }
+        if query_params:
+            info_input["queryParams"] = {}
+            input_properties["queryParams"] = {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": False,
+            }
+        env = _complete_envelope(VALID_BASE_PAYTO, amount="150000")
+        env["extensions"] = {
+            "bazaar": {
+                "info": {"title": "Market Regime Latest", "input": info_input},
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "input": {
+                            "type": "object",
+                            "properties": input_properties,
+                            "required": ["type", "method"],
+                        }
+                    },
+                    "required": ["input"],
+                },
+            }
+        }
+        return env
+
+    def test_stock_trends_bazaar_get_is_observed_invocable_and_ready(self):
+        url = "https://api.stocktrends.com/v1/market/regime/latest"
+        env = self._stock_trends_envelope()
+        result = {
+            "url": url,
+            "live": True,
+            "status": 402,
+            "has_402_challenge": True,
+            "payTo": VALID_BASE_PAYTO,
+            "envelope": env,
+            "accepts": env["accepts"],
+        }
+        result = probe.attach_invocable_target(result, None, env)
+        self.assertTrue(result.get("invocable"))
+        self.assertTrue(history._envelope_schema_present(env))
+        self.assertTrue(history._bazaar_schema_present(env))
+        self.assertTrue(history._has_schema(result))
+        self.assertEqual(history.compute_readiness(result), "invocable")
+        history.record_probe(url, result)
+        latest = history.latest_observations(url)
+        self.assertEqual(latest["observed"]["schema_present"]["value"], "1")
+        self.assertEqual(latest["observed"]["invocable"]["value"], "1")
+        row = self._probe_cols(url)
+        self.assertEqual(row[1], 1)
+
+    def test_bazaar_get_without_query_params_is_not_observed_schema(self):
+        url = "https://hist.example/get-no-qp"
+        env = self._stock_trends_envelope(query_params=False)
+        result = {
+            "url": url,
+            "live": True,
+            "status": 402,
+            "has_402_challenge": True,
+            "payTo": VALID_BASE_PAYTO,
+            "envelope": env,
+            "accepts": env["accepts"],
+        }
+        result = probe.attach_invocable_target(result, None, env)
+        self.assertFalse(result.get("invocable"))
+        self.assertFalse(history._envelope_schema_present(env))
+        self.assertFalse(history._has_schema(result))
+        self.assertNotEqual(history.compute_readiness(result), "invocable")
+        history.record_probe(url, result)
+        latest = history.latest_observations(url)
+        self.assertNotIn("schema_present", latest["observed"])
+        self.assertNotIn("invocable", latest["observed"])
+
+    def test_envelope_empty_object_and_refused_ref_match_route(self):
+        url = "https://hist.example/typed-empty"
+        env = _complete_envelope(VALID_BASE_PAYTO)
+        env["inputSchema"] = {"type": "object"}
+        result = probe.attach_invocable_target(
+            {
+                "url": url,
+                "live": True,
+                "status": 402,
+                "has_402_challenge": True,
+                "payTo": VALID_BASE_PAYTO,
+                "envelope": env,
+                "accepts": env["accepts"],
+            },
+            None,
+            env,
+        )
+        self.assertTrue(result.get("invocable"))
+        self.assertTrue(history._envelope_schema_present(env))
+        self.assertEqual(history.compute_readiness(result), "invocable")
+        history.record_probe(url, result)
+        self.assertEqual(history.latest_observations(url)["observed"]["invocable"]["value"], "1")
+
+        refused_url = "https://hist.example/refused-ref"
+        refused = _complete_envelope(VALID_BASE_PAYTO)
+        refused["inputSchema"] = {"type": "object", "$ref": "https://evil.example/x.json"}
+        refused_result = probe.attach_invocable_target(
+            {
+                "url": refused_url,
+                "live": True,
+                "status": 402,
+                "has_402_challenge": True,
+                "payTo": VALID_BASE_PAYTO,
+                "envelope": refused,
+                "accepts": refused["accepts"],
+            },
+            None,
+            refused,
+        )
+        self.assertFalse(refused_result.get("invocable"))
+        self.assertFalse(history._envelope_schema_present(refused))
+        self.assertNotEqual(history.compute_readiness(refused_result), "invocable")
+        history.record_probe(refused_url, refused_result)
+        latest = history.latest_observations(refused_url)
+        self.assertNotIn("schema_present", latest["observed"])
+        self.assertNotIn("invocable", latest["observed"])
+
 
 class PulsePeekTests(unittest.TestCase):
     def setUp(self):

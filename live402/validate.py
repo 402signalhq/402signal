@@ -59,12 +59,10 @@ def _schema_present(result: dict) -> bool:
     if result.get("invocable"):
         return True
     target = result.get("target") if isinstance(result.get("target"), dict) else {}
-    schema = target.get("inputSchema")
-    if probe.schema_supports_invocation(schema):
+    if probe.schema_supports_invocation(target.get("inputSchema")):
         return True
-    if result.get("schema_source"):
-        return True
-    return False
+    env = result.get("envelope") if isinstance(result.get("envelope"), dict) else None
+    return probe.extracted_schema_supports_invocation(None, env)
 
 
 def public_validate_body(result: dict) -> dict:

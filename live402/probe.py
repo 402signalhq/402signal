@@ -660,6 +660,21 @@ def extract_input_schema(item: dict | None, envelope: dict | None = None) -> dic
     return schema
 
 
+def extracted_schema_supports_invocation(
+    item: dict | None = None, envelope: dict | None = None
+) -> bool:
+    """True when extract+forward yields the same usable contract attach uses.
+
+    Envelope-only callers pass item=None so catalog claims cannot invent a
+    schema. Refused/unusable schemas stay false.
+    """
+    from live402 import hydrate
+
+    schema, _source = extract_input_schema_source(item, envelope)
+    forwarded = hydrate.forward_untrusted_schema(schema)
+    return schema_supports_invocation(forwarded)
+
+
 def extract_output_schema(item: dict | None, envelope: dict | None = None) -> dict | None:
     for blob in (envelope, item):
         if isinstance(blob, dict) and isinstance(blob.get("outputSchema"), dict) and blob["outputSchema"]:
@@ -1678,15 +1693,12 @@ def _catalog_schema_present(item: dict | None) -> bool:
         return True
     contract = item.get("_claimed_contract")
     if isinstance(contract, dict) and contract.get("origin") == "catalog_claimed":
-        if contract.get("input_schema") or item.get("inputSchema"):
+        raw = contract.get("input_schema") or item.get("inputSchema")
+        if isinstance(raw, dict) and (
+            schema_supports_invocation(raw) or raw.get("properties") or raw.get("required") or raw.get("type")
+        ):
             return True
-    schema = item.get("inputSchema")
-    if isinstance(schema, dict) and (schema.get("properties") or schema.get("required") or schema.get("type")):
-        return True
-    bazaar = ((item.get("extensions") or {}).get("bazaar") or {})
-    info = bazaar.get("info") or {}
-    inp = info.get("input") or {}
-    return bool(isinstance(inp, dict) and inp)
+    return extract_input_schema(item) is not None
 
 
 def _catalog_facilitator(item: dict | None) -> str | None:
@@ -1727,7 +1739,6 @@ def attach_catalog_fields(result: dict, item: dict | None = None) -> dict:
         claimed["schema_present"] = True
     contract = item.get("_claimed_contract") if isinstance(item, dict) else None
     if isinstance(contract, dict) and contract.get("origin") == "catalog_claimed":
-        claimed["schema_present"] = True
         from live402 import hydrate
 
         claimed["contract"] = {
