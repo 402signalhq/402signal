@@ -8,6 +8,8 @@ Keep the operator-approved policy, the original route request and complete respo
 
 The submitted requirement is not proof of human approval. If an agent submitted a $0.20 limit, the receipt does not establish that the operator intended $0.20. Compare it with your separately retained approved policy. Transactions that bypassed 402Signal do not appear just because other transactions used it.
 
+A retained paid `/route` response may include slim `compared[]` rows with `selectable`, `payTo_pending` / `payTo_changed`, `risk`, and `excluded_reason` (including `binding_unavailable`). Those fields explain which candidates were selectable and why others were excluded for the checked offer. They do not prove delivery, settlement, or human approval. Catalog and seller labels remain untrusted.
+
 ## Verify before drawing conclusions
 
 Use the matching historical verifier for the record version. For supported v4 records:
