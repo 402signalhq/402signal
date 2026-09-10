@@ -13,12 +13,14 @@
   "packages": [
     {
       "tag": "route-guard-v0.7.2",
+      "published_at": "2026-09-10T13:53:45Z",
       "source_revision": "fdbcff3bc9b31826567b8cb456d4a883009eb9ff",
+      "archive": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.2/402signal-route-guard-0.7.2.tgz",
+      "sha256": "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a",
+      "checksum_file": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.2/SHA256SUMS",
+      "checksum_file_sha256": "5fae35204f6c309b4f30384cf6cd66958e6bf09edfe8fea3d6859094d4754639",
       "distribution": "GitHub release archive; not npm registry",
-      "state": "pending",
-      "digest_status": "provisional-until-release",
-      "provisional_pack_sha256": "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a",
-      "provisional_sums_sha256": "5fae35204f6c309b4f30384cf6cd66958e6bf09edfe8fea3d6859094d4754639",
+      "state": "published",
       "recipe": "/developers/check-group-offer"
     },
     {

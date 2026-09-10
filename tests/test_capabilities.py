@@ -20,13 +20,22 @@ REVIEWED_KEYS = (
     "verifier_package",
     "historical_verifier",
 )
-# PR169 merge on main. sdk/route-guard bytes are unchanged after 1a9da77.
-PACKED_TIP = "fdbcff3bc9b31826567b8cb456d4a883009eb9ff"
-PROVISIONAL_PACK_SHA256 = (
+# Tag route-guard-v0.7.2 at the PR169 merge. sdk/route-guard bytes are unchanged after 1a9da77.
+PUBLISHED_TIP = "fdbcff3bc9b31826567b8cb456d4a883009eb9ff"
+PUBLISHED_PACK_SHA256 = (
     "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a"
 )
-PROVISIONAL_SUMS_SHA256 = (
+PUBLISHED_SUMS_SHA256 = (
     "5fae35204f6c309b4f30384cf6cd66958e6bf09edfe8fea3d6859094d4754639"
+)
+PUBLISHED_AT = "2026-09-10T13:53:45Z"
+PUBLISHED_ARCHIVE = (
+    "https://github.com/402signalhq/402signal/releases/download/"
+    "route-guard-v0.7.2/402signal-route-guard-0.7.2.tgz"
+)
+PUBLISHED_CHECKSUM_FILE = (
+    "https://github.com/402signalhq/402signal/releases/download/"
+    "route-guard-v0.7.2/SHA256SUMS"
 )
 
 
@@ -73,18 +82,21 @@ class CapabilitiesHonestyTests(unittest.TestCase):
         tags = [package["tag"] for package in record["packages"]]
         self.assertEqual(tags[0], "route-guard-v0.7.2")
         self.assertIn("route-guard-v0.7.1", tags)
-        pending = next(package for package in record["packages"] if package["tag"] == "route-guard-v0.7.2")
-        self.assertEqual(pending["state"], "pending")
-        self.assertEqual(pending.get("digest_status"), "provisional-until-release")
-        self.assertNotEqual(pending["state"], "published")
-        self.assertNotIn("sha256", pending)
-        self.assertNotIn("archive", pending)
-        self.assertNotIn("checksum_file", pending)
-        self.assertNotIn("checksum_file_sha256", pending)
-        self.assertNotIn("published_at", pending)
-        self.assertEqual(pending["source_revision"], PACKED_TIP)
-        self.assertEqual(pending["provisional_pack_sha256"], PROVISIONAL_PACK_SHA256)
-        self.assertEqual(pending["provisional_sums_sha256"], PROVISIONAL_SUMS_SHA256)
+        published = next(package for package in record["packages"] if package["tag"] == "route-guard-v0.7.2")
+        self.assertEqual(published["state"], "published")
+        self.assertNotIn("digest_status", published)
+        self.assertNotIn("provisional_pack_sha256", published)
+        self.assertNotIn("provisional_sums_sha256", published)
+        self.assertEqual(published["published_at"], PUBLISHED_AT)
+        self.assertEqual(published["source_revision"], PUBLISHED_TIP)
+        self.assertEqual(published["archive"], PUBLISHED_ARCHIVE)
+        self.assertEqual(published["sha256"], PUBLISHED_PACK_SHA256)
+        self.assertEqual(published["checksum_file"], PUBLISHED_CHECKSUM_FILE)
+        self.assertEqual(published["checksum_file_sha256"], PUBLISHED_SUMS_SHA256)
+        self.assertEqual(published["distribution"], "GitHub release archive; not npm registry")
+        self.assertEqual(published["recipe"], "/developers/check-group-offer")
+        historical = next(package for package in record["packages"] if package["tag"] == "route-guard-v0.7.1")
+        self.assertEqual(historical["state"], "published")
         self.assertIn("not a runtime allowlist", record["scope_note"])
 
     def test_empty_allowlist_keeps_verifier_metadata_and_marks_hosted_off(self):
@@ -158,13 +170,16 @@ class CapabilitiesHonestyTests(unittest.TestCase):
         self.assertNotIn("exact,sess,mpp,atom,inv", json.dumps(static["check_group_offer"]))
         self.assertEqual(len(static["packages"]), 6)
         self.assertEqual(static["packages"][0]["tag"], "route-guard-v0.7.2")
-        self.assertEqual(static["packages"][0]["state"], "pending")
-        self.assertEqual(static["packages"][0]["digest_status"], "provisional-until-release")
-        self.assertNotIn("sha256", static["packages"][0])
-        self.assertNotIn("archive", static["packages"][0])
-        self.assertEqual(static["packages"][0]["source_revision"], PACKED_TIP)
-        self.assertEqual(static["packages"][0]["provisional_pack_sha256"], PROVISIONAL_PACK_SHA256)
-        self.assertEqual(static["packages"][0]["provisional_sums_sha256"], PROVISIONAL_SUMS_SHA256)
+        self.assertEqual(static["packages"][0]["state"], "published")
+        self.assertNotIn("digest_status", static["packages"][0])
+        self.assertNotIn("provisional_pack_sha256", static["packages"][0])
+        self.assertNotIn("provisional_sums_sha256", static["packages"][0])
+        self.assertEqual(static["packages"][0]["published_at"], PUBLISHED_AT)
+        self.assertEqual(static["packages"][0]["source_revision"], PUBLISHED_TIP)
+        self.assertEqual(static["packages"][0]["archive"], PUBLISHED_ARCHIVE)
+        self.assertEqual(static["packages"][0]["sha256"], PUBLISHED_PACK_SHA256)
+        self.assertEqual(static["packages"][0]["checksum_file"], PUBLISHED_CHECKSUM_FILE)
+        self.assertEqual(static["packages"][0]["checksum_file_sha256"], PUBLISHED_SUMS_SHA256)
         self.assertIn("See check_group_offer.codecs", static["merchant_integrations"][1]["hosted_enablement_note"])
         self.assertNotIn("codec tokens exact,sess,mpp,atom,inv", static["merchant_integrations"][1]["hosted_enablement_note"])
 
