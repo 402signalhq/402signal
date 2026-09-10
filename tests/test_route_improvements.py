@@ -32,19 +32,19 @@ class DiagnosticsTests(unittest.TestCase):
 
     def test_actual_wire_challenge_reason_survives_billable_validation(self):
         winner = bound_winner()
-        envelope = {**winner['envelope'], 'inputSchema': {'type':'object'}}
+        envelope = {**winner['envelope'], 'extensions': {'new-spending-mode': {}}}
         opener = MagicMock()
         opener.open.side_effect = urllib.error.HTTPError(winner['url'], 402, 'Payment required',
             {'Content-Type':'application/json'}, io.BytesIO(json.dumps(envelope).encode()))
         with patch('live402.probe._opener', return_value=opener):
             snap = probe._one_request(winner['url'], 'GET', pinned_addrs=[('fixture',)])
         self.assertIsNone(snap['binding_observation'])
-        self.assertEqual(snap['binding_error_reason'], 'unsupported_challenge')
+        self.assertEqual(snap['binding_error_reason'], 'unsupported_extension')
         winner.pop('binding_observation')
         winner['binding_error_reason'] = snap['binding_error_reason']
         out, calls = self.execute((200, winner))
         self.assertEqual(calls, (1,1,0,0))
-        self.assertEqual(out[1]['binding_error_reason'], 'unsupported_challenge')
+        self.assertEqual(out[1]['binding_error_reason'], 'unsupported_extension')
 
     def test_exception_messages_are_never_public_diagnostics(self):
         for exc in (ValueError('PRIVATE_CANARY'), TypeError('PRIVATE_CANARY'), BindingError('https://private.example/secret')):
