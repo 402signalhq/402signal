@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /** Verify a packed route-guard archive, not the source tree.
  *
- * Candidate 0.7.2 packed or downloaded bytes are digest-checked against the
- * reviewed expected pair before npm install or import. SHA256SUMS is checked
- * the same way: file digest plus contents vs the tarball hash. Mismatch fails
- * closed. Default verify: 0.7.2 chk_grp without buyer merchant_profile,
- * historical leaves that still name merchant_profile, and refuse-on-drift.
+ * Candidate 0.7.3 packed bytes are digest-checked against the reviewed
+ * expected pair before npm install or import. SHA256SUMS is checked the same
+ * way: file digest plus contents vs the tarball hash. Mismatch fails closed.
+ * 0.7.3 is pending (provisional candidate digest, not a published archive).
+ * Default verify: current chk_grp without buyer merchant_profile, historical
+ * leaves that still name merchant_profile, and refuse-on-drift.
  * --historical-verifier tests the published 0.7.1 path: historical leaves
  * still verify; current chk_grp requests without merchant_profile fail closed.
  * Archive arguments may be a local tgz or an https:// download URL.
@@ -19,12 +20,12 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
-const CANDIDATE_TAG = "route-guard-v0.7.2";
-const CANDIDATE_TGZ = "402signal-route-guard-0.7.2.tgz";
+const CANDIDATE_TAG = "route-guard-v0.7.3";
+const CANDIDATE_TGZ = "402signal-route-guard-0.7.3.tgz";
 const REVIEWED_PACK_SHA256 =
-  "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a";
+  "af0e556b3754d1e0439bb3cecbe38ac5e8de95f660f012adde9a3a7dfd78e9fb";
 const REVIEWED_SUMS_SHA256 =
-  "5fae35204f6c309b4f30384cf6cd66958e6bf09edfe8fea3d6859094d4754639";
+  "bed3bdb06e9e4e4a8eded2fa1e0eb9a60abb2d05b2c650b0ca252b3362f2face";
 
 const arguments_ = process.argv.slice(2);
 let candidate = CANDIDATE_TGZ;
@@ -126,7 +127,7 @@ try {
   const expected = reviewedCandidateDigests();
   const archive = await materialize(candidate, work, "candidate.tgz");
   const sha256 = sha256File(archive);
-  assert.equal(sha256, expected.pack, "candidate 0.7.2 digest must match the reviewed expected digest before install");
+  assert.equal(sha256, expected.pack, "candidate 0.7.3 digest must match the reviewed expected digest before install");
 
   const sumsSpec = checksumSpec(candidate);
   if (!sumsSpec.startsWith("https://")) {
@@ -144,7 +145,7 @@ try {
   const currentDir = mkdtempSync(join(work, "current-"));
   const { verifyBatchRoute } = await install(archive, currentDir);
   const version = packageVersion(currentDir);
-  assert.equal(version, "0.7.2");
+  assert.equal(version, "0.7.3");
   const codecs = new Set();
   for (const v of chkGrp) {
     assert.equal(Object.hasOwn(v.request, "merchant_profile"), false);

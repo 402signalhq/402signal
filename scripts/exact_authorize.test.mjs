@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, symlinkSync, mkdirSync, readFileSync, cpSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, symlinkSync, mkdirSync, readFileSync, cpSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -263,12 +263,17 @@ test("installer copies the wrap next to the published package", (t) => {
     t.skip("PACK_DIR not set");
     return;
   }
+  const publishedTgz = join(packDir, "402signal-route-guard-0.7.2.tgz");
+  if (!existsSync(publishedTgz)) {
+    t.skip("PACK_DIR is the pending 0.7.3 candidate, not the published 0.7.2 installer pin");
+    return;
+  }
   const dest = mkdtempSync(join(tmpdir(), "exact-auth-install-"));
   try {
     const result = spawnSync(process.execPath, [
       join(root, "scripts/install_route_guard.mjs"),
       "--destination", dest,
-      "--archive", join(packDir, "402signal-route-guard-0.7.2.tgz"),
+      "--archive", publishedTgz,
       "--checksum-file", join(packDir, "SHA256SUMS"),
       "--capabilities", join(root, "live402/static/capabilities.json"),
     ], { encoding: "utf8" });
