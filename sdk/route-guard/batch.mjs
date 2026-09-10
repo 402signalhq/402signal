@@ -384,6 +384,126 @@ function detectProfile(challenge) {
   check(PROFILE_CODEC[profile] === codec && CODECS.includes(codec));
   return profile;
 }
+function keySet(keys) {
+  return [...keys].sort().join("\0");
+}
+function limitsMatch(limits) {
+  check(limits && typeof limits === "object" && !Array.isArray(limits));
+  const keys = keySet(Object.keys(limits));
+  const mapping = [
+    [
+      [
+        "network",
+        "asset",
+        "recipient",
+        "receiver_authorizer",
+        "withdraw_delay_seconds",
+        "max_call_amount_atomic",
+        "max_capital_atomic",
+        "max_cumulative_amount_atomic",
+      ],
+      "exact",
+      "base-x402-batch-v1",
+    ],
+    [
+      [
+        "network",
+        "asset",
+        "recipient",
+        "operator",
+        "program_id",
+        "max_session_cap_atomic",
+      ],
+      "sess",
+      "solana-mpp-session-v1",
+    ],
+    [
+      ["network", "asset", "recipient", "max_call_amount_atomic", "realm"],
+      "mpp",
+      "base-mpp-charge-v1",
+    ],
+    [
+      [
+        "network",
+        "asset",
+        "recipient",
+        "realm",
+        "max_amount_atomic",
+        "max_network_fee_micro_algo",
+        "fee_payer",
+      ],
+      "mpp",
+      "algorand-mpp-charge-v1",
+    ],
+    [
+      [
+        "network",
+        "asset",
+        "recipient",
+        "fee_payer",
+        "max_total_amount_atomic",
+        "max_sponsor_fee_micro_algo",
+      ],
+      "atom",
+      "algorand-atomic-batch-v1",
+    ],
+    [
+      [
+        "network",
+        "asset",
+        "recipient",
+        "fee_payer",
+        "max_item_amount_atomic",
+        "max_total_amount_atomic",
+        "max_sponsor_fee_micro_algo",
+        "job_hashes",
+      ],
+      "atom",
+      null,
+    ],
+    [
+      [
+        "network",
+        "asset",
+        "recipient",
+        "fee_payer",
+        "max_total_amount_atomic",
+        "max_sponsor_fee_micro_algo",
+        "job_hashes",
+      ],
+      "inv",
+      ALGO_INVOICE,
+    ],
+  ];
+  const hits = mapping.filter((item) => keySet(item[0]) === keys);
+  check(hits.length === 1);
+  return [hits[0][1], hits[0][2]];
+}
+function resolveProfile(body, challenge) {
+  const detected = detectProfile(challenge);
+  const [limitsCodec, limitsProfile] = limitsMatch(body.buyer_limits);
+  check(PROFILE_CODEC[detected] === limitsCodec);
+  if (limitsProfile !== null) check(limitsProfile === detected);
+  if (Object.hasOwn(body, "merchant_profile")) {
+    check(body.merchant_profile === detected);
+    check(PROFILE_CODEC[body.merchant_profile] === PROFILE_CODEC[detected]);
+  }
+  return detected;
+}
+function resultIdentityOk(body, result, profile) {
+  const codec = PROFILE_CODEC[profile];
+  if (Object.hasOwn(body, "merchant_profile")) {
+    check(result.merchant_profile === body.merchant_profile);
+  }
+  if (
+    !Object.hasOwn(body, "merchant_profile") ||
+    Object.hasOwn(result, "job") ||
+    Object.hasOwn(result, "codec")
+  ) {
+    check(result.job === JOB && result.codec === codec);
+    if (Object.hasOwn(result, "label")) check(result.label === LABEL);
+  }
+}
 function wire(c, ctx, profile, limits = {}) {
   exactKeys(c, ["status", "bodyText", "paymentRequired", "wwwAuthenticate"]);
   check(
@@ -471,12 +591,7 @@ function validate(binding, body, now) {
   ]);
   const ctx = request(body);
   check(Number.isSafeInteger(binding.observed_at) && binding.observed_at > 0);
-  const profile = Object.hasOwn(body, "merchant_profile")
-    ? body.merchant_profile
-    : detectProfile(binding.challenge);
-  if (Object.hasOwn(body, "merchant_profile")) {
-    check(body.merchant_profile === detectProfile(binding.challenge));
-  }
+  const profile = resolveProfile(body, binding.challenge);
   check(binding.profile === profile);
   let [envelope, expiry] = wire(
     binding.challenge,
@@ -560,12 +675,7 @@ export function verifyBatchRoute(options) {
         response.selected_payment === null &&
         canonical(response.batch_terms) === canonical(binding.terms),
     );
-    if (Object.hasOwn(body, "merchant_profile")) {
-      check(response.merchant_profile === body.merchant_profile);
-    } else {
-      check(response.job === JOB && CODECS.includes(response.codec));
-      if (Object.hasOwn(response, "label")) check(response.label === LABEL);
-    }
+    resultIdentityOk(body, response, binding.profile);
     return JSON.parse(canonical(binding));
   } catch (error) {
     if (error instanceof RouteGuardError) throw error;

@@ -438,6 +438,25 @@ class BatchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             algorand_generic.validate(bad, context, limits)
 
+    def test_chk_grp_signed_fixtures_omit_merchant_profile(self):
+        fixtures = json.loads(
+            (Path(__file__).parent / "fixtures/batch-chk-grp-v5.json").read_text()
+        )
+        codecs = set()
+        for v in fixtures:
+            self.assertNotIn("merchant_profile", v["request"])
+            self.assertEqual(v["response"]["job"], "chk_grp")
+            observed = bb.verify_route(
+                v["response"],
+                v["request"],
+                vkey=v["trusted_vkey"],
+                challenge=v["challenge"],
+                now=v["now"],
+            )
+            self.assertEqual(observed["profile"], v["profile"])
+            codecs.add(v["codec"])
+        self.assertEqual(codecs, {"exact", "sess", "mpp", "atom", "inv"})
+
     def test_actual_url_profile_preserves_port_query_and_encoding(self):
         vectors = json.loads(
             (Path(__file__).parent / "fixtures/batch-url-parity-v5.json").read_text()
