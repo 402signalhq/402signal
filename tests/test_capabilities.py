@@ -67,7 +67,13 @@ class CapabilitiesHonestyTests(unittest.TestCase):
         self.assertIn("route-guard-v0.7.1", tags)
         pending = next(package for package in record["packages"] if package["tag"] == "route-guard-v0.7.2")
         self.assertEqual(pending["state"], "pending")
+        self.assertEqual(pending.get("digest_status"), "provisional-until-release")
         self.assertNotEqual(pending["state"], "published")
+        self.assertNotIn("sha256", pending)
+        self.assertNotIn("archive", pending)
+        self.assertNotIn("checksum_file", pending)
+        self.assertNotIn("published_at", pending)
+        self.assertRegex(pending["source_revision"], r"^[0-9a-f]{40}$")
         self.assertIn("not a runtime allowlist", record["scope_note"])
 
     def test_empty_allowlist_keeps_verifier_metadata_and_marks_hosted_off(self):
@@ -142,6 +148,9 @@ class CapabilitiesHonestyTests(unittest.TestCase):
         self.assertEqual(len(static["packages"]), 6)
         self.assertEqual(static["packages"][0]["tag"], "route-guard-v0.7.2")
         self.assertEqual(static["packages"][0]["state"], "pending")
+        self.assertEqual(static["packages"][0]["digest_status"], "provisional-until-release")
+        self.assertNotIn("sha256", static["packages"][0])
+        self.assertNotIn("archive", static["packages"][0])
         self.assertIn("See check_group_offer.codecs", static["merchant_integrations"][1]["hosted_enablement_note"])
         self.assertNotIn("codec tokens exact,sess,mpp,atom,inv", static["merchant_integrations"][1]["hosted_enablement_note"])
 
