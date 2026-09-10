@@ -593,5 +593,395 @@ class LiveSchemaBoundTests(unittest.TestCase):
         self._assert_schema_refused(schema, "https://wx.example/live-nested-id")
 
 
+class EmptyObjectInvocableTests(unittest.TestCase):
+    def _payable_live(self, schema=None, *, omit_schema=False, url="https://wx.example/zero-input"):
+        envelope = {
+            "x402Version": 2,
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": payment.BASE_CAIP2,
+                    "asset": payment.USDC_BASE,
+                    "amount": "20000",
+                    "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "maxTimeoutSeconds": 60,
+                }
+            ],
+        }
+        if not omit_schema:
+            envelope["inputSchema"] = schema
+        result = {
+            "url": url,
+            "live": True,
+            "status": 402,
+            "has_402_challenge": True,
+            "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "envelope": envelope,
+            "accepts": envelope["accepts"],
+        }
+        return result, envelope
+
+    def _assert_not_invocable(self, result, *, refused=False):
+        self.assertTrue(result.get("payable"))
+        self.assertFalse(result.get("invocable"))
+        self.assertIsNone((result.get("target") or {}).get("inputSchema"))
+        self.assertNotEqual(result.get("miss_reason"), "no_input_schema")
+        if refused:
+            self.assertTrue((result.get("target") or {}).get("schema_refused"))
+        else:
+            self.assertNotIn("schema_refused", result.get("target") or {})
+
+    def test_empty_object_contract_requires_explicit_object_type(self):
+        for schema in (
+            {"type": "object"},
+            {"type": "object", "properties": {}},
+            {"type": "object", "properties": {}, "required": []},
+            {"type": ["object"], "additionalProperties": False},
+        ):
+            with self.subTest(schema=schema):
+                self.assertTrue(probe.is_empty_object_input_contract(schema))
+                self.assertTrue(probe.schema_supports_invocation(schema))
+
+    def test_empty_object_contract_helper_rejects_input_bearing_or_junk(self):
+        for schema in (
+            None,
+            {},
+            {"properties": {}, "required": []},
+            {"type": "string"},
+            {"type": "object", "properties": {"q": {"type": "string"}}},
+            {"type": "object", "required": ["q"]},
+            {"type": "object", "allOf": [{"properties": {"q": {"type": "string"}}}]},
+            {"type": "object", "$ref": "https://evil.example/schema.json"},
+            {"type": "object", "patternProperties": {".+": {"type": "string"}}},
+            {"type": "object", "minProperties": 1},
+            {"type": "object", "foo": "bar"},
+        ):
+            with self.subTest(schema=schema):
+                self.assertFalse(probe.is_empty_object_input_contract(schema))
+
+    def test_hydrate_does_not_normalize_bare_object_to_typed_contract(self):
+        self.assertIsNone(hydrate.forward_untrusted_schema({}))
+        self.assertIsNone(hydrate.forward_untrusted_schema(None))
+        self.assertEqual(hydrate.forward_untrusted_schema({"type": "object"}), {"type": "object"})
+
+    def test_absent_schema_is_not_invocable(self):
+        result, envelope = self._payable_live(omit_schema=True)
+        result = probe.attach_invocable_target(result, None, envelope)
+        self._assert_not_invocable(result)
+
+    def test_null_envelope_schema_is_not_invocable(self):
+        result, envelope = self._payable_live(None)
+        result = probe.attach_invocable_target(result, None, envelope)
+        self._assert_not_invocable(result)
+
+    def test_null_envelope_schema_does_not_invent_catalog_schema(self):
+        result, envelope = self._payable_live(None)
+        catalog_item = {
+            "url": result["url"],
+            "inputSchema": {
+                "type": "object",
+                "properties": {"q": {"type": "string"}},
+                "required": ["q"],
+            },
+        }
+        result = probe.attach_invocable_target(result, catalog_item, envelope)
+        self._assert_not_invocable(result)
+        self.assertNotIn("schema_source", result)
+
+    def test_bare_object_is_not_invocable_and_does_not_use_catalog(self):
+        result, envelope = self._payable_live({})
+        catalog_item = {
+            "url": result["url"],
+            "inputSchema": {
+                "type": "object",
+                "properties": {"q": {"type": "string"}},
+                "required": ["q"],
+            },
+        }
+        result = probe.attach_invocable_target(result, catalog_item, envelope)
+        self._assert_not_invocable(result)
+        self.assertNotIn("schema_source", result)
+
+    def test_explicit_empty_object_schemas_are_invocable_when_payable(self):
+        for schema in (
+            {"type": "object"},
+            {"type": "object", "properties": {}},
+            {"type": "object", "properties": {}, "required": []},
+        ):
+            with self.subTest(schema=schema):
+                result, envelope = self._payable_live(schema)
+                result = probe.attach_invocable_target(result, None, envelope)
+                target = result.get("target") or {}
+                self.assertTrue(result.get("payable"))
+                self.assertTrue(result.get("invocable"))
+                self.assertEqual(target.get("inputSchema"), schema)
+                self.assertTrue(target.get("untrusted"))
+                self.assertEqual(result.get("schema_source"), "envelope")
+                self.assertNotIn("schema_refused", target)
+
+    def test_non_empty_properties_remain_invocable(self):
+        schema = {
+            "type": "object",
+            "properties": {"q": {"type": "string"}},
+            "required": ["q"],
+        }
+        result, envelope = self._payable_live(schema)
+        result = probe.attach_invocable_target(result, None, envelope)
+        self.assertTrue(result.get("invocable"))
+        self.assertEqual((result.get("target") or {}).get("inputSchema"), schema)
+        self.assertTrue((result.get("target") or {}).get("untrusted"))
+
+    def test_refused_remote_ref_stays_non_invocable(self):
+        schema = {
+            "type": "object",
+            "$ref": "https://evil.example/full.json",
+            "properties": {},
+        }
+        result, envelope = self._payable_live(schema)
+        result = probe.attach_invocable_target(result, None, envelope)
+        self._assert_not_invocable(result, refused=True)
+        self.assertEqual(result["envelope"]["inputSchema"], schema)
+
+    def test_require_invocable_fails_closed_on_absent_schema(self):
+        result, envelope = self._payable_live(omit_schema=True)
+        result = probe.attach_invocable_target(result, None, envelope)
+        result["selected_payment"] = {"rail": "base", "amount_atomic": 20000}
+        cons = select.parse_constraints({"require_invocable": True})
+        self.assertFalse(select.passes_constraints(result, cons))
+        unmet = select.unmet_constraint_names(result, cons)
+        self.assertIn("require_invocable", unmet)
+
+    def test_require_invocable_fails_closed_on_bare_object(self):
+        result, envelope = self._payable_live({})
+        result = probe.attach_invocable_target(result, None, envelope)
+        result["selected_payment"] = {"rail": "base", "amount_atomic": 20000}
+        cons = select.parse_constraints({"require_invocable": True})
+        self.assertFalse(result.get("invocable"))
+        self.assertFalse(select.passes_constraints(result, cons))
+
+    def test_require_invocable_accepts_empty_object_contract(self):
+        result, envelope = self._payable_live({"type": "object"})
+        result = probe.attach_invocable_target(result, None, envelope)
+        result["selected_payment"] = {"rail": "base", "amount_atomic": 20000}
+        cons = select.parse_constraints({"require_invocable": True})
+        self.assertTrue(result.get("invocable"))
+        self.assertTrue(select.passes_constraints(result, cons))
+
+    def test_empty_object_readiness_is_invocable(self):
+        result, envelope = self._payable_live({"type": "object"})
+        result = probe.attach_invocable_target(result, None, envelope)
+        from live402 import history
+
+        self.assertEqual(history.compute_readiness(result), "invocable")
+
+
+class StockTrendsZeroInputGetTests(unittest.TestCase):
+    """Live Stock Trends /v1/market/regime/latest bazaar shape (captured 2026-09-10)."""
+
+    URL = "https://api.stocktrends.com/v1/market/regime/latest"
+    EMPTY_QUERY_SCHEMA = {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": False,
+    }
+
+    def _bazaar(self, *, info_input=None, input_properties=None, include_schema=True):
+        info_input = (
+            {"type": "http", "method": "GET", "queryParams": {}}
+            if info_input is None
+            else info_input
+        )
+        input_properties = (
+            {
+                "type": {"type": "string", "const": "http"},
+                "method": {"type": "string", "enum": ["GET"]},
+                "queryParams": dict(self.EMPTY_QUERY_SCHEMA),
+            }
+            if input_properties is None
+            else input_properties
+        )
+        bazaar = {"info": {"title": "Market Regime Latest", "input": info_input}}
+        if include_schema:
+            bazaar["schema"] = {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                    "input": {
+                        "type": "object",
+                        "properties": input_properties,
+                        "required": ["type", "method"],
+                        "additionalProperties": False,
+                    }
+                },
+                "required": ["input"],
+            }
+        return bazaar
+
+    def _payable(self, bazaar, url=None):
+        envelope = {
+            "x402Version": 2,
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": payment.BASE_CAIP2,
+                    "asset": payment.USDC_BASE,
+                    "amount": "150000",
+                    "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "maxTimeoutSeconds": 300,
+                }
+            ],
+            "extensions": {"bazaar": bazaar},
+        }
+        result = {
+            "url": url or self.URL,
+            "live": True,
+            "status": 402,
+            "has_402_challenge": True,
+            "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "envelope": envelope,
+            "accepts": envelope["accepts"],
+        }
+        return probe.attach_invocable_target(result, None, envelope)
+
+    def test_live_stock_trends_shape_is_invocable(self):
+        result = self._payable(self._bazaar())
+        target = result.get("target") or {}
+        self.assertTrue(result.get("payable"))
+        self.assertTrue(result.get("invocable"))
+        self.assertEqual(result.get("schema_source"), "bazaar")
+        self.assertEqual(target.get("inputSchema"), self.EMPTY_QUERY_SCHEMA)
+        self.assertTrue(target.get("untrusted"))
+        self.assertEqual(target.get("method"), "GET")
+        self.assertNotIn("schema_refused", target)
+        self.assertNotIn("inputSchema", result.get("envelope") or {})
+
+    def test_info_only_empty_query_params_get_is_invocable(self):
+        result = self._payable(self._bazaar(include_schema=False))
+        self.assertTrue(result.get("payable"))
+        self.assertTrue(result.get("invocable"))
+        self.assertEqual(result.get("schema_source"), "bazaar")
+        self.assertEqual((result.get("target") or {}).get("inputSchema"), {"type": "object"})
+
+    def test_schema_only_empty_query_params_get_is_invocable(self):
+        result = self._payable(self._bazaar(info_input={"type": "http", "method": "GET"}))
+        self.assertTrue(result.get("invocable"))
+        self.assertEqual((result.get("target") or {}).get("inputSchema"), self.EMPTY_QUERY_SCHEMA)
+
+    def test_get_without_query_params_signal_is_not_invocable(self):
+        result = self._payable(
+            self._bazaar(
+                info_input={"type": "http", "method": "GET"},
+                input_properties={
+                    "type": {"type": "string", "const": "http"},
+                    "method": {"type": "string", "enum": ["GET"]},
+                },
+            )
+        )
+        self.assertTrue(result.get("payable"))
+        self.assertFalse(result.get("invocable"))
+        self.assertIsNone((result.get("target") or {}).get("inputSchema"))
+
+    def test_post_empty_query_params_is_not_zero_input(self):
+        result = self._payable(
+            self._bazaar(
+                info_input={"type": "http", "method": "POST", "queryParams": {}},
+                input_properties={
+                    "type": {"type": "string", "const": "http"},
+                    "method": {"type": "string", "enum": ["POST"]},
+                    "queryParams": dict(self.EMPTY_QUERY_SCHEMA),
+                },
+            )
+        )
+        self.assertTrue(result.get("payable"))
+        self.assertFalse(result.get("invocable"))
+
+    def test_get_with_required_body_is_not_zero_input(self):
+        result = self._payable(
+            self._bazaar(
+                info_input={"type": "http", "method": "GET", "queryParams": {}, "body": {"q": "x"}},
+                input_properties={
+                    "type": {"type": "string", "const": "http"},
+                    "method": {"type": "string", "enum": ["GET"]},
+                    "queryParams": dict(self.EMPTY_QUERY_SCHEMA),
+                    "body": {
+                        "type": "object",
+                        "properties": {"q": {"type": "string"}},
+                        "required": ["q"],
+                    },
+                },
+            )
+        )
+        self.assertTrue(result.get("payable"))
+        self.assertTrue(result.get("invocable"))
+        self.assertEqual(
+            ((result.get("target") or {}).get("inputSchema") or {}).get("required"),
+            ["q"],
+        )
+
+    def test_bazaar_title_alone_is_not_invocable(self):
+        result = self._payable({"info": {"title": "Market Regime Latest", "description": "x"}})
+        self.assertTrue(result.get("payable"))
+        self.assertFalse(result.get("invocable"))
+        self.assertIsNone((result.get("target") or {}).get("inputSchema"))
+
+    def test_refused_query_params_ref_is_not_invocable(self):
+        result = self._payable(
+            self._bazaar(
+                info_input={"type": "http", "method": "GET"},
+                input_properties={
+                    "type": {"type": "string", "const": "http"},
+                    "method": {"type": "string", "enum": ["GET"]},
+                    "queryParams": {
+                        "type": "object",
+                        "$ref": "https://evil.example/params.json",
+                    },
+                },
+            )
+        )
+        self.assertTrue(result.get("payable"))
+        self.assertFalse(result.get("invocable"))
+        self.assertTrue((result.get("target") or {}).get("schema_refused"))
+
+    def test_catalog_is_not_used_when_envelope_has_no_schema(self):
+        envelope = {
+            "x402Version": 2,
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": payment.BASE_CAIP2,
+                    "asset": payment.USDC_BASE,
+                    "amount": "150000",
+                    "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "maxTimeoutSeconds": 300,
+                }
+            ],
+        }
+        catalog_item = {
+            "url": self.URL,
+            "inputSchema": {
+                "type": "object",
+                "properties": {"q": {"type": "string"}},
+                "required": ["q"],
+            },
+        }
+        result = {
+            "url": self.URL,
+            "live": True,
+            "status": 402,
+            "has_402_challenge": True,
+            "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "envelope": envelope,
+            "accepts": envelope["accepts"],
+        }
+        # Envelope has no inputSchema key: catalog fallback remains for explicit
+        # field schemas, but a missing bazaar signal does not invent zero-input.
+        no_bazaar = probe.attach_invocable_target(dict(result), None, envelope)
+        self.assertFalse(no_bazaar.get("invocable"))
+        with_catalog = probe.attach_invocable_target(dict(result), catalog_item, envelope)
+        self.assertTrue(with_catalog.get("invocable"))
+        self.assertEqual(with_catalog.get("schema_source"), "catalog")
+
+
 if __name__ == "__main__":
     unittest.main()

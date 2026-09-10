@@ -11,7 +11,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from live402 import payment
+from live402 import payment, probe
 
 DEFAULT_DB = "/tmp/live402-history.sqlite"
 VOLUME_DB = "/data/live402-history.sqlite"
@@ -349,29 +349,19 @@ def _price_flipped(prev_amt, amount, snap: dict, rail=None) -> bool:
     return str(prev_amt) != str(amount)
 
 def _bazaar_schema_present(blob: dict | None) -> bool:
-    if not isinstance(blob, dict):
-        return False
-    ext = blob.get("extensions") if isinstance(blob.get("extensions"), dict) else {}
-    bazaar = ext.get("bazaar") if isinstance(ext, dict) else None
-    if not isinstance(bazaar, dict):
-        return False
-    info = bazaar.get("info") if isinstance(bazaar.get("info"), dict) else {}
-    inp = info.get("input") if isinstance(info.get("input"), dict) else {}
-    schema = inp.get("inputSchema") if isinstance(inp, dict) else None
-    if isinstance(schema, dict) and (schema.get("properties") or schema.get("required") or schema.get("type")):
-        return True
-    inner = bazaar.get("schema") if isinstance(bazaar.get("schema"), dict) else {}
-    props = (inner.get("properties") or {}).get("input") if isinstance(inner, dict) else None
-    if isinstance(props, dict) and (props.get("properties") or props.get("required") or props.get("type")):
-        return True
-    return False
+    """Same empty-object / empty queryParams rules as probe extract. Envelope-only."""
+    return _envelope_schema_present(blob) if isinstance(blob, dict) else False
 
 
 def _envelope_schema_present(env: dict) -> bool:
-    schema = env.get("inputSchema")
-    if isinstance(schema, dict) and (schema.get("properties") or schema.get("required") or schema.get("type")):
-        return True
-    return _bazaar_schema_present(env)
+    """Usable invocation schema on this envelope. Matches attach_invocable_target.
+
+    Catalog claims are not consulted. Bare {}, absent, and refused $ref stay false.
+    Bazaar HTTP GET with empty queryParams is present.
+    """
+    if not isinstance(env, dict):
+        return False
+    return probe.extracted_schema_supports_invocation(None, env)
 
 
 def _observed_schema_present(snap: dict) -> int | None:
@@ -1284,13 +1274,14 @@ def summary(url: str) -> dict:
 
 
 def _has_schema(result: dict) -> bool:
+    """Same usable-schema rule as live /route invocable. Catalog-only via attach."""
+    if result.get("invocable"):
+        return True
     target = result.get("target") if isinstance(result.get("target"), dict) else {}
-    schema = target.get("inputSchema")
-    if isinstance(schema, dict) and (schema.get("properties") or schema.get("required")):
+    if probe.schema_supports_invocation(target.get("inputSchema")):
         return True
-    if result.get("schema_source"):
-        return True
-    return False
+    env = result.get("envelope") if isinstance(result.get("envelope"), dict) else None
+    return probe.extracted_schema_supports_invocation(None, env)
 
 
 def compute_readiness(result: dict, n_7d: int = 0) -> str:
