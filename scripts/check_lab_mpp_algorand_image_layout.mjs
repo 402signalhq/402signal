@@ -16,6 +16,8 @@ const config = readFileSync(
 const smoke = JSON.parse(
   readFileSync(join(root, "integration/lab/config/seller-deploy.smoke.json"), "utf8"),
 );
+const pin = readFileSync(join(root, "integration/lab/node-image.pin"), "utf8").trim();
+const smokeSh = readFileSync(join(root, "scripts/smoke_lab_fly_image.sh"), "utf8");
 const modulePath = "../../../mpp-algorand/lab-merchant.mjs";
 
 assert.match(
@@ -36,9 +38,18 @@ assert.match(fly, /COPY --chown=node:node lab\/start-seller\.mjs \/app\/start-se
 assert.match(fly, /CMD \["node", "\/app\/start-seller\.mjs"\]/);
 assert.doesNotMatch(fly, /CMD \["node", "dist\/src\/cli\.js", "demo"\]/);
 assert.match(starter, /FLY_APP_NAME !== LIVE_APP/);
-assert.match(starter, /LAB_STARTUP_SMOKE/);
+assert.doesNotMatch(starter, /LAB_STARTUP_SMOKE/);
+assert.match(starter, /LAB_SELLER_DEPLOY/);
 assert.match(starter, /setuid\(DROP_UID\)/);
-assert.match(starter, /serve", "--config", SELLER_DEPLOY/);
+assert.match(starter, /serve", "--config", report\.sellerDeploy/);
+assert.match(pin, /^node:24-bookworm-slim@sha256:[0-9a-f]{64}$/);
+assert.ok(fly.includes(pin), "Dockerfile.fly must pin NODE_IMAGE");
+assert.match(smokeSh, /node-image\.pin/);
+assert.match(smokeSh, /FLY_APP_NAME=402signal-lab-ross/);
+assert.match(smokeSh, /LAB_SELLER_DEPLOY=\/labdata\/seller-deploy\.json/);
+assert.doesNotMatch(smokeSh, /LAB_STARTUP_SMOKE/);
+assert.doesNotMatch(fly, /node:24-bookworm-slim\n/);
+assert.doesNotMatch(fly, /NODE_IMAGE=node:24-bookworm-slim$/m);
 assert.equal(smoke.mode, "offline");
 assert.equal(smoke.ledgerPath, "/labdata/seller.sqlite");
 assert.doesNotMatch(JSON.stringify(smoke), /[A-Za-z0-9]{40,}/);
@@ -67,5 +78,6 @@ console.log(
     dockerfile: "integration/lab/Dockerfile.fly",
     context: "integration/",
     qualification: "scripts/smoke_lab_fly_image.sh",
+    NODE_IMAGE: pin,
   }),
 );

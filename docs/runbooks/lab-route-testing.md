@@ -50,3 +50,8 @@ Validation includes all three rails with isolated real history/PQ databases,
 ephemeral Ed25519 checkpoint keys, v4 reveal/signature/inclusion verification,
 restart replay, normal free misses, and truthful settled transparency failures.
 No production payment, Falcon invocation or deployment is performed by the tests.
+
+The lab Fly machine command is `node /app/start-seller.mjs`. Keep the approved
+seller-deploy file on the `/labdata` volume (`LAB_SELLER_DEPLOY=/labdata/seller-deploy.json`).
+Previous image rootfs leftovers are not the delivery path. See
+[lab Fly image startup](../../integration/lab/FLY_IMAGE.md).

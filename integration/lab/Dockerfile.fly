@@ -1,15 +1,18 @@
 # Fly-facing lab image recipe. Machine command: node /app/start-seller.mjs
 # Build from the integration/ context.
 #
-#   podman build --build-arg NODE_IMAGE=YOUR_REVIEWED_NODE_24_IMAGE \
+#   podman build --build-arg NODE_IMAGE=$(cat lab/node-image.pin) \
 #     -f lab/Dockerfile.fly -t localhost/402signal-lab:reviewed .
 # (cwd = integration/)
 #
 # Locked native Algorand package lives at /app/native-mpp/algorand with
 # /mpp-algorand -> /app/native-mpp/algorand so compiled /app/dist/src
-# ../../../mpp-algorand/lab-merchant.mjs resolves. Pin NODE_IMAGE to the
-# reviewed digest when publishing.
-ARG NODE_IMAGE=node:24-bookworm-slim
+# ../../../mpp-algorand/lab-merchant.mjs resolves.
+# NODE_IMAGE default is the reviewed index digest (see lab/node-image.pin).
+# linux/amd64 platform under that index:
+#   sha256:713cfbf4a0ac19f40e1bb9919893e126b74a5c8cf5d0623c9f89515c8f74c6fa
+# Confirmed 2026-09-09 from Hub tag digest and registry Docker-Content-Digest.
+ARG NODE_IMAGE=node:24-bookworm-slim@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app

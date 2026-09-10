@@ -1,5 +1,5 @@
 /** Live lab machine entrypoint. Privilege drop before serve. No production secrets. */
-import { accessSync, chmodSync, chownSync, constants, lstatSync } from "node:fs";
+import { accessSync, chmodSync, chownSync, constants, lstatSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -16,8 +16,6 @@ export function fail(code) {
 }
 
 export function assertLiveApp(env = process.env) {
-  // Smoke may skip only the app-name pin. Production path stays exact.
-  if (env.LAB_STARTUP_SMOKE === "1") return;
   if (env.FLY_APP_NAME !== LIVE_APP) fail("fly_app_refused");
 }
 
@@ -28,10 +26,20 @@ export function assertLabdata(path = LABDATA) {
   return st;
 }
 
-export function assertSellerDeploy(path = SELLER_DEPLOY) {
+export function resolveSellerDeploy(env = process.env) {
+  return env.LAB_SELLER_DEPLOY || SELLER_DEPLOY;
+}
+
+export function assertSellerDeploy(path = SELLER_DEPLOY, { env = process.env, labdata = LABDATA } = {}) {
   let st;
   try { st = lstatSync(path); } catch { fail("seller_deploy_required"); }
   if (!st.isFile() || st.isSymbolicLink()) fail("seller_deploy_refused");
+  if (env.LAB_SELLER_DEPLOY) {
+    if (!path.startsWith("/") || path.includes("\0")) fail("seller_deploy_refused");
+    const root = realpathSync(labdata);
+    const real = realpathSync(path);
+    if (real !== root && !real.startsWith(root + "/")) fail("seller_deploy_refused");
+  }
   accessSync(path, constants.R_OK);
 }
 
@@ -54,19 +62,19 @@ export function assertUnprivilegedWritable(path = LABDATA) {
 export function prepareStartup({
   env = process.env,
   labdata = LABDATA,
-  config = SELLER_DEPLOY,
 } = {}) {
   assertLiveApp(env);
   assertLabdata(labdata);
+  const sellerDeploy = resolveSellerDeploy(env);
   const drop = dropRootIfNeeded(labdata);
   assertUnprivilegedWritable(labdata);
-  assertSellerDeploy(config);
+  assertSellerDeploy(sellerDeploy, { env, labdata });
   return {
     ok: true,
     uid: process.getuid(),
     gid: process.getgid(),
     dropped: drop.dropped,
-    smoke: env.LAB_STARTUP_SMOKE === "1",
+    sellerDeploy,
   };
 }
 
@@ -77,6 +85,6 @@ if (main) {
     process.stdout.write(JSON.stringify(report) + "\n");
     process.exit(0);
   }
-  process.argv = [process.argv[0], CLI, "serve", "--config", SELLER_DEPLOY];
+  process.argv = [process.argv[0], CLI, "serve", "--config", report.sellerDeploy];
   await import(CLI);
 }

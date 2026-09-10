@@ -151,6 +151,10 @@ jobs:
           node integration/lab/sync-sdk.mjs
           test -f integration/lab/sdk/route-guard/batch.mjs
       - name: Build Dockerfile.fly and smoke start-seller
-        # Real entrypoint, synthetic seller-deploy fixture, mounted /labdata.
+        # Real entrypoint, synthetic volume fixture, pinned NODE_IMAGE.
         # No Fly credentials or production seller-deploy.
-        run: bash scripts/smoke_lab_fly_image.sh
+        run: |
+          printf 'NODE_IMAGE=%s\n' "$(cat integration/lab/node-image.pin)"
+          printf 'dockerfile=integration/lab/Dockerfile.fly\n'
+          printf 'source_sha=%s\n' "$GITHUB_SHA"
+          bash scripts/smoke_lab_fly_image.sh

@@ -29,13 +29,15 @@ load `lab-merchant.mjs`. `index.mjs` repository-relative `../../sdk/route-guard`
 imports resolve through `/app/sdk`.
 
 ```sh
-podman build --build-arg NODE_IMAGE=YOUR_REVIEWED_NODE_24_IMAGE \
+podman build --build-arg NODE_IMAGE=$(cat integration/lab/node-image.pin) \
   -f integration/lab/Dockerfile.fly -t localhost/402signal-lab:reviewed integration
 ```
 
-Pin NODE_IMAGE to a reviewed digest before publishing. Provide
-`/app/config/seller-deploy.json` and a `/labdata` volume on the machine; do not
-commit production seller-deploy contents. Paid runs retain all explicit policy,
+Qualified Fly image builds use the digest in `node-image.pin`. Keep the
+approved seller-deploy file on the `/labdata` volume and set
+`LAB_SELLER_DEPLOY=/labdata/seller-deploy.json`. Image-layer leftovers are not
+the delivery mechanism. See [Fly image startup](FLY_IMAGE.md). Do not commit
+production seller-deploy contents. Paid runs retain all explicit policy,
 wallet, recipient, fee, budget and network gates. Recovery needs public policy,
 the ledger and RPC access, but no private wallet environment.
 
