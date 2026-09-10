@@ -13,7 +13,7 @@
   "packages": [
     {
       "tag": "route-guard-v0.7.2",
-      "source_revision": "776b31a9cce8052e2c42961ef7e20d265207e499",
+      "source_revision": "fdbcff3bc9b31826567b8cb456d4a883009eb9ff",
       "distribution": "GitHub release archive; not npm registry",
       "state": "pending",
       "digest_status": "provisional-until-release",

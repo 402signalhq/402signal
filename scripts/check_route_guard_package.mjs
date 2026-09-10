@@ -37,6 +37,7 @@ const run = (command, args, cwd) => execFileSync(command, args, {
   env: {...process.env, npm_config_update_notifier: 'false'},
 });
 try {
+  // npm 10+ portable pack: gzip mtime 0, tar member mtime 499162500.
   const packed = JSON.parse(run('npm', ['pack', '--json', '--ignore-scripts', '--pack-destination', scratch], packageRoot));
   assert.equal(packed.length, 1);
   assert.equal(packed[0].name, metadata.name);
