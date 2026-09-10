@@ -151,7 +151,7 @@ try {
         });
         await check(`${tag} guide selection and meaningful copy`,async()=>{
           await page.goto(origin+'/developers');assert.equal(await page.locator('#quickstart').isVisible(),true);assert.equal(await page.locator('#sellers').isVisible(),false);
-          for(const id of ['route-binding','native-mpp','batch-support','recovery','interfaces','policy-guide','pq-trust','compatibility','quickstart']) {
+          for(const id of ['route-binding','native-mpp','check-group-offer','batch-support','recovery','interfaces','policy-guide','pq-trust','compatibility','quickstart']) {
             await page.locator(`[data-guide-link="${id}"]`).click();
             await page.locator(`#${id}`).waitFor({state:'visible'});
             assert.equal(await page.locator('[data-guide]:visible').count(),1);await noOverflow(page,id);

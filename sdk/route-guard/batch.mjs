@@ -218,8 +218,22 @@ import { validateAlgorandBatchProfile } from "./batch-profiles/algorand.mjs";
 import { validateAlgorandGenericProfile } from "./batch-profiles/algorand-generic.mjs";
 import { validateAlgorandAtomicMultiProfile, validateAlgorandInvoiceProfile, ATOMIC as ALGO_MULTI, INVOICE as ALGO_INVOICE } from "./batch-profiles/algorand-manifest.mjs";
 import {validateBaseChargeProfile} from "./batch-profiles/base-charge.mjs";
-import {nativeChargeWire} from "./batch-profiles/native-charge.mjs";
+import {nativeChargeChallenges, nativeChargeWire} from "./batch-profiles/native-charge.mjs";
 import {validateAlgorandChargeProfile} from "./batch-profiles/algorand-charge.mjs";
+const JOB = "chk_grp";
+const LABEL = "Check group offer";
+const CODECS = ["exact", "sess", "mpp", "atom", "inv"];
+const PROFILE_CODEC = {
+  "base-x402-batch-v1": "exact",
+  "solana-mpp-session-v1": "sess",
+  "base-mpp-charge-v1": "mpp",
+  "algorand-mpp-charge-v1": "mpp",
+  "algorand-atomic-batch-v1": "atom",
+  "algorand-atomic-two-item-v1": "atom",
+  [ALGO_MULTI]: "atom",
+  [ALGO_INVOICE]: "inv",
+};
+const EXTENSION = "402signal-atomic-batch";
 const PROFILES = {
   "algorand-mpp-charge-v1": validateAlgorandChargeProfile,
   "base-mpp-charge-v1": validateBaseChargeProfile,
@@ -264,12 +278,111 @@ function request(body) {
         ].includes(k),
       ) &&
       body.require_route_binding === true &&
-      Object.hasOwn(PROFILES, body.merchant_profile) &&
       body.buyer_limits &&
       typeof body.buyer_limits === "object" &&
       !Array.isArray(body.buyer_limits),
   );
+  if (Object.hasOwn(body, "merchant_profile")) {
+    check(Object.hasOwn(PROFILES, body.merchant_profile));
+  }
   return context(body.url);
+}
+function envelope(challenge) {
+  const items = [];
+  if (challenge.bodyText) {
+    try {
+      items.push(parse(challenge.bodyText));
+    } catch {
+      /* non-JSON bodies are ordinary for native Payment headers */
+    }
+  }
+  if (challenge.paymentRequired !== null) {
+    try {
+      items.push(
+        parse(
+          new TextDecoder("utf-8", { fatal: true }).decode(
+            decode64(challenge.paymentRequired),
+          ),
+        ),
+      );
+    } catch {
+      return null;
+    }
+  }
+  if (!items.length) return null;
+  if (!items.every((v) => canonical(v) === canonical(items[0]))) return null;
+  return items[0];
+}
+function paymentHits(challenge) {
+  const raw = challenge.wwwAuthenticate;
+  if (typeof raw !== "string" || !raw.startsWith("Payment ")) return [];
+  let items;
+  try {
+    items = nativeChargeChallenges(raw);
+  } catch {
+    return [];
+  }
+  const known = [];
+  for (const item of items) {
+    const intent = item.params.intent;
+    const method = item.params.method;
+    if (intent === "session" && method === "solana") {
+      known.push(["sess", "solana-mpp-session-v1"]);
+    } else if (intent === "charge" && method === "evm") {
+      known.push(["mpp", "base-mpp-charge-v1"]);
+    } else if (intent === "charge" && method === "algorand") {
+      known.push(["mpp", "algorand-mpp-charge-v1"]);
+    }
+  }
+  return [...new Map(known.map((item) => [item.join("\0"), item])).values()];
+}
+function bodyHits(env) {
+  if (!env || typeof env !== "object" || Array.isArray(env)) return [];
+  const ext = env.extensions;
+  const manifest = ext && typeof ext === "object" ? ext[EXTENSION] : null;
+  if (manifest && typeof manifest === "object") {
+    if (manifest.version === 2 && manifest.profile === ALGO_INVOICE) {
+      return [["inv", ALGO_INVOICE]];
+    }
+    if (manifest.version === 2 && manifest.profile === ALGO_MULTI) {
+      return [["atom", ALGO_MULTI]];
+    }
+    if (manifest.version === 1) {
+      if ("itemCount" in manifest && !("jobHashes" in manifest)) return [];
+      if (manifest.itemCount === 2 && "jobHashes" in manifest) {
+        const resource =
+          env.resource && typeof env.resource === "object" ? env.resource.url : null;
+        if (typeof resource === "string" && resource.includes("/algorand/batch/sha256?")) {
+          return [["atom", "algorand-atomic-batch-v1"]];
+        }
+        return [["atom", "algorand-atomic-two-item-v1"]];
+      }
+    }
+    return [];
+  }
+  const accepts = env.accepts;
+  if (
+    Array.isArray(accepts) &&
+    accepts.length === 1 &&
+    accepts[0] &&
+    typeof accepts[0] === "object" &&
+    accepts[0].scheme === "batch-settlement"
+  ) {
+    return [["exact", "base-x402-batch-v1"]];
+  }
+  return [];
+}
+function detectProfile(challenge) {
+  exactKeys(challenge, ["status", "bodyText", "paymentRequired", "wwwAuthenticate"]);
+  check(challenge.status === 402);
+  const hits = paymentHits(challenge);
+  const env = envelope(challenge);
+  if (env !== null) hits.push(...bodyHits(env));
+  const unique = [...new Map(hits.map((item) => [item.join("\0"), item])).values()];
+  check(unique.length === 1);
+  const [codec, profile] = unique[0];
+  check(PROFILE_CODEC[profile] === codec && CODECS.includes(codec));
+  return profile;
 }
 function wire(c, ctx, profile, limits = {}) {
   exactKeys(c, ["status", "bodyText", "paymentRequired", "wwwAuthenticate"]);
@@ -358,24 +471,31 @@ function validate(binding, body, now) {
   ]);
   const ctx = request(body);
   check(Number.isSafeInteger(binding.observed_at) && binding.observed_at > 0);
+  const profile = Object.hasOwn(body, "merchant_profile")
+    ? body.merchant_profile
+    : detectProfile(binding.challenge);
+  if (Object.hasOwn(body, "merchant_profile")) {
+    check(body.merchant_profile === detectProfile(binding.challenge));
+  }
+  check(binding.profile === profile);
   let [envelope, expiry] = wire(
     binding.challenge,
     ctx,
-    body.merchant_profile,
+    profile,
     body.buyer_limits,
   );
-  const terms = PROFILES[body.merchant_profile](
+  const terms = PROFILES[profile](
     JSON.parse(canonical(envelope)),
     ctx,
     JSON.parse(canonical(body.buyer_limits)),
   );
-  if ([ALGO_MULTI, ALGO_INVOICE].includes(body.merchant_profile)) {
+  if ([ALGO_MULTI, ALGO_INVOICE].includes(profile)) {
     check(terms.feeQuote.observedAt <= binding.observed_at && binding.observed_at < terms.feeQuote.expiresAt);
     expiry = terms.feeQuote.expiresAt;
   }
   const rebuilt = {
     model: MODEL,
-    profile: body.merchant_profile,
+    profile,
     request: ctx,
     buyer_limits: body.buyer_limits,
     challenge: binding.challenge,
@@ -437,10 +557,15 @@ export function verifyBatchRoute(options) {
         response.payable === true &&
         response.url === body.url &&
         response.status === 402 &&
-        response.merchant_profile === body.merchant_profile &&
         response.selected_payment === null &&
         canonical(response.batch_terms) === canonical(binding.terms),
     );
+    if (Object.hasOwn(body, "merchant_profile")) {
+      check(response.merchant_profile === body.merchant_profile);
+    } else {
+      check(response.job === JOB && CODECS.includes(response.codec));
+      if (Object.hasOwn(response, "label")) check(response.label === LABEL);
+    }
     return JSON.parse(canonical(binding));
   } catch (error) {
     if (error instanceof RouteGuardError) throw error;

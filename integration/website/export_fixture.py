@@ -123,11 +123,14 @@ with tempfile.TemporaryDirectory(prefix='website-fixture-') as directory:
             'max_total_amount_atomic': '2000', 'max_sponsor_fee_micro_algo': '15000', 'job_hashes': ['a' * 64, 'b' * 64]},
     }
     for profile, limits in profiles.items():
-        request = {'url': 'https://merchant.example/api?x=1&y=a%2Bb', 'merchant_profile': profile,
+        request = {'url': 'https://merchant.example/api?x=1&y=a%2Bb',
                    'buyer_limits': limits, 'require_route_binding': True}
         batch_binding.parse_request(request, enabled=False)
         cases.append({'name': profile, 'request': deepcopy(request), 'valid': True})
         for key in request:
+            # url + require_route_binding without caps is ordinary exact routing.
+            if key == 'buyer_limits':
+                continue
             altered = deepcopy(request)
             altered.pop(key)
             cases.append({'name': profile + '-missing-' + key, 'request': altered, 'valid': False})

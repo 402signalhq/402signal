@@ -63,7 +63,7 @@ class DeveloperRecipes(unittest.TestCase):
         self.assertNotRegex(LLMS_TXT, r'(?<![\w-])(?:/guides|/developers/sellers)(?![\w-])')
     def test_copied_briefs_point_at_retrievable_recipes(self):
         html = (guides.STATIC / 'developers.html').read_text()
-        for path in ('/developers/test-buyer', '/developers/check-offer', '/developers/native-mpp', '/developers/sessions-and-invoices', '/developers/check-api-listing', '/developers/recover-routing-attempt', '/developers/evidence'):
+        for path in ('/developers/test-buyer', '/developers/check-offer', '/developers/native-mpp', '/developers/sessions-and-invoices', '/developers/check-group-offer', '/developers/check-api-listing', '/developers/recover-routing-attempt', '/developers/evidence'):
             self.assertIn('https://402signal.com' + path, html)
         self.assertNotRegex(html, r'(?<![\w-])(?:/guides|/developers/sellers)(?![\w-])')
         listing = guides.markdown('check-api-listing')

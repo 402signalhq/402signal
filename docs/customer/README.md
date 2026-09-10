@@ -11,6 +11,7 @@ Start with the task, then select its supported transport and payment profile. Do
 | Guard an exact purchase | [Guard/client](../../sdk/route-guard/README.md), [reference buyer](../../integration/reference-buyer/README.md) | $0.003 per qualifying hosted observation; buyer-owned payment |
 | Select native MPP charges | [Base](../../integration/mpp-client/NATIVE.md), [Algorand](../../integration/mpp-algorand/README.md), [full-offer selection](../../integration/mpp-client/NATIVE_SELECTION.md) | Named profiles only; native MPP is not x402 through mppx |
 | Continue a funded session | [Session Client](../../integration/session-client/README.md) | Fixed buyer policy; no automatic new observation, top-up or channel |
+| Check a group offer | [Check group offer](../batch-observation-v1.md) | `url` + `buyer_limits` + `require_route_binding`; codec auto-detected; $0.003 per qualifying observation |
 | Use an Algorand group/invoice | [Manifest contract](../algorand-manifests-v2.md) | Explicit supported merchant manifest; not arbitrary batching |
 | Recover an uncertain route | [Recovery](../route-recovery.md) | Original durable attempt; no new authorization as a retry shortcut |
 | Investigate an old decision | [Evidence guide](evidence.md) | Retained record; not current permission or payment confirmation |

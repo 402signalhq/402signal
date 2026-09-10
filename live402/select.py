@@ -1265,6 +1265,9 @@ def _compared_row(result, selected, pay, *, selectable=None, excluded_reason=Non
         eco = economics.for_result(result, pay)
     if eco:
         row["economics"] = eco
+    for key in ("job", "codec", "label"):
+        if result.get(key) is not None:
+            row[key] = result[key]
     return row
 
 

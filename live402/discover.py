@@ -1390,17 +1390,15 @@ Use RouteClient with a private durable attempt store before paid submission. Rec
 
 Optional customer access keys identify a workload class; they are not wallet private keys. Payment headers and replay credentials are still sensitive. Keep credentials and private recovery stores outside public logs and repositories.
 
-## Batch and session support
+## Check group offer
 
-Supported profiles include Base batch settlement, Solana MPP push sessions, Algorand explicit atomic groups and aggregate invoices, and separate native Base and Algorand MPP charges. These are specific profiles, not a network/method cross-product. Dated controlled MainNet examples cover specific documented campaigns at owner-operated lab endpoints; they do not qualify every profile limit or external merchant. The published v0.7 client provides separate exact-payment and v5 batch/session guards. Controlled lab examples demonstrate specific contracts and limits. An ordinary v4 receipt does not authorize a batch or session.
+Job chk_grp, human label Check group offer. Send url, buyer_limits and require_route_binding:true. The server auto-selects a codec from the live seller challenge. Buyers do not pass merchant_profile. Unknown or ambiguous wires fail closed. An ordinary v4 exact receipt does not authorize a group observation.
 
-The separate v5 proof binds one exact HTTPS GET API, merchant_profile, all buyer_limits and the raw observed challenge. It is a short-lived observation, not permission to deposit, issue vouchers or sign an arbitrary transaction. The router fee remains $0.003 per qualifying API observation; merchant charges, capital, fees and rent remain separate.
+Codecs are exact (batch-settlement envelope), sess (Solana Payment session), mpp (native Base or Algorand Payment charge), atom (Algorand atomic group), and inv (Algorand aggregate invoice). These are specific wires, not a network/method cross-product. Hosted enablement is the operator BATCH_OBSERVATION_PROFILES allowlist (codec tokens or legacy internal names). Dated controlled MainNet examples do not qualify every limit or external merchant.
 
-- Base base-x402-batch-v1: explicit EVM channel terms, receiver authorizer and buyer call/cumulative/capital caps. Voucher acceptance is distinct from eventual on-chain payout.
-- Solana solana-mpp-session-v1: native MPP push sessions with a pinned program, operator and recipient. An observed session cap or minimum voucher increment does not establish the merchant's per-call price. The buyer owns opening, voucher signing and closing. This is not cross-channel batch settlement.
-- Algorand algorand-atomic-two-item-v1: exactly two USDC payments to the same recipient for one exact HTTPS GET API, with item/total caps, sponsor terms and independently pinned job hashes. A complete versioned manifest is required. Atomic chain execution does not guarantee atomic HTTP delivery. The separate algorand-atomic-batch-v1 profile is the controlled lab example. algorand-atomic-multi-item-v1 permits 2..15 explicit job payments plus sponsorship; algorand-aggregate-invoice-v1 permits 2..64 explicit jobs in one invoice payment plus sponsorship. Invoice totals are not known per-job prices. See https://402signal.com/developers/sessions-and-invoices .
+The separate v5 proof binds one exact HTTPS GET API, all buyer_limits and the raw observed challenge. The HTTP result and compared rows name job and codec. Label is optional debug. The public leaf stays commitment-only. It is a short-lived observation, not permission to deposit, issue vouchers or sign an arbitrary transaction. The router fee remains $0.003 per qualifying API observation; merchant charges, capital, fees and rent remain separate.
 
-See https://github.com/402signalhq/402signal/blob/main/docs/batch-observation-v1.md . Profile-specific buyer adapters still validate chain state and transaction contents and retain durable one-shot intent. Never automatically sign or send again after uncertainty.
+See https://402signal.com/developers/check-group-offer and https://github.com/402signalhq/402signal/blob/main/docs/batch-observation-v1.md . Buyer adapters still validate chain state and transaction contents and retain durable one-shot intent. Never automatically sign or send again after uncertainty.
 
 The x402 adapter for mppx is a gateway integration, separate from native MPP session settlement: https://github.com/402signalhq/402signal/tree/main/integration/mpp-client
 

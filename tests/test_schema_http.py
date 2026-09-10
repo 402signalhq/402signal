@@ -12,11 +12,15 @@ class HttpSchemaTests(unittest.TestCase):
     def test_http_profiles_are_closed_and_disjoint(self):
         schema = schema_fields.route_body_schema()
         self.assertFalse(schema['additionalProperties'])
-        self.assertEqual(len(schema['oneOf']), 2 + len(schema_http.batch_limit_schemas()))
+        self.assertEqual(len(schema['oneOf']), 3)
         for variant in schema['oneOf']:
             self.assertFalse(variant['additionalProperties'])
-        for name in ('probe_request', 'merchant_profile', 'buyer_limits'):
+        for name in ('probe_request', 'buyer_limits'):
             self.assertIn(name, schema['properties'])
+        self.assertNotIn('merchant_profile', schema['properties'])
+        self.assertEqual(schema['oneOf'][2]['title'], 'Check group offer')
+        self.assertNotIn('merchant_profile', schema['oneOf'][2]['properties'])
+        self.assertIn('anyOf', schema['oneOf'][2]['properties']['buyer_limits'])
         self.assertEqual(schema['anyOf'], list(schema_fields.NEED_OR_URL_ANYOF))
 
     def test_mcp_keeps_the_existing_advertised_input(self):

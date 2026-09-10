@@ -15,8 +15,13 @@ from live402 import (
     replay,
     route,
     http_body,
+    lab_traffic,
 )
 from live402.pq import receipt, store, events, route_v5
+
+def buyer(req):
+    return {key: req[key] for key in req if key != "merchant_profile"}
+
 
 VECTORS = json.loads(
     (Path(__file__).parent / "fixtures/batch-observation-wire.json").read_text()
@@ -77,10 +82,13 @@ class BatchTests(unittest.TestCase):
         replay.reset()
 
     def result(self, v):
+        from live402 import batch_codec
+
         binding = bb.build(v["request"], v["observation"])
-        return {
+        codec, _inferred = batch_codec.limits_match(v["request"]["buyer_limits"])
+        out = {
             "url": v["request"]["url"],
-            "merchant_profile": v["request"]["merchant_profile"],
+            **batch_codec.identity(codec),
             "live": True,
             "payable": True,
             "invocable": False,
@@ -89,6 +97,9 @@ class BatchTests(unittest.TestCase):
             "batch_terms": binding["terms"],
             "_batch_observation": v["observation"],
         }
+        if "merchant_profile" in v["request"]:
+            out["merchant_profile"] = v["request"]["merchant_profile"]
+        return out
 
     def issue(self, v):
         result = self.result(v)
@@ -178,17 +189,74 @@ class BatchTests(unittest.TestCase):
             with self.assertRaises(http_body.BodyReadError):
                 http_body.loads_json_object(raw)
 
+    def test_buyer_omits_merchant_profile_and_response_names_job_codec(self):
+        v = vector(0)
+        req = {
+            "url": v["request"]["url"],
+            "buyer_limits": v["request"]["buyer_limits"],
+            "require_route_binding": True,
+        }
+        with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": "exact"}):
+            bb.parse_request(req, enabled=True)
+        with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": "sess"}):
+            with self.assertRaises(ValueError):
+                bb.parse_request(req, enabled=True)
+
+        def network(url, method, **kw):
+            self.assertIs(kw["capture_batch"], True)
+            return {"status": 402, "_batch_observation": v["observation"]}
+
+        with patch(
+            "live402.facilitator.verify", return_value=_verified()
+        ), patch(
+            "live402.facilitator.settle", return_value=_settled()
+        ), patch(
+            "live402.probe._pin_https_target",
+            return_value=(req["url"], [("synthetic",)]),
+        ), patch(
+            "live402.probe._one_request", side_effect=network
+        ), patch(
+            "live402.admission.reserve_probe", return_value=None
+        ), patch(
+            "live402.history.mark_batch_settled"
+        ), patch(
+            "live402.history.record_probe"
+        ):
+            out = route.handle_route(req, _headers(_payload()), RESOURCE)
+        self.assertEqual(out[0], 200, out)
+        self.assertEqual(out[1]["job"], "chk_grp")
+        self.assertEqual(out[1]["codec"], "exact")
+        self.assertEqual(out[1]["label"], "Check group offer")
+        self.assertNotIn("merchant_profile", out[1])
+        self.assertEqual(out[1]["compared"][0]["job"], "chk_grp")
+        self.assertEqual(out[1]["compared"][0]["codec"], "exact")
+        self.assertNotIn("label", out[1]["compared"][0])
+        public = json.loads(
+            store.leaf_at(out[1]["pq_trust"]["transparency"]["index"])["body"]
+        )
+        self.assertEqual(set(public), {"type", "ts", "nonce", "commitment"})
+
     def test_feature_default_off_and_incompatible_discovery_or_post(self):
         v = vector(0)
         with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": ""}):
-            self.assertEqual(route._bad_request(v["request"])[0], 400)
+            self.assertEqual(route._bad_request(buyer(v["request"]))[0], 400)
         for change in [
             {"need": "search"},
             {"max_price_usd": 1},
             {"probe_request": {}},
             {"require_route_binding": False},
         ]:
-            self.assertEqual(route._bad_request({**v["request"], **change})[0], 400)
+            self.assertEqual(route._bad_request({**buyer(v["request"]), **change})[0], 400)
+
+    def test_live_named_profile_is_lab_only(self):
+        v = vector(0)
+        bb.parse_request(v["request"], enabled=False)
+        bb.parse_request(buyer(v["request"]), enabled=True)
+        with self.assertRaises(rb.BindingError):
+            bb.parse_request(v["request"], enabled=True)
+        bb.parse_request({**v["request"], "lab_test": lab_traffic.PROTOCOL}, enabled=True)
+        self.assertEqual(route._bad_request(v["request"])[0], 400)
+        self.assertIsNone(route._bad_request(buyer(v["request"])))
 
     def test_full_verify_raw_probe_settle_pq_replay_all_three(self):
         for i in range(len(VECTORS)):
@@ -220,7 +288,7 @@ class BatchTests(unittest.TestCase):
             ), patch(
                 "live402.history.record_probe"
             ) as history:
-                out = route.handle_route(v["request"], _headers(_payload()), RESOURCE)
+                out = route.handle_route(buyer(v["request"]), _headers(_payload()), RESOURCE)
                 self.assertEqual(out[0], 200, out)
                 self.assertTrue(out[1]["billing"]["settled"])
                 self.assertEqual(
@@ -229,7 +297,7 @@ class BatchTests(unittest.TestCase):
                 self.assertNotIn("_batch_observation", out[1])
                 history.assert_not_called()
                 replay.reset_memory()
-                again = route.handle_route(v["request"], _headers(_payload()), RESOURCE)
+                again = route.handle_route(buyer(v["request"]), _headers(_payload()), RESOURCE)
                 self.assertEqual(again, out)
                 self.assertEqual(
                     (verify.call_count, settle.call_count, len(calls)), (1, 1, 1)
@@ -253,7 +321,7 @@ class BatchTests(unittest.TestCase):
             ), patch("live402.facilitator.settle") as settle, patch(
                 "live402.pq.receipt.attach_to_route"
             ) as attach:
-                out = route.handle_route(v["request"], _headers(_payload()), RESOURCE)
+                out = route.handle_route(buyer(v["request"]), _headers(_payload()), RESOURCE)
                 self.assertFalse(out[1]["billing"]["settled"])
                 settle.assert_not_called()
                 attach.assert_not_called()
@@ -268,7 +336,7 @@ class BatchTests(unittest.TestCase):
         ]:
             with patch("live402.probe._one_request") as network:
                 self.assertEqual(
-                    route.run_probe({**v["request"], "buyer_limits": limits})[0], 400
+                    route.run_probe({**buyer(v["request"]), "buyer_limits": limits})[0], 400
                 )
                 network.assert_not_called()
         with patch("live402.facilitator.verify", return_value=_verified()), patch(
@@ -284,7 +352,7 @@ class BatchTests(unittest.TestCase):
         ), patch(
             "live402.pq.receipt.attach_to_route"
         ) as attach:
-            out = route.handle_route(v["request"], _headers(_payload()), RESOURCE)
+            out = route.handle_route(buyer(v["request"]), _headers(_payload()), RESOURCE)
             self.assertEqual(out[0], 200)
             self.assertFalse(out[1]["billing"]["settled"])
             settle.assert_not_called()
@@ -298,7 +366,7 @@ class BatchTests(unittest.TestCase):
         ), patch("live402.probe.release_probe_slot") as release, patch(
             "live402.probe._pin_https_target"
         ) as dns:
-            code, result = batch_probe.run(v["request"], time.monotonic() + 1)
+            code, result = batch_probe.run(buyer(v["request"]), time.monotonic() + 1)
             self.assertEqual(code, 503)
             self.assertEqual(result["miss_reason"], "probe_budget_exhausted")
             dns.assert_not_called()
@@ -315,7 +383,7 @@ class BatchTests(unittest.TestCase):
             side_effect=RuntimeError("synthetic transport failure"),
         ):
             with self.assertRaises(RuntimeError):
-                batch_probe.run(v["request"], time.monotonic() + 1)
+                batch_probe.run(buyer(v["request"]), time.monotonic() + 1)
             release.assert_called_once_with("merchant.example")
             lease.engine.probe_complete.assert_called_once_with(lease, False)
 

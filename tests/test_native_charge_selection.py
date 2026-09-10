@@ -65,7 +65,7 @@ class NativeSelectionTests(unittest.TestCase):
                 bb.build(v['request'], v['observation'])
             replay.reset()
             with patch('live402.route.run_probe', return_value=(200, result)), patch('live402.facilitator.verify', return_value=_verified()), patch('live402.facilitator.settle') as settle:
-                out = route.handle_route(v['request'], _headers(_payload()), RESOURCE)
+                out = route.handle_route(batch_helpers.buyer(v['request']), _headers(_payload()), RESOURCE)
                 self.assertFalse(out[1]['billing']['settled'])
                 settle.assert_not_called()
 
@@ -128,11 +128,12 @@ console.log(JSON.stringify(cases.map(raw=>{try{return nativeChargeChallenges(raw
         v = mixed(vector(4))
         result = self.helper.result(v)
         with patch('live402.route.run_probe', return_value=(200, result)), patch('live402.facilitator.verify', return_value=_verified()) as verify, patch('live402.facilitator.settle', return_value=_settled()) as settle:
-            out = route.handle_route(v['request'], _headers(_payload()), RESOURCE)
+            req = batch_helpers.buyer(v['request'])
+            out = route.handle_route(req, _headers(_payload()), RESOURCE)
             self.assertEqual(out[0], 200, out)
             self.assertTrue(out[1]['billing']['settled'])
             self.assertEqual(out[1]['billing']['amount_atomic'], '3000')
             self.assertEqual(out[1]['batch_binding']['challenge'], v['challenge'])
             replay.reset_memory()
-            self.assertEqual(route.handle_route(v['request'], _headers(_payload()), RESOURCE), out)
+            self.assertEqual(route.handle_route(req, _headers(_payload()), RESOURCE), out)
             self.assertEqual((verify.call_count, settle.call_count), (1, 1))
