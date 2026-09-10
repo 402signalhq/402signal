@@ -207,6 +207,8 @@ class RequirementAndBoundaryTests(unittest.TestCase):
         )
         self.assertIn("Every HTTP 503 requires inspecting billing", discover.LLMS_TXT)
         self.assertIn("never reuse that authorization", discover.LLMS_TXT)
+        self.assertIn("already-probed selectable candidate", discover.LLMS_TXT)
+        self.assertIn("excluded_reason binding_unavailable", discover.LLMS_TXT)
 
         encoded = payment.payment_required_header(required)
         decoded = json.loads(base64.b64decode(encoded).decode("utf-8"))

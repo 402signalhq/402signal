@@ -14,11 +14,15 @@ unsigned operational measurements, not proof of service. Response serialization
 and client network time are outside server total. No secrets, payment signatures,
 seller response text or arbitrary exception messages are included.
 
-A binding failure retains `binding_error: route_binding_unavailable` and adds an
+A terminal binding failure — no remaining already-probed selectable candidate
+could bind — retains `binding_error: route_binding_unavailable` and adds an
 allowlisted `binding_error_reason`, such as unsupported_challenge,
-redirected_quote, quote_expired, unproven_observation or invalid_evidence. Unknown
-exceptions become invalid_evidence. Inspect this reason before correcting the
-seller challenge or request; do not relax verification to make a route succeed.
+redirected_quote, quote_expired, unproven_observation or invalid_evidence.
+Unknown exceptions become invalid_evidence. Earlier bindable-failed losers in
+the same paid request appear in `compared[]` as
+`excluded_reason: binding_unavailable`. Inspect this reason before correcting
+the seller challenge or request; do not relax verification to make a route
+succeed.
 
 Non-challenge responses with billing add `route_outcome` version 1. Its code and next_action
 separate free_miss, binding_failed, route_settled,

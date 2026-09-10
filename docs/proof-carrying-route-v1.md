@@ -80,11 +80,12 @@ an expired receipt is unusable, and the original billing result remains accurate
 Ordinary probes send GET without a body, or a justified POST with exactly `{}`.
 The guard accepts only that same URL, method and body. It does not certify an
 arbitrary input merely because a schema exists. Redirects, personalized/rotating
-challenges, unsupported extensions or unresolved policy may be ineligible. There
-is no fallback to ordinary unguarded execution. When binding is required, the
-router may only fall through among already-probed selectable candidates that
-can still bind; it does not start a new probe fan-out. Optional binding
-availability is narrower than ordinary routing availability.
+challenges, unsupported extensions or unresolved policy may be ineligible.
+When `require_route_binding` is true, the router may fall through among
+already-probed selectable winners that can still bind. It does not start a new
+probe fan-out and does not settle an unguarded (non-binding) winner. HTTP 503
+`route_binding_unavailable` is returned only when none remain bindable.
+Optional binding availability is narrower than ordinary routing availability.
 
 ### Reviewed search POST profile
 

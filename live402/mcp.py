@@ -25,8 +25,10 @@ ROUTE_DESCRIPTION = (
     "constraints override constraints interpreted from policy (or need when policy is absent); "
     "inspect unresolved_constraints rather than assuming prose was enforced.\n\n"
     "For buyer-side comparison before merchant signing, set require_route_binding=true; it also "
-    "requires transparency even if require_transparency=false. A later expired or changed seller "
-    "offer does not reverse an already settled routing fee.\n\n"
+    "requires transparency even if require_transparency=false. The hosted check may then select "
+    "the next already-probed selectable candidate that can bind; it does not settle an unguarded "
+    "winner. HTTP 503 route_binding_unavailable means none remained bindable. A later expired or "
+    "changed seller offer does not reverse an already settled routing fee.\n\n"
     "The first unsigned call returns an HTTP 402 routing-fee challenge; completing it requires "
     "an x402-capable HTTP client, not a wallet key or payment argument. The credential-free "
     "Glama stdio adapter cannot complete paid route calls. The $0.003 USDC routing fee settles "
@@ -152,7 +154,14 @@ OUTPUT_SCHEMA = {
             "enum": list(schema_fields.OBJECTIVES),
         },
         "decision_binding": schema_fields.decision_binding_schema(),
-        "binding_error": {"type": "string", "enum": ["route_binding_unavailable"]},
+        "binding_error": {
+            "type": "string",
+            "enum": ["route_binding_unavailable"],
+            "description": (
+                "HTTP 503 when require_route_binding is true and no remaining "
+                "already-probed selectable candidate could bind."
+            ),
+        },
         "pq_trust": {
             "type": "object",
             "description": schema_fields.TRANSPARENCY_RETENTION_DESC,
@@ -182,7 +191,14 @@ OUTPUT_SCHEMA = {
                 }
             },
         },
-        "compared": {"type": "array"},
+        "compared": {
+            "type": "array",
+            "description": (
+                "Slim probe rows. selectable, payTo_pending, payTo_changed, risk and "
+                "excluded_reason show why a live row was not eligible. "
+                "excluded_reason binding_unavailable marks a skipped binding failure."
+            ),
+        },
     },
 }
 

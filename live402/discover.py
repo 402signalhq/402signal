@@ -61,8 +61,12 @@ GUIDANCE = (
     "A free typed miss creates no route-decision leaf. A settled winner does not "
     "require a durable signed leaf unless require_transparency or require_route_binding is true. "
     "Optional require_route_binding=true requests a signed v4 binding for buyer-side "
-    "comparison with the current seller challenge before signing. Ordinary requests "
-    "keep the v3 receipt path. Guide: https://402signal.com/developers#route-binding. "
+    "comparison with the current seller challenge before signing. When that flag is "
+    "true, a ranked winner that cannot bind is skipped and pick_winner runs again on "
+    "the remaining already-probed selectable set; HTTP 503 route_binding_unavailable "
+    "means none remained bindable. There is no fall-through to unguarded execution. "
+    "compared[].excluded_reason uses binding_unavailable for those skipped rows. "
+    "Ordinary requests keep the v3 receipt path. Guide: https://402signal.com/developers#route-binding. "
     "logged_uncheckpointed is never success "
     "when require_transparency is set. "
     + schema_fields.TRANSPARENCY_RETENTION_DESC
@@ -367,7 +371,16 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 },
             },
             "decision_binding": schema_fields.decision_binding_schema(),
-            "binding_error": {"type": "string", "enum": ["route_binding_unavailable"]},
+            "binding_error": {
+                "type": "string",
+                "enum": ["route_binding_unavailable"],
+                "description": (
+                    "HTTP 503 when require_route_binding is true and no remaining "
+                    "already-probed selectable candidate could build valid binding or "
+                    "evidence. Earlier bindable-failed winners in the same paid request "
+                    "are skipped; there is no unguarded settle."
+                ),
+            },
             "pq_trust": {
                 "type": "object",
                 "description": (
@@ -437,7 +450,9 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "selectable / payTo_pending / payTo_changed / risk / excluded_reason "
                     "show why a live row was not eligible to win. These flags are copied "
                     "from the same probe objects used for selection; a cheaper gated "
-                    "loser stays visible. No private score numbers."
+                    "loser stays visible. Binding fall-through marks skipped rows "
+                    "binding_unavailable without putting full compared[] on the public "
+                    "leaf. No private score numbers."
                 ),
                 "items": {
                     "type": "object",
@@ -1367,7 +1382,7 @@ The routing fee pays for the qualifying observation even if the buyer declines t
 Published client and guard: https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.0
 Verify the published digest, then npm install ./402signal-route-guard-0.7.0.tgz . Node.js >=22 is required. This is a release archive, not an npm registry publication. Package exports include @402signal/route-guard, /client, /file-store, /recovery and the separate /batch guard. Full API: https://github.com/402signalhq/402signal/tree/main/sdk/route-guard
 
-Set require_route_binding:true for a v4 exact-payment receipt. Preserve the original route request JSON, raw response JSON, exact seller URL/method/body and raw unpaid challenge. Immediately before signing, call withVerifiedRoute using an independently trusted log verification key. It checks the signature, inclusion, request binding, observed terms and expiry before invoking your buyer-owned callback. Unsupported, changed, malformed or expired evidence fails closed. The default freshness window is 60 seconds and is never renewed by replay, issuance or human approval.
+Set require_route_binding:true for a v4 exact-payment receipt. If the ranked winner cannot build valid binding or evidence, the router may fall through to the next already-probed selectable candidate that can bind under the same objective and constraints. There is no unguarded (non-binding) settle and no second router fee. HTTP 503 binding_error route_binding_unavailable means none remained bindable. Failed binding losers in compared[] use excluded_reason binding_unavailable and selectable false. Preserve the original route request JSON, raw response JSON, exact seller URL/method/body and raw unpaid challenge. Immediately before signing, call withVerifiedRoute using an independently trusted log verification key. It checks the signature, inclusion, request binding, observed terms and expiry before invoking your buyer-owned callback. Unsupported, changed, malformed or expired evidence fails closed; a local guard refusal must not fall through to unguarded seller payment. The default freshness window is 60 seconds and is never renewed by replay, issuance or human approval.
 
 Your wallet must independently validate the actual transaction, enforce budget and retain durable seller-operation identity. The guard does not hold keys, sign, send, guarantee exactly-once economics or guarantee fulfillment. Historical verifyReceipt validates evidence integrity after expiry; it does not authorize a new purchase. Contract: https://github.com/402signalhq/402signal/blob/main/docs/proof-carrying-route-v1.md
 

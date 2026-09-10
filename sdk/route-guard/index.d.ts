@@ -43,6 +43,25 @@ export function withVerifiedRoute<T>(
   authorize: (action: VerifiedAction) => T,
 ): T;
 
+/** Slim /route compared[] row. Additive; the verifier does not require these fields. */
+export type ComparedExcludedReason =
+  | "payTo_pending"
+  | "payTo_changed"
+  | "constraints_unmet"
+  | "incomplete_payment"
+  | "not_cheapest_comparable"
+  | "ranked_below_winner"
+  | "binding_unavailable";
+export interface ComparedRow {
+  url?: string | null;
+  selected?: boolean;
+  selectable?: boolean;
+  payTo_pending?: boolean;
+  payTo_changed?: boolean;
+  risk?: string[];
+  excluded_reason?: ComparedExcludedReason | null;
+}
+
 export interface ReceiptOptions {
   routeResponseJson: string;
   routeRequestJson: string;

@@ -8,7 +8,7 @@ STATIC = Path(__file__).resolve().parent / 'static'
 # Fixed routes, not a filesystem path derived from a request.
 GUIDES = {
     'test-buyer': ('quickstart', 'Test a buyer without a funded wallet', 'Run offline offer-change checks, connect a trusted adapter and interpret measured results.'),
-    'check-offer': ('route-binding', 'Add an offer check before payment', 'Combine a hosted observation with local verification in an existing exact-x402 buyer.'),
+    'check-offer': ('route-binding', 'Add an offer check before payment', 'Combine a hosted observation with local verification. The hosted check may use the next bindable door; refuse unguarded payment if the local guard fails.'),
     'native-mpp': ('native-mpp', 'Select the intended MPP charge', 'Preserve complete offers and require one explicit supported match before authorization.'),
     'sessions-and-invoices': ('batch-support', 'Check a session or invoice commitment', 'Separate seller call prices, cumulative spend, deposited capital and native fees.'),
     'check-api-listing': ('sellers', 'Check your API listing', 'Use free discovery and listed-endpoint readiness without initiating a seller payment.'),
