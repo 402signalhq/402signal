@@ -48,12 +48,22 @@ class DeveloperRecipes(unittest.TestCase):
     def test_public_release_record_and_current_discovery(self):
         from live402.discover import LLMS_TXT
         status, _, text = self.request('/capabilities.json'); self.assertEqual(status, 200)
-        record = json.loads(text); self.assertEqual(len(record['packages']), 5)
+        record = json.loads(text); self.assertEqual(len(record['packages']), 6)
         for package in record['packages']:
-            self.assertRegex(package['sha256'], r'^[0-9a-f]{64}$')
             self.assertRegex(package['source_revision'], r'^[0-9a-f]{40}$')
+            if package.get('state') == 'pending':
+                self.assertEqual(package.get('digest_status'), 'provisional-until-release')
+                self.assertNotIn('sha256', package)
+                self.assertNotIn('archive', package)
+                self.assertNotIn('checksum_file', package)
+                self.assertNotIn('checksum_file_sha256', package)
+                self.assertNotIn('published_at', package)
+                self.assertRegex(package['provisional_pack_sha256'], r'^[0-9a-f]{64}$')
+                self.assertRegex(package['provisional_sums_sha256'], r'^[0-9a-f]{64}$')
+                continue
+            self.assertRegex(package['sha256'], r'^[0-9a-f]{64}$')
             self.assertIn(package['tag'], package['archive'])
-        self.assertIn('route-guard-v0.7.0', LLMS_TXT); self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
+        self.assertIn('route-guard-v0.7.2', LLMS_TXT); self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
         self.assertEqual(self.request('/capabilities.json', 'HEAD')[2], '')
         for package in record['packages']:
             self.assertIn(package['recipe'], guides.PATHS)

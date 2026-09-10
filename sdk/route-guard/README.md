@@ -167,13 +167,13 @@ See [the response contract](../../docs/route-miss-http-status.md).
 
 ## Install the client
 
-Use the [v0.7.1 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.1) and verify its published digest before installing. This is a GitHub release archive, not an npm-registry package:
+Use the [v0.7.2 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.2) and verify its published digest before installing. This is a GitHub release archive, not an npm-registry package:
 
 ```sh
-npm install ./402signal-route-guard-0.7.1.tgz
+npm install ./402signal-route-guard-0.7.2.tgz
 ```
 
-From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.1.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
+From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.2.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
 declarations, the local guard and HTTP client. Node 22 or newer is required.
 No install script or wallet dependency is included. Windows callers can supply
 their own durable store; the supplied filesystem adapter runs on POSIX, including WSL.
@@ -287,6 +287,16 @@ not enable native MPP routing-fee collection or automatic payment retries.
 Import `verifyBatchRoute` or `withVerifiedBatchRoute` from `@402signal/route-guard/batch` for the separate v5 Check group offer contract. It binds an exact supported GET, raw challenge and independent buyer limits to signed evidence. The server auto-selects a codec (`exact`, `sess`, `mpp`, `atom`, `inv`) from the live challenge. Buyers do not pass `merchant_profile`. Availability depends on the server enabling a qualified codec. See [the Check group offer contract](../../docs/batch-observation-v1.md).
 
 The fee is $0.003 for a qualifying API observation. Merchant requests, cumulative vouchers, deposits, network/provider charges and refunds are separate. A session cap is never treated as its unit price. This guard does not fund a channel, authorize an entire batch, guarantee a refund, or assess delivery quality. The caller must still validate and durably reserve each actual wallet action. Native Solana cross-channel batching, arbitrary Algorand groups and generic POST batches are outside these profiles. The original v4 exact-payment guard remains separate.
+
+## Check group offer request shape (0.7.2)
+
+`verifyBatchRoute` accepts customer chk_grp requests that send only `url`,
+`buyer_limits` and `require_route_binding`. It detects the codec from the bound
+challenge and refuses drift between that wire, the cap key set and the HTTP
+`job`/`codec` identity. Leaves that still carry a buyer `merchant_profile`
+verify as before. Published 0.7.1 required that field and cannot verify current
+customer evidence. A server deploy does not update an already-installed client;
+install this GitHub release tarball.
 
 ## Pin precedence (0.7.1)
 

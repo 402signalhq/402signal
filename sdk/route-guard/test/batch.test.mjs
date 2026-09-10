@@ -196,6 +196,60 @@ test("generic Algorand dynamic item and total caps, job pins and sponsor thresho
   assert.throws(() => validateAlgorandGenericProfile(bad, ctx, l));
 });
 
+const chkGrp = JSON.parse(
+  fs.readFileSync(
+    new URL("../../../tests/fixtures/batch-chk-grp-v5.json", import.meta.url),
+  ),
+);
+test("chk_grp customer leaves verify without buyer merchant_profile", () => {
+  const seen = new Set();
+  for (const v of chkGrp) {
+    assert.equal(Object.hasOwn(v.request, "merchant_profile"), false);
+    assert.equal(v.response.job, "chk_grp");
+    const out = verifyBatchRoute(options(v));
+    assert.equal(out.profile, v.profile);
+    assert.equal(out.request.url, v.request.url);
+    assert.deepEqual(out.buyer_limits, v.request.buyer_limits);
+    seen.add(v.codec);
+  }
+  assert.deepEqual([...seen].sort(), ["atom", "exact", "inv", "mpp", "sess"]);
+});
+test("chk_grp identity drift, named-profile confusion and expired now fail closed", () => {
+  const v = structuredClone(chkGrp[0]);
+  assert.equal(verifyBatchRoute(options(v)).profile, "base-x402-batch-v1");
+  for (const mutate of [
+    (x) => {
+      x.response.codec = "sess";
+    },
+    (x) => {
+      x.response.job = "fill_cap";
+    },
+    (x) => {
+      x.response.label = "other";
+    },
+    (x) => {
+      x.request.merchant_profile = "base-x402-batch-v1";
+    },
+    (x) => {
+      x.request.buyer_limits = {
+        network: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        asset: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        recipient: "11111111111111111111111111111111",
+        operator: "11111111111111111111111111111111",
+        program_id: "CHNLxYvVA28MJP9PrFuDXccuoGXAx7jBacfLEkahyGsX",
+        max_session_cap_atomic: "10000",
+      };
+    },
+    (x) => {
+      x.now = x.response.batch_binding.expires_at;
+    },
+  ]) {
+    const bad = structuredClone(v);
+    mutate(bad);
+    assert.throws(() => verifyBatchRoute(options(bad)));
+  }
+});
+
 test("bounded observational metadata counts UTF8 bytes in Python and JS profiles", async () => {
   const { validateBaseBatchProfile } = await import(
     "../batch-profiles/base.mjs"
