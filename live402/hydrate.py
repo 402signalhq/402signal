@@ -132,8 +132,12 @@ def _child_context(key: str) -> str:
 
 def schema_looks_present(obj) -> bool:
     """True when a seller blob claims a schema, including $ref-only shapes."""
-    if not isinstance(obj, dict) or not obj:
+    if not isinstance(obj, dict):
         return False
+    if not obj:
+        return True
+    if probe.is_empty_object_input_contract(obj):
+        return True
     if obj.get("properties") or obj.get("required") or obj.get("type"):
         return True
     for key in obj:
@@ -267,25 +271,38 @@ def forward_untrusted_schema(obj) -> dict | None:
     and not emit a rewritten substitute.
     """
     cleaned, _n, truncated = _bounded_schema(obj)
-    if truncated or not isinstance(cleaned, dict) or not cleaned:
+    if truncated or not isinstance(cleaned, dict):
         return None
-    return cleaned
+    if cleaned:
+        return cleaned
+    # ``{}`` is an explicit no-input contract. Stripped-to-empty junk is not.
+    return {} if probe.is_empty_object_input_contract(obj) else None
 
 
 def _bounded_schema(obj) -> tuple[dict | None, int, bool]:
     """Return (schema, bytes, truncated). Oversize or unsafe $ref is dropped.
 
     This function never fetches $ref. Unsafe material is refused entirely.
+    An explicit empty object (``{}``) is kept as a no-input contract.
     """
-    if not isinstance(obj, dict) or not obj:
+    if not isinstance(obj, dict):
         return None, 0, False
+    if not obj:
+        raw = _json_bytes(obj)
+        return {}, (len(raw) if raw is not None else 2), False
     original = _json_bytes(obj)
     if original is not None and len(original) > SCHEMA_MAX_BYTES:
         return None, len(original), True
     cleaned = _sanitize_untrusted_schema(obj)
     if cleaned is _UNSAFE_SCHEMA:
         return None, len(original) if original is not None else 0, True
-    if not isinstance(cleaned, dict) or not cleaned:
+    if not isinstance(cleaned, dict):
+        return None, 0, False
+    if not cleaned:
+        raw = _json_bytes(cleaned)
+        n = len(raw) if raw is not None else 2
+        if probe.is_empty_object_input_contract(obj):
+            return {}, n, False
         return None, 0, False
     raw = _json_bytes(cleaned)
     if raw is None:
@@ -465,7 +482,9 @@ def apply_contract(item: dict, contract: dict | None) -> dict:
     }
     in_schema = contract.get("input_schema")
     source = contract.get("input_schema_source")
-    if isinstance(in_schema, dict) and in_schema:
+    if isinstance(in_schema, dict) and (
+        in_schema or probe.is_empty_object_input_contract(in_schema)
+    ):
         if source == "bazaar":
             item["_input_schema_present"] = True
         else:
@@ -500,7 +519,9 @@ def apply_contract(item: dict, contract: dict | None) -> dict:
         inp.setdefault("toolName", contract["tool_name"])
     if contract.get("type"):
         inp.setdefault("type", contract["type"])
-    if source == "bazaar" and isinstance(in_schema, dict) and in_schema:
+    if source == "bazaar" and isinstance(in_schema, dict) and (
+        in_schema or probe.is_empty_object_input_contract(in_schema)
+    ):
         inp["inputSchema"] = in_schema
     if source == "bazaar" and isinstance(out_schema, dict) and out_schema:
         out = info.get("output") if isinstance(info.get("output"), dict) else {}

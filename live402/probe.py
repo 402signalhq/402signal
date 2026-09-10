@@ -396,21 +396,124 @@ def _bazaar_blobs(item: dict | None, envelope: dict | None) -> list[dict]:
     return out
 
 
+# Metadata / constraints that can appear on an explicit no-input object schema.
+# Combinators, $ref, patternProperties, and other field-inventing keywords are
+# intentionally absent: those fail closed.
+_EMPTY_OBJECT_CONTRACT_KEYS = frozenset(
+    {
+        "type",
+        "properties",
+        "required",
+        "additionalProperties",
+        "unevaluatedProperties",
+        "title",
+        "description",
+        "$comment",
+        "$schema",
+        "default",
+        "examples",
+        "maxProperties",
+        "minProperties",
+    }
+)
+
+
+def is_empty_object_input_contract(schema) -> bool:
+    """True when a JSON Schema object explicitly means no input is required.
+
+    Covers ``{}``, ``{type:object}``, empty ``properties`` / ``required``, and
+    the same shapes with only non-field metadata. Absent, null, remote $ref,
+    combinators, and other input-bearing keywords fail closed.
+    """
+    if not isinstance(schema, dict):
+        return False
+    if any(key not in _EMPTY_OBJECT_CONTRACT_KEYS for key in schema):
+        return False
+    typ = schema.get("type")
+    if typ is not None:
+        if typ == "object":
+            pass
+        elif isinstance(typ, list) and typ and all(item == "object" for item in typ):
+            pass
+        else:
+            return False
+    if "properties" in schema:
+        props = schema.get("properties")
+        if not isinstance(props, dict) or props:
+            return False
+    if "required" in schema:
+        required = schema.get("required")
+        if not isinstance(required, list) or required:
+            return False
+    if "minProperties" in schema:
+        minimum = schema.get("minProperties")
+        if type(minimum) is not int or minimum > 0:
+            return False
+    if "maxProperties" in schema:
+        maximum = schema.get("maxProperties")
+        if type(maximum) is not int or maximum < 0:
+            return False
+    if "additionalProperties" in schema and not isinstance(
+        schema.get("additionalProperties"), (bool, dict)
+    ):
+        return False
+    if "unevaluatedProperties" in schema and not isinstance(
+        schema.get("unevaluatedProperties"), (bool, dict)
+    ):
+        return False
+    if "default" in schema and schema.get("default") not in ({}, None):
+        return False
+    if "examples" in schema and not isinstance(schema.get("examples"), list):
+        return False
+    for key in ("title", "description", "$comment", "$schema"):
+        if key in schema and schema[key] is not None and not isinstance(schema[key], str):
+            return False
+    return True
+
+
+def schema_supports_invocation(schema) -> bool:
+    """True when a forwarded schema is a usable invocation contract."""
+    if not isinstance(schema, dict):
+        return False
+    if is_empty_object_input_contract(schema):
+        return True
+    props = schema.get("properties")
+    if isinstance(props, dict) and props:
+        return True
+    required = schema.get("required")
+    if isinstance(required, list) and required:
+        return True
+    return False
+
+
+def _schema_looks_extracted(schema) -> bool:
+    """True when a dict should be taken as an explicit input schema blob."""
+    if not isinstance(schema, dict):
+        return False
+    if is_empty_object_input_contract(schema):
+        return True
+    return bool(schema.get("properties") or schema.get("required") or schema.get("type"))
+
+
 def extract_input_schema_source(item: dict | None, envelope: dict | None = None) -> tuple[dict | None, str | None]:
     """Return (schema, source). source is envelope, catalog, or bazaar."""
-    if isinstance(envelope, dict) and isinstance(envelope.get("inputSchema"), dict) and envelope["inputSchema"]:
-        schema = envelope["inputSchema"]
-        if schema.get("properties") or schema.get("required") or schema.get("type"):
-            return schema, "envelope"
-    if isinstance(item, dict) and isinstance(item.get("inputSchema"), dict) and item["inputSchema"]:
+    if isinstance(envelope, dict) and "inputSchema" in envelope:
+        raw = envelope.get("inputSchema")
+        if not isinstance(raw, dict):
+            # Explicit null/non-object: absent. Do not invent from catalog.
+            return None, None
+        return raw, "envelope"
+    if isinstance(item, dict) and isinstance(item.get("inputSchema"), dict):
         schema = item["inputSchema"]
-        if schema.get("properties") or schema.get("required") or schema.get("type"):
+        if _schema_looks_extracted(schema):
             return schema, "catalog"
     for bazaar in _bazaar_blobs(item, envelope):
         info = bazaar.get("info") or {}
         inp = info.get("input") or {}
-        if isinstance(inp, dict) and isinstance(inp.get("inputSchema"), dict) and inp["inputSchema"]:
-            return inp["inputSchema"], "bazaar"
+        if isinstance(inp, dict) and isinstance(inp.get("inputSchema"), dict):
+            bazaar_schema = inp["inputSchema"]
+            if bazaar_schema or is_empty_object_input_contract(bazaar_schema):
+                return bazaar_schema, "bazaar"
         schema = bazaar.get("schema") or {}
         props = (schema.get("properties") or {}).get("input") if isinstance(schema, dict) else None
         if not isinstance(props, dict):
@@ -418,7 +521,9 @@ def extract_input_schema_source(item: dict | None, envelope: dict | None = None)
         inner = props.get("properties") if isinstance(props.get("properties"), dict) else {}
         for key in ("body", "queryParams", "inputSchema"):
             cand = inner.get(key) if inner else props.get(key)
-            if isinstance(cand, dict) and (cand.get("properties") or cand.get("required")):
+            if isinstance(cand, dict) and (
+                cand.get("properties") or cand.get("required") or is_empty_object_input_contract(cand)
+            ):
                 return cand, "bazaar"
         if props.get("properties") or props.get("required"):
             if props.get("type") == "object" or props.get("properties"):
@@ -577,7 +682,9 @@ def attach_invocable_target(result: dict, item: dict | None = None, envelope: di
 
     challenge_observed = HTTP 402 + parseable x402.
     payable = at least one complete CURRENT observed payment option.
-    invocable = payable + input schema. Fail closed. Never fill from catalog.
+    invocable = payable + a usable input schema. An explicit empty object
+    contract means no input is required. Absent, null, or refused schema stays
+    non-invocable. Never invent a schema from catalog when the envelope has none.
     Live/claimed schemas are forwarded only when bounded and free of remote $ref.
     Observed envelope bytes stay on result['envelope']; they are not rewritten.
     """
@@ -600,7 +707,7 @@ def attach_invocable_target(result: dict, item: dict | None = None, envelope: di
         target["schema_refused"] = True
         target["untrusted"] = True
         target["client_warning"] = hydrate.CLIENT_SCHEMA_WARNING
-    has_schema = isinstance(forwarded, dict) and bool(forwarded.get("properties") or forwarded.get("required"))
+    has_schema = schema_supports_invocation(forwarded)
     live = bool(result.get("live"))
     result["challenge_observed"] = bool(live)
     result["payable"] = bool(live and select._is_payable(result))

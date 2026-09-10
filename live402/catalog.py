@@ -703,7 +703,7 @@ def slim_item(item: dict | None, rail: str, stash: dict | None = None) -> dict:
     updated = _clip(item.get("lastUpdated"), 80)
     if updated:
         slim["lastUpdated"] = updated
-    slim["_input_schema_present"] = bool(in_schema)
+    slim["_input_schema_present"] = in_schema is not None
     slim["_output_schema_present"] = bool(out_schema)
     slim["_rail"] = rail
     slim["capability"] = cap

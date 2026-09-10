@@ -215,7 +215,11 @@ def route_constraint_properties() -> dict:
         },
         "require_invocable": {
             "type": "boolean",
-            "description": "If true, drop live hits without an input schema.",
+            "description": (
+                "If true, drop live hits without an input schema. "
+                "An explicit empty object schema means no input is required and counts as present. "
+                "Absent or refused schema is not invocable."
+            ),
         },
         "networks": {
             "type": "array",

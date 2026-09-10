@@ -60,7 +60,7 @@ def _schema_present(result: dict) -> bool:
         return True
     target = result.get("target") if isinstance(result.get("target"), dict) else {}
     schema = target.get("inputSchema")
-    if isinstance(schema, dict) and (schema.get("properties") or schema.get("required")):
+    if probe.schema_supports_invocation(schema):
         return True
     if result.get("schema_source"):
         return True

@@ -486,7 +486,7 @@ def _samples_for_items(chain: str, items: list[dict]) -> list[dict]:
             "chain": chain,
             "facilitator": _item_facilitator(item),
             "method": probe.extract_method(item),
-            "inputSchema_present": bool(probe.extract_input_schema(item)),
+            "inputSchema_present": probe.extract_input_schema(item) is not None,
         }
         if tid in PREFERRED_SAMPLE_THEMES:
             preferred_by_theme[tid].append(sample)
@@ -1045,7 +1045,8 @@ def preview_need(need: str, prefer_network: str | None = None, networks=None) ->
                 "facilitator": fac,
                 "method": probe.extract_method(item),
                 "inputSchema_present": bool(
-                    item.get("_input_schema_present") or probe.extract_input_schema(item)
+                    item.get("_input_schema_present")
+                    or probe.extract_input_schema(item) is not None
                 ),
                 "rails_up": rails_up.get(chain) if chain else None,
             }

@@ -593,5 +593,150 @@ class LiveSchemaBoundTests(unittest.TestCase):
         self._assert_schema_refused(schema, "https://wx.example/live-nested-id")
 
 
+class EmptyObjectInvocableTests(unittest.TestCase):
+    def _payable_live(self, schema=None, *, omit_schema=False, url="https://wx.example/zero-input"):
+        envelope = {
+            "x402Version": 2,
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": payment.BASE_CAIP2,
+                    "asset": payment.USDC_BASE,
+                    "amount": "20000",
+                    "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "maxTimeoutSeconds": 60,
+                }
+            ],
+        }
+        if not omit_schema:
+            envelope["inputSchema"] = schema
+        result = {
+            "url": url,
+            "live": True,
+            "status": 402,
+            "has_402_challenge": True,
+            "payTo": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "envelope": envelope,
+            "accepts": envelope["accepts"],
+        }
+        return result, envelope
+
+    def test_empty_object_contract_helper_accepts_no_input_shapes(self):
+        for schema in (
+            {},
+            {"type": "object"},
+            {"type": "object", "properties": {}},
+            {"type": "object", "properties": {}, "required": []},
+            {"type": ["object"], "additionalProperties": False},
+            {"properties": {}, "required": [], "description": "no input"},
+        ):
+            with self.subTest(schema=schema):
+                self.assertTrue(probe.is_empty_object_input_contract(schema))
+                self.assertTrue(probe.schema_supports_invocation(schema))
+
+    def test_empty_object_contract_helper_rejects_input_bearing_or_junk(self):
+        for schema in (
+            None,
+            {"type": "string"},
+            {"type": "object", "properties": {"q": {"type": "string"}}},
+            {"type": "object", "required": ["q"]},
+            {"type": "object", "allOf": [{"properties": {"q": {"type": "string"}}}]},
+            {"type": "object", "$ref": "https://evil.example/schema.json"},
+            {"type": "object", "patternProperties": {".+": {"type": "string"}}},
+            {"type": "object", "minProperties": 1},
+            {"type": "object", "foo": "bar"},
+        ):
+            with self.subTest(schema=schema):
+                self.assertFalse(probe.is_empty_object_input_contract(schema))
+
+    def test_absent_schema_is_not_invocable(self):
+        result, envelope = self._payable_live(omit_schema=True)
+        result = probe.attach_invocable_target(result, None, envelope)
+        self.assertTrue(result.get("payable"))
+        self.assertFalse(result.get("invocable"))
+        self.assertIsNone((result.get("target") or {}).get("inputSchema"))
+        self.assertNotEqual(result.get("miss_reason"), "no_input_schema")
+
+    def test_null_envelope_schema_does_not_invent_catalog_schema(self):
+        result, envelope = self._payable_live(None)
+        catalog_item = {
+            "url": result["url"],
+            "inputSchema": {
+                "type": "object",
+                "properties": {"q": {"type": "string"}},
+                "required": ["q"],
+            },
+        }
+        result = probe.attach_invocable_target(result, catalog_item, envelope)
+        self.assertTrue(result.get("payable"))
+        self.assertFalse(result.get("invocable"))
+        self.assertIsNone((result.get("target") or {}).get("inputSchema"))
+        self.assertNotIn("schema_source", result)
+
+    def test_explicit_empty_object_schemas_are_invocable_when_payable(self):
+        for schema in (
+            {},
+            {"type": "object"},
+            {"type": "object", "properties": {}},
+            {"type": "object", "properties": {}, "required": []},
+        ):
+            with self.subTest(schema=schema):
+                result, envelope = self._payable_live(schema)
+                result = probe.attach_invocable_target(result, None, envelope)
+                self.assertTrue(result.get("payable"))
+                self.assertTrue(result.get("invocable"))
+                self.assertEqual((result.get("target") or {}).get("inputSchema"), schema)
+                self.assertEqual(result.get("schema_source"), "envelope")
+                self.assertNotIn("schema_refused", result.get("target") or {})
+
+    def test_non_empty_properties_remain_invocable(self):
+        schema = {
+            "type": "object",
+            "properties": {"q": {"type": "string"}},
+            "required": ["q"],
+        }
+        result, envelope = self._payable_live(schema)
+        result = probe.attach_invocable_target(result, None, envelope)
+        self.assertTrue(result.get("invocable"))
+        self.assertEqual((result.get("target") or {}).get("inputSchema"), schema)
+
+    def test_refused_remote_ref_stays_non_invocable(self):
+        schema = {
+            "type": "object",
+            "$ref": "https://evil.example/full.json",
+            "properties": {},
+        }
+        result, envelope = self._payable_live(schema)
+        result = probe.attach_invocable_target(result, None, envelope)
+        self.assertTrue(result.get("payable"))
+        self.assertFalse(result.get("invocable"))
+        self.assertTrue((result.get("target") or {}).get("schema_refused"))
+        self.assertIsNone((result.get("target") or {}).get("inputSchema"))
+
+    def test_require_invocable_fails_closed_on_absent_schema(self):
+        result, envelope = self._payable_live(omit_schema=True)
+        result = probe.attach_invocable_target(result, None, envelope)
+        result["selected_payment"] = {"rail": "base", "amount_atomic": 20000}
+        cons = select.parse_constraints({"require_invocable": True})
+        self.assertFalse(select.passes_constraints(result, cons))
+        unmet = select.unmet_constraint_names(result, cons)
+        self.assertIn("require_invocable", unmet)
+
+    def test_require_invocable_accepts_empty_object_contract(self):
+        result, envelope = self._payable_live({"type": "object"})
+        result = probe.attach_invocable_target(result, None, envelope)
+        result["selected_payment"] = {"rail": "base", "amount_atomic": 20000}
+        cons = select.parse_constraints({"require_invocable": True})
+        self.assertTrue(result.get("invocable"))
+        self.assertTrue(select.passes_constraints(result, cons))
+
+    def test_empty_object_readiness_is_invocable(self):
+        result, envelope = self._payable_live({})
+        result = probe.attach_invocable_target(result, None, envelope)
+        from live402 import history
+
+        self.assertEqual(history.compute_readiness(result), "invocable")
+
+
 if __name__ == "__main__":
     unittest.main()

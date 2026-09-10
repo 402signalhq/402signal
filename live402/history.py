@@ -11,7 +11,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from live402 import payment
+from live402 import payment, probe
 
 DEFAULT_DB = "/tmp/live402-history.sqlite"
 VOLUME_DB = "/data/live402-history.sqlite"
@@ -358,18 +358,33 @@ def _bazaar_schema_present(blob: dict | None) -> bool:
     info = bazaar.get("info") if isinstance(bazaar.get("info"), dict) else {}
     inp = info.get("input") if isinstance(info.get("input"), dict) else {}
     schema = inp.get("inputSchema") if isinstance(inp, dict) else None
-    if isinstance(schema, dict) and (schema.get("properties") or schema.get("required") or schema.get("type")):
+    if isinstance(schema, dict) and (
+        schema.get("properties")
+        or schema.get("required")
+        or schema.get("type")
+        or probe.is_empty_object_input_contract(schema)
+    ):
         return True
     inner = bazaar.get("schema") if isinstance(bazaar.get("schema"), dict) else {}
     props = (inner.get("properties") or {}).get("input") if isinstance(inner, dict) else None
-    if isinstance(props, dict) and (props.get("properties") or props.get("required") or props.get("type")):
+    if isinstance(props, dict) and (
+        props.get("properties")
+        or props.get("required")
+        or props.get("type")
+        or probe.is_empty_object_input_contract(props)
+    ):
         return True
     return False
 
 
 def _envelope_schema_present(env: dict) -> bool:
     schema = env.get("inputSchema")
-    if isinstance(schema, dict) and (schema.get("properties") or schema.get("required") or schema.get("type")):
+    if isinstance(schema, dict) and (
+        schema.get("properties")
+        or schema.get("required")
+        or schema.get("type")
+        or probe.is_empty_object_input_contract(schema)
+    ):
         return True
     return _bazaar_schema_present(env)
 
@@ -1286,7 +1301,7 @@ def summary(url: str) -> dict:
 def _has_schema(result: dict) -> bool:
     target = result.get("target") if isinstance(result.get("target"), dict) else {}
     schema = target.get("inputSchema")
-    if isinstance(schema, dict) and (schema.get("properties") or schema.get("required")):
+    if probe.schema_supports_invocation(schema):
         return True
     if result.get("schema_source"):
         return True
