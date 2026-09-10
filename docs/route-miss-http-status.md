@@ -31,6 +31,12 @@ empty-object `queryParams` schema) and no required body is the same signal.
 That is not a guarantee the seller call succeeds. Bare `{}` and missing schema
 stay `invocable:false`.
 
+Buyers should treat a completed miss as an answer, not a broken router. Inspect
+`miss_reason` and `route_outcome.next_action` (usually `change_constraints`).
+HTTP 503 `binding_error: route_binding_unavailable` means no remaining bindable
+candidate after fall-through; `next_action` is `fix_request_or_compatibility`.
+Neither outcome authorizes an unguarded seller payment.
+
 Clients must inspect both decision fields and billing. HTTP 200 alone grants no
 seller-payment authority. The route-guard SDK's `isUnsettledRouteMiss` recognizes
 new 200 and legacy 503 unpaid outcomes, requires the receipt header to be absent,

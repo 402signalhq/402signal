@@ -59,7 +59,7 @@ For an existing endpoint, use `url` instead of `need`. `networks` is a hard filt
 | Use MCP | [MCP adapter](integration/mcp/README.md) | Actual manifest inputs only; credential-free stdio cannot complete paid routing |
 | Review an old check | [Evidence and oversight](docs/customer/evidence.md) | Retained observation, not all agent actions or new payment authority |
 
-Use the exact reviewed archive and published digest from [GitHub Releases](https://github.com/402signalhq/402signal/releases). A package name does not imply npm registry publication. The guard requires Node 22 or newer; reference and session clients have their own Node24 and private POSIX-storage requirements. A source checkout, published archive, enabled hosted profile and successful external merchant campaign are different facts.
+Use the exact reviewed archive and published digest from [GitHub Releases](https://github.com/402signalhq/402signal/releases). A package name does not imply npm registry publication. From a reviewed checkout, `node scripts/install_route_guard.mjs` downloads the published GitHub archive, checks both `/capabilities.json` pins, and installs it. The guard requires Node 22 or newer; reference and session clients have their own Node24 and private POSIX-storage requirements. A source checkout, published archive, enabled hosted profile and successful external merchant campaign are different facts.
 
 Use `RouteClient` to retain an attempt before submission and `withVerifiedRoute` before the buyer's own signing callback. The offline guard does not sign or implement a wallet. Optional buyer clients orchestrate their documented lifecycle through customer-supplied components; do not assume every client is offline merely because the guard is.
 
