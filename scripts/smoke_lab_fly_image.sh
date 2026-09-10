@@ -22,7 +22,7 @@ printf '%s\n' "{\"build_inputs\":{\"NODE_IMAGE\":\"$NODE_IMAGE\",\"dockerfile\":
 docker build --build-arg NODE_IMAGE="$NODE_IMAGE" -f "$DOCKERFILE" -t "$IMAGE" integration
 
 LABDIR=$(mktemp -d)
-cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$LABDIR"; }
+cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$LABDIR" 2>/dev/null || true; }
 trap cleanup EXIT
 chmod 755 "$LABDIR"
 cp "$SMOKE" "$LABDIR/seller-deploy.json"
