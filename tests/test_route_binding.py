@@ -30,8 +30,10 @@ from live402 import route_binding as rb
 from live402.pq import events, receipt, route_v4, store
 
 
-def bound_winner(rail="base", now=None, method="GET", request_body=b""):
-    result = _winner(rail)
+def bound_winner(rail="base", now=None, method="GET", request_body=b"", url=None, amount=None):
+    result = _winner(rail, amount=amount) if amount is not None else _winner(rail)
+    if url:
+        result["url"] = url
     now = int(time.time()) if now is None else now
     result["probed_at"] = events.jcs.utc_seconds_z(now)
     result["binding_observation"] = {
@@ -39,6 +41,15 @@ def bound_winner(rail="base", now=None, method="GET", request_body=b""):
         "observed_at": now,
         "quote_sha256": rb.digest(result["envelope"]),
     }
+    return result
+
+
+def mismatch_resource(result):
+    """Keep a billable winner whose challenge resource.url cannot bind."""
+    env = copy.deepcopy(result["envelope"])
+    env["resource"] = {"url": "https://other.example/mismatch"}
+    result["envelope"] = env
+    result["binding_observation"]["quote_sha256"] = rb.digest(env)
     return result
 
 
@@ -289,6 +300,81 @@ class BindingTests(unittest.TestCase):
         again, calls = self.execute((200, bound_winner()))
         self.assertEqual(again, out)
         self.assertEqual(calls, (0, 0, 0, 0))
+
+    def _ranked_with_pool(self, winner, *others):
+        ranked = dict(winner)
+        ranked["_probed"] = [winner, *others]
+        return ranked
+
+    def test_binding_failure_falls_through_to_next_selectable(self):
+        cheap = mismatch_resource(bound_winner(url="https://cheap.example/x", amount="1000"))
+        nxt = bound_winner(url="https://stable.example/x", amount="5000")
+        out, calls = self.execute((200, self._ranked_with_pool(cheap, nxt)))
+        self.assertEqual(out[0], 200)
+        self.assertEqual(calls, (1, 1, 1, 1))
+        self.assertTrue(out[1]["billing"]["settled"])
+        self.assertEqual(out[1]["url"], nxt["url"])
+        self.assertNotIn("_probed", out[1])
+        self.assertNotIn("binding_ineligible", out[1])
+        by_url = {row["url"]: row for row in out[1]["compared"]}
+        self.assertFalse(by_url[cheap["url"]]["selectable"])
+        self.assertEqual(by_url[cheap["url"]]["excluded_reason"], "binding_unavailable")
+        self.assertFalse(by_url[cheap["url"]]["selected"])
+        self.assertTrue(by_url[nxt["url"]]["selected"])
+        self.assertTrue(by_url[nxt["url"]]["selectable"])
+        self.assertIsNone(by_url[nxt["url"]]["excluded_reason"])
+        self.check(out[1])
+
+    def test_all_remaining_binding_failures_are_503(self):
+        first = mismatch_resource(bound_winner(url="https://a.example/x", amount="1000"))
+        second = mismatch_resource(bound_winner(url="https://b.example/x", amount="2000"))
+        out, calls = self.execute((200, self._ranked_with_pool(first, second)))
+        self.assertEqual(out[0], 503)
+        self.assertEqual(calls, (1, 1, 0, 0))
+        self.assertFalse(out[1]["billing"]["settled"])
+        self.assertEqual(out[1]["binding_error"], "route_binding_unavailable")
+        self.assertNotIn("_probed", out[1])
+        by_url = {row["url"]: row for row in out[1].get("compared") or []}
+        self.assertEqual(by_url[first["url"]]["excluded_reason"], "binding_unavailable")
+        self.assertEqual(by_url[second["url"]]["excluded_reason"], "binding_unavailable")
+        self.assertFalse(by_url[first["url"]]["selectable"])
+        self.assertFalse(by_url[second["url"]]["selectable"])
+
+    def test_payto_changed_stays_excluded_after_binding_fallthrough(self):
+        ranked_fail = mismatch_resource(
+            bound_winner(url="https://rank.example/x", amount="1000")
+        )
+        changed = bound_winner(url="https://changed.example/x", amount="2000")
+        changed["payTo_changed"] = True
+        changed.setdefault("risk", ["payTo_changed"])
+        stable = bound_winner(url="https://stable.example/x", amount="9000")
+        self.body["objective"] = "cheapest"
+        out, calls = self.execute(
+            (200, self._ranked_with_pool(ranked_fail, changed, stable))
+        )
+        self.assertEqual(out[0], 200)
+        self.assertEqual(calls, (1, 1, 1, 1))
+        self.assertEqual(out[1]["url"], stable["url"])
+        self.assertTrue(out[1]["billing"]["settled"])
+        by_url = {row["url"]: row for row in out[1]["compared"]}
+        self.assertEqual(by_url[changed["url"]]["excluded_reason"], "payTo_changed")
+        self.assertFalse(by_url[changed["url"]]["selectable"])
+        self.assertEqual(by_url[ranked_fail["url"]]["excluded_reason"], "binding_unavailable")
+        self.assertFalse(by_url[ranked_fail["url"]]["selectable"])
+        self.check(out[1])
+
+    def test_require_route_binding_false_does_not_fall_through(self):
+        self.body["require_route_binding"] = False
+        first = _winner()
+        first["url"] = "https://first.example/x"
+        second = bound_winner(url="https://second.example/x", amount="9000")
+        out, calls = self.execute((200, self._ranked_with_pool(first, second)))
+        self.assertEqual(out[0], 200)
+        self.assertEqual(calls, (1, 1, 1, 1))
+        self.assertEqual(out[1]["url"], first["url"])
+        self.assertNotIn("decision_binding", out[1])
+        self.assertTrue(out[1]["billing"]["settled"])
+        self.assertNotIn("_probed", out[1])
 
     def test_typed_misses_create_no_v4_evidence_or_charge(self):
         for i, reason in enumerate(TYPED_MISSES):

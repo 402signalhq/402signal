@@ -9,9 +9,18 @@ requests continue to receive v3 receipts. This flag also requires a signed
 checkpoint receipt; it does not wait for an Algorand transaction.
 
 The routing fee remains **$0.003 USDC only when a valid live route is found**.
-Normal typed misses are not settled. Seller payment is separate. If the binding
-cannot be built before settlement, the result is a 503 `constraints_unmet` with
-`binding_error: route_binding_unavailable`, and a durable free-miss replay result.
+Normal typed misses are not settled. Seller payment is separate. If the ranked
+winner cannot build valid binding or evidence before settlement, that URL is
+marked binding-ineligible for this request and `pick_winner` runs again on the
+remaining already-probed selectable set under the same objective and constraints.
+The paid probe is not repeated and no second router fee is charged. There is no
+fall-through to unguarded (non-binding) execution: every settled winner still
+has to produce valid binding and evidence. Only when no remaining bindable
+selectable candidate exists is the result a 503 with
+`binding_error: route_binding_unavailable` and a durable free-miss replay result.
+Failed binding losers in `compared[]` use `excluded_reason: binding_unavailable`
+and `selectable: false`. Default `payTo_changed` / `payTo_pending` exclusion is
+unchanged; `accept_payTo_change` remains the only opt-in.
 If settlement succeeds and the required receipt subsequently fails, the result
 is 503 with **billing.settled=true**. `unavailable` does not prove that no leaf
 was appended; v4 never attempts a second append to repair a failed receipt.
@@ -72,8 +81,10 @@ Ordinary probes send GET without a body, or a justified POST with exactly `{}`.
 The guard accepts only that same URL, method and body. It does not certify an
 arbitrary input merely because a schema exists. Redirects, personalized/rotating
 challenges, unsupported extensions or unresolved policy may be ineligible. There
-is no fallback to ordinary unguarded execution. Optional binding availability is
-narrower than ordinary routing availability.
+is no fallback to ordinary unguarded execution. When binding is required, the
+router may only fall through among already-probed selectable candidates that
+can still bind; it does not start a new probe fan-out. Optional binding
+availability is narrower than ordinary routing availability.
 
 ### Reviewed search POST profile
 

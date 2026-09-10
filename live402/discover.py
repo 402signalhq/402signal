@@ -490,12 +490,15 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                                 "incomplete_payment",
                                 "not_cheapest_comparable",
                                 "ranked_below_winner",
+                                "binding_unavailable",
                                 None,
                             ],
                             "description": (
                                 "Why this row was not selected. Null on the winner. "
                                 "ranked_below_winner only when selectable but lost the "
-                                "objective sort. No private scores."
+                                "objective sort. binding_unavailable when an already-probed "
+                                "row could not build valid binding/evidence and was skipped. "
+                                "No private scores."
                             ),
                         },
                         "selected_payment": {"type": ["object", "null"]},

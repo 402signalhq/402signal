@@ -407,6 +407,7 @@ def _downgrade_unbillable_result(result: dict) -> dict:
     out = dict(result) if isinstance(result, dict) else {}
     out.pop("_batch_observation", None)
     out.pop("batch_binding", None)
+    _strip_private_probe_state(out)
     out["error"] = "route result failed billable winner validation"
     reason = out.get("miss_reason")
     unmet = out.get("unmet_constraints") if isinstance(out.get("unmet_constraints"), list) else []
@@ -430,6 +431,162 @@ def _downgrade_unbillable_result(result: dict) -> dict:
     out["invocable"] = False
     out["selected_payment"] = None
     return out
+
+
+_REQUEST_META_KEYS = (
+    "need",
+    "source",
+    "batch_id",
+    "discovery_matches",
+    "candidates_discovered",
+    "candidates_considered",
+    "candidates_probed",
+    "probe_ceiling",
+    "probe_budget_exhausted",
+    "candidate_evaluation_complete",
+    "evaluation_complete",
+    "discovered_count",
+    "probed_count",
+    "unprobed_count",
+    "applied_constraints",
+    "policy",
+    "unresolved_constraints",
+    "lab_testing",
+    "stop_reason",
+)
+
+
+def _strip_private_probe_state(result: dict | None) -> dict | None:
+    """Drop request-scoped probe pool fields before any public or replayed body."""
+    if not isinstance(result, dict):
+        return result
+    result.pop("_probed", None)
+    result.pop("binding_ineligible", None)
+    return result
+
+
+def _binding_pool(result: dict) -> list[dict]:
+    """Already-probed candidates for this paid request. No new fan-out."""
+    raw = result.get("_probed") if isinstance(result, dict) else None
+    pool = [row for row in raw if isinstance(row, dict)] if isinstance(raw, list) else []
+    if isinstance(result, dict) and result.get("url"):
+        url = result.get("url")
+        if not any(row.get("url") == url for row in pool):
+            pool = [result, *pool]
+    if pool:
+        return pool
+    return [result] if isinstance(result, dict) else []
+
+
+def _mark_binding_ineligible(pool: list[dict], url: object, reason: str | None) -> None:
+    if type(url) is not str or not url.strip():
+        return
+    for row in pool:
+        if isinstance(row, dict) and row.get("url") == url:
+            row["binding_ineligible"] = True
+            if reason:
+                row["binding_error_reason"] = reason
+
+
+def _promote_bindable_winner(current: dict, winner: dict, body: dict, pool: list[dict]) -> dict:
+    """Retarget the paid result to another already-probed selectable winner."""
+    meta = {key: current[key] for key in _REQUEST_META_KEYS if key in current}
+    out = dict(winner)
+    out.pop("decision_binding", None)
+    out.pop("batch_binding", None)
+    out.pop("binding_error", None)
+    out.pop("binding_error_reason", None)
+    out.pop("binding_ineligible", None)
+    out.update(meta)
+    objective = select.parse_objective(body.get("objective"))
+    constraints = policy_mod.merge_constraints(body)
+    probe._attach_selection(out, pool, winner, objective, constraints)
+    out["_probed"] = pool
+    return out
+
+
+def _apply_route_binding(body: dict, result: dict) -> None:
+    """Build and prevalidate binding/evidence. Raises on failure."""
+    from live402 import route_binding
+    from live402.pq import route_v4
+
+    from live402 import batch_binding
+    if batch_binding.requested(body):
+        from live402.pq import route_v5
+        result["batch_binding"] = batch_binding.build(body, result["_batch_observation"])
+        batch_binding.validate(result["batch_binding"], body, now=int(time.time()))
+        route_v5.evidence_from_route(result, body)
+        return
+    result["decision_binding"] = route_binding.build(result, body)
+    route_v4.evidence_from_route(result, body)
+
+
+def _binding_reason(result: dict, exc: BaseException) -> str:
+    reason = result.get("binding_error_reason") if isinstance(result, dict) else None
+    if isinstance(reason, str) and reason in telemetry.BINDING_REASONS:
+        return reason
+    return telemetry.binding_reason(exc)
+
+
+def _binding_unavailable(result: dict, body: dict, rail: str, reason: str) -> tuple[int, dict, None]:
+    pool = _binding_pool(result)
+    if pool:
+        objective = select.parse_objective(body.get("objective"))
+        constraints = policy_mod.merge_constraints(body)
+        result["compared"] = select.comparison(pool, None, objective, constraints)
+    result = _downgrade_unbillable_result(result)
+    result.pop("decision_binding", None)
+    result["binding_error"] = "route_binding_unavailable"
+    result["binding_error_reason"] = reason
+    result["billing"] = _billing(
+        rail,
+        settlement_attempted=False,
+        settled=False,
+        settlement_state="not_attempted",
+    )
+    _strip_private_probe_state(result)
+    _log_settle_skipped(rail)
+    return 503, result, None
+
+
+def _bind_or_fallback(
+    body: dict, result: dict, rail: str
+) -> tuple[dict | None, tuple[int, dict, None] | None]:
+    """Bind the current winner, or the next already-probed selectable candidate.
+
+    Binding remains required for every settled winner. Failed URLs are marked
+    binding-ineligible for this request only; pick_winner is re-run on the
+    remaining selectable set. No new probes and no unguarded settle.
+    """
+    pool = _binding_pool(result)
+    objective = select.parse_objective(body.get("objective"))
+    constraints = policy_mod.merge_constraints(body)
+    attempted: set[str] = set()
+    for _ in range(max(1, len(pool))):
+        url = result.get("url") if isinstance(result, dict) else None
+        if type(url) is str and url in attempted:
+            break
+        if type(url) is str:
+            attempted.add(url)
+        try:
+            _apply_route_binding(body, result)
+            _strip_private_probe_state(result)
+            return result, None
+        except (ValueError, TypeError, KeyError) as exc:
+            reason = _binding_reason(result, exc)
+            result.pop("decision_binding", None)
+            result.pop("batch_binding", None)
+            _mark_binding_ineligible(pool, url, reason)
+            remaining = select.selection_set(pool, constraints)
+            nxt = select.pick_winner(remaining, objective, constraints)
+            nxt_url = nxt.get("url") if isinstance(nxt, dict) else None
+            if not isinstance(nxt, dict) or type(nxt_url) is not str or nxt_url in attempted:
+                return None, _binding_unavailable(result, body, rail, reason)
+            result = _promote_bindable_winner(result, nxt, body, pool)
+    reason = result.get("binding_error_reason") if isinstance(result, dict) else None
+    if not isinstance(reason, str) or reason not in telemetry.BINDING_REASONS:
+        reason = "invalid_evidence"
+    return None, _binding_unavailable(result, body, rail, reason)
 
 
 def _require_transparency(body: dict | None) -> bool:
@@ -534,7 +691,7 @@ def _paid_execute(
     with telemetry.phase("routing_probe"):
         code, result = run_probe(body, deadline=probe_until)
     if code == 400:
-        return 400, result, None
+        return 400, _strip_private_probe_state(result) or result, None
 
     rail = payment.rail_of_accept(accept)
     if lab_traffic.is_lab_url(body.get("url")) and isinstance(result, dict):
@@ -564,40 +721,21 @@ def _paid_execute(
         # Classify only after the independent winner gate has skipped settlement.
         if result.get("miss_reason") == "probe_capacity":
             result["retryable"] = True
+            _strip_private_probe_state(result)
             return 503, result, {"Retry-After": "60", "Cache-Control": "no-store"}
         if code == 503 and is_normal_miss(result):
             code = 200
+        _strip_private_probe_state(result)
         return code, result, None
 
     if body.get("require_route_binding") is True:
-        from live402 import route_binding
-        from live402.pq import route_v4
+        with telemetry.phase("binding_validation"):
+            bound, failed = _bind_or_fallback(body, result, rail)
+        if failed is not None:
+            return failed
+        result = bound if bound is not None else result
 
-        try:
-            with telemetry.phase("binding_validation"):
-                from live402 import batch_binding
-                if batch_binding.requested(body):
-                    from live402.pq import route_v5
-                    result["batch_binding"] = batch_binding.build(body, result["_batch_observation"])
-                    batch_binding.validate(result["batch_binding"], body, now=int(time.time()))
-                    route_v5.evidence_from_route(result, body)
-                else:
-                    result["decision_binding"] = route_binding.build(result, body)
-                    # Prevalidate full evidence before an economic action.
-                    route_v4.evidence_from_route(result, body)
-        except (ValueError, TypeError, KeyError) as exc:
-            reason = result.get("binding_error_reason")
-            if not isinstance(reason, str) or reason not in telemetry.BINDING_REASONS:
-                reason = telemetry.binding_reason(exc)
-            result = _downgrade_unbillable_result(result)
-            result.pop("decision_binding", None)
-            result["binding_error"] = "route_binding_unavailable"
-            result["binding_error_reason"] = reason
-            result["billing"] = _billing(rail, settlement_attempted=False, settled=False,
-                                         settlement_state="not_attempted")
-            _log_settle_skipped(rail)
-            return 503, result, None
-
+    _strip_private_probe_state(result)
     settle_t = deadline_mod.settle_timeout(paid_deadline)
     if settle_t <= 0:
         required, extra = _required_pair(
@@ -723,6 +861,7 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
         return code, result, None
     if fixtures.local_free():
         code, result = run_probe(body if isinstance(body, dict) else {})
+        result = _strip_private_probe_state(result) or result
         try:
             from live402 import history as history_mod
 

@@ -601,6 +601,8 @@ def _sanitize_outcome(result: tuple) -> tuple:
         "errorreason",
         "invalidreason",
         "signature",
+        "_probed",
+        "binding_ineligible",
     }
 
     def cleanse(value, depth=0):

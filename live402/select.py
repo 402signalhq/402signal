@@ -33,6 +33,15 @@ RAILS = frozenset(("base", "solana", "algorand"))
 WEAK_MIN_N = 3
 MATURE_N = 10
 COMPARED_CAP = 5
+EXCLUDED_REASONS = (
+    "payTo_pending",
+    "payTo_changed",
+    "constraints_unmet",
+    "incomplete_payment",
+    "not_cheapest_comparable",
+    "ranked_below_winner",
+    "binding_unavailable",
+)
 # Keys we still cannot compute. Empty in this slice: settlement/reputation/success
 # are measured when data exists and fail closed when unknown.
 UNMEASURED_CONSTRAINTS = ()
@@ -1023,11 +1032,16 @@ def selection_set(probed: list, constraints: dict | None = None) -> list:
     (established). Catalog claimed vs observed (payTo_changed) stays in
     the set when every remaining live hit is changed; a stable peer
     excludes changed rows. All-pending windows return empty unless that
-    opt-in is set.
+    opt-in is set. A URL marked binding_ineligible for this request is
+    dropped so pick_winner can fall through to another already-probed row.
     """
     if not isinstance(probed, list):
         return []
-    live_hits = [r for r in probed if isinstance(r, dict) and r.get("live")]
+    live_hits = [
+        r
+        for r in probed
+        if isinstance(r, dict) and r.get("live") and not r.get("binding_ineligible")
+    ]
     cons = constraints if isinstance(constraints, dict) else {}
     if not cons.get("accept_payTo_change"):
         live_hits = [r for r in live_hits if not r.get("payTo_pending")]
@@ -1089,7 +1103,10 @@ def pick_winner(results: list[dict], objective: str, constraints: dict | None = 
     remaining = [
         r
         for r in results
-        if isinstance(r, dict) and passes_constraints(r, cons) and _payto_selectable(r, cons)
+        if isinstance(r, dict)
+        and passes_constraints(r, cons)
+        and _payto_selectable(r, cons)
+        and not r.get("binding_ineligible")
     ]
     if not remaining:
         return None
@@ -1173,9 +1190,12 @@ def _compared_decision(result, results, winner, objective, constraints) -> tuple
     selectable is True iff the row would be in selection_set, pass
     passes_constraints, and yield a complete pick_selected_payment.
     Winner rows are always selectable with no excluded_reason.
+    Request-scoped binding failures use excluded_reason=binding_unavailable.
     """
     if _is_winner_result(result, winner):
         return True, None
+    if isinstance(result, dict) and result.get("binding_ineligible"):
+        return False, "binding_unavailable"
     cons = constraints if isinstance(constraints, dict) else {}
     obj = parse_objective(objective)
     pool = selection_set(results if isinstance(results, list) else [], cons)
