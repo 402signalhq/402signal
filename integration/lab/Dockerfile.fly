@@ -1,0 +1,58 @@
+# Fly-facing lab image recipe. Machine command: node /app/start-seller.mjs
+# Build from the integration/ context.
+#
+#   podman build --build-arg NODE_IMAGE=$(cat lab/node-image.pin) \
+#     -f lab/Dockerfile.fly -t localhost/402signal-lab:reviewed .
+# (cwd = integration/)
+#
+# Locked native Algorand package lives at /app/native-mpp/algorand with
+# /mpp-algorand -> /app/native-mpp/algorand so compiled /app/dist/src
+# ../../../mpp-algorand/lab-merchant.mjs resolves.
+# NODE_IMAGE default is the reviewed index digest (see lab/node-image.pin).
+# linux/amd64 platform under that index:
+#   sha256:713cfbf4a0ac19f40e1bb9919893e126b74a5c8cf5d0623c9f89515c8f74c6fa
+# Confirmed 2026-09-09 from Hub tag digest and registry Docker-Content-Digest.
+ARG NODE_IMAGE=node:24-bookworm-slim@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553
+
+FROM ${NODE_IMAGE} AS build
+WORKDIR /app
+COPY lab/package.json lab/package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY lab/solana-session-contracts/package.json lab/solana-session-contracts/package-lock.json ./solana-session-contracts/
+RUN npm ci --prefix solana-session-contracts --omit=dev --ignore-scripts --no-audit --no-fund
+COPY lab/tsconfig.json lab/tsconfig.image.json ./
+COPY lab/src ./src
+COPY lab/config/offline.json ./config/offline.json
+COPY lab/config/*.example.json ./config/
+COPY lab/sdk ./sdk
+COPY lab/solana-session-contracts/src ./solana-session-contracts/src
+RUN npm exec tsc -- --project tsconfig.image.json && node dist/src/cli.js demo && npm prune --omit=dev --ignore-scripts --no-audit --no-fund
+
+FROM ${NODE_IMAGE} AS mpp
+WORKDIR /mpp-build
+COPY mpp-algorand/package.json mpp-algorand/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+COPY mpp-algorand/index.mjs mpp-algorand/lab-merchant.mjs mpp-algorand/lab-sdk-worker.mjs ./
+
+FROM ${NODE_IMAGE} AS runtime
+WORKDIR /app
+COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/solana-session-contracts ./solana-session-contracts
+COPY --from=mpp --chown=node:node /mpp-build /app/native-mpp/algorand
+COPY --chown=node:node lab/package.json ./
+COPY --chown=node:node lab/start-seller.mjs /app/start-seller.mjs
+COPY --chown=node:node lab/sdk ./sdk
+COPY --chown=node:node lab/config/offline.json ./config/offline.json
+COPY --chown=node:node lab/config/*.example.json ./config/
+COPY --chown=node:node lab/config/seller-deploy.smoke.json ./config/seller-deploy.smoke.json
+RUN mkdir -p /labdata /app/data \
+  && ln -s /app/native-mpp/algorand /mpp-algorand \
+  && chown -h node:node /mpp-algorand \
+  && chown node:node /labdata /app/data
+# Root remains the default user so start-seller can chown /labdata and drop to 1000.
+# Do not USER node. Do not default to offline demo.
+ENV NODE_ENV=production
+RUN node --input-type=module -e "import { lstatSync, readlinkSync, realpathSync, accessSync, constants } from 'node:fs'; import { resolve } from 'node:path'; if (!lstatSync('/mpp-algorand').isSymbolicLink() || readlinkSync('/mpp-algorand') !== '/app/native-mpp/algorand') process.exit(1); const merchant = resolve('/app/dist/src','../../../mpp-algorand/lab-merchant.mjs'); if (merchant !== '/mpp-algorand/lab-merchant.mjs') process.exit(1); if (realpathSync(merchant) !== '/app/native-mpp/algorand/lab-merchant.mjs') process.exit(1); accessSync('/app/start-seller.mjs', constants.R_OK); accessSync('/app/native-mpp/algorand/lab-sdk-worker.mjs', constants.R_OK); accessSync('/app/sdk/route-guard/batch.mjs', constants.R_OK); const m = await import(merchant); if (typeof m.createNativeAlgorandLabMerchant !== 'function' || typeof m.validateNativeAlgorandLabConfig !== 'function') process.exit(1);"
+EXPOSE 4021
+CMD ["node", "/app/start-seller.mjs"]

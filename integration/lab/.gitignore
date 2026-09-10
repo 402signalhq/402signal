@@ -3,3 +3,4 @@ dist/
 sdk/
 reports/
 *.sqlite*
+config/seller-deploy.json

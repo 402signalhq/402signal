@@ -64,3 +64,8 @@ export function validateConfig(raw: unknown, env: NodeJS.ProcessEnv = process.en
 export function loadConfig(path = process.env.LAB_CONFIG ?? 'config/offline.json'): Config {
   return validateConfig(parseJson(readFileSync(path, 'utf8')));
 }
+/** `0.0.0.0` is IPv4-only in Node and misses Fly 6PN/IPv6. Offline loopback stays 127.0.0.1. */
+export function serveListenOptions(host: string, port: number) {
+  if (host === '0.0.0.0') return { port, host: '::', ipv6Only: false as const };
+  return { port, host };
+}

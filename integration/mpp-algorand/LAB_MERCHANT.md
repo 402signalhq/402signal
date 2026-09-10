@@ -49,12 +49,14 @@ the module does not fabricate a receipt or claim fulfillment.
 
 ## Image layout
 
-Registration loads integration/mpp-algorand/lab-merchant.mjs relative to the
-compiled lab package. This requires the locked native Algorand package and the
-SDK guard files to be present in the image; the earlier lab image with only
-nested Solana dependencies is insufficient. Preserve repository-relative module
-resolution when assembling the next image. No image, dependency lock, existing
-flag, provider policy or deployment is changed by this source addition.
+Registration loads `../../../mpp-algorand/lab-merchant.mjs` from compiled
+`/app/dist/src`, which is `/mpp-algorand/lab-merchant.mjs`. The lab Fly image
+(`integration/lab/Dockerfile.fly`, built from the `integration/` context) copies
+the locked package sources and production `node_modules` to
+`/app/native-mpp/algorand` and links `/mpp-algorand` there. `index.mjs`
+repository-relative `../../sdk/route-guard` imports resolve through `/app/sdk`.
+The machine command is `node /app/start-seller.mjs`. Existing opt-in flags,
+recipient, origin, RPC and credential gates are unchanged.
 
 ## Qualification
 
