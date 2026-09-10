@@ -44,6 +44,7 @@ try {
   assert.equal(packed[0].version, metadata.version);
   assert(typeof packed[0].filename === 'string' && !packed[0].filename.includes('/') && !packed[0].filename.includes('\\'));
   const tarball = join(scratch, packed[0].filename);
+  run('python3', [join(root, 'scripts/portable_npm_tgz.py'), tarball], root);
   const consumer = join(scratch, 'consumer');
   await fs.mkdir(consumer);
   await fs.writeFile(join(consumer, 'package.json'), JSON.stringify({name: 'route-guard-consumer-check', private: true, type: 'module'}));

@@ -23,10 +23,10 @@ REVIEWED_KEYS = (
 # PR169 merge on main. sdk/route-guard bytes are unchanged after 1a9da77.
 PACKED_TIP = "fdbcff3bc9b31826567b8cb456d4a883009eb9ff"
 PROVISIONAL_PACK_SHA256 = (
-    "f09b4e038b6bde9670afe725af4170b4f52c7323ca775bcb1b2fcbc8ab200497"
+    "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a"
 )
 PROVISIONAL_SUMS_SHA256 = (
-    "be043932144d010a8c9d0e0542f8d6b396f72c27d94bc5cac05aa2befa9fefe8"
+    "5fae35204f6c309b4f30384cf6cd66958e6bf09edfe8fea3d6859094d4754639"
 )
 
 
