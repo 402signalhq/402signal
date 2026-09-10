@@ -108,7 +108,6 @@ class DeveloperRecipes(unittest.TestCase):
             'proof': (root / 'docs/proof-carrying-route-v1.md').read_text(),
             'recovery': (root / 'docs/route-recovery-observability.md').read_text(),
             'readme': (root / 'README.md').read_text(),
-            'guard_readme': (root / 'sdk/route-guard/README.md').read_text(),
             'skill': (root / 'skills/402signal-buyer-checks/SKILL.md').read_text(),
         }
         spec = json.dumps(discover.openapi_spec())

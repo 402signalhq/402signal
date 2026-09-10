@@ -103,12 +103,10 @@ misses are not settled. Seller payment is separate. When `require_route_binding`
 is true, the hosted `/route` check may fall through among already-probed
 selectable candidates that can still bind; it does not settle an unguarded
 winner. HTTP 503 `binding_error: route_binding_unavailable` means none remained
-bindable. `wrapExactAuthorize` reports that as `state=binding_unavailable` with
-`keep_calling_route: true` so the next `/route` call can proceed. That is
-policy working, not a crash. A local guard refusal is still a stop: do not pay
-the seller without a matching proof. A settled routing request whose required
-receipt later fails is still billed: inspect `billing`, preserve that outcome
-and do not retry payment to repair it.
+bindable. A local guard refusal is still a stop: do not pay the seller without a
+matching proof. A settled routing request whose required receipt later fails is
+still billed: inspect `billing`, preserve that outcome and do not retry payment
+to repair it.
 
 The JSON body may include slim `compared[]` rows (cap 5). Additive fields used
 for selectability are `selectable`, `payTo_pending`, `payTo_changed`, `risk`,
