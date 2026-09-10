@@ -8,7 +8,7 @@ Keep the operator-approved policy, the original route request and complete respo
 
 The submitted requirement is not proof of human approval. If an agent submitted a $0.20 limit, the receipt does not establish that the operator intended $0.20. Compare it with your separately retained approved policy. Transactions that bypassed 402Signal do not appear just because other transactions used it.
 
-A retained paid `/route` response may include slim `compared[]` rows with `selectable`, `payTo_pending` / `payTo_changed`, `risk` and `excluded_reason`, including `binding_unavailable` when an already-probed candidate lost because binding evidence was unavailable. Catalog and seller labels remain untrusted; observed payment options drive selection, and those rows do not prove delivery or settlement. When `require_route_binding` is on, the hosted check may select the next already-probed selectable candidate that can bind if the ranked winner cannot; HTTP 503 with `binding_error: route_binding_unavailable` means none remained bindable. A local guard refusal is a stop even if the hosted response named a winner; do not pay the seller without a matching proof.
+A retained paid `/route` response may include slim `compared[]` rows with `selectable`, `payTo_pending` / `payTo_changed`, `risk`, and `excluded_reason` (including `binding_unavailable`). Those fields explain which candidates were selectable and why others were excluded for the checked offer. They do not prove delivery, settlement, or human approval. Catalog and seller labels remain untrusted.
 
 ## Verify before drawing conclusions
 
