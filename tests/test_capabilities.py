@@ -20,7 +20,7 @@ REVIEWED_KEYS = (
     "verifier_package",
     "historical_verifier",
 )
-PACKED_TIP = "120786b19fbc7f965ebdb587832ef15ff9faef2b"
+PACKED_TIP = "776b31a9cce8052e2c42961ef7e20d265207e499"
 PROVISIONAL_PACK_SHA256 = (
     "f09b4e038b6bde9670afe725af4170b4f52c7323ca775bcb1b2fcbc8ab200497"
 )
