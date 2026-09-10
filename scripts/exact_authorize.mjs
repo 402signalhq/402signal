@@ -81,6 +81,18 @@ function teach(outcome) {
   const response = outcome?.response;
   if (!response) return null;
   const parsed = routeOutcome(response);
+  // Prefer the bind reason when a 503 carries both unsettled-miss markers and
+  // binding_error=route_binding_unavailable. Embedders branch on state.
+  if (parsed?.body?.binding_error === "route_binding_unavailable") {
+    return Object.freeze({
+      state: "binding_unavailable",
+      keep_calling_route: true,
+      binding_error_reason: parsed.body.binding_error_reason ?? null,
+      next_action: parsed.taught?.next_action || "fix_request_or_compatibility",
+      note: "policy working; not a broken router",
+      outcome,
+    });
+  }
   const miss = isUnsettledRouteMiss({
     httpStatus: response.status,
     routeResponseJson: response.bodyText,
@@ -92,16 +104,6 @@ function teach(outcome) {
       keep_calling_route: true,
       miss_reason: parsed?.body?.miss_reason ?? null,
       next_action: parsed?.taught?.next_action || "change_constraints",
-      note: "policy working; not a broken router",
-      outcome,
-    });
-  }
-  if (parsed?.body?.binding_error === "route_binding_unavailable") {
-    return Object.freeze({
-      state: "binding_unavailable",
-      keep_calling_route: true,
-      binding_error_reason: parsed.body.binding_error_reason ?? null,
-      next_action: parsed.taught?.next_action || "fix_request_or_compatibility",
       note: "policy working; not a broken router",
       outcome,
     });
