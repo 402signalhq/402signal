@@ -48,14 +48,21 @@ class DeveloperRecipes(unittest.TestCase):
     def test_public_release_record_and_current_discovery(self):
         from live402.discover import LLMS_TXT
         status, _, text = self.request('/capabilities.json'); self.assertEqual(status, 200)
-        record = json.loads(text); self.assertEqual(len(record['packages']), 6)
+        record = json.loads(text); self.assertEqual(len(record['packages']), 5)
         for package in record['packages']:
+            self.assertEqual(package['state'], 'published')
             self.assertRegex(package['sha256'], r'^[0-9a-f]{64}$')
             self.assertRegex(package['source_revision'], r'^[0-9a-f]{40}$')
             self.assertIn(package['tag'], package['archive'])
-        self.assertIn('route-guard-v0.7.2', LLMS_TXT); self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
+        pending = record['pending_packages']
+        self.assertEqual(pending[0]['tag'], 'route-guard-v0.7.2')
+        self.assertEqual(pending[0]['state'], 'pending')
+        self.assertNotIn('sha256', pending[0])
+        self.assertIn('releases/tag/route-guard-v0.7.1', LLMS_TXT)
+        self.assertNotIn('releases/tag/route-guard-v0.7.2', LLMS_TXT)
+        self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
         self.assertEqual(self.request('/capabilities.json', 'HEAD')[2], '')
-        for package in record['packages']:
+        for package in record['packages'] + record['pending_packages']:
             self.assertIn(package['recipe'], guides.PATHS)
             self.assertEqual(self.request(package['recipe'])[0], 200)
             self.assertEqual(self.request(package['recipe'] + '.md')[0], 200)

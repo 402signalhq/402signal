@@ -248,6 +248,33 @@ class BatchTests(unittest.TestCase):
         ]:
             self.assertEqual(route._bad_request({**buyer(v["request"]), **change})[0], 400)
 
+    def test_unpaid_route_402_is_payment_challenge_not_batch_admission(self):
+        """Unpaid POST /route always 402s. That is the router challenge.
+
+        It is not evidence that batch validation passed. Body 400 (empty
+        allowlist) is deferred until after payment verification. Prove
+        allowlist on/off on the after-verify path without spending.
+        """
+        v = vector(0)
+        body = buyer(v["request"])
+        for allowlist in ("", "exact"):
+            with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": allowlist}):
+                with patch("live402.facilitator.verify") as verify, patch(
+                    "live402.facilitator.settle"
+                ) as settle:
+                    code, result, _extra = route.handle_route(
+                        body, {}, "https://402signal.com/route"
+                    )
+                self.assertEqual(code, 402)
+                self.assertIn("accepts", result)
+                self.assertNotEqual(code, 400)
+                verify.assert_not_called()
+                settle.assert_not_called()
+        with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": ""}):
+            self.assertEqual(route._bad_request(body)[0], 400)
+        with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": "exact"}):
+            self.assertIsNone(route._bad_request(body))
+
     def test_live_named_profile_is_lab_only(self):
         v = vector(0)
         bb.parse_request(v["request"], enabled=False)

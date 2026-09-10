@@ -167,13 +167,13 @@ See [the response contract](../../docs/route-miss-http-status.md).
 
 ## Install the client
 
-Use the [v0.7.2 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.2) and verify its published digest before installing. This is a GitHub release archive, not an npm-registry package:
+The last published archive is the [v0.7.1 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.1). Verify its published digest before installing. This is a GitHub release archive, not an npm-registry package. In-tree source is 0.7.2 pending a GitHub release; do not treat a local `npm pack` digest as published.
 
 ```sh
-npm install ./402signal-route-guard-0.7.2.tgz
+npm install ./402signal-route-guard-0.7.1.tgz
 ```
 
-From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.2.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
+From a checked-out tree, `npm pack ./sdk/route-guard` builds the dependency-free package for local tests. Compare a release tarball SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
 declarations, the local guard and HTTP client. Node 22 or newer is required.
 No install script or wallet dependency is included. Windows callers can supply
 their own durable store; the supplied filesystem adapter runs on POSIX, including WSL.
@@ -295,8 +295,9 @@ The fee is $0.003 for a qualifying API observation. Merchant requests, cumulativ
 challenge and refuses drift between that wire, the cap key set and the HTTP
 `job`/`codec` identity. Leaves that still carry a buyer `merchant_profile`
 verify as before. Published 0.7.1 required that field and cannot verify current
-customer evidence. A server deploy does not update an already-installed client;
-install this GitHub release tarball.
+customer evidence. A server deploy does not update an already-installed client.
+This in-tree 0.7.2 source is pending a GitHub release; do not treat a local
+`npm pack` digest as published.
 
 ## Pin precedence (0.7.1)
 

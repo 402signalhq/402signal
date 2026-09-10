@@ -33,7 +33,8 @@ def panel(slug):
     for other, (anchor, _, _) in GUIDES.items():
         content = content.replace('href="#' + anchor + '"', 'href="/developers/' + other + '"')
         content = content.replace('https://402signal.com/developers#' + anchor, 'https://402signal.com/developers/' + other)
-    return content
+    from live402 import capabilities
+    return capabilities.apply_developers_copy(content)
 
 def render(slug):
     source = (STATIC / 'developers.html').read_text(encoding='utf-8')

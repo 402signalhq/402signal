@@ -16,7 +16,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from live402 import asset_version, catalog, discover, history, mcp, payment, pulse, rails, ready, reqctx, validate
+from live402 import asset_version, capabilities, catalog, discover, history, mcp, payment, pulse, rails, ready, reqctx, validate
 from live402 import admission, http_body, replay, developer_guides
 from live402.http_body import BodyReadError
 from live402.route import handle_route, recover_route
@@ -667,7 +667,10 @@ class Handler(SimpleHTTPRequestHandler):
         page = HUMAN_PAGES.get(parsed.path)
         if not page:
             return None
-        return (STATIC_DIR / page).read_text(encoding="utf-8")
+        html = (STATIC_DIR / page).read_text(encoding="utf-8")
+        if page == "developers.html":
+            return capabilities.apply_developers_copy(html)
+        return html
 
     def _serve_static_asset(self) -> None:
         parsed = urlparse(self.path)
@@ -788,7 +791,7 @@ class Handler(SimpleHTTPRequestHandler):
             self._omit_body = self.command == "HEAD"
             try:
                 if parsed.path == "/capabilities.json":
-                    return self._bytes(200, (STATIC_DIR / "capabilities.json").read_bytes(), "application/json; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
+                    return self._bytes(200, capabilities.public_json(), "application/json; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
                 text = developer_guides.markdown(developer_guides.MARKDOWN_PATHS[parsed.path])
                 return self._bytes(200, text.encode("utf-8"), "text/markdown; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
             finally:
@@ -859,7 +862,7 @@ class Handler(SimpleHTTPRequestHandler):
             self._omit_body = self.command == "HEAD"
             try:
                 if parsed.path == "/capabilities.json":
-                    return self._bytes(200, (STATIC_DIR / "capabilities.json").read_bytes(), "application/json; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
+                    return self._bytes(200, capabilities.public_json(), "application/json; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
                 text = developer_guides.markdown(developer_guides.MARKDOWN_PATHS[parsed.path])
                 return self._bytes(200, text.encode("utf-8"), "text/markdown; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
             finally:

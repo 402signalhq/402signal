@@ -189,8 +189,9 @@ v1-v3 historical leaves and their original verification paths remain unchanged.
 
 For Node/TypeScript, see the [local route guard](../sdk/route-guard/README.md).
 It uses the same signed fixtures and a caller-owned authorization callback, with
-no runtime dependencies or network operations. The published [v0.7.2 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.2)
+no runtime dependencies or network operations. The published [v0.7.1 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.1)
 contains the client and offline guard; verify its digest before installation.
+In-tree source is 0.7.2 pending a GitHub release; do not treat a local pack digest as published.
 Source is also available in this repository. This is not an npm registry
 publication. See the
 [developer walkthrough](https://402signal.com/developers#route-binding) for the

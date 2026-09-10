@@ -4,26 +4,13 @@
   "check_group_offer": {
     "job": "chk_grp",
     "label": "Check group offer",
-    "codecs": ["exact", "sess", "mpp", "atom", "inv"],
     "buyer_fields": ["url", "buyer_limits", "require_route_binding"],
     "hosted_enablement_env": "BATCH_OBSERVATION_PROFILES",
     "verifier_package": "route-guard-v0.7.2",
     "historical_verifier": "route-guard-v0.7.1"
   },
-  "source_baseline": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
+  "source_baseline": "0b6ba91531526a9c5bb19ff7b2bf10733f29df5a",
   "packages": [
-    {
-      "tag": "route-guard-v0.7.2",
-      "published_at": "2026-09-10T12:00:00Z",
-      "source_revision": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
-      "archive": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.2/402signal-route-guard-0.7.2.tgz",
-      "sha256": "f09b4e038b6bde9670afe725af4170b4f52c7323ca775bcb1b2fcbc8ab200497",
-      "checksum_file": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.2/SHA256SUMS",
-      "checksum_file_sha256": "be043932144d010a8c9d0e0542f8d6b396f72c27d94bc5cac05aa2befa9fefe8",
-      "distribution": "GitHub release archive; not npm registry",
-      "state": "published",
-      "recipe": "/developers/check-group-offer"
-    },
     {
       "tag": "route-guard-v0.7.1",
       "published_at": "2026-09-09T21:06:46Z",
@@ -85,6 +72,14 @@
       "recipe": "/developers/native-mpp"
     }
   ],
+  "pending_packages": [
+    {
+      "tag": "route-guard-v0.7.2",
+      "state": "pending",
+      "note": "GitHub release does not exist yet. Do not publish sha256, published_at or archive URLs until the reviewed pack is attached to that release. In-tree source is the intended Check group offer verifier.",
+      "recipe": "/developers/check-group-offer"
+    }
+  ],
   "scope_note": "A reviewed documentation record, not a runtime allowlist. Package publication, hosted enablement and dated qualification are separate facts. Recheck current contracts before authorized use.",
   "fee": {
     "qualifying_hosted_observation_usdc": "0.003",
@@ -101,7 +96,7 @@
         "Algorand"
       ],
       "mechanism": "supported exact offers",
-      "package": "route-guard-v0.7.2",
+      "package": "route-guard-v0.7.1",
       "runtime": "Node >=22; FileAttemptStore requires private POSIX storage",
       "request": "GET; bounded POST only where explicitly supported by its separate request profile",
       "offline_scope": "5 Base exact customer-adapter cases; 2 reference historical-verifier cases, not a production signing test",
@@ -126,7 +121,7 @@
       "offline_scope": "integration/session-client tests, distinct from exact-offer pack",
       "limits": "1..64 sequential calls, fixed buyer deadline up to 24 hours; no automatic top-up. Solana cap is not per-call price.",
       "hosted_enablement_source": "docs/batch-observation-v1.md",
-      "hosted_enablement_note": "Check group offer enablement uses BATCH_OBSERVATION_PROFILES codec tokens exact,sess,mpp,atom,inv. Buyers send caps, not a merchant_profile enum.",
+      "hosted_enablement_note": "Check group offer hosted enablement is the runtime BATCH_OBSERVATION_PROFILES allowlist. See check_group_offer.codecs for currently enabled tokens. Buyers send caps, not a merchant_profile enum.",
       "live_qualification": "Documented controlled examples only; maximum call count and duration not certified"
     },
     {
