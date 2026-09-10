@@ -20,9 +20,11 @@ allowlisted `binding_error_reason`, such as unsupported_challenge,
 redirected_quote, quote_expired, unproven_observation or invalid_evidence.
 Unknown exceptions become invalid_evidence. Earlier bindable-failed losers in
 the same paid request appear in `compared[]` as
-`excluded_reason: binding_unavailable`. Inspect this reason before correcting
-the seller challenge or request; do not relax verification to make a route
-succeed.
+`excluded_reason: binding_unavailable`. `wrapExactAuthorize` reports the
+terminal 503 as `state=binding_unavailable` with `keep_calling_route: true`.
+That is policy working, not a crash; keep calling `/route`. Inspect this
+reason before correcting the seller challenge or request; do not relax
+verification to make a route succeed.
 
 Non-challenge responses with billing add `route_outcome` version 1. Its code and next_action
 separate free_miss, binding_failed, route_settled,

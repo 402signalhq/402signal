@@ -35,7 +35,10 @@ Buyers should treat a completed miss as an answer, not a broken router. Inspect
 `miss_reason` and `route_outcome.next_action` (usually `change_constraints`).
 HTTP 503 `binding_error: route_binding_unavailable` means no remaining bindable
 candidate after fall-through; `next_action` is `fix_request_or_compatibility`.
-Neither outcome authorizes an unguarded seller payment.
+`wrapExactAuthorize` reports that 503 as `state=binding_unavailable` with
+`keep_calling_route: true` so the next `/route` call can proceed. That is
+policy working, not a crash. Neither outcome authorizes an unguarded seller
+payment.
 
 Clients must inspect both decision fields and billing. HTTP 200 alone grants no
 seller-payment authority. The route-guard SDK's `isUnsettledRouteMiss` recognizes

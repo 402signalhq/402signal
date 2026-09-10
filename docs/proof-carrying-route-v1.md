@@ -18,8 +18,10 @@ fall-through to unguarded (non-binding) execution: every settled winner still
 has to produce valid binding and evidence. Only when no remaining bindable
 selectable candidate exists is the result a 503 with
 `binding_error: route_binding_unavailable` and a durable free-miss replay result.
-Failed binding losers in `compared[]` use `excluded_reason: binding_unavailable`
-and `selectable: false`. Default `payTo_changed` / `payTo_pending` exclusion is
+`wrapExactAuthorize` reports that as `state=binding_unavailable` with
+`keep_calling_route: true` (retry the next `/route`). That is policy working,
+not a crash. Failed binding losers in `compared[]` use
+`excluded_reason: binding_unavailable` and `selectable: false`. Default `payTo_changed` / `payTo_pending` exclusion is
 unchanged; `accept_payTo_change` remains the only opt-in.
 If settlement succeeds and the required receipt subsequently fails, the result
 is 503 with **billing.settled=true**. `unavailable` does not prove that no leaf
@@ -103,7 +105,9 @@ When `require_route_binding` is true, the router may fall through among
 already-probed selectable winners that can still bind. It does not start a new
 probe fan-out and does not settle an unguarded (non-binding) winner. HTTP 503
 `route_binding_unavailable` is returned only when none remain bindable.
-Optional binding availability is narrower than ordinary routing availability.
+`wrapExactAuthorize` maps that 503 to `state=binding_unavailable` and leaves
+`keep_calling_route` true. Optional binding availability is narrower than
+ordinary routing availability.
 
 ### Reviewed search POST profile
 
