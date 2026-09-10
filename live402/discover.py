@@ -64,8 +64,11 @@ GUIDANCE = (
     "comparison with the current seller challenge before signing. When that flag is "
     "true, a ranked winner that cannot bind is skipped and pick_winner runs again on "
     "the remaining already-probed selectable set; HTTP 503 route_binding_unavailable "
-    "means none remained bindable. There is no fall-through to unguarded execution. "
-    "compared[].excluded_reason uses binding_unavailable for those skipped rows. "
+    "means none remained bindable. wrapExactAuthorize reports that as "
+    "state=binding_unavailable with keep_calling_route true so the next /route call "
+    "can proceed. That is policy working, not a crash. There is no fall-through to "
+    "unguarded execution. compared[].excluded_reason uses binding_unavailable for "
+    "those skipped rows. "
     "Ordinary requests keep the v3 receipt path. Guide: https://402signal.com/developers#route-binding. "
     "logged_uncheckpointed is never success "
     "when require_transparency is set. "
@@ -377,8 +380,10 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "description": (
                     "HTTP 503 when require_route_binding is true and no remaining "
                     "already-probed selectable candidate could build valid binding or "
-                    "evidence. Earlier bindable-failed winners in the same paid request "
-                    "are skipped; there is no unguarded settle."
+                    "evidence. wrapExactAuthorize reports state=binding_unavailable "
+                    "with keep_calling_route true. That is policy working, not a crash. "
+                    "Earlier bindable-failed winners in the same paid request are "
+                    "skipped; there is no unguarded settle."
                 ),
             },
             "pq_trust": {
@@ -711,7 +716,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                             },
                         },
                         "503": {
-                            "description": "Fail-closed route outcome. Inspect billing before retrying: an operational failure can be not attempted, a required-transparency failure can already be settled, and an ambiguous settlement is unknown and must not reuse the authorization.",
+                            "description": "Fail-closed route outcome. Inspect billing before retrying: an operational failure can be not attempted, a required-transparency failure can already be settled, and an ambiguous settlement is unknown and must not reuse the authorization. HTTP 503 binding_error=route_binding_unavailable is policy working (none remained bindable); wrapExactAuthorize reports state=binding_unavailable with keep_calling_route true.",
                             "content": {
                                 "application/json": {
                                     "schema": live_schema,
@@ -1381,9 +1386,9 @@ The routing fee pays for the qualifying observation even if the buyer declines t
 
 Published client and guard: https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.2
 One-command verified install from a reviewed checkout: node scripts/install_route_guard.mjs
-It downloads the published GitHub archive, checks both /capabilities.json pins, then npm install --ignore-scripts. Without a checkout, download 402signal-route-guard-0.7.2.tgz and SHA256SUMS from that release, run sha256sum --check SHA256SUMS, then npm install the matching archive. Node.js >=22 is required. This is a release archive, not an npm registry publication. Package exports include @402signal/route-guard, /client, /file-store, /recovery and the separate /batch guard. The default wrap is wrapExactAuthorize in exact-authorize.mjs (written by the installer): observe, bind, locally verify, then the existing wallet. Same wrap on the next spend. Fail closed. The packaged examples/search.ts is the longer pay-fetch form. Full API: https://github.com/402signalhq/402signal/tree/main/sdk/route-guard
+It downloads the published GitHub archive, checks both /capabilities.json pins, then npm install --ignore-scripts. Without a checkout, download 402signal-route-guard-0.7.2.tgz and SHA256SUMS from that release, run sha256sum --check SHA256SUMS, then npm install the matching archive. Node.js >=22 is required. This is a release archive, not an npm registry publication. Package exports include @402signal/route-guard, /client, /file-store, /recovery and the separate /batch guard. The default wrap is wrapExactAuthorize in exact-authorize.mjs (written by the installer): observe, bind, locally verify, then the existing wallet. Same wrap on the next spend. Fail closed. On HTTP 503 with binding_error=route_binding_unavailable it returns state=binding_unavailable and keep_calling_route true (retry the next /route). That is policy working, not a crash. The packaged examples/search.ts is the longer pay-fetch form. Full API: https://github.com/402signalhq/402signal/tree/main/sdk/route-guard
 
-Set require_route_binding:true for a v4 exact-payment receipt. If the ranked winner cannot build valid binding or evidence, the router may fall through to the next already-probed selectable candidate that can bind under the same objective and constraints. There is no unguarded (non-binding) settle and no second router fee. HTTP 503 binding_error route_binding_unavailable means none remained bindable; it is not a router crash. Inspect binding_error_reason and route_outcome.next_action (usually fix_request_or_compatibility). A completed miss is HTTP 200 live:false with a typed miss_reason; next_action is usually change_constraints. That is policy working, not a reason to stop calling /route. Failed binding losers in compared[] use excluded_reason binding_unavailable and selectable false. Preserve the original route request JSON, raw response JSON, exact seller URL/method/body and raw unpaid challenge. Immediately before signing, call withVerifiedRoute using an independently trusted log verification key. It checks the signature, inclusion, request binding, observed terms and expiry before invoking your buyer-owned callback. Unsupported, changed, malformed or expired evidence fails closed; a local guard refusal must not fall through to unguarded seller payment. The default freshness window is 60 seconds and is never renewed by replay, issuance or human approval.
+Set require_route_binding:true for a v4 exact-payment receipt. If the ranked winner cannot build valid binding or evidence, the router may fall through to the next already-probed selectable candidate that can bind under the same objective and constraints. There is no unguarded (non-binding) settle and no second router fee. HTTP 503 binding_error route_binding_unavailable means none remained bindable; it is not a router crash. wrapExactAuthorize reports that as state=binding_unavailable with keep_calling_route true. Inspect binding_error_reason and route_outcome.next_action (usually fix_request_or_compatibility). A completed miss is HTTP 200 live:false with a typed miss_reason; next_action is usually change_constraints. That is policy working, not a reason to stop calling /route. Failed binding losers in compared[] use excluded_reason binding_unavailable and selectable false. Preserve the original route request JSON, raw response JSON, exact seller URL/method/body and raw unpaid challenge. Immediately before signing, call withVerifiedRoute using an independently trusted log verification key. It checks the signature, inclusion, request binding, observed terms and expiry before invoking your buyer-owned callback. Unsupported, changed, malformed or expired evidence fails closed; a local guard refusal must not fall through to unguarded seller payment. The default freshness window is 60 seconds and is never renewed by replay, issuance or human approval.
 
 Your wallet must independently validate the actual transaction, enforce budget and retain durable seller-operation identity. The guard does not hold keys, sign, send, guarantee exactly-once economics or guarantee fulfillment. Historical verifyReceipt validates evidence integrity after expiry; it does not authorize a new purchase. Contract: https://github.com/402signalhq/402signal/blob/main/docs/proof-carrying-route-v1.md
 

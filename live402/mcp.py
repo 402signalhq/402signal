@@ -27,7 +27,9 @@ ROUTE_DESCRIPTION = (
     "routing fee. max_probe_latency_ms (alias max_latency_ms) is probe RTT only, not service or "
     "settlement latency. require_route_binding=true forces transparency, returns a signed "
     "pre-sign receipt, and may pick the next already-probed bindable candidate (never an "
-    "unguarded winner). HTTP 503 route_binding_unavailable means none remained. Guide: "
+    "unguarded winner). HTTP 503 route_binding_unavailable means none remained; "
+    "that is policy working, not a crash. Keep calling route. wrapExactAuthorize "
+    "reports state=binding_unavailable with keep_calling_route true. Guide: "
     "https://402signal.com/developers#route-binding"
 )
 PROTOCOL_VERSION = "2025-06-18"
@@ -150,7 +152,9 @@ OUTPUT_SCHEMA = {
             "enum": ["route_binding_unavailable"],
             "description": (
                 "HTTP 503 when require_route_binding is true and no remaining "
-                "already-probed selectable candidate could bind."
+                "already-probed selectable candidate could bind. Policy working, "
+                "not a crash; wrapExactAuthorize reports state=binding_unavailable "
+                "with keep_calling_route true."
             ),
         },
         "pq_trust": {

@@ -75,6 +75,8 @@ class DeveloperRecipes(unittest.TestCase):
         self.assertIn('install_route_guard.mjs', LLMS_TXT)
         self.assertIn('not a router crash', LLMS_TXT)
         self.assertIn('wrapExactAuthorize', LLMS_TXT)
+        self.assertIn('state=binding_unavailable', LLMS_TXT)
+        self.assertIn('keep_calling_route', LLMS_TXT)
         self.assertEqual(self.request('/capabilities.json', 'HEAD')[2], '')
         for package in record['packages']:
             self.assertIn(package['recipe'], guides.PATHS)
@@ -91,3 +93,32 @@ class DeveloperRecipes(unittest.TestCase):
         self.assertIn('https://402signal.com/developers/check-api-listing', listing)
         self.assertNotIn('/developers/sellers', listing)
         self.assertNotIn('/guides', listing)
+    def test_wrap_binding_unavailable_honesty_on_backend_docs(self):
+        from pathlib import Path
+        from live402 import discover, mcp, schema_fields
+        root = Path(__file__).resolve().parent.parent
+        surfaces = {
+            'llms': discover.LLMS_TXT,
+            'guidance': discover.GUIDANCE,
+            'openapi': json.dumps(discover.openapi_spec()),
+            'route_binding_desc': schema_fields.ROUTE_BINDING_DESC,
+            'mcp_route': mcp.ROUTE_DESCRIPTION,
+            'customer_start': (root / 'docs/customer/start.md').read_text(),
+            'miss_http': (root / 'docs/route-miss-http-status.md').read_text(),
+            'proof': (root / 'docs/proof-carrying-route-v1.md').read_text(),
+            'recovery': (root / 'docs/route-recovery-observability.md').read_text(),
+            'readme': (root / 'README.md').read_text(),
+            'guard_readme': (root / 'sdk/route-guard/README.md').read_text(),
+            'skill': (root / 'skills/402signal-buyer-checks/SKILL.md').read_text(),
+        }
+        spec = json.dumps(discover.openapi_spec())
+        self.assertIn('state=binding_unavailable', spec)
+        self.assertIn('keep_calling_route', spec)
+        self.assertIn('binding_unavailable', spec)
+        for name, text in surfaces.items():
+            with self.subTest(surface=name):
+                self.assertIn('binding_unavailable', text)
+                self.assertIn('wrapExactAuthorize', text)
+                self.assertIn('keep_calling_route', text)
+        self.assertNotIn('route-guard-v0.7.3', discover.LLMS_TXT)
+        self.assertNotIn('published 0.7.3', discover.LLMS_TXT + spec)

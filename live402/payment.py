@@ -100,7 +100,7 @@ BAZAAR_EXTENSION = {
                             "url": {"type": "string"},
                             "require_route_binding": {
                                 "type": "boolean",
-                                "description": "Opt in to a signed v4 route binding; implies require_transparency even if false. Default false; ordinary requests keep v3. A ranked winner that cannot bind may fall through to the next already-probed selectable bindable candidate; 503 route_binding_unavailable only when none remain. Buyer verifies raw response JSON with a pinned log key and compares the current seller request and challenge before signing. Expiry or changed terms do not undo a settled routing fee. Guide: https://402signal.com/developers#route-binding",
+                                "description": "Opt in to a signed v4 route binding; implies require_transparency even if false. Default false; ordinary requests keep v3. A ranked winner that cannot bind may fall through to the next already-probed selectable bindable candidate; 503 route_binding_unavailable only when none remain. wrapExactAuthorize reports state=binding_unavailable with keep_calling_route true; policy working, not a crash. Buyer verifies raw response JSON with a pinned log key and compares the current seller request and challenge before signing. Expiry or changed terms do not undo a settled routing fee. Guide: https://402signal.com/developers#route-binding",
                             },
                             "require_transparency": {
                                 "type": "boolean",
@@ -207,7 +207,7 @@ BAZAAR_MCP = {
                     },
                     "require_route_binding": {
                         "type": "boolean",
-                        "description": "Opt in to a v4 proof-carrying route. Requires exact observed x402 v2 terms and a signed checkpoint receipt; implies require_transparency even if false. Default false; ordinary requests keep v3. A ranked winner that cannot bind may fall through to the next already-probed selectable bindable candidate; 503 route_binding_unavailable only when none remain. Buyer verifies raw response JSON with a pinned log key and compares the current seller request and challenge before signing. Expiry or changed terms do not undo a settled routing fee. Guide: https://402signal.com/developers#route-binding",
+                        "description": "Opt in to a v4 proof-carrying route. Requires exact observed x402 v2 terms and a signed checkpoint receipt; implies require_transparency even if false. Default false; ordinary requests keep v3. A ranked winner that cannot bind may fall through to the next already-probed selectable bindable candidate; 503 route_binding_unavailable only when none remain. wrapExactAuthorize reports state=binding_unavailable with keep_calling_route true; policy working, not a crash. Buyer verifies raw response JSON with a pinned log key and compares the current seller request and challenge before signing. Expiry or changed terms do not undo a settled routing fee. Guide: https://402signal.com/developers#route-binding",
                     },
                     "require_transparency": {
                         "type": "boolean",

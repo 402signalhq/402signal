@@ -31,7 +31,7 @@ The [seller guide](docs/customer/sellers.md) explains how to compare seller clai
 
 ## Check an offer before signing
 
-Send a capability or exact API URL with your buyer's constraints. The hosted API observes the supported current offer and returns a qualifying route or an explicit reason to stop. Request `require_route_binding=true` and integrate the local guard for buyer-side comparison before signing. When that flag is on, the hosted check may fall through to the next already-probed selectable candidate that can bind; a local guard refusal is still a stop.
+Send a capability or exact API URL with your buyer's constraints. The hosted API observes the supported current offer and returns a qualifying route or an explicit reason to stop. Request `require_route_binding=true` and integrate the local guard for buyer-side comparison before signing. When that flag is on, the hosted check may fall through to the next already-probed selectable candidate that can bind; a local guard refusal is still a stop. HTTP 503 `binding_error: route_binding_unavailable` means none remained bindable. `wrapExactAuthorize` reports that as `state=binding_unavailable` with `keep_calling_route: true` so the next `/route` call can proceed. That is policy working, not a crash.
 
 ```sh
 curl -sS -D - https://402signal.com/route \
@@ -89,6 +89,7 @@ Read `live`, `payable`, `selected_payment` and `billing` together. HTTP 200 alon
 |---|---|
 | HTTP 402 before authorization | Checking-fee requirements; no paid check yet |
 | Completed normal miss, HTTP 200 | `live:false`, `payable:false`, `selected_payment:null`, `billing.settlement_state=not_attempted`; no checking-fee settlement |
+| Binding unavailable, HTTP 503 | `binding_error: route_binding_unavailable`; policy working, not a crash. `wrapExactAuthorize` returns `state=binding_unavailable` and `keep_calling_route: true` |
 | Qualifying result, HTTP 200 | Eligible observed offer and explicit billing; buyer still validates before paying the seller |
 | Operational or uncertain failure, HTTP 503 | Inspect `billing.settlement_state`; it can be unattempted, settled before required evidence failed, or unknown |
 
