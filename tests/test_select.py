@@ -456,6 +456,10 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(rows[1]["n_7d"], 3)
         self.assertTrue(rows[1]["selected"])
         self.assertFalse(rows[0]["selected"])
+        self.assertTrue(rows[1]["selectable"])
+        self.assertTrue(rows[0]["selectable"])
+        self.assertIsNone(rows[1]["excluded_reason"])
+        self.assertEqual(rows[0]["excluded_reason"], "ranked_below_winner")
         for key in (
             "url",
             "rail",
@@ -467,9 +471,16 @@ class ComparisonTests(unittest.TestCase):
             "live",
             "invocable",
             "selected",
+            "selectable",
+            "payTo_pending",
+            "payTo_changed",
+            "excluded_reason",
         ):
             self.assertIn(key, rows[0])
         self.assertNotIn("reliability", rows[0])
+        self.assertFalse(rows[0]["payTo_pending"])
+        self.assertFalse(rows[0]["payTo_changed"])
+        self.assertNotIn("risk", rows[0])
 
     def test_comparison_exposes_n_so_thin_perfect_is_not_400_of_400(self):
         thin = _hit(
@@ -503,6 +514,121 @@ class ComparisonTests(unittest.TestCase):
         thin_row = select.comparison([two], two)[0]
         self.assertIsNone(thin_row["success_7d"])
         self.assertEqual(thin_row["n_7d"], 2)
+        self.assertTrue(thin_row["selectable"])
+        self.assertIsNone(thin_row["excluded_reason"])
+
+
+class ComparedSelectabilityTests(unittest.TestCase):
+    """Public compared[] must show why a live loser was not eligible to win."""
+
+    def _by_url(self, rows):
+        return {row["url"]: row for row in rows}
+
+    def test_pending_cheaper_loser_flags_are_visible(self):
+        cheap = _hit(
+            url="https://cheap-pending.example/x",
+            amount=1000,
+            latency=10,
+            payTo_pending=True,
+            payTo_changed=True,
+            risk=["payTo_changed"],
+        )
+        stable = _hit(url="https://stable.example/x", amount=9000, latency=10)
+        for objective in ("best", "cheapest"):
+            pool = select.selection_set([cheap, stable], None)
+            winner = select.pick_winner(pool, objective, None)
+            self.assertIs(winner, stable, msg=objective)
+            rows = self._by_url(select.comparison([cheap, stable], winner, objective, None))
+            loser = rows[cheap["url"]]
+            self.assertFalse(loser["selected"])
+            self.assertFalse(loser["selectable"])
+            self.assertTrue(loser["payTo_pending"])
+            self.assertTrue(loser["payTo_changed"])
+            self.assertEqual(loser.get("risk"), ["payTo_changed"])
+            self.assertEqual(loser["excluded_reason"], "payTo_pending")
+            self.assertNotIn("selected_payment", loser)
+            chosen = rows[stable["url"]]
+            self.assertTrue(chosen["selected"])
+            self.assertTrue(chosen["selectable"])
+            self.assertFalse(chosen["payTo_pending"])
+            self.assertFalse(chosen["payTo_changed"])
+            self.assertIsNone(chosen["excluded_reason"])
+            self.assertIn("selected_payment", chosen)
+
+    def test_changed_only_cheaper_loser_flags_are_visible_when_stable_peer_exists(self):
+        cheap = _hit(
+            url="https://cheap-changed.example/x",
+            amount=1000,
+            latency=10,
+            payTo_changed=True,
+            risk=["payTo_changed"],
+        )
+        self.assertFalse(cheap.get("payTo_pending"))
+        stable = _hit(url="https://stable-peer.example/x", amount=9000, latency=10)
+        for objective in ("best", "cheapest"):
+            pool = select.selection_set([cheap, stable], None)
+            self.assertNotIn(cheap, pool)
+            self.assertIn(stable, pool)
+            winner = select.pick_winner(pool, objective, None)
+            self.assertIs(winner, stable, msg=objective)
+            rows = self._by_url(select.comparison([cheap, stable], winner, objective, None))
+            loser = rows[cheap["url"]]
+            self.assertFalse(loser["selected"])
+            self.assertFalse(loser["selectable"])
+            self.assertFalse(loser["payTo_pending"])
+            self.assertTrue(loser["payTo_changed"])
+            self.assertEqual(loser.get("risk"), ["payTo_changed"])
+            self.assertEqual(loser["excluded_reason"], "payTo_changed")
+            chosen = rows[stable["url"]]
+            self.assertTrue(chosen["selected"])
+            self.assertTrue(chosen["selectable"])
+            self.assertIsNone(chosen["excluded_reason"])
+
+    def test_two_selectable_candidates_loser_is_ranked_below_winner(self):
+        cheap_slow = _hit(url="https://cheap-slow.example/x", amount=1000, latency=80)
+        dear_fast = _hit(url="https://dear-fast.example/x", amount=9000, latency=4)
+        cheap_win = select.pick_winner([cheap_slow, dear_fast], "cheapest", None)
+        self.assertIs(cheap_win, cheap_slow)
+        cheap_rows = self._by_url(
+            select.comparison([cheap_slow, dear_fast], cheap_win, "cheapest", None)
+        )
+        self.assertTrue(cheap_rows[cheap_slow["url"]]["selected"])
+        self.assertTrue(cheap_rows[cheap_slow["url"]]["selectable"])
+        self.assertIsNone(cheap_rows[cheap_slow["url"]]["excluded_reason"])
+        self.assertFalse(cheap_rows[dear_fast["url"]]["selected"])
+        self.assertTrue(cheap_rows[dear_fast["url"]]["selectable"])
+        self.assertEqual(cheap_rows[dear_fast["url"]]["excluded_reason"], "ranked_below_winner")
+
+        best_win = select.pick_winner([cheap_slow, dear_fast], "best", None)
+        self.assertIs(best_win, dear_fast)
+        best_rows = self._by_url(
+            select.comparison([cheap_slow, dear_fast], best_win, "best", None)
+        )
+        self.assertTrue(best_rows[dear_fast["url"]]["selected"])
+        self.assertTrue(best_rows[dear_fast["url"]]["selectable"])
+        self.assertIsNone(best_rows[dear_fast["url"]]["excluded_reason"])
+        self.assertFalse(best_rows[cheap_slow["url"]]["selected"])
+        self.assertTrue(best_rows[cheap_slow["url"]]["selectable"])
+        self.assertEqual(best_rows[cheap_slow["url"]]["excluded_reason"], "ranked_below_winner")
+
+    def test_accept_payTo_change_does_not_select_changed_when_stable_peer_exists(self):
+        cheap = _hit(
+            url="https://cheap-pending-optin.example/x",
+            amount=1000,
+            payTo_pending=True,
+            payTo_changed=True,
+            risk=["payTo_changed"],
+        )
+        stable = _hit(url="https://stable-optin.example/x", amount=9000)
+        cons = {"accept_payTo_change": True}
+        pool = select.selection_set([cheap, stable], cons)
+        self.assertEqual(pool, [stable])
+        winner = select.pick_winner(pool, "cheapest", cons)
+        self.assertIs(winner, stable)
+        rows = self._by_url(select.comparison([cheap, stable], winner, "cheapest", cons))
+        self.assertEqual(rows[cheap["url"]]["excluded_reason"], "payTo_changed")
+        self.assertFalse(rows[cheap["url"]]["selectable"])
+        self.assertTrue(rows[stable["url"]]["selected"])
 
 
 class RouteNeedSelectTests(unittest.TestCase):
@@ -568,7 +694,16 @@ class RouteNeedSelectTests(unittest.TestCase):
             ],
         }
 
-    def _live(self, url, amount=10000, latency=10, pay_to=None, changed=False, rail="base"):
+    def _live(
+        self,
+        url,
+        amount=10000,
+        latency=10,
+        pay_to=None,
+        changed=False,
+        rail="base",
+        pending=False,
+    ):
         if pay_to is None:
             pay_to = _payto_for_rail(rail)
         row = {
@@ -579,7 +714,8 @@ class RouteNeedSelectTests(unittest.TestCase):
             "asset": _usdc_for_rail(rail),
             "latency_ms": latency,
             "invocable": False,
-            "payTo_changed": bool(changed),
+            "payTo_pending": bool(pending),
+            "payTo_changed": bool(changed or pending),
             "probed_at": probe.now_iso(),
             "readiness": "payable",
             "rail": rail,
@@ -594,7 +730,7 @@ class RouteNeedSelectTests(unittest.TestCase):
                 )
             ],
         }
-        if changed:
+        if changed or pending:
             row["risk"] = ["payTo_changed"]
         return attach_v2(row)
 
@@ -643,8 +779,71 @@ class RouteNeedSelectTests(unittest.TestCase):
         self.assertIsNone(compared[0].get("success_7d"))
         self.assertIsNot(compared[0].get("success_7d"), 0.0)
         self.assertEqual(compared[0].get("n_7d"), 0)
+        by_url = {row["url"]: row for row in compared}
+        self.assertTrue(by_url[cheap["url"]]["selectable"])
+        self.assertIsNone(by_url[cheap["url"]]["excluded_reason"])
+        self.assertTrue(by_url[dear["url"]]["selectable"])
+        self.assertEqual(by_url[dear["url"]]["excluded_reason"], "ranked_below_winner")
         self.assertEqual(result.get("stop_reason"), "winner_selected")
         self.assertTrue(result.get("candidate_evaluation_complete"))
+
+    def test_pending_cheaper_live_row_is_visible_and_not_selected(self):
+        pending = self._item("https://cheap-pending.example/weather", amount="1000")
+        stable = self._item("https://stable.example/weather", amount="9000")
+        by_url = {
+            pending["url"]: self._live(pending["url"], amount=1000, latency=10, pending=True),
+            stable["url"]: self._live(stable["url"], amount=9000, latency=10),
+        }
+
+        def fake_probe(url, catalog_item=None, deadline=None, **kwargs):
+            _ = catalog_item, deadline
+            return dict(by_url[url])
+
+        for objective in ("best", "cheapest"):
+            result = self._route([pending, stable], fake_probe, objective=objective)
+            self.assertTrue(result.get("live"), msg=objective)
+            self.assertEqual(result.get("url"), stable["url"], msg=objective)
+            compared = {row["url"]: row for row in (result.get("compared") or [])}
+            loser = compared[pending["url"]]
+            self.assertFalse(loser["selected"])
+            self.assertFalse(loser["selectable"])
+            self.assertTrue(loser["payTo_pending"])
+            self.assertTrue(loser["payTo_changed"])
+            self.assertEqual(loser.get("risk"), ["payTo_changed"])
+            self.assertEqual(loser["excluded_reason"], "payTo_pending")
+            chosen = compared[stable["url"]]
+            self.assertTrue(chosen["selected"])
+            self.assertTrue(chosen["selectable"])
+            self.assertIsNone(chosen["excluded_reason"])
+
+    def test_changed_only_cheaper_live_row_is_visible_and_not_selected(self):
+        changed = self._item("https://cheap-changed.example/weather", amount="1000")
+        stable = self._item("https://stable-peer.example/weather", amount="9000")
+        by_url = {
+            changed["url"]: self._live(changed["url"], amount=1000, latency=10, changed=True),
+            stable["url"]: self._live(stable["url"], amount=9000, latency=10),
+        }
+
+        def fake_probe(url, catalog_item=None, deadline=None, **kwargs):
+            _ = catalog_item, deadline
+            return dict(by_url[url])
+
+        for objective in ("best", "cheapest"):
+            result = self._route([changed, stable], fake_probe, objective=objective)
+            self.assertTrue(result.get("live"), msg=objective)
+            self.assertEqual(result.get("url"), stable["url"], msg=objective)
+            compared = {row["url"]: row for row in (result.get("compared") or [])}
+            loser = compared[changed["url"]]
+            self.assertFalse(loser["selected"])
+            self.assertFalse(loser["selectable"])
+            self.assertFalse(loser["payTo_pending"])
+            self.assertTrue(loser["payTo_changed"])
+            self.assertEqual(loser.get("risk"), ["payTo_changed"])
+            self.assertEqual(loser["excluded_reason"], "payTo_changed")
+            chosen = compared[stable["url"]]
+            self.assertTrue(chosen["selected"])
+            self.assertTrue(chosen["selectable"])
+            self.assertIsNone(chosen["excluded_reason"])
 
     def test_fastest_wins_lower_latency(self):
         slow = self._item("https://slow.example/weather")

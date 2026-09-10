@@ -13,7 +13,7 @@ os.environ.setdefault("LIVE402_FIXTURE", "1")
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from live402 import payment, reputation, schema_fields
+from live402 import payment, reputation, schema_fields, select
 from live402.pq import ORIGIN, events, jcs, receipt, store
 
 
@@ -157,8 +157,16 @@ class V3EvidenceTests(unittest.TestCase):
                 "live": True,
                 "invocable": False,
                 "selected": False,
+                "selectable": False,
+                "payTo_pending": True,
+                "payTo_changed": True,
+                "risk": ["payTo_changed"],
+                "excluded_reason": "payTo_pending",
                 "amount_atomic": "20000",
                 "latency_ms": 9,
+                "reputation": {"reputation_score": 0.9, "scoring_model_hash": "aa" * 32},
+                "economics": {"total_cost_usd": {"value": 0.02}},
+                "success_7d": 0.5,
             },
             {
                 "url": "https://a.example/x",
@@ -166,6 +174,10 @@ class V3EvidenceTests(unittest.TestCase):
                 "live": True,
                 "invocable": True,
                 "selected": True,
+                "selectable": True,
+                "payTo_pending": False,
+                "payTo_changed": False,
+                "excluded_reason": None,
                 "amount_atomic": "10000",
                 "latency_ms": 12,
                 "selected_payment": {
@@ -184,6 +196,110 @@ class V3EvidenceTests(unittest.TestCase):
         self.assertEqual(digest, again)
         self.assertIsNone(events.candidate_set_digest([]))
         self.assertIsNone(events.candidate_set_digest(None))
+        stripped = []
+        for row in compared:
+            slim = {k: v for k, v in row.items() if k not in {"reputation", "economics", "success_7d"}}
+            stripped.append(slim)
+        self.assertEqual(digest, events.candidate_set_digest(stripped))
+        blob = json.dumps(events._slim_compared_row(compared[0]))
+        self.assertNotIn("reputation", blob)
+        self.assertNotIn("economics", blob)
+        self.assertNotIn("success_7d", blob)
+        self.assertIn("selectable", blob)
+        self.assertIn("excluded_reason", blob)
+
+    def test_candidate_set_digest_binds_selectability_with_stable_defaults(self):
+        base = {
+            "url": "https://cheap.example/x",
+            "rail": "base",
+            "live": True,
+            "invocable": True,
+            "selected": False,
+            "amount_atomic": "1000",
+            "latency_ms": 10,
+        }
+        omitted = events.candidate_set_digest([base])
+        explicit_empty = events.candidate_set_digest(
+            [{**base, "payTo_pending": False, "payTo_changed": False, "risk": []}]
+        )
+        self.assertEqual(omitted, explicit_empty)
+        pending = events.candidate_set_digest(
+            [{
+                **base,
+                "selectable": False,
+                "payTo_pending": True,
+                "payTo_changed": True,
+                "risk": ["payTo_changed"],
+                "excluded_reason": "payTo_pending",
+            }]
+        )
+        changed = events.candidate_set_digest(
+            [{
+                **base,
+                "selectable": False,
+                "payTo_pending": False,
+                "payTo_changed": True,
+                "risk": ["payTo_changed"],
+                "excluded_reason": "payTo_changed",
+            }]
+        )
+        ranked = events.candidate_set_digest(
+            [{
+                **base,
+                "selectable": True,
+                "payTo_pending": False,
+                "payTo_changed": False,
+                "excluded_reason": "ranked_below_winner",
+            }]
+        )
+        self.assertNotEqual(omitted, pending)
+        self.assertNotEqual(pending, changed)
+        self.assertNotEqual(changed, ranked)
+        self.assertNotEqual(omitted, ranked)
+        slim = events._slim_compared_row(base)
+        self.assertIs(slim["payTo_pending"], False)
+        self.assertIs(slim["payTo_changed"], False)
+        self.assertEqual(slim["risk"], [])
+        self.assertIsNone(slim["selectable"])
+        self.assertIsNone(slim["excluded_reason"])
+
+    def test_digest_from_public_compared_rows_binds_gated_loser(self):
+        from tests.test_select import _hit
+
+        cheap = _hit(
+            url="https://cheap-pending.example/x",
+            amount=1000,
+            latency=10,
+            payTo_pending=True,
+            payTo_changed=True,
+            risk=["payTo_changed"],
+        )
+        stable = _hit(url="https://stable.example/x", amount=9000, latency=10)
+        winner = select.pick_winner(select.selection_set([cheap, stable]), "cheapest")
+        compared = select.comparison([cheap, stable], winner, "cheapest")
+        digest = events.candidate_set_digest(compared)
+        ev = events.private_evidence_v3_from_route(
+            {"compared": compared, "url": winner["url"], "live": True, "selected_payment": {"rail": "base"}}
+        )
+        self.assertEqual(ev["comparison"]["candidate_set_digest"], digest)
+        self.assertEqual(ev["comparison"]["candidate_count"], 2)
+        loser = next(row for row in compared if row["url"] == cheap["url"])
+        slim = events._slim_compared_row(loser)
+        self.assertIs(slim["selectable"], False)
+        self.assertIs(slim["payTo_pending"], True)
+        self.assertIs(slim["payTo_changed"], True)
+        self.assertEqual(slim["risk"], ["payTo_changed"])
+        self.assertEqual(slim["excluded_reason"], "payTo_pending")
+        without_flags = []
+        for row in compared:
+            copy_row = dict(row)
+            copy_row.pop("selectable", None)
+            copy_row.pop("payTo_pending", None)
+            copy_row.pop("payTo_changed", None)
+            copy_row.pop("risk", None)
+            copy_row.pop("excluded_reason", None)
+            without_flags.append(copy_row)
+        self.assertNotEqual(digest, events.candidate_set_digest(without_flags))
 
     def test_null_observation_uses_probe_facts_without_overriding_false(self):
         for value in (None, False, True):
