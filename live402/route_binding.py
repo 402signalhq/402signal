@@ -126,6 +126,59 @@ def request_context(url: str, method: str, body: bytes = b"") -> dict:
     }
 
 
+_PAYMENT_REQUIRED_KEYS = ("x402Version", "accepts", "resource", "error", "extensions")
+_CHALLENGE_WRAPPERS = ("payment_required", "paymentRequired", "x402")
+_KNOWN_EXTENSIONS = frozenset({"bazaar", "builder-code", "payment-identifier"})
+_RESOURCE_KEYS = frozenset(
+    {"url", "description", "mimeType", "serviceName", "tags", "iconUrl"}
+)
+_ACCEPT_KEYS = frozenset(
+    {
+        "scheme",
+        "network",
+        "amount",
+        "asset",
+        "currency",
+        "payTo",
+        "maxTimeoutSeconds",
+        "extra",
+        "outputSchema",
+    }
+)
+ICON_URL_MAX = 2048
+
+
+def _project_payment_required(val):
+    """PaymentRequired view. Wrapper keys are not hashed; payment aliases must agree."""
+    if type(val) is not dict or ("accepts" not in val and "x402Version" not in val):
+        return None
+    alias = val.get("paymentRequirements")
+    if alias is not None and canonical(alias) != canonical(val.get("accepts")):
+        _fail("ambiguous_challenge")
+    return {key: val[key] for key in _PAYMENT_REQUIRED_KEYS if key in val}
+
+
+def _body_challenge(val):
+    """Unwrap known seller wrappers; never rewrite resource.url or accept terms."""
+    if type(val) is not dict:
+        return None
+    found = []
+    direct = _project_payment_required(val)
+    if direct is not None:
+        found.append(direct)
+    for key in _CHALLENGE_WRAPPERS:
+        inner = val.get(key)
+        if type(inner) is dict:
+            projected = _project_payment_required(inner)
+            if projected is not None:
+                found.append(projected)
+    if not found:
+        return None
+    if any(canonical(item) != canonical(found[0]) for item in found):
+        _fail("ambiguous_challenge")
+    return found[0]
+
+
 def observed_challenge(status, headers: dict, body: bytes) -> dict:
     """No lossy JSON path: reject duplicate keys and disagreeing wire channels."""
     if type(status) is not int or status != 402:
@@ -149,8 +202,9 @@ def observed_challenge(status, headers: dict, body: bytes) -> dict:
         except BindingError:
             # A non-JSON error page alongside a header cannot prove equivalence.
             _fail("invalid_json")
-        if type(val) is dict and ("accepts" in val or "x402Version" in val):
-            candidates.append(val)
+        extracted = _body_challenge(val)
+        if extracted is not None:
+            candidates.append(extracted)
     if not candidates or any(
         canonical(c) != canonical(candidates[0]) for c in candidates
     ):
@@ -172,7 +226,7 @@ def validate_envelope(env: dict) -> None:
     if set(env) - {"x402Version", "accepts", "resource", "error", "extensions"}:
         _fail("unsupported_challenge")
     exts = env.get("extensions", {})
-    if type(exts) is not dict or set(exts) - {"bazaar"}:
+    if type(exts) is not dict or set(exts) - _KNOWN_EXTENSIONS:
         _fail("unsupported_extension")
     accepts = env.get("accepts")
     if type(accepts) is not list or not 1 <= len(accepts) <= 32:
@@ -180,11 +234,11 @@ def validate_envelope(env: dict) -> None:
     for acc in accepts:
         if type(acc) is not dict:
             _fail("unsupported_challenge")
+        if "outputSchema" in acc and type(acc["outputSchema"]) is not dict:
+            _fail("unsupported_challenge")
     resource = env.get("resource")
     if resource is not None:
-        if type(resource) is not dict or set(resource) - {
-            "url", "description", "mimeType", "serviceName", "tags"
-        }:
+        if type(resource) is not dict or set(resource) - _RESOURCE_KEYS:
             _fail("unsupported_resource")
         # Bounded observational metadata, not strict x402 schema certification.
         # Preserve every value and array position in the full challenge hash.
@@ -200,6 +254,11 @@ def validate_envelope(env: dict) -> None:
                    for tag in resource["tags"])
         ):
             _fail("unsupported_resource")
+        if "iconUrl" in resource:
+            icon = resource["iconUrl"]
+            if type(icon) is not str or not 1 <= len(icon) <= ICON_URL_MAX:
+                _fail("unsupported_resource")
+            request_context(icon, "GET")
 
 
 def _resource_matches_context(resource: dict, ctx: dict) -> bool:
@@ -234,16 +293,7 @@ def selected_index(env, selected) -> int:
     if len(matches) != 1:
         _fail("ambiguous_selected_payment")
     acc = env["accepts"][matches[0]]
-    if set(acc) - {
-        "scheme",
-        "network",
-        "amount",
-        "asset",
-        "currency",
-        "payTo",
-        "maxTimeoutSeconds",
-        "extra",
-    }:
+    if set(acc) - _ACCEPT_KEYS:
         _fail("unsupported_challenge")
     if (
         acc.get("scheme") != "exact"

@@ -12,6 +12,7 @@ _replayed = contextvars.ContextVar('route_replayed', default=False)
 PHASES = frozenset({'verification', 'routing_probe', 'binding_validation', 'settlement', 'history', 'pq_receipt', 'replay_lookup', 'discovery', 'hydration', 'candidate_probing'})
 BINDING_REASONS = frozenset({
     'unsupported_challenge', 'unsupported_json_value', 'invalid_json',
+    'unsupported_extension', 'unsupported_resource',
     'quote_expired', 'quote_changed', 'resource_changed', 'unresolved_policy',
     'unproven_observation', 'invalid_winner', 'invalid_evidence',
     'invalid_binding', 'invalid_binding_config', 'ambiguous_challenge', 'redirected_quote',

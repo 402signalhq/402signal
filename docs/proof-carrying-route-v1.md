@@ -45,10 +45,18 @@ The full-envelope hash includes resource metadata, all accepts (in order),
 facilitator/fee-payer data in `extra`, and supported extension data. Object key
 order does not matter; strings and arrays are exact. No loose URL or address
 normalization is performed. The profile supports current `exact` v2 options on
-Base, Solana and Algorand; unknown top-level fields and protocol extensions other
-than `bazaar` fail closed. Opaque `extra` data is bound without asserting its
-transaction semantics. The existing official rail validator/wallet must still
-validate all actual payment effects before signing.
+Base, Solana and Algorand; unknown top-level PaymentRequired fields and protocol
+extensions other than `bazaar`, `builder-code` and `payment-identifier` fail
+closed. Opaque `extra` data is bound without asserting its transaction
+semantics. The existing official rail validator/wallet must still validate all
+actual payment effects before signing.
+
+Observation unwraps a seller HTTP wrapper only when the extracted PaymentRequired
+object is unambiguous. Nested `payment_required` / `paymentRequired` / `x402`
+bodies, and extra non-challenge keys such as catalog metadata, are projected
+away before comparison. A `paymentRequirements` alias must equal `accepts`.
+Header and body still have to agree on the extracted challenge. Accept fields
+and `resource.url` are never rewritten to invent a match.
 
 For a queryful GET with an empty body, `resource.url` may describe the endpoint:
 it must equal either the complete actual URL or its exact byte prefix before the
@@ -59,16 +67,20 @@ query order/encoding, method and body. Route the fully parameterized seller URL;
 adding parameters after routing invalidates the proof. This endpoint-metadata
 tolerance does not apply to POST or a GET body.
 
-Resource `serviceName` and `tags` are accepted as bounded untrusted observational
-metadata: a nonempty printable-ASCII name of at most 32 characters, and at most
-16 nonempty printable-ASCII tags of at most 32 characters each. Every value and
-tag position remains in the complete challenge hash. This tolerance is not a
-claim of strict x402 schema conformance; the protocol's five-tag limit is narrower.
-Metadata grants no trust or payment authority. Other resource fields remain
-limited to `url`, `description` and `mimeType`; unknown extensions, floating-point
-challenge values and disagreeing header/body challenges remain unsupported.
-Deploy a compatible server and guard together; older guards reject these newly
-accepted descriptions. There is no receipt-format or payment-authority change.
+Resource `serviceName`, `tags` and `iconUrl` are accepted as bounded untrusted
+observational metadata: a nonempty printable-ASCII name of at most 32 characters,
+at most 16 nonempty printable-ASCII tags of at most 32 characters each, and an
+optional HTTPS icon URL of at most 2048 characters that satisfies the same
+host/userinfo/fragment restrictions as a resource URL. Every value and tag
+position remains in the complete challenge hash. An accept may carry an
+`outputSchema` object as hashed observational metadata; it is not payment terms.
+This tolerance is not a claim of strict x402 schema conformance; the protocol's
+five-tag limit is narrower. Metadata grants no trust or payment authority. Other
+resource fields remain limited to `url`, `description` and `mimeType`; unknown
+extensions, floating-point challenge values and disagreeing extracted
+header/body challenges remain unsupported. Deploy a compatible server and guard
+together; older guards reject these newly accepted descriptions. There is no
+receipt-format or payment-authority change.
 
 The default freshness window is 60 seconds. `LIVE402_ROUTE_BINDING_TTL_S` accepts
 integers 1..120; invalid settings fail closed for opted-in requests. Receipt
