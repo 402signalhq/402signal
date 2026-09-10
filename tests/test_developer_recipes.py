@@ -56,6 +56,10 @@ class DeveloperRecipes(unittest.TestCase):
                 self.assertNotIn('sha256', package)
                 self.assertNotIn('archive', package)
                 self.assertNotIn('checksum_file', package)
+                self.assertNotIn('checksum_file_sha256', package)
+                self.assertNotIn('published_at', package)
+                self.assertRegex(package['provisional_pack_sha256'], r'^[0-9a-f]{64}$')
+                self.assertRegex(package['provisional_sums_sha256'], r'^[0-9a-f]{64}$')
                 continue
             self.assertRegex(package['sha256'], r'^[0-9a-f]{64}$')
             self.assertIn(package['tag'], package['archive'])

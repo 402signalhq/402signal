@@ -20,6 +20,13 @@ REVIEWED_KEYS = (
     "verifier_package",
     "historical_verifier",
 )
+PACKED_TIP = "120786b19fbc7f965ebdb587832ef15ff9faef2b"
+PROVISIONAL_PACK_SHA256 = (
+    "f09b4e038b6bde9670afe725af4170b4f52c7323ca775bcb1b2fcbc8ab200497"
+)
+PROVISIONAL_SUMS_SHA256 = (
+    "be043932144d010a8c9d0e0542f8d6b396f72c27d94bc5cac05aa2befa9fefe8"
+)
 
 
 def _static():
@@ -72,8 +79,11 @@ class CapabilitiesHonestyTests(unittest.TestCase):
         self.assertNotIn("sha256", pending)
         self.assertNotIn("archive", pending)
         self.assertNotIn("checksum_file", pending)
+        self.assertNotIn("checksum_file_sha256", pending)
         self.assertNotIn("published_at", pending)
-        self.assertRegex(pending["source_revision"], r"^[0-9a-f]{40}$")
+        self.assertEqual(pending["source_revision"], PACKED_TIP)
+        self.assertEqual(pending["provisional_pack_sha256"], PROVISIONAL_PACK_SHA256)
+        self.assertEqual(pending["provisional_sums_sha256"], PROVISIONAL_SUMS_SHA256)
         self.assertIn("not a runtime allowlist", record["scope_note"])
 
     def test_empty_allowlist_keeps_verifier_metadata_and_marks_hosted_off(self):
@@ -151,6 +161,9 @@ class CapabilitiesHonestyTests(unittest.TestCase):
         self.assertEqual(static["packages"][0]["digest_status"], "provisional-until-release")
         self.assertNotIn("sha256", static["packages"][0])
         self.assertNotIn("archive", static["packages"][0])
+        self.assertEqual(static["packages"][0]["source_revision"], PACKED_TIP)
+        self.assertEqual(static["packages"][0]["provisional_pack_sha256"], PROVISIONAL_PACK_SHA256)
+        self.assertEqual(static["packages"][0]["provisional_sums_sha256"], PROVISIONAL_SUMS_SHA256)
         self.assertIn("See check_group_offer.codecs", static["merchant_integrations"][1]["hosted_enablement_note"])
         self.assertNotIn("codec tokens exact,sess,mpp,atom,inv", static["merchant_integrations"][1]["hosted_enablement_note"])
 
