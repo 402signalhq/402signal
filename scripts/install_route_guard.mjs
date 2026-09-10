@@ -8,13 +8,15 @@
  * or copy this file and run it in the project directory.
  *
  * Downloads the published archive + SHA256SUMS, digest-checks both against
- * the reviewed /capabilities.json pins, then `npm install --ignore-scripts`.
+ * the reviewed /capabilities.json pins, then `npm install --ignore-scripts`
+ * and writes exact-authorize.mjs (wrap existing sign; fail closed).
  * Local --archive / --checksum-file / --capabilities paths skip the network.
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -182,13 +184,16 @@ const report = {
   destination: null,
   next: {
     request: "POST /route with require_route_binding:true (exact + binding + transparency)",
-    authorize: "withVerifiedRoute immediately before the buyer-owned seller payment",
-    example: "@402signal/route-guard/examples/search.ts (pay-fetch). MCP preview/validate cannot complete a paid route.",
-    miss: "HTTP 200 live:false is a completed miss, not an outage. HTTP 503 binding_error: route_binding_unavailable means no remaining bindable candidate. Inspect miss_reason / binding_error_reason / route_outcome.next_action. Do not treat either as a crash or send an unguarded payment.",
+    authorize: "import { wrapExactAuthorize } from './exact-authorize.mjs' and wrap existing signRouting/signSeller",
+    example: "same wrap on the next spend; packaged examples/search.ts is the longer pay-fetch form. MCP preview/validate cannot complete a paid route.",
+    miss: "HTTP 200 live:false or HTTP 503 binding_error is policy working, not a broken router. keep_calling_route stays true. Inspect miss_reason / next_action and call /route again.",
   },
 };
 
 if (!verifyOnly) {
+  const wrapJs = join(scriptDir, "exact_authorize.mjs");
+  const wrapDts = join(scriptDir, "exact_authorize.d.ts");
+  assert.equal(existsSync(wrapJs), true, "missing exact authorize wrap next to installer");
   mkdirSync(destination, { recursive: true });
   execFileSync("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", archive], {
     cwd: destination,
@@ -200,8 +205,11 @@ if (!verifyOnly) {
   );
   assert.equal(installed.name, "@402signal/route-guard");
   assert.equal(installed.version, "0.7.2");
+  copyFileSync(wrapJs, join(destination, "exact-authorize.mjs"));
+  if (existsSync(wrapDts)) copyFileSync(wrapDts, join(destination, "exact-authorize.d.ts"));
   report.installed = true;
   report.destination = destination;
+  report.wrap = "exact-authorize.mjs";
 }
 
 console.log(JSON.stringify(report, null, 2));

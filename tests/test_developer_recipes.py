@@ -51,6 +51,8 @@ class DeveloperRecipes(unittest.TestCase):
         self.assertIn('not a broken router', offer)
         self.assertIn('route_outcome.next_action', offer)
         self.assertIn('examples/search.ts', offer)
+        self.assertIn('wrapExactAuthorize', offer)
+        self.assertIn('keep_calling_route', offer)
     def test_public_release_record_and_current_discovery(self):
         from live402.discover import LLMS_TXT
         status, _, text = self.request('/capabilities.json'); self.assertEqual(status, 200)
@@ -72,6 +74,7 @@ class DeveloperRecipes(unittest.TestCase):
         self.assertIn('route-guard-v0.7.2', LLMS_TXT); self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
         self.assertIn('install_route_guard.mjs', LLMS_TXT)
         self.assertIn('not a router crash', LLMS_TXT)
+        self.assertIn('wrapExactAuthorize', LLMS_TXT)
         self.assertEqual(self.request('/capabilities.json', 'HEAD')[2], '')
         for package in record['packages']:
             self.assertIn(package['recipe'], guides.PATHS)

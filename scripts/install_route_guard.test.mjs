@@ -103,8 +103,8 @@ test("reviewed local archive verifies and installs into a fresh buyer directory"
     assert.equal(report.checksum_file_sha256, REVIEWED_SUMS);
     assert.equal(report.installed, false);
     assert.match(report.distribution, /not npm registry/i);
-    assert.equal(report.next.authorize.includes("withVerifiedRoute"), true);
-    assert.match(report.next.miss, /completed miss/);
+    assert.equal(report.next.authorize.includes("wrapExactAuthorize"), true);
+    assert.match(report.next.miss, /policy working/);
 
     const install = runInstaller([
       "--destination",
@@ -125,6 +125,9 @@ test("reviewed local archive verifies and installs into a fresh buyer directory"
     );
     copyFileSync(join(dest, "node_modules/@402signal/route-guard/examples/search.ts"), join(dest, "search.ts"));
     assert.ok(readFileSync(join(dest, "search.ts"), "utf8").includes("withVerifiedRoute"));
+    assert.match(readFileSync(join(dest, "exact-authorize.mjs"), "utf8"), /wrapExactAuthorize/);
+    assert.match(readFileSync(join(dest, "exact-authorize.d.ts"), "utf8"), /wrapExactAuthorize/);
+    assert.equal(installed.wrap, "exact-authorize.mjs");
   } finally {
     rmSync(dest, { recursive: true, force: true });
   }
