@@ -11,8 +11,6 @@ from live402 import batch_codec
 STATIC = Path(__file__).resolve().parent / "static" / "capabilities.json"
 CHIP_MARK = "<!--CHECK_GROUP_CHIP-->"
 HOSTED_MARK = "<!--CHECK_GROUP_HOSTED-->"
-BUYER_FIELDS = ["url", "buyer_limits", "require_route_binding"]
-HOSTED_ENV = "BATCH_OBSERVATION_PROFILES"
 OFF_NOTE = (
     "Hosted Check group offer is not enabled. This block documents the job shape; "
     "codecs lists only currently enabled tokens from BATCH_OBSERVATION_PROFILES."
@@ -32,25 +30,33 @@ def hosted_enabled():
     return bool(enabled_codecs())
 
 
-def check_group_offer():
+def runtime_availability():
     codecs = enabled_codecs()
     hosted = bool(codecs)
     return {
-        "job": batch_codec.JOB,
-        "label": batch_codec.LABEL,
         "hosted": hosted,
         "hosted_status": "on" if hosted else "off",
         "codecs": codecs,
-        "buyer_fields": list(BUYER_FIELDS),
-        "hosted_enablement_env": HOSTED_ENV,
         "note": ON_NOTE if hosted else OFF_NOTE,
     }
 
 
+def _reviewed_record():
+    return deepcopy(json.loads(STATIC.read_text(encoding="utf-8")))
+
+
 def record():
-    data = deepcopy(json.loads(STATIC.read_text(encoding="utf-8")))
-    data["check_group_offer"] = check_group_offer()
+    data = _reviewed_record()
+    block = data.get("check_group_offer")
+    if type(block) is not dict:
+        block = {}
+    block.update(runtime_availability())
+    data["check_group_offer"] = block
     return data
+
+
+def check_group_offer():
+    return record()["check_group_offer"]
 
 
 def public_json():

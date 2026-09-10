@@ -20,7 +20,7 @@
       "checksum_file": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.2/SHA256SUMS",
       "checksum_file_sha256": "be043932144d010a8c9d0e0542f8d6b396f72c27d94bc5cac05aa2befa9fefe8",
       "distribution": "GitHub release archive; not npm registry",
-      "state": "published",
+      "state": "pending",
       "recipe": "/developers/check-group-offer"
     },
     {
