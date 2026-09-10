@@ -1392,9 +1392,9 @@ Optional customer access keys identify a workload class; they are not wallet pri
 
 ## Check group offer
 
-Job chk_grp, human label Check group offer. Send url, buyer_limits and require_route_binding:true. The server auto-selects a codec from the live seller challenge. Buyers do not pass merchant_profile. Unknown or ambiguous wires fail closed. An ordinary v4 exact receipt does not authorize a group observation.
+Job chk_grp, human label Check group offer. Send url, buyer_limits and require_route_binding:true. When hosted Check group offer is enabled, the server auto-selects a codec from the live seller challenge. Buyers do not pass merchant_profile. Unknown or ambiguous wires fail closed. An ordinary v4 exact receipt does not authorize a group observation.
 
-Codecs are exact (batch-settlement envelope), sess (Solana Payment session), mpp (native Base or Algorand Payment charge), atom (Algorand atomic group), and inv (Algorand aggregate invoice). These are specific wires, not a network/method cross-product. Hosted enablement is the operator BATCH_OBSERVATION_PROFILES allowlist (codec tokens or legacy internal names). Dated controlled MainNet examples do not qualify every limit or external merchant.
+Hosted enablement is the operator BATCH_OBSERVATION_PROFILES allowlist (codec tokens or mapped legacy names). Current hosted codecs are listed in https://402signal.com/capabilities.json check_group_offer.codecs; an empty list means hosted Check group offer is off. Dated controlled MainNet examples do not qualify every limit or external merchant.
 
 The separate v5 proof binds one exact HTTPS GET API, all buyer_limits and the raw observed challenge. The HTTP result and compared rows name job and codec. Label is optional debug. The public leaf stays commitment-only. It is a short-lived observation, not permission to deposit, issue vouchers or sign an arbitrary transaction. The router fee remains $0.003 per qualifying API observation; merchant charges, capital, fees and rent remain separate.
 
