@@ -17,7 +17,12 @@ os.environ.setdefault("LIVE402_FIXTURE", "1")
 os.environ.pop("LOCAL_FREE", None)
 
 from live402.server import Handler
-from live402 import facilitator, payment, probe, fixtures, replay
+from live402 import facilitator, payment, probe, fixtures, replay, server as live_server
+
+
+def _reset_limiters():
+    for name in ("_ROUTE_LIMITER", "_PREVIEW_LIMITER", "_PUBLIC_LIMITER", "_VALIDATE_LIMITER"):
+        getattr(live_server, name)._hits.clear()
 
 
 def _serve():
@@ -82,6 +87,9 @@ class PaywallTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.httpd.shutdown()
         cls.httpd.server_close()
+
+    def setUp(self):
+        _reset_limiters()
 
     def test_unpaid_route_returns_402(self):
         status, body = _json_post(
@@ -1444,6 +1452,7 @@ class PaidFacilitatorTests(unittest.TestCase):
 
     def setUp(self):
         replay.reset()
+        _reset_limiters()
 
     def tearDown(self):
         replay.reset()
@@ -1779,6 +1788,9 @@ class ProductBriefTests(unittest.TestCase):
         cls.httpd.shutdown()
         cls.httpd.server_close()
 
+    def setUp(self):
+        _reset_limiters()
+
     def test_preview_unpaid_200(self):
         from live402 import pulse as pulse_mod
         pulse_mod.reset_cache()
@@ -1888,6 +1900,10 @@ class ProductBriefTests(unittest.TestCase):
             "probe_limit_reached",
             "unsafe_to_probe",
             "settlement_unknown",
+            "window_spent",
+            "fingerprint_miss",
+            "scheme_mismatch",
+            "network_mismatch",
         }
         self.assertEqual(set(MISS_REASONS), expected)
         self.assertEqual(public_miss_reason("probe_budget_exhausted"), "probe_budget_exhausted")

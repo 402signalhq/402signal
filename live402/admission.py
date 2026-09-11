@@ -35,10 +35,14 @@ MCP_COLD_FREE_TOOLS = 2
 DISCOVERY_ANONYMOUS = MCP_COLD_SETUP + MCP_COLD_FREE_TOOLS
 DISCOVERY_ANONYMOUS_TOTAL = 16
 DISCOVERY_CUSTOMER = 8
-# Paid work, unpaid discovery, and recovery each have an independent map
-# capped at policy.max_keys. Combined resident counters stay within this many
-# maps times max_keys.
-COUNTER_POOLS = 3
+# Paid work, unpaid discovery, recovery, trial, and session-hop each have
+# an independent map capped at policy.max_keys. Combined resident counters
+# stay within this many maps times max_keys.
+COUNTER_POOLS = 5
+TRIAL_GLOBAL = 12
+TRIAL_TOKEN = 5
+SESSION_HOP_GLOBAL = 40
+SESSION_HOP_WINDOW = 20
 
 class Unavailable(Exception):
     pass
@@ -129,6 +133,8 @@ class Engine:
         self.buckets = {}
         self.recovery_buckets = {}
         self.discovery_buckets = {}
+        self.trial_buckets = {}
+        self.hop_buckets = {}
         self.pinned = set()
         if policy.version == 2:
             initial = {"ingress:global": policy.ingress["global"],
@@ -151,6 +157,12 @@ class Engine:
             discovery_initial["discovery:anonymous-total"] = DISCOVERY_ANONYMOUS_TOTAL
         self._preallocate(self.discovery_buckets, discovery_initial)
         self.discovery_pinned = set(discovery_initial)
+        trial_initial = {"trial:global": TRIAL_GLOBAL}
+        self._preallocate(self.trial_buckets, trial_initial)
+        self.trial_pinned = set(trial_initial)
+        hop_initial = {"session-hop:global": SESSION_HOP_GLOBAL}
+        self._preallocate(self.hop_buckets, hop_initial)
+        self.hop_pinned = set(hop_initial)
 
     def counter_slot_bound(self):
         return COUNTER_POOLS * self.policy.max_keys
@@ -162,12 +174,16 @@ class Engine:
             bucket.balance = self._initial_balance(capacity, now)
             pool[key] = bucket
 
-    def take(self, specifications, *, recovery=False, discovery=False):
+    def take(self, specifications, *, recovery=False, discovery=False, trial=False, hop=False):
         with self.lock:
             if recovery:
                 pool, pinned = self.recovery_buckets, self.recovery_pinned
             elif discovery:
                 pool, pinned = self.discovery_buckets, self.discovery_pinned
+            elif trial:
+                pool, pinned = self.trial_buckets, self.trial_pinned
+            elif hop:
+                pool, pinned = self.hop_buckets, self.hop_pinned
             else:
                 pool, pinned = self.buckets, self.pinned
             now = self.clock()
@@ -261,6 +277,25 @@ class Engine:
             specifications.append(("discovery:anonymous-total", DISCOVERY_ANONYMOUS_TOTAL))
         return self.take(specifications, discovery=True)
 
+    def trial(self, headers, peer, token_hash: str):
+        """Separate ceiling so trial opens cannot starve organic /route."""
+        identity, _customer = self.identity(headers, peer)
+        digest = token_hash if re.fullmatch(r"[0-9a-f]{64}", token_hash or "") else hashlib.sha256(str(token_hash).encode()).hexdigest()
+        specifications = [
+            ("trial:global", TRIAL_GLOBAL),
+            ("trial:" + identity, TRIAL_TOKEN),
+            ("trial:token:" + digest, TRIAL_TOKEN),
+        ]
+        return self.take(specifications, trial=True)
+
+    def session_hop(self, headers, peer, window_hash: str):
+        digest = window_hash if re.fullmatch(r"[0-9a-f]{64}", window_hash or "") else hashlib.sha256(str(window_hash).encode()).hexdigest()
+        specifications = [
+            ("session-hop:global", SESSION_HOP_GLOBAL),
+            ("session-hop:window:" + digest, SESSION_HOP_WINDOW),
+        ]
+        return self.take(specifications, hop=True)
+
     def probe(self, url, *, discovery=False):
         parsed = urlsplit(url)
         if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
@@ -347,6 +382,26 @@ def reserve_probe(url, *, discovery=False):
     if e is None:
         return None
     lease = e.probe(url, discovery=discovery)
+    if lease is None:
+        raise Unavailable("work capacity unavailable")
+    return lease
+
+
+def reserve_trial(headers, token_hash: str):
+    e = engine()
+    if e is None:
+        return None
+    lease = e.trial(headers, reqctx.peer_ip.get(), token_hash)
+    if lease is None:
+        raise Unavailable("work capacity unavailable")
+    return lease
+
+
+def reserve_session_hop(headers, window_hash: str):
+    e = engine()
+    if e is None:
+        return None
+    lease = e.session_hop(headers, reqctx.peer_ip.get(), window_hash)
     if lease is None:
         raise Unavailable("work capacity unavailable")
     return lease

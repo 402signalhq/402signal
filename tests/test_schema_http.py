@@ -12,22 +12,29 @@ class HttpSchemaTests(unittest.TestCase):
     def test_http_profiles_are_closed_and_disjoint(self):
         schema = schema_fields.route_body_schema()
         self.assertFalse(schema['additionalProperties'])
-        self.assertEqual(len(schema['oneOf']), 3)
+        self.assertEqual(len(schema['oneOf']), 4)
         for variant in schema['oneOf']:
             self.assertFalse(variant['additionalProperties'])
-        for name in ('probe_request', 'buyer_limits'):
+        for name in ('probe_request', 'buyer_limits', 'session', 'session_id', 'mandate_hash'):
             self.assertIn(name, schema['properties'])
         self.assertNotIn('merchant_profile', schema['properties'])
+        self.assertEqual(schema['anyOf'], list(schema_fields.NEED_OR_URL_ANYOF))
+        self.assertEqual(schema['oneOf'][0]['anyOf'], list(schema_fields.NEED_OR_URL_ANYOF))
+        self.assertEqual(schema['oneOf'][0]['properties']['session']['enum'], ['open'])
+        self.assertNotIn('session_id', schema['oneOf'][0]['properties'])
         self.assertEqual(schema['oneOf'][2]['title'], 'Check group offer')
         self.assertNotIn('merchant_profile', schema['oneOf'][2]['properties'])
         self.assertIn('anyOf', schema['oneOf'][2]['properties']['buyer_limits'])
-        self.assertEqual(schema['anyOf'], list(schema_fields.NEED_OR_URL_ANYOF))
+        hop = schema['oneOf'][3]
+        self.assertEqual(hop['title'], 'Hosted session hop')
+        self.assertEqual(hop['required'], ['session', 'session_id'])
+        self.assertEqual(hop['properties']['session']['const'], 'hop')
 
     def test_mcp_keeps_the_existing_advertised_input(self):
         schema = schema_fields.route_body_schema(surface='mcp')
         self.assertEqual(mcp.INPUT_SCHEMA, schema)
         self.assertNotIn('oneOf', schema)
-        for name in ('probe_request', 'merchant_profile', 'buyer_limits'):
+        for name in ('probe_request', 'merchant_profile', 'buyer_limits', 'session', 'session_id', 'mandate_hash'):
             self.assertNotIn(name, schema['properties'])
         with self.assertRaises(ValueError):
             schema_fields.route_body_schema(surface='unknown')
