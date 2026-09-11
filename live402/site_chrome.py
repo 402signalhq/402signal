@@ -18,6 +18,8 @@ FOOTER = (
     ("/transparency", "Transparency", False),
     ("/contact", "Contact", False),
     ("/contact#security", "Security reporting", False),
+    ("/privacy", "Privacy", False),
+    ("/terms", "Terms", False),
     ("https://github.com/402signalhq/402signal/blob/main/LICENSE", "License", True),
     (CONTACT_MAILTO, CONTACT_EMAIL, False),
 )

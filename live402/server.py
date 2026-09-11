@@ -38,6 +38,10 @@ HUMAN_PAGES = {
     "/insights/pre-spend-routing.html": "pre-spend-routing.html",
     "/contact": "contact.html",
     "/contact.html": "contact.html",
+    "/privacy": "privacy.html",
+    "/privacy.html": "privacy.html",
+    "/terms": "terms.html",
+    "/terms.html": "terms.html",
 }
 # Server-rendered human pages. Intercept before static rewrite. Not STATIC_DIR files.
 HUMAN_DYNAMIC_PATHS = frozenset({"/transparency", "/transparency.html"})
@@ -100,7 +104,7 @@ DEFAULT_PREVIEW_RPM = 180
 DEFAULT_PUBLIC_RPM = 180
 DEFAULT_VALIDATE_RPM = 60
 RATE_LIMIT_MAX_KEYS = 4096
-HSTS = "max-age=31536000"
+HSTS = "max-age=31536000; includeSubDomains"
 # script-src 'self' only (no vendor wallet scripts, no CDN).
 # connect-src is 'self' only. Homepage Base pay POSTs /route; no WalletConnect.
 CSP = (
@@ -753,11 +757,36 @@ class Handler(SimpleHTTPRequestHandler):
             return admission.free_ingress(self.headers, ip)
         return _VALIDATE_LIMITER.allow(ip, validate_rpm())
 
+    def _request_host(self) -> str:
+        raw = (self.headers.get("Host") or "").split(",", 1)[0].strip()
+        if raw.startswith("["):
+            end = raw.find("]")
+            return raw[1:end].lower() if end > 0 else raw.lower()
+        return raw.split(":", 1)[0].strip().lower()
+
+    def _redirect_www(self) -> bool:
+        """301 www to the pinned apex. Never reflect Host."""
+        if self._request_host() != "www.402signal.com":
+            return False
+        parsed = urlparse(self.path)
+        location = discover.ORIGIN + (parsed.path or "/")
+        if parsed.query:
+            location += "?" + parsed.query
+        if getattr(self, "command", "") == "POST":
+            self._close_unread_body()
+        self.send_response(301)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self._cors()
+        self.end_headers()
+        return True
+
     def do_OPTIONS(self) -> None:
+        if self._redirect_www():
+            return
         self.send_response(204)
         self._cors()
         self.end_headers()
-
 
     def _rewrite_static_path(self) -> bool:
         parsed = urlparse(self.path)
@@ -768,6 +797,8 @@ class Handler(SimpleHTTPRequestHandler):
         return parsed.path in STATIC_FILES
 
     def do_HEAD(self) -> None:
+        if self._redirect_www():
+            return
         if self._deny_private_store():
             return
         parsed = urlparse(self.path)
@@ -855,6 +886,8 @@ class Handler(SimpleHTTPRequestHandler):
         return pq_view.render_html()
 
     def do_GET(self) -> None:
+        if self._redirect_www():
+            return
         if self._deny_private_store():
             return
         parsed = urlparse(self.path)
@@ -1010,6 +1043,8 @@ class Handler(SimpleHTTPRequestHandler):
         return self._json(404, {"error": "not found"})
 
     def do_POST(self) -> None:
+        if self._redirect_www():
+            return
         if self._deny_private_store():
             self._close_unread_body()
             self._shutdown_client()
