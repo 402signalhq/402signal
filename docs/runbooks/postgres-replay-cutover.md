@@ -1,102 +1,71 @@
-# Postgres replay cutover (this writer)
+# Postgres replay on this writer (post-cut)
 
-Cut **replay only**. Catalog, history and the MainNet PQ log stay on `/data`.
-Keep `LIVE402_ROUTER_WRITERS=1`. No second Fly app taking paid `/route`.
-Do not stop or replace the MainNet PQ signer.
+Replay **only** already lives on Fly Managed Postgres. Catalog, history and the
+MainNet PQ log stay on `/data`. Keep `LIVE402_ROUTER_WRITERS=1`. No second Fly
+app taking paid `/route`. Do not stop or replace the MainNet PQ signer.
 
-This is operator procedure, not a buyer recipe. It does not provision cloud
-resources from a merge. Changing this file does not deploy or set secrets.
+This is operator procedure, not a buyer recipe. Changing this file does not
+deploy, set secrets, or migrate. **Do not run a cutover.** The sqlite source is
+already fenced.
 
-## Current writer
+## Live (do not re-cut)
 
-The live image is already the postgres-capable variant (`Dockerfile.postgres`).
-Replay still uses SQLite (`LIVE402_REPLAY_DB=/data/live402-replay.sqlite`).
-`LIVE402_REPLAY_BACKEND` is unset (sqlite). That is the fence-aware sqlite
-stage required before activation.
+- App `402signal`, region `iad`. Postgres-capable image lineage (`Dockerfile.postgres`).
+  Deploy preserve flag `postgres/pr117-v2` is the **image variant**, not a cluster
+  name. There is no unmanaged Fly Postgres app named `pr117-v2`.
+- Replay backend is already `LIVE402_REPLAY_BACKEND=postgres` with
+  `LIVE402_REPLAY_POSTGRES_API=functions-v1`. DSN and 32-hex authority id are
+  already on the writer. `sslmode=verify-full` is required.
+- Authority: Fly Managed Postgres cluster **`402signal-replay-v2`** (`*.flympg.net`),
+  `iad`, 6PN, no public HTTP. Do **not** create a second cluster.
+- `/health` and `/ready` are 200 when `checks.replay_ledger` is true. The DSN
+  **belongs** on this writer now.
+- `/data/live402-replay.sqlite` remains as **fenced source evidence**
+  (`external_authority_id` + `external_migration_digest`). It is not the serving
+  authority. A second `--apply` must fail closed (`source already fenced`).
+- `LIVE402_ROUTER_WRITERS` may be unset; the runtime defaults to `"1"`.
+- `fly.toml` `[env]` stays sqlite-path defaults. Backend and DSN stay secrets.
 
-Do **not** put `LIVE402_REPLAY_POSTGRES_DSN` or `LIVE402_REPLAY_AUTHORITY_ID`
-on the serving writer while the backend is sqlite. Conflicting env fails
-`replay_ledger` and Fly will pull paid traffic. Stage the DSN from a console.
+Confirm continuity of the existing authority. Do not invent a fresh authority
+id, empty target, or second migrate.
 
-`fly.toml` stays sqlite-default. Backend and DSN are Fly **secrets** at cut,
-not `[env]`. A merge of this runbook must not flip production.
+## Ready check (not a migrate)
 
-## Existing cluster (402ops)
-
-Use the Fly Postgres already attached to this writer (preserved on deploys as
-`postgres/pr117-v2`). Do **not** create a second cluster, a second app, or a
-public Postgres.
-
-1. Confirm it is **`iad`**, **6PN only**, no public HTTP.
-2. Runtime DSN: `sslmode=verify-full` and a pinned CA. Test-mode `sslmode=disable`
-   is forbidden on Fly.
-3. Separate migration-owner login from the runtime Reader login on **that**
-   cluster.
-4. Fresh 128-bit authority id (32 lowercase hex). Do not reuse a lab id.
-5. Empty **replay** target (`signal_replay.authority` / `entries`). Never import
-   onto a database that already has those tables. Other uses of this cluster
-   stay out of the replay schema.
-
-Budget inventory still has to close before paid activation. This runbook does
-not pick a paid plan and does not authorize a new Postgres bill.
-
-## Stage (console, writers still serving sqlite)
-
-Dry-run is source-only. It does not touch Postgres:
-
-```sh
-PYTHONPATH=. python3 scripts/replay_migrate.py --source /data/live402-replay.sqlite
-```
-
-After the destination exists and TLS works, check the **inactive** target from
-a console that holds the DSN, not from the live sqlite process. After apply
-activates the authority, the same console check is:
+On a process that already has `LIVE402_REPLAY_BACKEND=postgres` (the writer, or
+a console with that same backend):
 
 ```sh
 PYTHONPATH=. python3 scripts/replay_stage_ready.py
 ```
 
-It prints `{"ok": true}` or `{"ok": false}`. No DSN, host, or password.
-`ok: false` means do not cut the writer.
+Prints `{"ok": true}` or `{"ok": false}`. No DSN, host, or password.
+`ok: false` means do not pay and do not "fix" by unfencing sqlite.
 
-## Cut
+The script refuses a Fly process whose serving backend is still sqlite. That
+guard is for a pre-cut machine. It is not a reason to attach a DSN to sqlite
+again.
 
-1. Keep writers at 1. Drain paid `/route`. Assert `--writers-stopped`.
-2. Wait until private response windows have expired (120s). Economic identities stay.
-3. Off-host encrypted SQLite bundle (`docs/backup.md`). Replay sqlite is source
-   evidence after the fence, not a second authority.
-4. Apply once:
+## If `/ready` is not all true
 
-```sh
-PYTHONPATH=. python3 scripts/replay_migrate.py \
-  --source /data/live402-replay.sqlite \
-  --apply --writers-stopped
-```
-
-The tool fences the sqlite source **before** activating Postgres. A crash is
-one authority or neither, never two. Do not rerun `--apply` on a fenced source.
-
-5. Set secrets on **this** app only: `LIVE402_REPLAY_BACKEND=postgres`,
-   `LIVE402_REPLAY_POSTGRES_DSN` (runtime login, `sslmode=verify-full`),
-   `LIVE402_REPLAY_AUTHORITY_ID`. Optional `LIVE402_REPLAY_POSTGRES_API=functions-v1`
-   with `LIVE402_REPLAY_POSTGRES_RUNTIME_LOGIN` when using the managed functions
-   schema. Leave catalog/history/PQ paths on `/data`.
-6. Restart the single writer. Confirm `GET /health` and `GET /ready` are 200
-   with `checks.replay_ledger=true` and the other checks still true.
-7. If `/ready` is not all true: **do not pay**. Preserve source, destination,
-   and uncertain operations. Recover via `docs/route-recovery.md`. Never a
-   second nonce. Never unfence sqlite to “fix” it.
-
-## After `/ready` is green
-
-One organic paid open. That is the last mainnet pay this week. Skip if replay
-is uncertain.
+**Do not pay.** Preserve the MPG cluster, the fenced sqlite file, and uncertain
+operations. Recover via `docs/route-recovery.md`. Never a second nonce. Never
+unfence sqlite. Never `--apply` again. Never restore an older ledger over newer
+payments.
 
 Ambiguous commit stays unavailable / HTTP 503. That is not permission to retry
 payment.
 
+## Paid traffic after this state
+
+One organic paid open is allowed only when operator + 402security treat the
+current `/ready` as post-cut green. Skip if replay is uncertain. Do not pay
+mid-recovery and do not pay to “prove” a migrate that already happened.
+
 ## Do not
 
+- `fly postgres create` or attach a second cluster
+- Rerun `scripts/replay_migrate.py --apply`
+- Unfence sqlite or treat `/data/live402-replay.sqlite` as the live authority
 - Raise the writer count or `min_machines_running`
 - Move catalog, history, or the PQ log onto Postgres
 - Add a second paid `/route` app or a leadership lease

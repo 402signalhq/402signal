@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """One-shot PostgreSQL replay readiness. Not admission. Not a cutover.
 
-Run from a console that holds the runtime DSN and authority id. Do not attach
-those secrets to the live sqlite writer; conflicting env fails /ready.
+Live replay is already postgres. Run on a process whose serving backend is
+postgres (the writer, or a console with the same backend). Do not attach the
+DSN to a sqlite writer; conflicting env fails /ready.
 Prints {"ok": true|false} only. Never a DSN, host, password, or exception.
 """
 from __future__ import annotations
 
 import json
 import os
-import sys
 
 from live402.replay_store import StoreError
 

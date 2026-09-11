@@ -23,13 +23,12 @@ class ReplayStageReady(unittest.TestCase):
         self.assertNotIn("NEVER_LOG", str(error.exception))
         self.assertNotIn("db.example", str(error.exception))
 
-    def test_console_reports_store_ready_without_secrets(self):
+    def test_live_postgres_writer_may_check_ready(self):
         with patch("live402.replay_postgres.PostgresStore") as store:
             store.return_value.ready.return_value = True
-            self.assertTrue(stage_ready(self.settings()))
+            self.assertTrue(stage_ready(self.settings(
+                FLY_APP_NAME="402signal", LIVE402_REPLAY_BACKEND="postgres")))
             store.assert_called_once()
-            env = store.call_args.kwargs["environ"]
-            self.assertEqual(env["LIVE402_REPLAY_AUTHORITY_ID"], "ab" * 16)
 
     def test_stdout_is_only_ok_boolean(self):
         with patch("scripts.replay_stage_ready.stage_ready", return_value=True), \
@@ -62,15 +61,18 @@ class CutoverRunbook(unittest.TestCase):
         self.text = (Path(__file__).resolve().parents[1] / "docs/runbooks/postgres-replay-cutover.md").read_text()
 
     def test_replay_only_on_this_writer(self):
-        self.assertIn("replay only", self.text.lower())
-        self.assertIn("LIVE402_ROUTER_WRITERS=1", self.text)
+        self.assertIn("replay **only**", self.text.lower())
+        self.assertIn("LIVE402_REPLAY_BACKEND=postgres", self.text)
+        self.assertIn("402signal-replay-v2", self.text)
         self.assertIn("sslmode=verify-full", self.text)
         self.assertIn("iad", self.text)
         self.assertIn("6PN", self.text)
         self.assertIn("docs/route-recovery.md", self.text)
         self.assertIn("second nonce", self.text.lower())
+        self.assertIn("source already fenced", self.text)
+        self.assertIn("Do not run a cutover", self.text)
+        self.assertIn("image variant", self.text)
         self.assertNotIn("TestNet", self.text)
         self.assertNotIn("min_machines_running = 2", self.text)
         self.assertNotIn("LIVE402_ROUTER_WRITERS=2", self.text)
         self.assertIn("Do **not** create a second cluster", self.text)
-        self.assertIn("pr117-v2", self.text)

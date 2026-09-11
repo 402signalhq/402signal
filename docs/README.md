@@ -33,7 +33,7 @@ Start free with the [offline buyer checks](../integration/buyer-checks/README.md
 
 - [Private admission configuration and customer access revocation](admission-operations.md)
 - [Managed PostgreSQL authority, runtime privileges and instance fence](runbooks/managed-postgres-functions.md)
-- [Postgres replay cutover on this writer](runbooks/postgres-replay-cutover.md)
+- [Postgres replay on this writer (post-cut; do not re-cut)](runbooks/postgres-replay-cutover.md)
 - [Liveness and readiness](fly-ready-check.md)
 - [Complete SQLite recovery component and restore procedure](backup.md)
 - [Incremental transparency publication and explicit repair](transparency-storage.md)
