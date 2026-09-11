@@ -29,6 +29,11 @@ class HttpSchemaTests(unittest.TestCase):
         self.assertEqual(hop['title'], 'Hosted session hop')
         self.assertEqual(hop['required'], ['session', 'session_id'])
         self.assertEqual(hop['properties']['session']['const'], 'hop')
+        self.assertEqual(set(hop['properties']), {
+            'session', 'session_id', 'url', 'mandate_hash', 'networks',
+            'scheme', 'amount_atomic', 'payTo',
+        })
+        self.assertEqual(hop['properties']['scheme']['enum'], ['exact', 'upto', 'batch-settlement'])
 
     def test_mcp_keeps_the_existing_advertised_input(self):
         schema = schema_fields.route_body_schema(surface='mcp')

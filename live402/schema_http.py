@@ -152,11 +152,16 @@ def extend_http_route_schema(ordinary: dict) -> dict:
         "url": deepcopy(endpoint),
         "mandate_hash": {"type": "string", "pattern": r"^[0-9a-f]{64}$"},
         "networks": {"type": "array", "items": {"type": "string", "enum": ["base", "solana", "algorand"]}},
+        "scheme": {"type": "string", "enum": ["exact", "upto", "batch-settlement"]},
+        "amount_atomic": {"type": "string", "pattern": uint64_pattern(), "maxLength": 20,
+                          "description": "Live offer amount to check against the bound ceiling. Over the ceiling misses; hops never settle."},
+        "payTo": {"type": "string", "minLength": 1, "maxLength": 128},
     }, required=["session", "session_id"])
     hop["title"] = "Hosted session hop"
     hop["description"] = (
         "Reuse a paid or trial hosted window. No new probe and no facilitator "
-        "verify/settle. Cache must still be fresh."
+        "verify/settle. Optional scheme, amount_atomic and payTo are checked "
+        "against the bound ceiling and channel shape from open. Cache must still be fresh."
     )
     session_open = {
         "type": "string",

@@ -304,6 +304,149 @@ class HostedSessionTests(unittest.TestCase):
         self.assertEqual(body.get("amount"), "$0.005")
         self.assertEqual(body.get("billing", {}).get("amount_atomic"), "5000")
 
+    def _upto_offer(self, amount=1000, scheme="upto"):
+        pay = "0xabcabcabcabcabcabcabcabcabcabcabcabcabca"
+        return {
+            "live": True,
+            "invocable": False,
+            "payable": False,
+            "url": WEATHER,
+            "rail": "base",
+            "payTo": pay,
+            "selected_payment": {
+                "scheme": scheme,
+                "network": "eip155:8453",
+                "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "amount_atomic": amount,
+                "payTo": pay,
+                "rail": "base",
+            },
+        }
+
+    def _open_bound(self, offer, **body):
+        payload = {"session": "open", "url": WEATHER}
+        payload.update(body)
+        return session.open_window(
+            offer, payload, traffic_class="organic", trial_hash=None, sku="session"
+        )
+
+    def test_upto_ceiling_break_misses_without_settle(self):
+        offer = self._upto_offer(1000)
+        sid = self._open_bound(offer)
+        with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
+            code, body, _ = route.handle_route(
+                {
+                    "session": "hop",
+                    "session_id": sid,
+                    "scheme": "upto",
+                    "amount_atomic": "1001",
+                },
+                {},
+                "https://402signal.com/route",
+            )
+            self.assertEqual(code, 200)
+            self.assertFalse(body.get("live"))
+            self.assertEqual(body.get("miss_reason"), "constraints_unmet")
+            self.assertEqual(body["billing"]["settlement_state"], "not_attempted")
+            self.assertFalse(body["billing"].get("settled"))
+            self.assertFalse(body["billing"].get("settlement_attempted"))
+            verify.assert_not_called()
+            settle.assert_not_called()
+        hop_code, hop, _ = route.handle_route(
+            {"session": "hop", "session_id": sid, "scheme": "upto", "amount_atomic": "1000"},
+            {},
+            "https://402signal.com/route",
+        )
+        self.assertEqual(hop_code, 200, hop)
+        self.assertTrue(hop.get("live"))
+        self.assertEqual(hop["session"]["hop_count"], 1)
+
+    def test_batch_settlement_ceiling_break_misses_without_settle(self):
+        offer = self._upto_offer(500, scheme="batch-settlement")
+        sid = self._open_bound(offer)
+        with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
+            code, body, _ = route.handle_route(
+                {
+                    "session": "hop",
+                    "session_id": sid,
+                    "scheme": "batch-settlement",
+                    "amount_atomic": "501",
+                },
+                {},
+                "https://402signal.com/route",
+            )
+            self.assertEqual(code, 200)
+            self.assertFalse(body.get("live"))
+            self.assertEqual(body.get("miss_reason"), "constraints_unmet")
+            verify.assert_not_called()
+            settle.assert_not_called()
+
+    def test_hop_wrong_payto_is_fingerprint_miss(self):
+        offer = self._upto_offer(1000)
+        sid = self._open_bound(offer)
+        with patch.object(facilitator, "settle") as settle:
+            code, body, _ = route.handle_route(
+                {
+                    "session": "hop",
+                    "session_id": sid,
+                    "payTo": "0x1111111111111111111111111111111111111111",
+                },
+                {},
+                "https://402signal.com/route",
+            )
+            self.assertEqual(code, 200)
+            self.assertFalse(body.get("live"))
+            self.assertEqual(body.get("miss_reason"), "fingerprint_miss")
+            settle.assert_not_called()
+
+    def test_unsupported_hop_voucher_is_scheme_mismatch(self):
+        token = session.issue_trial()
+        code, body, _ = self._open(token)
+        self.assertEqual(code, 200)
+        sid = body["session"]["id"]
+        with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
+            hop_code, hop, _ = route.handle_route(
+                {"session": "hop", "session_id": sid, "voucher": {"kind": "channel"}},
+                {},
+                "https://402signal.com/route",
+            )
+            self.assertEqual(hop_code, 200)
+            self.assertFalse(hop.get("live"))
+            self.assertEqual(hop.get("miss_reason"), "scheme_mismatch")
+            verify.assert_not_called()
+            settle.assert_not_called()
+
+    def test_hop_mandate_hash_mismatch_is_scheme_mismatch(self):
+        offer = self._upto_offer(1000)
+        sid = self._open_bound(offer, mandate_hash="ab" * 32)
+        with patch.object(facilitator, "settle") as settle:
+            code, body, _ = route.handle_route(
+                {"session": "hop", "session_id": sid, "mandate_hash": "cd" * 32},
+                {},
+                "https://402signal.com/route",
+            )
+            self.assertEqual(code, 200)
+            self.assertFalse(body.get("live"))
+            self.assertEqual(body.get("miss_reason"), "scheme_mismatch")
+            settle.assert_not_called()
+
+    def test_exact_hop_over_bound_amount_misses_without_settle(self):
+        token = session.issue_trial()
+        code, body, _ = self._open(token)
+        self.assertEqual(code, 200)
+        sid = body["session"]["id"]
+        with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
+            hop_code, hop, _ = route.handle_route(
+                {"session": "hop", "session_id": sid, "scheme": "exact", "amount_atomic": "10001"},
+                {},
+                "https://402signal.com/route",
+            )
+            self.assertEqual(hop_code, 200)
+            self.assertFalse(hop.get("live"))
+            self.assertEqual(hop.get("miss_reason"), "constraints_unmet")
+            verify.assert_not_called()
+            settle.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
