@@ -837,7 +837,10 @@ def _paid_execute_inner(
         from live402 import history as history_mod
 
         with telemetry.phase("history"):
-            history_mod.mark_batch_settled(result.get("batch_id") if isinstance(result, dict) else None)
+            history_mod.mark_batch_settled(
+                result.get("batch_id") if isinstance(result, dict) else None,
+                result.get("url") if isinstance(result, dict) else None,
+            )
     except Exception:
         pass
     result.pop("binding_observation", None)
@@ -939,7 +942,10 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
         try:
             from live402 import history as history_mod
 
-            history_mod.mark_batch_settled(result.get("batch_id") if isinstance(result, dict) else None)
+            history_mod.mark_batch_settled(
+                result.get("batch_id") if isinstance(result, dict) else None,
+                result.get("url") if isinstance(result, dict) else None,
+            )
         except Exception:
             pass
         if sess_mode == "open" and isinstance(result, dict) and result.get("live") is True:

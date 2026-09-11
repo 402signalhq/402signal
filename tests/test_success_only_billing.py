@@ -365,7 +365,7 @@ class PaidExecutionTests(unittest.TestCase):
         verify.assert_called_once()
         probe.assert_called_once()
         settle.assert_called_once()
-        mark.assert_called_once_with("winner-batch")
+        mark.assert_called_once_with("winner-batch", "https://seller.example/x402")
         attach.assert_called_once()
 
     def test_every_typed_miss_is_free_terminal_candidate_without_pq(self):
