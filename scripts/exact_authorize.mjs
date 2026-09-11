@@ -1,7 +1,7 @@
 /** Default exact authorize wrap for an existing wallet / pay-fetch / MCP signer.
  *
- * Observe → bind → local verify → only then the caller's seller callback.
- * Fail closed. No unguarded fallback. Not a marketplace, wallet, or chk_grp demo.
+ * Observe or session-open → bind → local verify → only then the caller's seller callback.
+ * Hops do not use this wrap. Fail closed. No unguarded fallback. Not a marketplace, wallet, or chk_grp demo.
  * Imports the installed @402signal/route-guard package (published 0.7.2).
  */
 import { isUnsettledRouteMiss, withVerifiedRoute } from "@402signal/route-guard";
@@ -36,6 +36,9 @@ export function parseExactAuthorizeRequest(requestJson) {
     fail("exact_path_only");
   }
   if (body.job != null || body.codec != null) fail("exact_path_only");
+  const session = typeof body.session === "string" ? body.session.trim().toLowerCase() : "";
+  if (session === "hop" || Object.hasOwn(body, "session_id")) fail("session_hop_unsupported");
+  if (session && session !== "open") fail("exact_path_only");
   if (typeof body.url !== "string") fail("exact_url_required");
   let url;
   try {

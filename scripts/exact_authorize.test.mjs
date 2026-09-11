@@ -92,6 +92,25 @@ test("parseExactAuthorizeRequest refuses chk_grp and unbound requests", async ()
       () => parseExactAuthorizeRequest(JSON.stringify({ need: "web search", require_route_binding: true })),
       e => e.code === "exact_url_required",
     );
+    const opened = parseExactAuthorizeRequest(
+      JSON.stringify({ ...fixture.request, session: "open" }),
+    );
+    assert.equal(opened.url, fixture.request.url);
+    assert.throws(
+      () => parseExactAuthorizeRequest(JSON.stringify({
+        ...fixture.request,
+        session: "hop",
+        session_id: "ab".repeat(32),
+      })),
+      e => e.code === "session_hop_unsupported",
+    );
+    assert.throws(
+      () => parseExactAuthorizeRequest(JSON.stringify({
+        ...fixture.request,
+        session_id: "ab".repeat(32),
+      })),
+      e => e.code === "session_hop_unsupported",
+    );
   } finally {
     rmSync(dest, { recursive: true, force: true });
   }
