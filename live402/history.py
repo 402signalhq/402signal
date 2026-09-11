@@ -99,7 +99,8 @@ CREATE TABLE IF NOT EXISTS url_state (
     schema_changed_at INTEGER,
     last_checked INTEGER,
     last_success_402 INTEGER,
-    pending_payTo TEXT
+    pending_payTo TEXT,
+    last_trusted_ts INTEGER
 );
 CREATE TABLE IF NOT EXISTS observations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -215,6 +216,13 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
     state_cols = {row[1] for row in conn.execute("PRAGMA table_info(url_state)").fetchall()}
     if "pending_payTo" not in state_cols:
         conn.execute("ALTER TABLE url_state ADD COLUMN pending_payTo TEXT")
+        state_cols.add("pending_payTo")
+    if "last_trusted_ts" not in state_cols:
+        conn.execute("ALTER TABLE url_state ADD COLUMN last_trusted_ts INTEGER")
+        conn.execute(
+            "UPDATE url_state SET last_trusted_ts = last_checked "
+            "WHERE last_trusted_ts IS NULL AND last_checked IS NOT NULL"
+        )
     obs_cols = {row[1] for row in conn.execute("PRAGMA table_info(observations)").fetchall()}
     if "trust_class" not in obs_cols:
         conn.execute("ALTER TABLE observations ADD COLUMN trust_class TEXT")
@@ -642,7 +650,8 @@ def is_public_traffic(traffic_class: str | None) -> bool:
 def _load_url_state(cur, dest: str):
     cur.execute(
         "SELECT last_payTo, last_amount, schema_present, payTo_changed_at, price_changed_at, "
-        "schema_changed_at, last_checked, last_success_402, pending_payTo FROM url_state WHERE url = ?",
+        "schema_changed_at, last_checked, last_success_402, pending_payTo, last_trusted_ts "
+        "FROM url_state WHERE url = ?",
         (dest,),
     )
     row = cur.fetchone()
@@ -657,6 +666,7 @@ def _load_url_state(cur, dest: str):
             "last_checked": None,
             "last_success_402": None,
             "pending_payTo": None,
+            "last_trusted_ts": None,
         }
     return {
         "last_payTo": _text(row[0]),
@@ -668,6 +678,7 @@ def _load_url_state(cur, dest: str):
         "last_checked": row[6],
         "last_success_402": row[7],
         "pending_payTo": _text(row[8]) if len(row) > 8 else None,
+        "last_trusted_ts": row[9] if len(row) > 9 else None,
     }
 
 
@@ -692,14 +703,82 @@ def _payto_risk_against_trusted(state: dict, pay_to, rail, claimed, meta: dict) 
         meta["claimed_payTo_mismatch"] = True
 
 
-def _apply_trusted_url_state(
-    cur, dest: str, snap: dict, meta: dict, *, force: bool = False, clocks_only: bool = False
-) -> bool:
+def _organic_last_success_ts(cur, dest: str):
+    """MAX(ts) of live trusted organic probes. Public last_success_402 never uses pre-class url_state."""
+    cur.execute(
+        "SELECT MAX(ts) FROM probes WHERE url = ? AND live = 1 "
+        "AND trust_class IN %s AND traffic_class IN %s" % (_TRUSTED_SQL, _PUBLIC_TRAFFIC_SQL),
+        (dest,),
+    )
+    row = cur.fetchone()
+    if not row or row[0] is None:
+        return None
+    try:
+        return int(row[0])
+    except (TypeError, ValueError):
+        return None
+
+
+def _touch_validate_url_state(cur, dest: str, snap: dict, meta: dict) -> bool:
+    """Unpaid /validate: last_checked and flip clocks. Never identity or last_success_402.
+
+    Does not set last_trusted_ts, so a later settled apply is not skipped.
+    """
+    ts = _as_int(snap.get("ts"), None)
+    if ts is None:
+        ts = int(time.time())
+    pay_to = _payto(snap)
+    amount = _observed_amount(snap)
+    schema_present = _observed_schema_present(snap)
+    rail = _text(snap.get("rail"))
+    claimed = _claimed_blob(snap)
+    state = _load_url_state(cur, dest)
+    last_checked = _as_int(state.get("last_checked"), None)
+    if last_checked is not None and ts < int(last_checked):
+        _payto_risk_against_trusted(state, pay_to, rail, claimed, meta)
+        return False
+    prev_pay = _text(state.get("last_payTo"))
+    prev_amt = _text(state.get("last_amount"))
+    prev_schema = state.get("schema_present")
+    pay_changed_at = state.get("payTo_changed_at")
+    price_changed_at = state.get("price_changed_at")
+    schema_changed_at = state.get("schema_changed_at")
+    if prev_pay and pay_to and not payment.payto_equal(prev_pay, pay_to, rail):
+        pay_changed_at = ts
+        meta["payTo_flipped"] = True
+    claimed_pay = _text(claimed.get("payTo")) if claimed else None
+    claimed_rail = _text(claimed.get("rail")) if claimed else None
+    if claimed_pay and pay_to and not payment.payto_equal(
+        claimed_pay, pay_to, claimed_rail or rail
+    ):
+        meta["claimed_payTo_mismatch"] = True
+    if prev_amt is not None and amount is not None and _price_flipped(prev_amt, amount, snap, rail):
+        price_changed_at = ts
+        meta["price_flipped"] = True
+    if prev_schema is not None and schema_present is not None and int(prev_schema) != int(schema_present):
+        schema_changed_at = ts
+        meta["schema_flipped"] = True
+    cur.execute(
+        """
+        INSERT INTO url_state (url, last_checked, payTo_changed_at, price_changed_at, schema_changed_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(url) DO UPDATE SET
+            last_checked = excluded.last_checked,
+            payTo_changed_at = excluded.payTo_changed_at,
+            price_changed_at = excluded.price_changed_at,
+            schema_changed_at = excluded.schema_changed_at
+        """,
+        (dest, ts, pay_changed_at, price_changed_at, schema_changed_at),
+    )
+    return True
+
+
+def _apply_trusted_url_state(cur, dest: str, snap: dict, meta: dict, *, force: bool = False) -> bool:
     """Apply one trusted observation to url_state. Skip if a newer trusted row exists.
 
     Returns True when url_state was written. Late settlement of an older
-    observation must not overwrite newer trusted state.
-    clocks_only (unpaid /validate): last_checked and flip clocks, never last_success_402.
+    observation must not overwrite newer trusted state. Skip uses last_trusted_ts,
+    never seller last_checked.
     """
     ts = _as_int(snap.get("ts"), None)
     if ts is None:
@@ -711,8 +790,8 @@ def _apply_trusted_url_state(
     rail = _text(snap.get("rail"))
     claimed = _claimed_blob(snap)
     state = _load_url_state(cur, dest)
-    last_checked = _as_int(state.get("last_checked"), None)
-    if not force and last_checked is not None and ts < int(last_checked):
+    last_trusted = _as_int(state.get("last_trusted_ts"), None)
+    if not force and last_trusted is not None and ts < int(last_trusted):
         _payto_risk_against_trusted(state, pay_to, rail, claimed, meta)
         return False
     prev_pay = _text(state.get("last_payTo"))
@@ -754,12 +833,13 @@ def _apply_trusted_url_state(
         last_pay = pay_to if pay_to else prev_pay
     last_amt = amount if amount is not None else prev_amt
     last_schema = int(schema_present) if schema_present is not None else prev_schema
-    if live and not clocks_only:
+    if live:
         last_ok = ts
+    last_checked = ts
     cur.execute(
         """
-        INSERT INTO url_state (url, last_payTo, last_amount, schema_present, payTo_changed_at, price_changed_at, schema_changed_at, last_checked, last_success_402, pending_payTo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO url_state (url, last_payTo, last_amount, schema_present, payTo_changed_at, price_changed_at, schema_changed_at, last_checked, last_success_402, pending_payTo, last_trusted_ts)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(url) DO UPDATE SET
             last_payTo = excluded.last_payTo,
             last_amount = excluded.last_amount,
@@ -769,9 +849,10 @@ def _apply_trusted_url_state(
             schema_changed_at = excluded.schema_changed_at,
             last_checked = excluded.last_checked,
             last_success_402 = excluded.last_success_402,
-            pending_payTo = excluded.pending_payTo
+            pending_payTo = excluded.pending_payTo,
+            last_trusted_ts = excluded.last_trusted_ts
         """,
-        (dest, last_pay, last_amt, last_schema, pay_changed_at, price_changed_at, schema_changed_at, ts, last_ok, pending_pay),
+        (dest, last_pay, last_amt, last_schema, pay_changed_at, price_changed_at, schema_changed_at, last_checked, last_ok, pending_pay, ts),
     )
     return True
 
@@ -938,7 +1019,7 @@ def touch_validate_clocks(url: str, snap: dict | None = None) -> dict:
         with _lock:
             conn = _connect()
             cur = conn.cursor()
-            _apply_trusted_url_state(cur, dest, blob, meta, clocks_only=True)
+            _touch_validate_url_state(cur, dest, blob, meta)
             conn.commit()
             _chmod_db_files(_conn_path or db_path())
         return meta
@@ -1132,16 +1213,35 @@ def rank_hints(urls: list[str]) -> dict[str, dict]:
             cur = conn.cursor()
             qmarks = ",".join("?" * len(dests))
             cur.execute(
-                f"SELECT url, last_checked, last_success_402 FROM url_state WHERE url IN ({qmarks})",
+                f"SELECT url, last_checked FROM url_state WHERE url IN ({qmarks})",
                 dests,
             )
-            for url, last_checked, last_ok in cur.fetchall():
+            for url, last_checked in cur.fetchall():
                 out[url] = {
                     "last_checked": last_checked,
-                    "last_success_402": last_ok,
+                    "last_success_402": None,
                     "n_7d": 0,
                     "ok_7d": 0,
                 }
+            cur.execute(
+                f"SELECT url, MAX(ts) FROM probes WHERE url IN ({qmarks}) AND live = 1 "
+                f"AND trust_class IN {_TRUSTED_SQL} AND traffic_class IN {_PUBLIC_TRAFFIC_SQL} GROUP BY url",
+                dests,
+            )
+            for url, last_ok in cur.fetchall():
+                row = out.setdefault(
+                    url,
+                    {
+                        "last_checked": None,
+                        "last_success_402": None,
+                        "n_7d": 0,
+                        "ok_7d": 0,
+                    },
+                )
+                try:
+                    row["last_success_402"] = int(last_ok) if last_ok is not None else None
+                except (TypeError, ValueError):
+                    row["last_success_402"] = None
             cur.execute(
                 f"SELECT url, COUNT(*), SUM(live) FROM probes WHERE url IN ({qmarks}) AND ts >= ? "
                 f"AND trust_class IN {_TRUSTED_SQL} AND traffic_class IN {_PUBLIC_TRAFFIC_SQL} GROUP BY url",
@@ -1309,7 +1409,7 @@ def summary(url: str) -> dict:
                 out["price_changed_at"] = state[2]
                 out["schema_changed_at"] = state[3]
                 out["last_checked"] = state[4]
-                out["last_success_402"] = state[5]
+            out["last_success_402"] = _organic_last_success_ts(cur, dest)
             cur.execute(
                 "SELECT ts, live, latency_ms FROM probes WHERE url = ? AND ts >= ? "
                 "AND trust_class IN %s AND traffic_class IN %s" % (_TRUSTED_SQL, _PUBLIC_TRAFFIC_SQL),
@@ -1601,9 +1701,9 @@ def reputation_evidence(url: str) -> dict:
                 out["price_changed_at"] = state[2]
                 out["schema_changed_at"] = state[3]
                 out["last_checked"] = state[4]
-                out["last_success_402"] = state[5]
                 if state[4] is not None:
                     out["age_s"] = max(0, now - int(state[4]))
+            out["last_success_402"] = _organic_last_success_ts(cur, dest)
             cur.execute(
                 "SELECT ts, live, rail, payTo, amount, schema_present, settled_route_observation, trust_class, traffic_class "
                 "FROM probes WHERE url = ? ORDER BY ts ASC, id ASC",

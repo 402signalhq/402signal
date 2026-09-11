@@ -210,6 +210,89 @@ class TrafficClassTests(unittest.TestCase):
         self.assertIsNone(history.summary(url).get("last_success_402"))
         self.assertNotEqual(history.summary(url).get("last_checked"), before)
         self.assertIn("observed_age_s", body)
+        row = history._connect().execute(
+            "SELECT last_payTo, pending_payTo, last_success_402, last_trusted_ts FROM url_state WHERE url=?",
+            (url,),
+        ).fetchone()
+        self.assertIsNotNone(row)
+        self.assertIsNone(row[0])
+        self.assertIsNone(row[1])
+        self.assertIsNone(row[2])
+        self.assertIsNone(row[3])
+        self.assertEqual(history._connect().execute("SELECT COUNT(*) FROM probes").fetchone()[0], 0)
+
+    def test_validate_does_not_seed_last_payTo(self):
+        url = "https://fixture.402signal.local/weather"
+        code, body = validate.validate_url(url)
+        self.assertEqual(code, 200)
+        self.assertTrue(body.get("live"))
+        self.assertEqual(history._connect().execute("SELECT COUNT(*) FROM probes").fetchone()[0], 0)
+        self.assertEqual(
+            history._connect().execute(
+                "SELECT COUNT(*) FROM observations WHERE source_type=?",
+                (history.SOURCE_OBSERVED,),
+            ).fetchone()[0],
+            0,
+        )
+        row = history._connect().execute(
+            "SELECT last_payTo, pending_payTo, last_success_402 FROM url_state WHERE url=?",
+            (url,),
+        ).fetchone()
+        self.assertIsNone(row[0])
+        self.assertIsNone(row[1])
+        self.assertIsNone(row[2])
+        self.assertIsNotNone(history.summary(url).get("last_checked"))
+
+    def test_validate_does_not_establish_pending_payTo(self):
+        url = "https://seller.example/pending"
+        t0 = int(time.time()) - 40
+        history.record_probe(url, _snap(url, pay_to=VALID, ts=t0))
+        history.record_probe(url, _snap(url, pay_to=OTHER, ts=t0 + 10))
+        row = history._connect().execute(
+            "SELECT last_payTo, pending_payTo FROM url_state WHERE url=?",
+            (url,),
+        ).fetchone()
+        self.assertTrue(payment.payto_equal(row[0], VALID, "base"))
+        self.assertTrue(payment.payto_equal(row[1], OTHER, "base"))
+        meta = history.touch_validate_clocks(url, _snap(url, pay_to=OTHER, ts=t0 + 20))
+        self.assertIsNot(meta.get("payTo_established"), True)
+        after = history._connect().execute(
+            "SELECT last_payTo, pending_payTo FROM url_state WHERE url=?",
+            (url,),
+        ).fetchone()
+        self.assertTrue(payment.payto_equal(after[0], VALID, "base"))
+        self.assertTrue(payment.payto_equal(after[1], OTHER, "base"))
+
+    def test_validate_last_checked_does_not_drop_later_settle(self):
+        url = "https://seller.example/route-settle"
+        t0 = int(time.time()) - 20
+        bid = "c" * 32
+        history.persist_route_batch(bid, [_snap(url, ts=t0, batch_id=bid)])
+        history.touch_validate_clocks(url, _snap(url, ts=t0 + 10))
+        history.mark_batch_settled(bid)
+        summ = history.summary(url)
+        self.assertEqual(summ["n_7d"], 1)
+        self.assertEqual(summ["last_success_402"], t0)
+        row = history._connect().execute(
+            "SELECT last_payTo, last_success_402, last_trusted_ts FROM url_state WHERE url=?",
+            (url,),
+        ).fetchone()
+        self.assertTrue(payment.payto_equal(row[0], VALID, "base"))
+        self.assertEqual(row[1], t0)
+        self.assertEqual(row[2], t0)
+
+    def test_public_last_success_omitted_without_organic_n(self):
+        url = "https://seller.example/stale-clock"
+        t0 = int(time.time()) - 10
+        history._connect().execute(
+            "INSERT INTO url_state (url, last_success_402, last_checked, last_trusted_ts) VALUES (?, ?, ?, ?)",
+            (url, t0, t0, t0),
+        )
+        history._connect().commit()
+        self.assertIsNone(history.summary(url).get("last_success_402"))
+        hints = history.rank_hints([url])
+        self.assertIsNone((hints.get(url) or {}).get("last_success_402"))
+        self.assertIsNone(history.reputation_evidence(url).get("last_success_402"))
 
     def test_scoring_excludes_non_organic(self):
         url = "https://seller.example/score"
