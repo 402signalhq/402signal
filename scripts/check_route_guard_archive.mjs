@@ -23,9 +23,9 @@ const root = resolve(new URL("..", import.meta.url).pathname);
 const CANDIDATE_TAG = "route-guard-v0.7.3";
 const CANDIDATE_TGZ = "402signal-route-guard-0.7.3.tgz";
 const REVIEWED_PACK_SHA256 =
-  "a083c77a497221c7d1a3292bf64a142bf6437eaffa96aabd3e2d0e366cb4cbd0";
+  "b2e8949a10cd2241b2b0988acd2e8e5134f36f7f40edb482616321b9e135e909";
 const REVIEWED_SUMS_SHA256 =
-  "fe93b075cb110d883939973f29c607d49f71669f4dd487b0652d8fa909ad101c";
+  "c5bfe83176171e6c66fb1fdcbe0d3ebf1de299d0bc3715c366e29f48b7a4af51";
 
 const arguments_ = process.argv.slice(2);
 let candidate = CANDIDATE_TGZ;
