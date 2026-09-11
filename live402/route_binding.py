@@ -338,6 +338,11 @@ def build(result: dict, body: dict, *, now: int | None = None) -> dict:
     from live402 import lab_traffic
     if body.get("lab_test") == lab_traffic.PROTOCOL and lab_traffic.is_lab_url(body.get("url")):
         allowed.add("lab_test")
+    from live402 import session as session_mod
+    if session_mod.mode(body) == "open":
+        # Open only. Hops return in handle_hop and never reach build.
+        # session_id is hop bearer, not an open binding key.
+        allowed.update({"session", "mandate_hash"})
     if set(body) - allowed or result.get("unresolved_constraints"):
         _fail("unresolved_policy")
     obs = result.get("binding_observation")

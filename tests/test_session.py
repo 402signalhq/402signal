@@ -78,6 +78,32 @@ class HostedSessionTests(unittest.TestCase):
             self.assertEqual(body["session"]["hops_remaining"], 20)
             self.assertEqual(hop["session"]["hop_count"], 2)
 
+    def test_hop_does_not_call_route_binding_build(self):
+        token = session.issue_trial()
+        code, body, _ = self._open(token)
+        self.assertEqual(code, 200)
+        sid = body["session"]["id"]
+        with (
+            patch("live402.route_binding.build") as build,
+            patch.object(facilitator, "verify") as verify,
+            patch.object(facilitator, "settle") as settle,
+            patch.object(probe, "probe_url") as probed,
+            patch.object(probe, "route_need") as need,
+        ):
+            hop_code, hop, _ = route.handle_route(
+                {"session": "hop", "session_id": sid},
+                {},
+                "https://402signal.com/route",
+            )
+            self.assertEqual(hop_code, 200, hop)
+            self.assertTrue(hop.get("live"))
+            self.assertEqual(hop["billing"]["settlement_state"], "not_attempted")
+            build.assert_not_called()
+            verify.assert_not_called()
+            settle.assert_not_called()
+            probed.assert_not_called()
+            need.assert_not_called()
+
     def test_hop_still_live_after_cache_ttl_inside_session_ttl(self):
         token = session.issue_trial()
         with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
