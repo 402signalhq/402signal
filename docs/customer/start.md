@@ -10,7 +10,7 @@ Sellers can [inspect their listing and unpaid readiness](sellers.md). This is no
 
 A hosted session is a paid `/route` product, not the merchant [session client](../../integration/session-client/README.md).
 
-- Open: **$0.005 USDC** (`session=open`). No tiers.
+- Open: **$0.005 USDC** (`session=open`). No tiers. `require_route_binding` is allowed on open and can emit a v4 receipt. Hops do not call `route_binding.build`.
 - Window: **20 hops or 10 minutes** on the bound snapshot from open, then open again. The 20s observation cache applies to new listed-URL probes, not hops.
 - Hop: `session=hop` plus `session_id`. Hops do **not** run a new 7-URL probe and do **not** call facilitator `/verify` or `/settle`.
 - The merchant session-client contract is unchanged.

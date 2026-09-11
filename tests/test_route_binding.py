@@ -27,6 +27,7 @@ from test_success_only_billing import (
 from live402.route_outcomes import NORMAL_MISS_REASONS
 from live402 import payment, probe, replay, route
 from live402 import route_binding as rb
+from live402 import session
 from live402.pq import events, receipt, route_v4, store
 
 
@@ -526,3 +527,91 @@ class BindingTests(unittest.TestCase):
                 now=case["now"],
             )
             self.assertEqual(accepted, case["challenge"]["accepts"][0])
+
+    def test_session_open_is_allowed_on_build(self):
+        result = bound_winner()
+        body = {"url": result["url"], "session": "open", "require_route_binding": True}
+        binding = rb.build(result, body)
+        self.assertEqual(binding["model"], rb.MODEL)
+        self.assertEqual(binding["request"]["url"], result["url"])
+
+    def test_session_open_mandate_hash_is_allowed_on_build(self):
+        result = bound_winner()
+        body = {
+            "url": result["url"],
+            "session": "open",
+            "mandate_hash": "ab" * 32,
+            "require_route_binding": True,
+        }
+        binding = rb.build(result, body)
+        self.assertEqual(binding["model"], rb.MODEL)
+
+    def test_hop_keys_on_build_are_unresolved_policy(self):
+        result = bound_winner()
+        body = {
+            "session": "hop",
+            "session_id": "cd" * 32,
+            "require_route_binding": True,
+        }
+        with self.assertRaises(rb.BindingError) as ctx:
+            rb.build(result, body)
+        self.assertEqual(str(ctx.exception), "unresolved_policy")
+
+    def test_session_id_on_open_is_unresolved_policy(self):
+        result = bound_winner()
+        body = {
+            "url": result["url"],
+            "session": "open",
+            "session_id": "cd" * 32,
+            "require_route_binding": True,
+        }
+        with self.assertRaises(rb.BindingError) as ctx:
+            rb.build(result, body)
+        self.assertEqual(str(ctx.exception), "unresolved_policy")
+
+    def test_mandate_hash_without_open_is_unresolved_policy(self):
+        result = bound_winner()
+        body = {
+            "need": "weather",
+            "mandate_hash": "ab" * 32,
+            "require_route_binding": True,
+        }
+        with self.assertRaises(rb.BindingError) as ctx:
+            rb.build(result, body)
+        self.assertEqual(str(ctx.exception), "unresolved_policy")
+
+    def test_paid_session_open_with_binding_emits_v4(self):
+        os.environ["LIVE402_SESSION_DB"] = self.tmp.name + "/sess.sqlite"
+        session.reset()
+        self.addCleanup(session.reset)
+        self.body = {
+            "url": "https://seller.example/x402",
+            "session": "open",
+            "require_route_binding": True,
+        }
+        payload = _payload("session-open-bind")
+        payload["accepted"]["amount"] = payment.SESSION_AMOUNT_ATOMIC
+        payload["payload"]["authorization"]["value"] = payment.SESSION_AMOUNT_ATOMIC
+        winner = bound_winner()
+        with (
+            patch("live402.route.run_probe", return_value=(200, winner)) as run,
+            patch("live402.facilitator.verify", return_value=_verified()) as verify,
+            patch("live402.facilitator.settle", return_value=_settled()) as settle,
+            patch("live402.history.mark_batch_settled") as mark,
+        ):
+            out = route.handle_route(self.body, _headers(payload), RESOURCE)
+        self.assertEqual(out[0], 200, out[1])
+        self.assertTrue(out[1]["billing"]["settled"])
+        self.assertEqual(out[1]["billing"]["amount_atomic"], payment.SESSION_AMOUNT_ATOMIC)
+        self.assertNotEqual(out[1].get("binding_error_reason"), "unresolved_policy")
+        self.assertIn("id", out[1].get("session") or {})
+        self.assertEqual(len(out[1]["session"]["id"]), 64)
+        tr = out[1]["pq_trust"]["transparency"]
+        self.assertEqual(tr["leaf_type"], route_v4.TYPE)
+        receipt.verify_route_receipt(tr["receipt"], tr["reveal"], self.vkey)
+        request = json.loads(tr["reveal"]["evidence"]["request_json"])
+        self.assertEqual(request.get("session"), "open")
+        run.assert_called_once()
+        verify.assert_called_once()
+        settle.assert_called_once()
+        mark.assert_called_once()
