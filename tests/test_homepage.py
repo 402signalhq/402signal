@@ -459,7 +459,7 @@ class HomepageProductTests(unittest.TestCase):
             status, raw, _ = _get_full(self.port, path)
             self.assertEqual(status, 200)
             self.assertTrue(raw)
-        self.assertEqual(_get_full(self.port, "/.well-known/x402list.txt")[1], "x402list-verify-52dmS9yTO-vP6AMJh6H8mZZBInntQZP7zSLPF806CnQ\n")
+        self.assertEqual(_get_full(self.port, "/.well-known/x402list.txt")[1], "x402list-verify-9HkZKUIKuM3JmHl_bgmr4x-2Roh_b6BkV_idBtkGaLM\n")
         for name in ("og.png", "hero-routing.png"):
             self.assertGreater((STATIC / name).stat().st_size, 10000)
         sitemap = _get_full(self.port, "/sitemap.xml")[1]
