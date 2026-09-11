@@ -23,7 +23,7 @@ from live402.route import handle_route, recover_route
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 MCP_REGISTRY_PATH = "/mcp/v0.3.1"
-X402LIST_VERIFY_TOKEN = "x402list-verify-52dmS9yTO-vP6AMJh6H8mZZBInntQZP7zSLPF806CnQ"
+X402LIST_VERIFY_TOKEN = "x402list-verify-9HkZKUIKuM3JmHl_bgmr4x-2Roh_b6BkV_idBtkGaLM"
 # Human pages served as static HTML from STATIC_DIR. Same CSP as GET /.
 HUMAN_PAGES = {
     "/": "index.html",
