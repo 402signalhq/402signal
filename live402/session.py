@@ -82,6 +82,14 @@ def db_path() -> str:
     return DEFAULT_DB
 
 
+def _chmod_db_files(path: str) -> None:
+    for p in (path, path + "-wal", path + "-shm"):
+        try:
+            os.chmod(p, 0o600)
+        except OSError:
+            pass
+
+
 def _connect() -> sqlite3.Connection:
     global _conn, _conn_path
     path = db_path()
@@ -101,6 +109,7 @@ def _connect() -> sqlite3.Connection:
     conn.commit()
     _conn = conn
     _conn_path = path
+    _chmod_db_files(path)
     return conn
 
 
@@ -165,7 +174,11 @@ def trial_token(headers) -> str | None:
 
 
 def issue_trial(raw: str | None = None, *, ttl_s: int = TRIAL_TTL_S) -> str:
-    """Store only the hash. Returns the bearer token once."""
+    """Store only the hash. Returns the bearer token once.
+
+    Re-issuing the same raw token may refresh expires_at. It must not reset
+    opens_used.
+    """
     token = raw or secrets.token_urlsafe(32)
     if not TOKEN_RE.fullmatch(token):
         raise ValueError("invalid trial token")
@@ -175,8 +188,10 @@ def issue_trial(raw: str | None = None, *, ttl_s: int = TRIAL_TTL_S) -> str:
         conn = _connect()
         conn.execute(
             """
-            INSERT OR REPLACE INTO trial_credits (token_hash, created_at, expires_at, opens_used, open_ceiling)
+            INSERT INTO trial_credits (token_hash, created_at, expires_at, opens_used, open_ceiling)
             VALUES (?, ?, ?, 0, ?)
+            ON CONFLICT(token_hash) DO UPDATE SET
+                expires_at = excluded.expires_at
             """,
             (digest, now, now + int(ttl_s), TRIAL_OPEN_CEILING),
         )
@@ -349,7 +364,7 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
             cur = conn.cursor()
             row = cur.execute(
                 """
-                SELECT expires_at, observed_at, hop_count, hop_ceiling, url, rail, scheme,
+                SELECT expires_at, hop_count, hop_ceiling, url, rail, scheme,
                        fingerprint, mandate_hash, offer_json
                 FROM windows WHERE id_hash=?
                 """,
@@ -359,7 +374,6 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
                 return _miss("fingerprint_miss")
             (
                 expires_at,
-                observed_at,
                 hop_count,
                 hop_ceiling,
                 url,
@@ -370,8 +384,6 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
                 offer_json,
             ) = row
             if int(expires_at) < now or int(hop_count) >= int(hop_ceiling):
-                return _miss("window_spent")
-            if now - int(observed_at) > CACHE_TTL_S:
                 return _miss("window_spent")
             try:
                 offer = json.loads(offer_json)

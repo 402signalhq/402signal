@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -77,6 +78,57 @@ class HostedSessionTests(unittest.TestCase):
             self.assertEqual(body["session"]["hops_remaining"], 20)
             self.assertEqual(hop["session"]["hop_count"], 2)
 
+    def test_hop_still_live_after_cache_ttl_inside_session_ttl(self):
+        token = session.issue_trial()
+        with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
+            code, body, _ = self._open(token)
+            self.assertEqual(code, 200)
+            self.assertTrue(body.get("live"))
+            sid = body["session"]["id"]
+            probes_after_open = history._connect().execute("SELECT COUNT(*) FROM probes").fetchone()[0]
+            hop_at = int(body["session"]["expires_at"]) - session.SESSION_TTL_S + 21
+            self.assertLess(hop_at, int(body["session"]["expires_at"]))
+            with patch("live402.session.time.time", return_value=hop_at):
+                hop_code, hop, _ = route.handle_route(
+                    {"session": "hop", "session_id": sid},
+                    {},
+                    "https://402signal.com/route",
+                )
+            self.assertEqual(hop_code, 200)
+            self.assertTrue(hop.get("live"))
+            self.assertEqual(hop.get("url"), WEATHER)
+            self.assertEqual(hop["billing"]["settlement_state"], "not_attempted")
+            probes_after_hop = history._connect().execute("SELECT COUNT(*) FROM probes").fetchone()[0]
+            self.assertEqual(probes_after_hop, probes_after_open)
+            verify.assert_not_called()
+            settle.assert_not_called()
+
+    def test_hop_window_spent_after_10_minutes(self):
+        token = session.issue_trial()
+        code, body, _ = self._open(token)
+        self.assertEqual(code, 200)
+        sid = body["session"]["id"]
+        with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
+            with patch("live402.session.time.time", return_value=int(body["session"]["expires_at"]) + 1):
+                hop_code, hop, _ = route.handle_route(
+                    {"session": "hop", "session_id": sid},
+                    {},
+                    "https://402signal.com/route",
+                )
+            self.assertEqual(hop_code, 200)
+            self.assertFalse(hop.get("live"))
+            self.assertEqual(hop.get("miss_reason"), "window_spent")
+            verify.assert_not_called()
+            settle.assert_not_called()
+
+    def test_cached_probe_still_20s(self):
+        os.environ["LIVE402_ROUTE_TRAFFIC_CLASS"] = "organic"
+        result = probe.probe_url(WEATHER)
+        self.assertTrue(result.get("live"))
+        self.assertIsNotNone(session.cached_probe(WEATHER))
+        with patch("live402.session.time.time", return_value=time.time() + 21):
+            self.assertIsNone(session.cached_probe(WEATHER))
+
     def test_trial_does_not_move_public_last_success(self):
         token = session.issue_trial()
         before = history.summary(WEATHER)
@@ -137,6 +189,25 @@ class HostedSessionTests(unittest.TestCase):
             except FileNotFoundError:
                 pass
         self.assertNotIn(token.encode(), b"".join(blobs))
+
+    def test_issue_trial_does_not_reset_quota(self):
+        token = session.issue_trial()
+        for _ in range(3):
+            code, body, _ = self._open(token)
+            self.assertEqual(code, 200, body)
+        headers = {"X-402Signal-Trial": token}
+        self.assertEqual(session.trial_remaining(headers), 2)
+        session.issue_trial(raw=token)
+        self.assertEqual(session.trial_remaining(headers), 2)
+
+    def test_session_db_wal_shm_are_0600(self):
+        session.issue_trial()
+        path = session.db_path()
+        self.assertTrue(os.path.exists(path))
+        self.assertEqual(os.stat(path).st_mode & 0o777, 0o600, path)
+        for pth in (path + "-wal", path + "-shm"):
+            if os.path.exists(pth):
+                self.assertEqual(os.stat(pth).st_mode & 0o777, 0o600, pth)
 
     def test_unknown_hop_is_fingerprint_miss_without_facilitator(self):
         sid = "ab" * 32
