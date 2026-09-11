@@ -161,7 +161,8 @@ def extend_http_route_schema(ordinary: dict) -> dict:
     hop["description"] = (
         "Reuse a paid or trial hosted window. No new probe and no facilitator "
         "verify/settle. Optional scheme, amount_atomic and payTo are checked "
-        "against the bound ceiling and channel shape from open. Cache must still be fresh."
+        "against the bound ceiling and channel shape from open. Hops use the "
+        "stored snapshot; they do not consult the 20s observation cache."
     )
     session_open = {
         "type": "string",
