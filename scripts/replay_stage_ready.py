@@ -28,7 +28,7 @@ def main() -> int:
     try:
         print(json.dumps({"ok": stage_ready()}))
         return 0
-    except (StoreError, OSError, ValueError):
+    except Exception:
         print(json.dumps({"ok": False}))
         return 1
 

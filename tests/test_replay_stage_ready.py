@@ -46,6 +46,15 @@ class ReplayStageReady(unittest.TestCase):
             self.assertEqual(json.loads(out.getvalue()), {"ok": False})
             self.assertNotIn("unavailable", out.getvalue())
 
+    def test_unexpected_exception_is_ok_false_not_a_traceback(self):
+        with patch("scripts.replay_stage_ready.stage_ready", side_effect=RuntimeError("NEVER_LOG db.example")), \
+             patch("sys.stdout", new_callable=io.StringIO) as out, \
+             patch("sys.stderr", new_callable=io.StringIO) as err:
+            self.assertEqual(main(), 1)
+            self.assertEqual(json.loads(out.getvalue()), {"ok": False})
+            self.assertNotIn("NEVER_LOG", out.getvalue() + err.getvalue())
+            self.assertNotIn("Traceback", err.getvalue())
+
 
 class CutoverRunbook(unittest.TestCase):
     def setUp(self):
