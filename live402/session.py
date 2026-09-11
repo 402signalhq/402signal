@@ -26,6 +26,10 @@ TRIAL_HEADER = "x-402signal-trial"
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{32,128}\Z")
 SESSION_ID_RE = re.compile(r"[0-9a-f]{64}\Z")
 MANDATE_RE = re.compile(r"[0-9a-f]{64}\Z")
+HOP_KEYS = frozenset(
+    {"session", "session_id", "url", "mandate_hash", "networks", "scheme", "amount_atomic", "payTo"}
+)
+BOUND_SCHEMES = frozenset({"exact", "upto", "batch-settlement"})
 
 DEFAULT_DB = "/tmp/live402-session.sqlite"
 VOLUME_DB = "/data/live402-session.sqlite"
@@ -254,6 +258,53 @@ def offer_fingerprint(result: dict) -> str:
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 
+def _bound_terms(offer: dict, *, url: str | None, rail: str | None, scheme: str | None) -> dict:
+    selected = offer.get("selected_payment") if isinstance(offer.get("selected_payment"), dict) else {}
+    bound_scheme = str(scheme or selected.get("scheme") or "exact").strip().lower()
+    bound_rail = str(rail or selected.get("network") or offer.get("rail") or "")
+    amount = payment.sane_atomic_amount(selected.get("amount_atomic") if selected.get("amount_atomic") is not None else selected.get("amount"))
+    pay_to = selected.get("payTo") or offer.get("payTo")
+    return {
+        "url": url or offer.get("url") or "",
+        "scheme": bound_scheme,
+        "rail": bound_rail,
+        "payTo": pay_to,
+        "amount_atomic": amount,
+    }
+
+
+def _hop_bound_miss(body: dict, bound: dict) -> str | None:
+    """Refuse a live hop offer that breaks the window bound. Never settles."""
+    extra = set(body) - HOP_KEYS if isinstance(body, dict) else set()
+    if extra:
+        return "scheme_mismatch"
+    req_scheme = None
+    if isinstance(body.get("scheme"), str):
+        req_scheme = body.get("scheme").strip().lower()
+    bound_scheme = str(bound.get("scheme") or "exact").lower()
+    if req_scheme:
+        if req_scheme not in BOUND_SCHEMES or req_scheme != bound_scheme:
+            return "scheme_mismatch"
+    if bound_scheme not in BOUND_SCHEMES and (
+        req_scheme or "amount_atomic" in body or "payTo" in body
+    ):
+        return "scheme_mismatch"
+    if "payTo" in body:
+        raw = body.get("payTo")
+        if not isinstance(raw, str) or not raw.strip():
+            return "fingerprint_miss"
+        if not payment.payto_equal(raw.strip(), bound.get("payTo"), bound.get("rail")):
+            return "fingerprint_miss"
+    if "amount_atomic" in body:
+        hop_amount = payment.canonical_atomic_string(body.get("amount_atomic"))
+        ceiling = payment.sane_atomic_amount(bound.get("amount_atomic"))
+        if hop_amount is None or ceiling is None:
+            return "fingerprint_miss"
+        if hop_amount > ceiling:
+            return "constraints_unmet"
+    return None
+
+
 def _mandate(body) -> str | None:
     if not isinstance(body, dict):
         return None
@@ -395,12 +446,10 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
             if req_url and req_url != (url or ""):
                 return _miss("fingerprint_miss")
             selected = offer.get("selected_payment") if isinstance(offer.get("selected_payment"), dict) else {}
-            req_scheme = None
-            if isinstance(body.get("scheme"), str):
-                req_scheme = body.get("scheme").strip().lower()
-            bound_scheme = str(scheme or selected.get("scheme") or "exact").lower()
-            if req_scheme and req_scheme != bound_scheme:
-                return _miss("scheme_mismatch")
+            bound = _bound_terms(offer, url=url, rail=rail, scheme=scheme)
+            bound_miss = _hop_bound_miss(body, bound)
+            if bound_miss:
+                return _miss(bound_miss)
             networks = body.get("networks")
             bound_net = str(rail or selected.get("network") or "")
             if isinstance(networks, list) and networks:

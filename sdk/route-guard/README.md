@@ -290,7 +290,7 @@ The fee is $0.003 for a qualifying API observation. Merchant requests, cumulativ
 
 ## Hosted session open (additive)
 
-The hosted router can open a $0.005 window (`session: "open"`) and then serve hops (`session: "hop"`, `session_id`) from the bound offer. Hops do not probe and do not call a facilitator. This does not replace `session-client` merchant continuation.
+The hosted router can open a $0.005 window (`session: "open"`) and then serve hops (`session: "hop"`, `session_id`) from the bound offer. Hops do not probe and do not call a facilitator. A hop may present `scheme`, `amount_atomic` and `payTo`; a break of the stored ceiling or channel shape misses and does not settle. This does not replace `session-client` merchant continuation.
 
 Bind remains the same: observe or open → local verify → caller signs.
 
