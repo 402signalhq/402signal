@@ -1101,7 +1101,7 @@ class SettlementReputationTests(unittest.TestCase):
         ev = history.reputation_evidence(url)
         self.assertEqual(ev["n_7d"], 0)
         self.assertIsNone(ev["success_7d"])
-        history.mark_batch_settled(bid)
+        history.mark_batch_settled(bid, url)
         settled = history.reputation_evidence(url)
         self.assertEqual(settled["n_7d"], 1)
         self.assertEqual(settled["ok_7d"], 1)

@@ -131,7 +131,7 @@ class SettlementProvenanceTests(unittest.TestCase):
         history.record_probe(url, _snap(url, VALID_A, ts=t0))
         bid = "sb1"
         history.persist_route_batch(bid, [_snap(url, VALID_B, ts=t0 + 3, batch_id=bid)])
-        history.mark_batch_settled(bid)
+        history.mark_batch_settled(bid, url)
         summ = history.summary(url)
         self.assertEqual(summ["last_payTo"], VALID_A)
         conn = sqlite3.connect(os.environ["LIVE402_HISTORY_DB"])
@@ -151,7 +151,7 @@ class SettlementProvenanceTests(unittest.TestCase):
         history.record_probe(url, _snap(url, VALID_A, ts=t0))
         bid = "est1"
         history.persist_route_batch(bid, [_snap(url, VALID_B, ts=t0 + 2, batch_id=bid)])
-        history.mark_batch_settled(bid)
+        history.mark_batch_settled(bid, url)
         history.record_probe(url, _snap(url, VALID_B, ts=t0 + 6))
         self.assertTrue(payment.payto_equal(history.summary(url)["last_payTo"], VALID_B, "base"))
 
@@ -160,9 +160,9 @@ class SettlementProvenanceTests(unittest.TestCase):
         t0 = int(time.time()) - 40
         history.record_probe(url, _snap(url, VALID_A, ts=t0))
         history.persist_route_batch("s1", [_snap(url, VALID_B, ts=t0 + 2, batch_id="s1")])
-        history.mark_batch_settled("s1")
+        history.mark_batch_settled("s1", url)
         history.persist_route_batch("s2", [_snap(url, VALID_B, ts=t0 + 8, batch_id="s2")])
-        history.mark_batch_settled("s2")
+        history.mark_batch_settled("s2", url)
         self.assertTrue(payment.payto_equal(history.summary(url)["last_payTo"], VALID_B, "base"))
 
     def test_failed_settlement_does_not_mutate_url_state(self):
@@ -186,7 +186,7 @@ class SettlementProvenanceTests(unittest.TestCase):
         )
         history.record_probe(url, _snap(url, VALID_A, ts=t0 + 20, amount="10000"))
         newer = history.summary(url)
-        history.mark_batch_settled(old_batch)
+        history.mark_batch_settled(old_batch, url)
         after = history.summary(url)
         self.assertEqual(after["last_checked"], newer["last_checked"])
         self.assertEqual(after["last_payTo"], VALID_A)
@@ -272,7 +272,7 @@ class SettlementProvenanceTests(unittest.TestCase):
         bid = "tx1"
         history.persist_route_batch(bid, [_snap(url, VALID_A, ts=t0 + 4, batch_id=bid)])
         with patch.object(shadow, "mark_verified") as marked:
-            history.mark_batch_settled(bid)
+            history.mark_batch_settled(bid, url)
             self.assertTrue(marked.called)
         ev = history.reputation_evidence(url)
         self.assertEqual(ev["n_7d"], 2)

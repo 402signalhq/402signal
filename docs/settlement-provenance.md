@@ -10,7 +10,7 @@ must not move trusted product state.
 | `INDEPENDENT` | `record_probe` default (validate/health/manual) | yes |
 | `SCHEDULED` | `record_probe` with `scheduled=true` or `trust_class=SCHEDULED` | yes |
 | `ROUTE_TENTATIVE` | `persist_route_batch` before settlement | no (diagnostics only) |
-| `ROUTE_SETTLED` | `mark_batch_settled` after a successful pay | yes (may promote) |
+| `ROUTE_SETTLED` | `mark_batch_settled` after a successful pay, **winner URL only** | yes (may promote) |
 
 Trusted classes may update `url_state`, `last_checked`, `last_trusted_ts`,
 `last_success_402`, payTo pending/change, price/schema change clocks,
@@ -75,12 +75,19 @@ does not persist those flags.
 
 ## mark_batch_settled
 
-One sqlite transaction:
+One sqlite transaction. The paid path passes the billable winner URL
+(`result["url"]` after the winner gate). Missing winner URL promotes
+nothing. Do not infer the first live row in the batch.
 
-1. Mark matching tentative probes/observations `ROUTE_SETTLED`.
-2. Recompute each URL's trusted `url_state`.
+1. Mark tentative probes/observations for **that winner URL** `ROUTE_SETTLED`.
+   Compared also-rans in the same batch stay `ROUTE_TENTATIVE` and keep
+   their `traffic_class`.
+2. Recompute the winner URL's trusted `url_state` (organic rows only).
 3. Commit, then update shadow freshness for URLs that were actually
    applied.
+
+An empty-row fallback is winner-scoped. It must not `UPDATE … WHERE
+batch_id=?` across the rest of the batch.
 
 Late settlement of an older observation does not overwrite a newer
 trusted `last_trusted_ts` / payTo / price / schema row. Seller

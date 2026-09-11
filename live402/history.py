@@ -1075,17 +1075,19 @@ def persist_route_batch(batch_id: str | None, results: list | None) -> dict:
         return metas
 
 
-def mark_batch_settled(batch_id: str | None) -> None:
-    """Promote a paid route batch to ROUTE_SETTLED. Transactional. Never raises.
+def mark_batch_settled(batch_id: str | None, winner_url: str | None = None) -> None:
+    """Promote the billable winner of a paid route batch to ROUTE_SETTLED.
 
-    Marks probes trusted, recomputes per-URL trusted url_state, then updates
-    shadow freshness. Late settlement of an older observation does not
-    overwrite newer trusted state. Failed settlement never calls this, so
-    url_state stays on the last trusted write.
+    Also-ran probes in the same batch stay ROUTE_TENTATIVE and keep their
+    traffic_class. Missing winner URL promotes nothing. Transactional.
+    Never raises. Failed settlement never calls this, so url_state stays
+    on the last trusted write. Late settlement of an older observation
+    does not overwrite newer trusted state.
     """
     try:
         bid = _ok_batch_id(batch_id) or _text(batch_id)
-        if not bid:
+        dest = _text(winner_url)
+        if not bid or not dest:
             return
         shadow_rows: list[tuple[str, dict]] = []
         with _lock:
@@ -1098,26 +1100,29 @@ def mark_batch_settled(batch_id: str | None) -> None:
                        p.traffic_class
                 FROM probes p
                 JOIN observations o ON o.probe_id = p.id
-                WHERE o.batch_id = ? AND p.trust_class = ?
+                WHERE o.batch_id = ? AND p.url = ? AND p.trust_class = ?
                 ORDER BY p.ts ASC, p.id ASC
                 """,
-                (bid, TRUST_ROUTE_TENTATIVE),
+                (bid, dest, TRUST_ROUTE_TENTATIVE),
             )
             rows = cur.fetchall()
             if not rows:
-                conn.execute(
-                    "UPDATE probes SET settled_route_observation = 1, trust_class = ? "
-                    "WHERE id IN (SELECT probe_id FROM observations WHERE batch_id = ? AND probe_id IS NOT NULL) "
-                    "AND (trust_class IS NULL OR trust_class = '' OR trust_class = ?)",
-                    (TRUST_ROUTE_SETTLED, bid, TRUST_ROUTE_TENTATIVE),
+                # Winner-scoped only. Never promote the rest of the batch.
+                cur.execute(
+                    """
+                    SELECT DISTINCT p.id, p.url, p.ts, p.live, p.payable, p.invocable, p.latency_ms,
+                           p.payTo, p.amount, p.miss_reason, p.rail, p.schema_present, p.trust_class,
+                           p.traffic_class
+                    FROM probes p
+                    JOIN observations o ON o.probe_id = p.id
+                    WHERE o.batch_id = ? AND p.url = ?
+                      AND (p.trust_class IS NULL OR p.trust_class = '' OR p.trust_class = ?)
+                    ORDER BY p.ts ASC, p.id ASC
+                    """,
+                    (bid, dest, TRUST_ROUTE_TENTATIVE),
                 )
-                conn.execute(
-                    "UPDATE observations SET trust_class = ? WHERE batch_id = ? AND "
-                    "(trust_class IS NULL OR trust_class = '' OR trust_class = ?)",
-                    (TRUST_ROUTE_SETTLED, bid, TRUST_ROUTE_TENTATIVE),
-                )
-                conn.commit()
-                _chmod_db_files(_conn_path or db_path())
+                rows = cur.fetchall()
+            if not rows:
                 return
             ids = [int(r[0]) for r in rows]
             qmarks = ",".join("?" * len(ids))
@@ -1131,8 +1136,8 @@ def mark_batch_settled(batch_id: str | None) -> None:
                 (TRUST_ROUTE_SETTLED, *ids),
             )
             for row in rows:
-                dest = _text(row[1])
-                if not dest:
+                applied_url = _text(row[1])
+                if not applied_url:
                     continue
                 snap = {
                     "ts": row[2],
@@ -1149,15 +1154,15 @@ def mark_batch_settled(batch_id: str | None) -> None:
                     "settled_route_observation": 1,
                     "_route_traffic_class": row[13] if len(row) > 13 else TRAFFIC_UNCLASSIFIED,
                 }
-                if not is_public_traffic(classify_traffic_class(dest, snap)):
+                if not is_public_traffic(classify_traffic_class(applied_url, snap)):
                     continue
-                applied = _apply_trusted_url_state(cur, dest, snap, {})
+                applied = _apply_trusted_url_state(cur, applied_url, snap, {})
                 if applied:
-                    shadow_rows.append((dest, snap))
+                    shadow_rows.append((applied_url, snap))
             conn.commit()
             _chmod_db_files(_conn_path or db_path())
-        for dest, snap in shadow_rows:
-            _touch_shadow_verified(dest, snap)
+        for applied_url, snap in shadow_rows:
+            _touch_shadow_verified(applied_url, snap)
     except Exception:
         return
 

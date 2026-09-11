@@ -198,7 +198,7 @@ class ProbeLifecycleTests(unittest.TestCase):
         # Route persist is tentative until settlement. Summary stays trusted-only.
         self.assertEqual(int(after.get("n_7d") or 0), 1)
         self.assertEqual(_probe_count(url), 2)
-        history.mark_batch_settled(result.get("batch_id"))
+        history.mark_batch_settled(result.get("batch_id"), url)
         self.assertEqual(int(history.summary(url).get("n_7d") or 0), 2)
 
     def test_attestation_hash_stable_after_straggler_record(self):

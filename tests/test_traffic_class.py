@@ -122,7 +122,7 @@ class TrafficClassTests(unittest.TestCase):
         later = _snap(url, traffic=history.TRAFFIC_ORGANIC, ts=t0, batch_id=bid)
         history.persist_route_batch(bid, [later])
         self.assertIsNone(history.summary(url).get("last_success_402"))
-        history.mark_batch_settled(bid)
+        history.mark_batch_settled(bid, url)
         summ = history.summary(url)
         self.assertEqual(summ["n_7d"], 1)
         self.assertEqual(summ["last_success_402"], t0)
@@ -133,7 +133,7 @@ class TrafficClassTests(unittest.TestCase):
         bid = "b" * 32
         later = _snap(url, traffic=history.TRAFFIC_SPONSORED, ts=t0, batch_id=bid)
         history.persist_route_batch(bid, [later])
-        history.mark_batch_settled(bid)
+        history.mark_batch_settled(bid, url)
         summ = history.summary(url)
         self.assertEqual(summ["n_7d"], 0)
         self.assertIsNone(summ.get("last_success_402"))
@@ -269,7 +269,7 @@ class TrafficClassTests(unittest.TestCase):
         bid = "c" * 32
         history.persist_route_batch(bid, [_snap(url, ts=t0, batch_id=bid)])
         history.touch_validate_clocks(url, _snap(url, ts=t0 + 10))
-        history.mark_batch_settled(bid)
+        history.mark_batch_settled(bid, url)
         summ = history.summary(url)
         self.assertEqual(summ["n_7d"], 1)
         self.assertEqual(summ["last_success_402"], t0)
@@ -304,6 +304,115 @@ class TrafficClassTests(unittest.TestCase):
         ev = history.reputation_evidence(url)
         self.assertEqual(ev["scoring_probe_count_7d"], 0)
         self.assertEqual(ev["n_7d"], 0)
+
+    def test_settled_batch_promotes_winner_only(self):
+        winner = "https://api.onesource.io/api/chain/erc20-balance"
+        also_a = "https://agent402.tools/api/wallet-balance"
+        also_b = "https://agent402.tools/api/usdc-balance"
+        t0 = int(time.time()) - 10
+        bid = "d" * 32
+        history.persist_route_batch(
+            bid,
+            [
+                _snap(winner, traffic=history.TRAFFIC_ORGANIC, ts=t0, batch_id=bid),
+                _snap(also_a, traffic=history.TRAFFIC_ORGANIC, ts=t0, batch_id=bid),
+                _snap(also_b, traffic=history.TRAFFIC_ORGANIC, ts=t0, batch_id=bid),
+            ],
+        )
+        self.assertEqual(int(history.pulse_observed().get("n_7d") or 0), 0)
+        history.mark_batch_settled(bid, winner)
+        classes = dict(history._connect().execute("SELECT url, trust_class FROM probes").fetchall())
+        self.assertEqual(classes[winner], history.TRUST_ROUTE_SETTLED)
+        self.assertEqual(classes[also_a], history.TRUST_ROUTE_TENTATIVE)
+        self.assertEqual(classes[also_b], history.TRUST_ROUTE_TENTATIVE)
+        traffic = dict(history._connect().execute("SELECT url, traffic_class FROM probes").fetchall())
+        self.assertEqual(traffic[winner], history.TRAFFIC_ORGANIC)
+        self.assertEqual(traffic[also_a], history.TRAFFIC_ORGANIC)
+        self.assertEqual(traffic[also_b], history.TRAFFIC_ORGANIC)
+        self.assertEqual(history.summary(winner)["n_7d"], 1)
+        self.assertEqual(history.summary(winner)["last_success_402"], t0)
+        self.assertEqual(history.summary(also_a)["n_7d"], 0)
+        self.assertIsNone(history.summary(also_a).get("last_success_402"))
+        self.assertEqual(history.summary(also_b)["n_7d"], 0)
+        self.assertIsNone(history.summary(also_b).get("last_success_402"))
+        self.assertEqual(int(history.pulse_observed().get("n_7d") or 0), 1)
+        hints = history.rank_hints([winner, also_a, also_b])
+        self.assertEqual(hints[winner]["n_7d"], 1)
+        self.assertEqual((hints.get(also_a) or {}).get("n_7d") or 0, 0)
+        self.assertEqual((hints.get(also_b) or {}).get("n_7d") or 0, 0)
+
+    def test_missing_winner_url_promotes_nothing(self):
+        url = "https://seller.example/no-winner"
+        t0 = int(time.time()) - 10
+        bid = "e" * 32
+        history.persist_route_batch(bid, [_snap(url, ts=t0, batch_id=bid)])
+        history.mark_batch_settled(bid)
+        self.assertEqual(
+            history._connect().execute("SELECT trust_class FROM probes").fetchone()[0],
+            history.TRUST_ROUTE_TENTATIVE,
+        )
+        self.assertEqual(history.summary(url)["n_7d"], 0)
+        self.assertIsNone(history.summary(url).get("last_success_402"))
+
+    def test_unknown_winner_url_promotes_nothing(self):
+        url = "https://seller.example/real-winner"
+        t0 = int(time.time()) - 10
+        bid = "g" * 32
+        history.persist_route_batch(bid, [_snap(url, ts=t0, batch_id=bid)])
+        history.mark_batch_settled(bid, "https://seller.example/other")
+        self.assertEqual(
+            history._connect().execute("SELECT trust_class FROM probes").fetchone()[0],
+            history.TRUST_ROUTE_TENTATIVE,
+        )
+        self.assertEqual(history.summary(url)["n_7d"], 0)
+
+    def test_sponsored_multi_url_batch_still_ignores_public_clocks(self):
+        winner = "https://seller.example/trial-win"
+        also = "https://seller.example/trial-also"
+        t0 = int(time.time()) - 10
+        bid = "f" * 32
+        history.persist_route_batch(
+            bid,
+            [
+                _snap(winner, traffic=history.TRAFFIC_SPONSORED, ts=t0, batch_id=bid),
+                _snap(also, traffic=history.TRAFFIC_SPONSORED, ts=t0, batch_id=bid),
+            ],
+        )
+        history.mark_batch_settled(bid, winner)
+        rows = history._connect().execute(
+            "SELECT url, trust_class, traffic_class FROM probes"
+        ).fetchall()
+        by_url = {row[0]: row[1:] for row in rows}
+        self.assertEqual(by_url[winner][0], history.TRUST_ROUTE_SETTLED)
+        self.assertEqual(by_url[also][0], history.TRUST_ROUTE_TENTATIVE)
+        self.assertEqual(by_url[winner][1], history.TRAFFIC_SPONSORED)
+        self.assertEqual(by_url[also][1], history.TRAFFIC_SPONSORED)
+        self.assertEqual(history.summary(winner)["n_7d"], 0)
+        self.assertIsNone(history.summary(winner).get("last_success_402"))
+        self.assertEqual(history.summary(also)["n_7d"], 0)
+        self.assertEqual(int(history.pulse_observed().get("n_7d") or 0), 0)
+
+    def test_empty_trust_fallback_is_winner_scoped(self):
+        winner = "https://seller.example/empty-win"
+        also = "https://seller.example/empty-also"
+        t0 = int(time.time()) - 10
+        bid = "h" * 32
+        history.persist_route_batch(
+            bid,
+            [
+                _snap(winner, ts=t0, batch_id=bid),
+                _snap(also, ts=t0, batch_id=bid),
+            ],
+        )
+        conn = history._connect()
+        conn.execute("UPDATE probes SET trust_class = ''")
+        conn.commit()
+        history.mark_batch_settled(bid, winner)
+        rows = dict(conn.execute("SELECT url, trust_class FROM probes").fetchall())
+        self.assertEqual(rows[winner], history.TRUST_ROUTE_SETTLED)
+        self.assertEqual(rows[also], "")
+        self.assertEqual(history.summary(winner)["n_7d"], 1)
+        self.assertEqual(history.summary(also)["n_7d"], 0)
 
 
 if __name__ == "__main__":
