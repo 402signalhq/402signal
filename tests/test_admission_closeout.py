@@ -87,14 +87,16 @@ class ProtectedAdmissionTests(unittest.TestCase):
   self.assertLessEqual(len(e.buckets), e.policy.max_keys)
   self.assertLessEqual(len(e.discovery_buckets), e.policy.max_keys)
   self.assertLessEqual(len(e.recovery_buckets), e.policy.max_keys)
-  self.assertLessEqual(len(e.buckets)+len(e.discovery_buckets)+len(e.recovery_buckets), e.counter_slot_bound())
+  self.assertLessEqual(len(e.trial_buckets), e.policy.max_keys)
+  self.assertLessEqual(len(e.hop_buckets), e.policy.max_keys)
+  self.assertLessEqual(len(e.buckets)+len(e.discovery_buckets)+len(e.recovery_buckets)+len(e.trial_buckets)+len(e.hop_buckets), e.counter_slot_bound())
   paid=e.probe('https://seller.example/paid-target')
   self.assertIsNotNone(paid)
   self.assertTrue(e.ingress(self.headers,'partner'))
   extra=e.discover({}, 'preview-fresh')
   self.assertIsNotNone(extra)
   extra.finish(False)
-  self.assertLessEqual(len(e.buckets)+len(e.discovery_buckets)+len(e.recovery_buckets), e.counter_slot_bound())
+  self.assertLessEqual(len(e.buckets)+len(e.discovery_buckets)+len(e.recovery_buckets)+len(e.trial_buckets)+len(e.hop_buckets), e.counter_slot_bound())
  def test_recovery_map_saturation_does_not_evict_spent_or_customer_buckets(self):
   p=policy();p['max_keys']=16;p['recovery']['global']=100;p['recovery']['anonymous_total']=90
   e=admission.Engine(admission.Policy(p),lambda:self.now)

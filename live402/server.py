@@ -1074,12 +1074,20 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path != "/route":
             self._close_unread_body()
             return self._close_error(404, "not found")
-        if not self._route_allowed():
-            self._close_unread_body()
-            return self._close_error(429, "rate limit")
         payload = self._read_json_body()
         if payload is None:
             return
+        from live402 import session as session_mod
+
+        sess_mode = session_mod.mode(payload if isinstance(payload, dict) else {})
+        trial_header = session_mod.trial_token(self.headers)
+        trial_live = bool(trial_header) and sess_mode != "hop" and session_mod.trial_remaining(self.headers) > 0
+        # Hops and live trial credits have their own buckets. They must not
+        # debit paid ingress, or credits can starve organic /route.
+        if admission.configured() and (sess_mode == "hop" or trial_live):
+            reqctx.peer_ip.set(client_ip(self))
+        elif not self._route_allowed():
+            return self._close_error(429, "rate limit")
         code, body, extra = handle_route(payload, self.headers, self._resource_url())
         if extra is None and code == 402:
             extra = {"PAYMENT-REQUIRED": payment.payment_required_header(body)}

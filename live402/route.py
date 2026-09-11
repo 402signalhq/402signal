@@ -267,8 +267,8 @@ def _algorand_sender(headers) -> str | None:
     return raw or None
 
 
-def _required_pair(resource_url: str, error: str | None = None, bazaar: dict | None = None, algorand_sender: str | None = None) -> tuple[dict, dict]:
-    required = payment.payment_required(resource_url, bazaar=bazaar, algorand_sender=algorand_sender)
+def _required_pair(resource_url: str, error: str | None = None, bazaar: dict | None = None, algorand_sender: str | None = None, sku: str | None = None) -> tuple[dict, dict]:
+    required = payment.payment_required(resource_url, bazaar=bazaar, algorand_sender=algorand_sender, sku=sku)
     if error:
         required = dict(required)
         required["error"] = error
@@ -283,6 +283,18 @@ def _bad_request(body: dict) -> tuple[int, dict] | None:
     That unpaid 402 is the router payment challenge. It is not evidence that
     chk_grp caps were admitted or that batch validation passed.
     """
+    from live402 import session as session_mod
+
+    if session_mod.mode(body) == "hop":
+        sid = body.get("session_id")
+        if not isinstance(sid, str) or not session_mod.SESSION_ID_RE.fullmatch(sid.strip()):
+            return 400, {
+                "error": "session_id required",
+                "miss_reason": "invalid_need",
+                "live": False,
+                "invocable": False,
+            }
+        return None
     if "lab_test" in body and (body.get("lab_test") != lab_traffic.PROTOCOL
                                   or not lab_traffic.is_lab_url(body.get("url"))):
         return 400, {"error": "lab target is not configured", "live": False}
@@ -340,13 +352,15 @@ def _billing(
     settlement_attempted: bool | None,
     settled: bool | None,
     settlement_state: str,
+    sku: str | None = None,
 ) -> dict:
+    atomic, display = payment.sku_amount(sku)
     return {
         "model": payment.ROUTING_BILLING_MODEL,
         "condition": payment.ROUTING_SETTLEMENT_CONDITION,
         "asset": "USDC",
-        "amount_atomic": payment.AMOUNT_ATOMIC,
-        "display_amount": payment.AMOUNT_USD,
+        "amount_atomic": atomic,
+        "display_amount": display,
         "rail": rail or "unknown",
         "settlement_attempted": settlement_attempted,
         "settled": settled,
@@ -680,16 +694,20 @@ def _paid_execute_inner(
     paid_deadline: float,
     fp: str,
 ) -> tuple[int, dict, dict | None]:
+    from live402 import session as session_mod
+
+    sku = "session" if session_mod.mode(body) == "open" else None
     verify_t = deadline_mod.verify_timeout(paid_deadline)
     if verify_t <= 0:
         required, extra = _required_pair(
-            resource_url, "Payment verification failed", bazaar=bazaar
+            resource_url, "Payment verification failed", bazaar=bazaar, sku=sku
         )
         required["billing"] = _billing(
             payment.rail_of_accept(accept),
             settlement_attempted=False,
             settled=False,
             settlement_state="rejected",
+            sku=sku,
         )
         return 402, required, extra
 
@@ -697,13 +715,14 @@ def _paid_execute_inner(
         verify = facilitator.verify(parsed, accept, timeout=verify_t)
     if not verify.ok:
         required, extra = _required_pair(
-            resource_url, "Payment verification failed", bazaar=bazaar
+            resource_url, "Payment verification failed", bazaar=bazaar, sku=sku
         )
         required["billing"] = _billing(
             payment.rail_of_accept(accept),
             settlement_attempted=False,
             settled=False,
             settlement_state="rejected",
+            sku=sku,
         )
         return 402, required, extra
 
@@ -743,6 +762,7 @@ def _paid_execute_inner(
             settlement_attempted=False,
             settled=False,
             settlement_state="not_attempted",
+            sku=sku,
         )
         _log_settle_skipped(rail)
         # Free misses remain tentative history and create no PQ route leaf.
@@ -767,13 +787,14 @@ def _paid_execute_inner(
     settle_t = deadline_mod.settle_timeout(paid_deadline)
     if settle_t <= 0:
         required, extra = _required_pair(
-            resource_url, "Payment settlement not attempted", bazaar=bazaar
+            resource_url, "Payment settlement not attempted", bazaar=bazaar, sku=sku
         )
         required["billing"] = _billing(
             rail,
             settlement_attempted=False,
             settled=False,
             settlement_state="rejected",
+            sku=sku,
         )
         _log_settle_skipped(rail)
         return 402, required, extra
@@ -785,13 +806,14 @@ def _paid_execute_inner(
             _log_settle(False, rail)
             return _unknown_outcome(rail, attempted=True)
         required, pay_extra = _required_pair(
-            resource_url, "Payment settlement failed", bazaar=bazaar
+            resource_url, "Payment settlement failed", bazaar=bazaar, sku=sku
         )
         required["billing"] = _billing(
             rail,
             settlement_attempted=True,
             settled=False,
             settlement_state="rejected",
+            sku=sku,
         )
         extra.update(pay_extra)
         _log_settle(False, rail)
@@ -807,7 +829,10 @@ def _paid_execute_inner(
         settlement_attempted=True,
         settled=True,
         settlement_state="settled",
+        sku=sku,
     )
+    if sku == "session":
+        session_mod.attach_paid_open(result, body)
     try:
         from live402 import history as history_mod
 
@@ -858,7 +883,12 @@ def recover_route(body: dict, headers, resource_url: str) -> tuple[int, dict, di
         if not parsed:
             return recovery_unavailable()
         # Matching fixed terms does not need suggested rounds or unsigned groups.
-        accept = payment.match_accept(parsed, payment.payment_required(resource_url, dynamic=False))
+        from live402 import session as session_mod
+
+        sku = "session" if session_mod.mode(body if isinstance(body, dict) else {}) == "open" else None
+        accept = payment.match_accept(
+            parsed, payment.payment_required(resource_url, dynamic=False, sku=sku)
+        )
         if not accept:
             return recovery_unavailable()
         fp = replay.canonical_fingerprint(parsed, accept)
@@ -888,6 +918,21 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
     except probe_profile.ProfileError as exc:
         code, result = _invalid_need(str(exc))
         return code, result, None
+    from live402 import session as session_mod
+
+    sess_mode = session_mod.mode(body if isinstance(body, dict) else {})
+    sku = "session" if sess_mode == "open" else None
+    if sess_mode == "hop":
+        return session_mod.handle_hop(body if isinstance(body, dict) else {}, headers)
+    if session_mod.trial_token(headers) and sess_mode != "hop":
+        trial_out = session_mod.handle_trial_open(
+            body if isinstance(body, dict) else {},
+            headers,
+            run_probe,
+            _strip_private_probe_state,
+        )
+        if trial_out is not None:
+            return trial_out
     if fixtures.local_free():
         code, result = run_probe(body if isinstance(body, dict) else {})
         result = _strip_private_probe_state(result) or result
@@ -897,6 +942,8 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
             history_mod.mark_batch_settled(result.get("batch_id") if isinstance(result, dict) else None)
         except Exception:
             pass
+        if sess_mode == "open" and isinstance(result, dict) and result.get("live") is True:
+            session_mod.attach_paid_open(result, body if isinstance(body, dict) else {})
         attached = _attach_pq_trust(code, result, body if isinstance(body, dict) else {})
         if _require_transparency(body) and not _transparency_ok(attached):
             return 503, {
@@ -911,14 +958,14 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
     parsed = payment.extract_payment_payload(headers)
     sender = _algorand_sender(headers)
     if not parsed:
-        required, extra = _required_pair(resource_url, bazaar=bazaar, algorand_sender=sender)
+        required, extra = _required_pair(resource_url, bazaar=bazaar, algorand_sender=sender, sku=sku)
         return 402, required, extra
 
-    required_body = payment.payment_required(resource_url, bazaar=bazaar, algorand_sender=sender)
+    required_body = payment.payment_required(resource_url, bazaar=bazaar, algorand_sender=sender, sku=sku)
     accept = payment.match_accept(parsed, required_body)
     if not accept:
         required, extra = _required_pair(
-            resource_url, payment.inbound_match_error(parsed), bazaar=bazaar
+            resource_url, payment.inbound_match_error(parsed), bazaar=bazaar, sku=sku
         )
         return 402, required, extra
 

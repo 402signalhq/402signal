@@ -85,6 +85,23 @@ class AdmissionTests(unittest.TestCase):
         lease.finish(False)
         self.assertEqual(self.e.buckets["probe:global"].balance, 99)
 
+    def test_trial_and_hop_do_not_debit_ingress(self):
+        digest = "ab" * 32
+        for _ in range(admission.TRIAL_TOKEN):
+            lease = self.e.trial({}, "peer", digest)
+            self.assertIsNotNone(lease)
+            lease.finish(False)
+        self.assertIsNone(self.e.trial({}, "peer", digest))
+        self.assertTrue(self.e.ingress({}, "peer"))
+        for _ in range(admission.SESSION_HOP_WINDOW):
+            lease = self.e.session_hop({}, "peer", digest)
+            self.assertIsNotNone(lease)
+            lease.finish(False)
+        self.assertIsNone(self.e.session_hop({}, "peer", digest))
+        self.assertTrue(self.e.ingress({}, "other"))
+        self.assertFalse(any(k.startswith("trial:") or k.startswith("session-hop:") for k in self.e.buckets))
+        self.assertEqual(self.e.buckets["ingress:global"].balance, 998)
+
     def test_full_map_never_evicts_unspent_debits(self):
         p = policy();p["max_keys"] = 16;p["unpaid"]["global"] = 100
         e = admission.Engine(admission.Policy(p), lambda: self.now)

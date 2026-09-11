@@ -146,10 +146,47 @@ def extend_http_route_schema(ordinary: dict) -> dict:
         "challenge. Buyers do not pass merchant_profile. Unknown or ambiguous wires "
         "fail closed. Requires explicit runtime codec enablement."
     )
+    hop = _closed({
+        "session": {"type": "string", "const": "hop"},
+        "session_id": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": r"^[0-9a-f]{64}$"},
+        "url": deepcopy(endpoint),
+        "mandate_hash": {"type": "string", "pattern": r"^[0-9a-f]{64}$"},
+        "networks": {"type": "array", "items": {"type": "string", "enum": ["base", "solana", "algorand"]}},
+    }, required=["session", "session_id"])
+    hop["title"] = "Hosted session hop"
+    hop["description"] = (
+        "Reuse a paid or trial hosted window. No new probe and no facilitator "
+        "verify/settle. Cache must still be fresh."
+    )
+    session_open = {
+        "type": "string",
+        "enum": ["open"],
+        "description": "Hosted session open ($0.005). Hops use the hop profile. Additive to the merchant session-client.",
+    }
+    mandate = {
+        "type": "string",
+        "pattern": r"^[0-9a-f]{64}$",
+        "description": "Optional AP2-like mandate pin stored at open. Hop refuses a different hash.",
+    }
+    exact["properties"]["session"] = deepcopy(session_open)
+    exact["properties"]["mandate_hash"] = deepcopy(mandate)
     result["properties"].update({
         "probe_request": deepcopy(post),
         "buyer_limits": {"anyOf": [deepcopy(v) for v in limits.values()]},
+        "session": {
+            "type": "string",
+            "enum": ["open", "hop"],
+            "description": "Hosted session open ($0.005) or hop. Hops do not probe or settle. Additive to the merchant session-client.",
+        },
+        "session_id": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": r"^[0-9a-f]{64}$",
+            "description": "Opaque hosted session id from a prior open. Possession is the hop bearer.",
+        },
+        "mandate_hash": deepcopy(mandate),
     })
-    result["oneOf"] = [exact, search, check_group]
+    result["oneOf"] = [exact, search, check_group, hop]
     result["description"] = "Choose one closed HTTP request. Required evidence, payment, supported-method, byte, identity, economic and enabled-codec checks still apply on the server. The advertised MCP schema is separate."
     return result

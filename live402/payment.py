@@ -25,6 +25,9 @@ CDP_FACILITATOR = "https://api.cdp.coinbase.com/platform/v2/x402"
 # $0.003 USDC, 6 decimals
 AMOUNT_ATOMIC = "3000"
 AMOUNT_USD = "$0.003"
+# Hosted session open SKU
+SESSION_AMOUNT_ATOMIC = "5000"
+SESSION_AMOUNT_USD = "$0.005"
 ROUTING_BILLING_MODEL = "success_only_v1"
 ROUTING_SETTLEMENT_CONDITION = "live_eligible_route_found"
 USDC_DECIMALS = 6
@@ -295,13 +298,21 @@ BAZAAR_MCP = {
 
 
 
-def _algorand_extra(sender: str | None = None, *, dynamic: bool = True) -> dict:
+def sku_amount(sku: str | None = None) -> tuple[str, str]:
+    if sku == "session":
+        return SESSION_AMOUNT_ATOMIC, SESSION_AMOUNT_USD
+    return AMOUNT_ATOMIC, AMOUNT_USD
+
+
+def _algorand_extra(sender: str | None = None, *, dynamic: bool = True, amount_atomic: str | None = None, display_amount: str | None = None) -> dict:
     """Facilitator + feePayer + tag. suggestedParams / unsignedGroup from algo_tx."""
+    atomic = amount_atomic or AMOUNT_ATOMIC
+    display = display_amount or AMOUNT_USD
     extra = {
         "name": "USD Coin",
         "facilitator": ALGORAND_FACILITATOR,
         "feePayer": ALGORAND_FEE_PAYER,
-        "displayAmount": AMOUNT_USD,
+        "displayAmount": display,
         "tag": "x402-global-challenge",
     }
     if not dynamic:
@@ -313,7 +324,7 @@ def _algorand_extra(sender: str | None = None, *, dynamic: bool = True) -> dict:
                 ALGORAND_FEE_PAYER,
                 payto_algorand(),
                 USDC_ALGORAND_ASA,
-                AMOUNT_ATOMIC,
+                atomic,
                 sender=sender,
             )
         )
@@ -328,22 +339,23 @@ def _algorand_extra(sender: str | None = None, *, dynamic: bool = True) -> dict:
     return extra
 
 
-def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sender: str | None = None, *, dynamic: bool = True) -> dict:
+def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sender: str | None = None, *, dynamic: bool = True, sku: str | None = None) -> dict:
     """Construct terms; dynamic=False omits Algorand network enrichment for retrieval."""
     pay_to = payto_address()
+    atomic, display = sku_amount(sku)
     return {
         "x402Version": 2,
         "error": "Payment required",
         "payTo": pay_to,
         "network": "base",
         "asset": "USDC",
-        "amount": AMOUNT_USD,
+        "amount": display,
         "billing": {
             "model": ROUTING_BILLING_MODEL,
             "condition": ROUTING_SETTLEMENT_CONDITION,
             "asset": "USDC",
-            "amount_atomic": AMOUNT_ATOMIC,
-            "display_amount": AMOUNT_USD,
+            "amount_atomic": atomic,
+            "display_amount": display,
             "typed_misses_settled": False,
             "seller_payment_separate": True,
         },
@@ -360,7 +372,7 @@ def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sen
                 "network": BASE_CAIP2,
                 "asset": USDC_BASE,
                 "currency": USDC_BASE,
-                "amount": AMOUNT_ATOMIC,
+                "amount": atomic,
                 "payTo": pay_to,
                 "maxTimeoutSeconds": 60,
                 "extra": {
@@ -368,7 +380,7 @@ def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sen
                     "version": "2",
                     "facilitator": CDP_FACILITATOR,
                     "caip2": BASE_CAIP2,
-                    "displayAmount": AMOUNT_USD,
+                    "displayAmount": display,
                 },
             },
             {
@@ -376,14 +388,14 @@ def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sen
                 "network": SOLANA_MAINNET,
                 "asset": USDC_SOLANA_MINT,
                 "currency": USDC_SOLANA_MINT,
-                "amount": AMOUNT_ATOMIC,
+                "amount": atomic,
                 "payTo": payto_solana(),
                 "maxTimeoutSeconds": 60,
                 "extra": {
                     "name": "USD Coin",
                     "facilitator": SOLANA_FACILITATOR,
                     "feePayer": SOLANA_FEE_PAYER,
-                    "displayAmount": AMOUNT_USD,
+                    "displayAmount": display,
                 },
             },
             {
@@ -391,10 +403,12 @@ def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sen
                 "network": ALGORAND_MAINNET,
                 "asset": USDC_ALGORAND_ASA,
                 "currency": USDC_ALGORAND_ASA,
-                "amount": AMOUNT_ATOMIC,
+                "amount": atomic,
                 "payTo": payto_algorand(),
                 "maxTimeoutSeconds": 60,
-                "extra": _algorand_extra(algorand_sender, dynamic=dynamic),
+                "extra": _algorand_extra(
+                    algorand_sender, dynamic=dynamic, amount_atomic=atomic, display_amount=display
+                ),
             },
         ],
         "extensions": {"bazaar": bazaar or BAZAAR_EXTENSION},
@@ -404,7 +418,7 @@ def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sen
             "mcp": "https://402signal.com/mcp.json",
             "dashboard": "https://402signal.com/dashboard",
             "rails": ["base", "solana", "algorand"],
-            "amount": AMOUNT_USD,
+            "amount": display,
             "billingModel": ROUTING_BILLING_MODEL,
             "settlementCondition": ROUTING_SETTLEMENT_CONDITION,
             "typedMissesSettled": False,

@@ -69,6 +69,10 @@ MISS_REASONS = (
     "unsafe_to_probe",
     "settlement_unknown",
     "probe_capacity",
+    "window_spent",
+    "fingerprint_miss",
+    "scheme_mismatch",
+    "network_mismatch",
 )
 STOP_REASONS = (
     "probe_capacity",
@@ -106,6 +110,10 @@ _MISS_MAP = {
     "probe_budget_exhausted": "probe_budget_exhausted",
     "probe_limit_reached": "probe_limit_reached",
     "unsafe_to_probe": "unsafe_to_probe",
+    "window_spent": "window_spent",
+    "fingerprint_miss": "fingerprint_miss",
+    "scheme_mismatch": "scheme_mismatch",
+    "network_mismatch": "network_mismatch",
 }
 BLOCKED_HOSTS = {
     "localhost",
@@ -1789,7 +1797,14 @@ def _finalize_probe(result: dict, batch_id: str | None = None, record: bool = Tr
         result["batch_id"] = bid
         if record:
             meta = history_mod.record_probe(result.get("url") or "", result)
-            return history_mod.attach_to_result(result, meta)
+            attached = history_mod.attach_to_result(result, meta)
+            try:
+                from live402 import session as session_mod
+
+                session_mod.remember_probe(attached)
+            except Exception:
+                pass
+            return attached
         url = result.get("url") or ""
         summ = history_mod.summary(url) if url else history_mod._empty_summary()
         result["verified_at"] = result.get("probed_at")
@@ -2098,6 +2113,15 @@ def probe_url(url: str, catalog_item: dict | None = None, deadline: float | None
     if request_profile is not None:
         from live402 import probe_profile
         probe_profile.validate(request_profile, url)
+    if record and request_profile is None and not discovery:
+        try:
+            from live402 import session as session_mod
+
+            cached = session_mod.cached_probe(url)
+            if isinstance(cached, dict) and cached.get("live") is True:
+                return cached
+        except Exception:
+            pass
     try:
         work_lease = admission.reserve_probe(url, discovery=True) if discovery else admission.reserve_probe(url)
     except Exception:

@@ -288,6 +288,23 @@ Import `verifyBatchRoute` or `withVerifiedBatchRoute` from `@402signal/route-gua
 
 The fee is $0.003 for a qualifying API observation. Merchant requests, cumulative vouchers, deposits, network/provider charges and refunds are separate. A session cap is never treated as its unit price. This guard does not fund a channel, authorize an entire batch, guarantee a refund, or assess delivery quality. The caller must still validate and durably reserve each actual wallet action. Native Solana cross-channel batching, arbitrary Algorand groups and generic POST batches are outside these profiles. The original v4 exact-payment guard remains separate.
 
+## Hosted session open (additive)
+
+The hosted router can open a $0.005 window (`session: "open"`) and then serve hops (`session: "hop"`, `session_id`) from the bound offer. Hops do not probe and do not call a facilitator. This does not replace `session-client` merchant continuation.
+
+Bind remains the same: observe or open → local verify → caller signs.
+
+```js
+// Dev only. Operator-issued trial credits use X-402Signal-Trial.
+// There is no public /trial/mint. Do not put a trial header in production
+// customer code; it does not pay the $0.005 open and cannot move public clocks.
+const trialHeaders = {
+  // "X-402Signal-Trial": operatorIssuedToken
+};
+```
+
+The original v4 exact-payment guard remains separate.
+
 ## Check group offer request shape (0.7.2)
 
 `verifyBatchRoute` accepts customer chk_grp requests that send only `url`,
