@@ -299,6 +299,7 @@ class HistoryEvidenceTests(unittest.TestCase):
                     "payTo": "0xabc",
                     "amount": "10000",
                     "rail": "base",
+                    "_route_traffic_class": history.TRAFFIC_ORGANIC,
                     "envelope": {
                         "x402Version": 2,
                         "accepts": [

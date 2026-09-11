@@ -12,14 +12,36 @@ must not move trusted product state.
 | `ROUTE_TENTATIVE` | `persist_route_batch` before settlement | no (diagnostics only) |
 | `ROUTE_SETTLED` | `mark_batch_settled` after a successful pay | yes (may promote) |
 
-Trusted classes may update `url_state`, `last_checked`, `last_success_402`,
-payTo pending/change, price/schema change clocks, `summary`, `rank_hints`,
-`preview` / history joins, reputation evidence, pulse rates, and shadow
-`last_verified` / `last_routed`.
+Trusted classes may update `url_state`, `last_checked`, `last_trusted_ts`,
+`last_success_402`, payTo pending/change, price/schema change clocks,
+`summary`, `rank_hints`, `preview` / history joins, reputation evidence,
+pulse rates, and shadow `last_verified` / `last_routed`.
 
 `ROUTE_TENTATIVE` rows are stored for diagnostics and attestation of that
 route batch. They do not write `url_state` and do not touch shadow
 freshness.
+
+## Traffic class
+
+Hosted `/route` persists `traffic_class` as `organic`, `sponsored`,
+`internal`, or `unclassified`. Lab origins stay `self_test`. The caller
+cannot select the class. Unknown defaults to `unclassified`, never
+`organic`.
+
+Public `last_success_402`, public `n_7d`, rank weights, and the scoring
+sample use **organic** rows only. Sponsored, internal, unclassified, and
+self-test rows are retained and do not move those public clocks. Public
+`last_success_402` is `MAX(ts)` of live trusted organic probes, not the
+stored url_state clock. Pre-class rows stay unclassified; they are not
+backfilled to organic.
+
+Unpaid `/validate` still does not write `402signal_observed`. It may
+update `url_state.last_checked` and stamp flip timestamps
+(`payTo_changed_at`, `price_changed_at`, `schema_changed_at`) from a
+read-only compare. It does not write `last_payTo`, `pending_payTo`,
+`last_amount`, `schema_present`, or `last_success_402`, and it does not
+set `last_trusted_ts`. Late settlement skip uses `last_trusted_ts`, not
+seller `last_checked`.
 
 A success-only free miss returns before `mark_batch_settled`. It remains
 tentative, does not affect observed success or reputation as settled route
@@ -61,4 +83,5 @@ One sqlite transaction:
    applied.
 
 Late settlement of an older observation does not overwrite a newer
-trusted `last_checked` / payTo / price / schema row.
+trusted `last_trusted_ts` / payTo / price / schema row. Seller
+`last_checked` from unpaid `/validate` is not that guard.

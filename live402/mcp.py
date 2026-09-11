@@ -246,7 +246,7 @@ VALIDATE_DESCRIPTION = (
     "evidence, or a direct URL outside the catalog (subject to routing safety checks).\n\n"
     "Supply the exact listed HTTPS URL, including query string. Private/local destinations and "
     "unresolved path templates are refused. Unknown or modified URLs can return "
-    "miss_reason=no_candidates with no seller probe (means not listed, not proven offline). "
+    "miss_reason=unlisted with no seller probe (means not listed, not proven offline). "
     "Inspect live, readiness, observed, and miss_reason; HTTP 200 alone is not success. "
     "Validate has no price or network filter, produces no signed route receipt, and is not "
     "proof a paid call will deliver the desired result."

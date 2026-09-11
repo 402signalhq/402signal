@@ -114,8 +114,11 @@ def model_spec() -> dict:
         "algo_bonus": False,
         "traffic_policy": {
             "authority": "operator-configured lab origins and persisted server classification",
+            "organic": "only class that may move public last_success_402, public n_7d, and the scoring sample",
+            "sponsored": "retain operational observations; exclude from public clocks and scoring",
+            "internal": "retain operational observations; exclude from public clocks and scoring",
             "self_test": "retain operational observations; exclude from usage, performance sample, and confidence sample",
-            "unclassified": "eligible observations, not proof of organic demand or payer independence",
+            "unclassified": "retain; not organic; exclude from public clocks and scoring",
             "legacy": "configured lab origins excluded on read; historical proofs unchanged",
         },
         "components": {

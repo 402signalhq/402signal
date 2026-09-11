@@ -87,18 +87,20 @@ class OperatorScoringTests(unittest.TestCase):
         self.record(url);first=reputation.for_result({},evidence=history.reputation_evidence(url))
         for _ in range(25):self.record(url)
         evidence=history.reputation_evidence(url);last=reputation.for_result({},evidence=evidence)
-        self.assertEqual(evidence['n_7d'],26);self.assertEqual(evidence['self_test_count_7d'],26)
+        self.assertEqual(evidence['n_7d'],0);self.assertEqual(evidence['self_test_count_7d'],26)
         self.assertEqual(evidence['scoring_probe_count_7d'],0)
         self.assertEqual(first['reputation_score'],last['reputation_score'])
         self.assertEqual(first['reputation_confidence'],last['reputation_confidence'])
         self.assertNotIn('usage',last['scoring_components']['present'])
         self.assertNotIn('observed_performance',last['scoring_components']['present'])
-        self.assertEqual(history.summary(url)['n_7d'],26)
+        self.assertEqual(history.summary(url)['n_7d'],0)
 
     def test_caller_cannot_select_traffic_class_and_persisted_class_is_sticky(self):
         url='https://ordinary.example/api'
         self.record(url,traffic_class='self_test',lab_testing=lab_traffic.classification())
-        self.assertEqual(history.reputation_evidence(url)['scoring_probe_count_7d'],1)
+        self.assertEqual(history.reputation_evidence(url)['scoring_probe_count_7d'],0)
+        self.assertEqual(history.summary(url)['n_7d'],0)
+        self.assertEqual(history._connect().execute('SELECT traffic_class FROM probes').fetchone()[0],'unclassified')
         lab='https://lab.example/api';self.record(lab,traffic_class='organic')
         with patch.dict(os.environ,{'LIVE402_LAB_ORIGINS':''}):
             self.assertEqual(history.reputation_evidence(lab)['scoring_probe_count_7d'],0)
@@ -116,7 +118,7 @@ class OperatorScoringTests(unittest.TestCase):
         conn.execute('ALTER TABLE probes DROP COLUMN traffic_class');conn.commit();conn.close()
         history._conn=None;history._conn_path=None
         evidence=history.reputation_evidence(url)
-        self.assertEqual(evidence['n_7d'],1)
+        self.assertEqual(evidence['n_7d'],0)
         self.assertEqual(history._connect().execute('SELECT id,url,ts,live FROM probes').fetchall(),original)
         self.assertEqual(history._connect().execute('SELECT traffic_class FROM probes').fetchone()[0],'unclassified')
 
@@ -130,4 +132,5 @@ class OperatorScoringTests(unittest.TestCase):
 
     def test_model_is_versioned_and_unclassified_is_not_claimed_organic(self):
         spec=reputation.model_spec();self.assertEqual(spec['model_id'],'reputation-v2')
-        self.assertIn('not proof of organic',spec['traffic_policy']['unclassified'])
+        self.assertIn('not organic',spec['traffic_policy']['unclassified'])
+        self.assertIn('organic',spec['traffic_policy'])

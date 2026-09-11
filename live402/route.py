@@ -656,6 +656,30 @@ def _paid_execute(
     paid_deadline: float,
     fp: str,
 ) -> tuple[int, dict, dict | None]:
+    try:
+        from live402 import history as history_mod
+
+        assigned = history_mod.route_traffic_from_env()
+    except Exception:
+        assigned = "unclassified"
+    token = reqctx.traffic_class.set(assigned)
+    try:
+        return _paid_execute_inner(
+            body, parsed, accept, resource_url, bazaar, paid_deadline, fp
+        )
+    finally:
+        reqctx.traffic_class.reset(token)
+
+
+def _paid_execute_inner(
+    body: dict,
+    parsed: dict,
+    accept: dict,
+    resource_url: str,
+    bazaar: dict | None,
+    paid_deadline: float,
+    fp: str,
+) -> tuple[int, dict, dict | None]:
     verify_t = deadline_mod.verify_timeout(paid_deadline)
     if verify_t <= 0:
         required, extra = _required_pair(

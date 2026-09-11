@@ -84,6 +84,7 @@ def _live_base_only(url, catalog_item=None, pay_to=OBS_BASE_PAYTO, amount="20000
         "rail": "base",
         "amount": amount,
         "asset": payment.USDC_BASE,
+        "_route_traffic_class": history.TRAFFIC_ORGANIC,
         "history": {
             "success_7d": None,
             "n_7d": 0,

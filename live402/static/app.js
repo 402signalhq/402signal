@@ -133,7 +133,7 @@
         if (ticket !== generation) return;
         if (result.url !== exact) throw new Error('unreadable');
         setText('seller-json', JSON.stringify(result, null, 2));
-        if (result.miss_reason === 'no_candidates') {
+        if (result.miss_reason === 'unlisted' || result.miss_reason === 'no_candidates') {
           setText('seller-status', 'Not in the local catalog. No seller probe was made. This does not show that the endpoint is offline.');
         } else if (result.miss_reason === 'ssrf') {
           setText('seller-status', 'The destination was refused by the service safety checks. No broader scan was attempted.');

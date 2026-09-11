@@ -60,6 +60,7 @@ def _snap(live=True, payTo=VALID_BASE_PAYTO, **extra):
         row.setdefault("amount", amount)
         row.setdefault("asset", payment.usdc_asset_for_rail(rail) or payment.USDC_BASE)
         row.setdefault("rail", rail)
+    row.setdefault("_route_traffic_class", history.TRAFFIC_ORGANIC)
     return row
 
 

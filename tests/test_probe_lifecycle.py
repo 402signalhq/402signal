@@ -50,6 +50,7 @@ def _live(url, amount=10000, latency=10):
         "rail": "base",
         "status": 402,
         "has_402_challenge": True,
+        "_route_traffic_class": history.TRAFFIC_ORGANIC,
         "accepts": [
             {
                 "network": "eip155:8453",
@@ -182,6 +183,7 @@ class ProbeLifecycleTests(unittest.TestCase):
                 "latency_ms": 10,
                 "payTo": "0xabcabcabcabcabcabcabcabcabcabcabcabcabca",
                 "batch_id": "seedbatch",
+                "_route_traffic_class": history.TRAFFIC_ORGANIC,
             },
         )
         before = history.summary(url)

@@ -1880,6 +1880,7 @@ class ProductBriefTests(unittest.TestCase):
             "invalid_need",
             "upstream_5xx",
             "ssrf",
+            "unlisted",
             "no_input_schema",
             "constraints_unmet",
             "probe_budget_exhausted",
@@ -1897,6 +1898,7 @@ class ProductBriefTests(unittest.TestCase):
         self.assertEqual(public_miss_reason("no_match"), "no_candidates")
         self.assertEqual(public_miss_reason("http_503"), "upstream_5xx")
         self.assertEqual(public_miss_reason("ssrf"), "ssrf")
+        self.assertEqual(public_miss_reason("unlisted"), "unlisted")
         self.assertEqual(public_miss_reason("unsafe_to_probe"), "unsafe_to_probe")
         self.assertEqual(public_miss_reason("settlement_unknown"), "settlement_unknown")
         for key in expected:
