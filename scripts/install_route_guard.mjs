@@ -363,7 +363,7 @@ export async function runInstallRouteGuard(argv = process.argv.slice(2)) {
     destination: null,
     next: {
       request: "POST /route with require_route_binding:true (exact + binding + transparency)",
-      authorize: "import { wrapExactAuthorize } from './exact-authorize.mjs' and wrap existing signRouting/signSeller",
+      authorize: "import { wrapExactAuthorize } from './exact-authorize.mjs' and wrap existing signRouting/signSeller. Same wrap for session=open with require_route_binding. Hops do not use this wrap.",
       example: "same wrap on the next spend; packaged examples/search.ts is the longer pay-fetch form. MCP preview/validate cannot complete a paid route.",
       miss: "HTTP 200 live:false or HTTP 503 binding_error is policy working, not a broken router. keep_calling_route stays true. Inspect miss_reason / next_action and call /route again.",
     },

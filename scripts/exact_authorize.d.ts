@@ -52,4 +52,5 @@ export type ExactAuthorizeResult = Readonly<{
   outcome?: RouteResult;
 }>;
 
+/** Wrap existing signRouting / signSeller. Same call on the next spend, including session=open. Hops do not wrap. */
 export function wrapExactAuthorize(options: ExactAuthorizeOptions): Promise<ExactAuthorizeResult>;
