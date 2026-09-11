@@ -513,7 +513,7 @@ class PaywallTests(unittest.TestCase):
         self.assertEqual(headers.get("x-content-type-options"), "nosniff")
         self.assertEqual(headers.get("x-frame-options"), "DENY")
         self.assertEqual(headers.get("referrer-policy"), "no-referrer")
-        self.assertEqual(headers.get("strict-transport-security"), "max-age=31536000")
+        self.assertEqual(headers.get("strict-transport-security"), "max-age=31536000; includeSubDomains")
         csp = headers.get("content-security-policy") or ""
         self.assertIn("script-src 'self'", csp)
         self.assertNotIn("cdn.", csp)

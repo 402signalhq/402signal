@@ -134,7 +134,7 @@ def prepare_generated_html(document: str) -> str:
     Never runs on JSON responses and never parses or edits a stored proof.
     All inserted values are developer-owned constants; no request data is used.
     """
-    head = re.search(r"<head\\b[^>]*>(.*?)</head\\s*>", document, re.S | re.I)
+    head = re.search(r"<head\b[^>]*>(.*?)</head\s*>", document, re.S | re.I)
     if not head:
         return document
     parser = _Canonical()
@@ -142,7 +142,8 @@ def prepare_generated_html(document: str) -> str:
     if parser.path not in GENERATED_PAGE_META:
         return document
     title, description, label, explanation, href, action = GENERATED_PAGE_META[parser.path]
-    inner = re.sub(r"<title\\b[^>]*>.*?</title\\s*>", "", head.group(1), flags=re.S | re.I)
+    inner = re.sub(r"<title\b[^>]*>.*?</title\s*>", "", head.group(1), flags=re.S | re.I)
+    # Remove only presentation metadata inside the actual head, not body records.
     def keep_meta(match):
         class Reader(HTMLParser):
             attributes = {}
@@ -153,15 +154,15 @@ def prepare_generated_html(document: str) -> str:
         attrs = reader.attributes
         key = attrs.get("name") or attrs.get("property")
         return "" if key in {"description", "og:title", "og:description", "twitter:title", "twitter:description"} else match.group(0)
-    inner = re.sub(r"<meta\\b[^>]*>", keep_meta, inner, flags=re.I)
+    inner = re.sub(r"<meta\b[^>]*>", keep_meta, inner, flags=re.I)
     metadata = ('<title>%s</title><meta name="description" content="%s" />'
                 '<meta property="og:title" content="%s" /><meta property="og:description" content="%s" />'
                 '<meta name="twitter:title" content="%s" /><meta name="twitter:description" content="%s" />') % tuple(
                     esc(v) for v in (title, description, title, description, title, description))
     out = document[:head.start(1)] + inner + metadata + document[head.end(1):]
-    out = re.sub(r'<header\\s+class=[\\"\\']site[\\"\\'][^>]*>.*?</header\\s*>', lambda _: header_html(parser.path), out, count=1, flags=re.S | re.I)
+    out = re.sub(r'<header\s+class=[\"\']site[\"\'][^>]*>.*?</header\s*>', lambda _: header_html(parser.path), out, count=1, flags=re.S | re.I)
     if 'id="customer-page-context"' not in out:
         context = ('<aside id="customer-page-context" class="page-context"><p class="eyebrow">%s</p>'
                    '<p>%s</p><a href="%s">%s</a></aside>') % tuple(esc(v) for v in (label, explanation, href, action))
-        out = re.sub(r"<main\\b[^>]*>", lambda m: m.group(0) + context, out, count=1, flags=re.I)
+        out = re.sub(r"<main\b[^>]*>", lambda m: m.group(0) + context, out, count=1, flags=re.I)
     return out
