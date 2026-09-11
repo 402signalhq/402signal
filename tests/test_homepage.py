@@ -271,7 +271,7 @@ class HomepageProductTests(unittest.TestCase):
     def test_seller_interface_is_explicit_unpaid_and_bounded(self):
         for id_ in ("seller-form", "seller-url", "seller-check", "seller-status", "seller-result", "seller-json"):
             self.assertIn(id_, _parse(self.devs).ids)
-        self.assertWords(self.devs, ("no_candidates", "without a seller probe", "not a full payment test", "receiving token account", "not continuous monitoring"))
+        self.assertWords(self.devs, ("unlisted", "without a seller probe", "not a full payment test", "receiving token account", "not continuous monitoring"))
         for phrase in ("/validate?url=", "result.url !== exact", "length > 262144", "ticket !== generation", "controller.abort()", "No seller probe was made", "never submits the check"):
             self.assertIn(phrase, self.js + self.devs)
         self.assertIn("seller-form", self.js)

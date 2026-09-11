@@ -576,11 +576,13 @@ class Handler(SimpleHTTPRequestHandler):
         self._logged_access = False
         token = reqctx.request_id.set(self._request_id)
         peer_token = reqctx.peer_ip.set("unknown")
+        traffic_token = reqctx.traffic_class.set("")
         try:
             super().handle_one_request()
         finally:
             reqctx.request_id.reset(token)
             reqctx.peer_ip.reset(peer_token)
+            reqctx.traffic_class.reset(traffic_token)
 
     def version_string(self) -> str:
         """Do not advertise CPython / BaseHTTP version."""

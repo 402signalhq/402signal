@@ -675,6 +675,7 @@ class RouteNeedSelectTests(unittest.TestCase):
             "has_402_challenge": True,
             "payTo": "0xabc",
             "probed_at": probe.now_iso(),
+            "_route_traffic_class": history.TRAFFIC_ORGANIC,
         }
         snap_fail = {
             "live": False,
@@ -684,6 +685,7 @@ class RouteNeedSelectTests(unittest.TestCase):
             "payTo": None,
             "miss_reason": "no_402_envelope",
             "probed_at": probe.now_iso(),
+            "_route_traffic_class": history.TRAFFIC_ORGANIC,
         }
         for _ in range(n_ok):
             history.record_probe(url, dict(snap_ok))

@@ -22,7 +22,7 @@ curl -sS --get https://402signal.com/validate \
   --data-urlencode 'url=https://seller.example/exact-listed-path'
 ```
 
-The example domain is a placeholder. An unlisted URL returns `no_candidates` without a seller probe. It does not mean the endpoint is offline. The server's existing local-catalog gate and destination checks apply; this is not an arbitrary-URL scanning proxy.
+The example domain is a placeholder. An unlisted URL returns `unlisted` without a seller probe. It does not mean the endpoint is offline. The server's existing local-catalog gate and destination checks apply; this is not an arbitrary-URL scanning proxy.
 
 For a listed URL, compare `claimed` with `observed`, examine `verified_at`, and inspect flags such as changed recipient or missing input information. A basic offer-parser result does not establish an existing token-receiving account, successful chain settlement, compatibility with every wallet, or useful output. Pay attention to the exact network/offer observed rather than applying one result to an entire domain.
 

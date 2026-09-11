@@ -129,6 +129,9 @@ def public_validate_body(result: dict) -> dict:
         success = hist.get("success_7d")
         if success is not None:
             out["success_7d"] = success
+    for key in ("payTo_age_s", "observed_age_s", "claimed_payTo_match"):
+        if key in result:
+            out[key] = result[key]
     return out
 
 
@@ -143,7 +146,7 @@ def _not_listed_body(url: str) -> dict:
         "claimed": history._empty_claimed(),
         "observed": history._empty_observed(),
         "flags": [],
-        "miss_reason": "no_candidates",
+        "miss_reason": "unlisted",
         "verified_at": probed_at,
         "verified_seconds_ago": 0,
         "n_7d": 0,
@@ -169,4 +172,9 @@ def validate_url(url: str) -> tuple[int, dict]:
     if not fixtures.fixture_mode() and not probe.safe_target(raw):
         return 200, _ssrf_body(raw)
     result = probe.probe_url(raw, catalog_item=item, record=False, discovery=True)
+    try:
+        history.touch_validate_clocks(raw, result)
+        result = history.attach_to_result(result)
+    except Exception:
+        pass
     return 200, public_validate_body(result)

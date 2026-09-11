@@ -202,6 +202,7 @@ class PulseObservedThinTests(unittest.TestCase):
             "latency_ms": 10,
             "payTo": "0xabc",
             "batch_id": "thinbatch1",
+            "_route_traffic_class": history.TRAFFIC_ORGANIC,
         })
         obs = history.pulse_observed()
         self.assertEqual(obs.get("n_7d"), 1)
@@ -220,6 +221,7 @@ class PulseObservedThinTests(unittest.TestCase):
                 "payTo": "0xabc",
                 "batch_id": "fullbatch",
                 "schema_present": 1,
+                "_route_traffic_class": history.TRAFFIC_ORGANIC,
             })
         obs = history.pulse_observed()
         self.assertGreaterEqual(obs.get("n_7d"), 10)

@@ -5,3 +5,20 @@ Choose a task in the [customer guide index](README.md) or the [developer page](h
 A check, a wallet authorization, a merchant acknowledgment and a confirmed payment are different events. Use the specific profile and current released package, preserve raw evidence and keep signing authority and approved policy in trusted buyer code. For the exact authorize path, install the published route-guard 0.7.2 GitHub archive with `node scripts/install_route_guard.mjs` (writes `exact-authorize.mjs`), then wrap existing sign with `wrapExactAuthorize`. On HTTP 503 with `binding_error=route_binding_unavailable`, the wrap returns `state=binding_unavailable` and `keep_calling_route: true` so the next `/route` call can proceed. That is policy working, not a crash. See [Check one purchase](https://402signal.com/developers/check-offer).
 
 Sellers can [inspect their listing and unpaid readiness](sellers.md). This is not a payment certification, receiving-account simulation, uptime-monitoring service or ranking guarantee. Operators can [review retained observation evidence](evidence.md) alongside approved policies and wallet records. The public log is not a full record of agent actions or a backup of private evidence.
+
+## Hosted session (spec)
+
+A hosted session is a later paid `/route` product, not the merchant [session client](../../integration/session-client/README.md).
+
+- Open: **$0.005 USDC**. No tiers.
+- Window: **20 hops or 10 minutes**, then open again.
+- After open: hops do **not** run a new 7-URL probe and do **not** call facilitator `/verify` or `/settle`.
+- This document is the contract. Session handlers are not enabled by this text.
+
+## Trial (spec)
+
+A trial is a hand-issued hashed token. It is not a public faucet and has no mint endpoint.
+
+- Scope: **5 listed-URL opens**, **48-hour TTL**.
+- No facilitator settlement on the trial path.
+- Rows are labeled `traffic_class=sponsored` and do not move public `last_success_402` or public `n_7d`.

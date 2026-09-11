@@ -39,6 +39,19 @@ _TRUSTED_SQL = "('%s','%s','%s')" % (
     TRUST_ROUTE_SETTLED,
 )
 
+# Hosted /route traffic. Unknown stays unclassified, never organic.
+# self_test is lab-origin only and is never a public clock.
+TRAFFIC_ORGANIC = "organic"
+TRAFFIC_SPONSORED = "sponsored"
+TRAFFIC_INTERNAL = "internal"
+TRAFFIC_UNCLASSIFIED = "unclassified"
+TRAFFIC_SELF_TEST = "self_test"
+ROUTE_TRAFFIC = frozenset(
+    {TRAFFIC_ORGANIC, TRAFFIC_SPONSORED, TRAFFIC_INTERNAL, TRAFFIC_UNCLASSIFIED}
+)
+PUBLIC_TRAFFIC = frozenset({TRAFFIC_ORGANIC})
+_PUBLIC_TRAFFIC_SQL = "('%s')" % TRAFFIC_ORGANIC
+
 OBSERVED_FIELDS = (
     "live",
     "payable",
@@ -589,6 +602,43 @@ def is_trusted_class(trust_class: str | None) -> bool:
     return trust_class in TRUSTED_CLASSES
 
 
+def route_traffic_from_env() -> str:
+    """Process-local default for hosted /route. Unknown is unclassified, never organic."""
+    raw = (os.environ.get("LIVE402_ROUTE_TRAFFIC_CLASS") or "").strip().lower()
+    if raw in ROUTE_TRAFFIC:
+        return raw
+    return TRAFFIC_UNCLASSIFIED
+
+
+def classify_traffic_class(url: str | None = None, snap: dict | None = None) -> str:
+    """Server classification only. Caller traffic_class / lab_testing labels are ignored."""
+    dest = _text(url) or _text((snap or {}).get("url") if isinstance(snap, dict) else None)
+    try:
+        from live402 import lab_traffic
+
+        if dest and lab_traffic.is_lab_url(dest):
+            return TRAFFIC_SELF_TEST
+    except Exception:
+        pass
+    blob = snap if isinstance(snap, dict) else {}
+    stamped = _text(blob.get("_route_traffic_class"))
+    if stamped in ROUTE_TRAFFIC:
+        return stamped
+    try:
+        from live402 import reqctx
+
+        ctx = _text(reqctx.traffic_class.get())
+        if ctx in ROUTE_TRAFFIC:
+            return ctx
+    except Exception:
+        pass
+    return route_traffic_from_env()
+
+
+def is_public_traffic(traffic_class: str | None) -> bool:
+    return traffic_class in PUBLIC_TRAFFIC
+
+
 def _load_url_state(cur, dest: str):
     cur.execute(
         "SELECT last_payTo, last_amount, schema_present, payTo_changed_at, price_changed_at, "
@@ -642,11 +692,14 @@ def _payto_risk_against_trusted(state: dict, pay_to, rail, claimed, meta: dict) 
         meta["claimed_payTo_mismatch"] = True
 
 
-def _apply_trusted_url_state(cur, dest: str, snap: dict, meta: dict, *, force: bool = False) -> bool:
+def _apply_trusted_url_state(
+    cur, dest: str, snap: dict, meta: dict, *, force: bool = False, clocks_only: bool = False
+) -> bool:
     """Apply one trusted observation to url_state. Skip if a newer trusted row exists.
 
     Returns True when url_state was written. Late settlement of an older
     observation must not overwrite newer trusted state.
+    clocks_only (unpaid /validate): last_checked and flip clocks, never last_success_402.
     """
     ts = _as_int(snap.get("ts"), None)
     if ts is None:
@@ -701,7 +754,7 @@ def _apply_trusted_url_state(cur, dest: str, snap: dict, meta: dict, *, force: b
         last_pay = pay_to if pay_to else prev_pay
     last_amt = amount if amount is not None else prev_amt
     last_schema = int(schema_present) if schema_present is not None else prev_schema
-    if live:
+    if live and not clocks_only:
         last_ok = ts
     cur.execute(
         """
@@ -762,25 +815,22 @@ def _write_probe_row(dest: str, snap: dict, meta: dict) -> None:
         settled = 1
     elif trust_class == TRUST_ROUTE_TENTATIVE:
         settled = 0
+    traffic = classify_traffic_class(dest, snap)
     conn = _connect()
     cur = conn.cursor()
     state = _load_url_state(cur, dest)
     _payto_risk_against_trusted(state, pay_to, rail, claimed, meta)
-    if trusted:
+    if trusted and is_public_traffic(traffic):
         # Recompute flags from the apply path so establish/pending match writes.
         meta["payTo_flipped"] = False
         meta["payTo_pending"] = False
         meta["payTo_established"] = False
         _apply_trusted_url_state(cur, dest, snap, meta)
     cur.execute(
-        "INSERT INTO probes (url, ts, live, payable, invocable, latency_ms, payTo, amount, miss_reason, rail, schema_present, settled_route_observation, trust_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (dest, ts, live, payable, invocable, latency, pay_to, amount, miss, rail, schema_present, settled, trust_class),
+        "INSERT INTO probes (url, ts, live, payable, invocable, latency_ms, payTo, amount, miss_reason, rail, schema_present, settled_route_observation, trust_class, traffic_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (dest, ts, live, payable, invocable, latency, pay_to, amount, miss, rail, schema_present, settled, trust_class, traffic),
     )
     probe_id = cur.lastrowid
-    # Authority comes from operator configuration, never a caller/seller label.
-    from live402 import lab_traffic
-    if lab_traffic.is_lab_url(dest):
-        cur.execute("UPDATE probes SET traffic_class='self_test' WHERE id=?", (probe_id,))
     obs_fields = {
         "live": live,
         "payable": payable,
@@ -868,8 +918,29 @@ def record_probe(url: str, snap: dict | None = None) -> dict:
             conn = _connect()
             conn.commit()
             _chmod_db_files(_conn_path or db_path())
-        if is_trusted_class(classify_trust_class(snap)):
+        if is_trusted_class(classify_trust_class(snap)) and is_public_traffic(
+            classify_traffic_class(dest, snap)
+        ):
             _touch_shadow_verified(dest, snap)
+        return meta
+    except Exception:
+        return meta
+
+
+def touch_validate_clocks(url: str, snap: dict | None = None) -> dict:
+    """Unpaid /validate: last_checked and flip clocks only. Never writes 402signal_observed."""
+    meta = {"payTo_flipped": False, "price_flipped": False, "schema_flipped": False}
+    try:
+        dest = _text(url) or _text((snap or {}).get("url") if isinstance(snap, dict) else None)
+        if not dest:
+            return meta
+        blob = snap if isinstance(snap, dict) else {}
+        with _lock:
+            conn = _connect()
+            cur = conn.cursor()
+            _apply_trusted_url_state(cur, dest, blob, meta, clocks_only=True)
+            conn.commit()
+            _chmod_db_files(_conn_path or db_path())
         return meta
     except Exception:
         return meta
@@ -942,7 +1013,8 @@ def mark_batch_settled(batch_id: str | None) -> None:
             cur.execute(
                 """
                 SELECT DISTINCT p.id, p.url, p.ts, p.live, p.payable, p.invocable, p.latency_ms,
-                       p.payTo, p.amount, p.miss_reason, p.rail, p.schema_present, p.trust_class
+                       p.payTo, p.amount, p.miss_reason, p.rail, p.schema_present, p.trust_class,
+                       p.traffic_class
                 FROM probes p
                 JOIN observations o ON o.probe_id = p.id
                 WHERE o.batch_id = ? AND p.trust_class = ?
@@ -994,7 +1066,10 @@ def mark_batch_settled(batch_id: str | None) -> None:
                     "schema_present": row[11],
                     "trust_class": TRUST_ROUTE_SETTLED,
                     "settled_route_observation": 1,
+                    "_route_traffic_class": row[13] if len(row) > 13 else TRAFFIC_UNCLASSIFIED,
                 }
+                if not is_public_traffic(classify_traffic_class(dest, snap)):
+                    continue
                 applied = _apply_trusted_url_state(cur, dest, snap, {})
                 if applied:
                     shadow_rows.append((dest, snap))
@@ -1069,7 +1144,7 @@ def rank_hints(urls: list[str]) -> dict[str, dict]:
                 }
             cur.execute(
                 f"SELECT url, COUNT(*), SUM(live) FROM probes WHERE url IN ({qmarks}) AND ts >= ? "
-                f"AND trust_class IN {_TRUSTED_SQL} GROUP BY url",
+                f"AND trust_class IN {_TRUSTED_SQL} AND traffic_class IN {_PUBLIC_TRAFFIC_SQL} GROUP BY url",
                 (*dests, cutoff),
             )
             for url, n, ok in cur.fetchall():
@@ -1237,7 +1312,7 @@ def summary(url: str) -> dict:
                 out["last_success_402"] = state[5]
             cur.execute(
                 "SELECT ts, live, latency_ms FROM probes WHERE url = ? AND ts >= ? "
-                "AND trust_class IN %s" % _TRUSTED_SQL,
+                "AND trust_class IN %s AND traffic_class IN %s" % (_TRUSTED_SQL, _PUBLIC_TRAFFIC_SQL),
                 (dest, now - WEEK),
             )
             rows = cur.fetchall()
@@ -1436,6 +1511,21 @@ def attach_to_result(result: dict | None, meta: dict | None = None) -> dict:
             "p50_latency_ms": summ.get("p50_latency_ms"),
             "p95_latency_ms": summ.get("p95_latency_ms"),
         }
+        now = int(time.time())
+        pay_changed = _as_int(summ.get("payTo_changed_at"), None)
+        if pay_changed is not None:
+            result["payTo_age_s"] = max(0, now - int(pay_changed))
+        obs_ts = _as_int(observed.get("observed_at"), None)
+        if obs_ts is None:
+            obs_ts = _as_int(summ.get("last_checked"), None)
+        if obs_ts is not None:
+            result["observed_age_s"] = max(0, now - int(obs_ts))
+        if obs_pay and cl_pay:
+            result["claimed_payTo_match"] = payment.payto_equal(obs_pay, cl_pay, rail)
+        elif obs_pay or cl_pay:
+            result["claimed_payTo_match"] = False
+        else:
+            result["claimed_payTo_match"] = None
         try:
             from live402 import reputation as reputation_mod
 
@@ -1576,12 +1666,15 @@ def reputation_evidence(url: str) -> dict:
             if ts is None or int(ts) < cutoff:
                 prev_live = live
                 continue
-            n_7d += 1
-            if configured_lab or row[8] == 'self_test':
+            row_traffic = row[8] if len(row) > 8 else TRAFFIC_UNCLASSIFIED
+            if configured_lab or row_traffic == TRAFFIC_SELF_TEST:
                 self_tests += 1
-            else:
-                scoring_n += 1
-                scoring_ok += int(bool(live))
+            if row_traffic != TRAFFIC_ORGANIC:
+                prev_live = live
+                continue
+            n_7d += 1
+            scoring_n += 1
+            scoring_ok += int(bool(live))
             if live:
                 ok_7d += 1
             try:
@@ -1696,13 +1789,15 @@ def pulse_observed() -> dict:
             cur = conn.cursor()
             cur.execute(
                 """
-                SELECT field, value, COUNT(*)
-                FROM observations
-                WHERE source_type = ? AND ts >= ? AND field IN ('live', 'payable', 'invocable')
-                  AND (trust_class IN %s OR (trust_class IS NULL AND probe_id IS NULL))
-                GROUP BY field, value
+                SELECT o.field, o.value, COUNT(*)
+                FROM observations o
+                JOIN probes p ON p.id = o.probe_id
+                WHERE o.source_type = ? AND o.ts >= ? AND o.field IN ('live', 'payable', 'invocable')
+                  AND (o.trust_class IN %s OR (o.trust_class IS NULL AND o.probe_id IS NULL))
+                  AND p.traffic_class IN %s
+                GROUP BY o.field, o.value
                 """
-                % _TRUSTED_SQL,
+                % (_TRUSTED_SQL, _PUBLIC_TRAFFIC_SQL),
                 (SOURCE_OBSERVED, cutoff),
             )
             rows = cur.fetchall()

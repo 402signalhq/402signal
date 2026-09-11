@@ -415,6 +415,7 @@ class ShadowHistorySeparationTests(_IsolatedCatalog):
                     "payTo": OBS_BASE_PAYTO,
                     "amount": "20000",
                     "latency_ms": 9,
+                    "_route_traffic_class": history.TRAFFIC_ORGANIC,
                     "envelope": {
                         "accepts": [
                             {

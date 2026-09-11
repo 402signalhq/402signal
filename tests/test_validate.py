@@ -240,7 +240,7 @@ class ValidateSsrfLiveModeTests(unittest.TestCase):
         ) as one:
             code, body = validate.validate_url("https://evil.example/x402")
             self.assertEqual(code, 200)
-            self.assertEqual(body.get("miss_reason"), "no_candidates")
+            self.assertEqual(body.get("miss_reason"), "unlisted")
             self.assertFalse(body.get("live"))
             probed.assert_not_called()
             opener.assert_not_called()

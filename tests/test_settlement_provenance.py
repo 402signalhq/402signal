@@ -53,6 +53,7 @@ def _snap(url, pay_to=VALID_A, live=True, **extra):
         row["envelope"] = _complete_envelope(row["payTo"], row.get("amount") or "10000")
     if live:
         row["envelope"] = _complete_envelope(row["payTo"], row.get("amount") or "10000")
+    row.setdefault("_route_traffic_class", history.TRAFFIC_ORGANIC)
     return row
 
 

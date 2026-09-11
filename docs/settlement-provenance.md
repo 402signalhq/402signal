@@ -21,6 +21,20 @@ payTo pending/change, price/schema change clocks, `summary`, `rank_hints`,
 route batch. They do not write `url_state` and do not touch shadow
 freshness.
 
+## Traffic class
+
+Hosted `/route` persists `traffic_class` as `organic`, `sponsored`,
+`internal`, or `unclassified`. Lab origins stay `self_test`. The caller
+cannot select the class. Unknown defaults to `unclassified`, never
+`organic`.
+
+Public `last_success_402`, public `n_7d`, rank weights, and the scoring
+sample use **organic** rows only. Sponsored, internal, unclassified, and
+self-test rows are retained and do not move those public clocks.
+
+Unpaid `/validate` still does not write `402signal_observed`. It may
+update `url_state` last_checked and flip clocks only.
+
 A success-only free miss returns before `mark_batch_settled`. It remains
 tentative, does not affect observed success or reputation as settled route
 evidence, and does not enter the PQ route-decision append path.
