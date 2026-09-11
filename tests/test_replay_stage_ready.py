@@ -72,3 +72,5 @@ class CutoverRunbook(unittest.TestCase):
         self.assertNotIn("TestNet", self.text)
         self.assertNotIn("min_machines_running = 2", self.text)
         self.assertNotIn("LIVE402_ROUTER_WRITERS=2", self.text)
+        self.assertIn("Do **not** create a second cluster", self.text)
+        self.assertIn("pr117-v2", self.text)

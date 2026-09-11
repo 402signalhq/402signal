@@ -21,18 +21,24 @@ on the serving writer while the backend is sqlite. Conflicting env fails
 `fly.toml` stays sqlite-default. Backend and DSN are Fly **secrets** at cut,
 not `[env]`. A merge of this runbook must not flip production.
 
-## Provision (402ops)
+## Existing cluster (402ops)
 
-1. Fly Postgres in **`iad`**. 6PN only. No public HTTP. No extra router app.
+Use the Fly Postgres already attached to this writer (preserved on deploys as
+`postgres/pr117-v2`). Do **not** create a second cluster, a second app, or a
+public Postgres.
+
+1. Confirm it is **`iad`**, **6PN only**, no public HTTP.
 2. Runtime DSN: `sslmode=verify-full` and a pinned CA. Test-mode `sslmode=disable`
    is forbidden on Fly.
-3. Separate migration-owner login from the runtime Reader login.
+3. Separate migration-owner login from the runtime Reader login on **that**
+   cluster.
 4. Fresh 128-bit authority id (32 lowercase hex). Do not reuse a lab id.
-5. Empty target. Never import onto a database that already has
-   `signal_replay.authority` or `signal_replay.entries`.
+5. Empty **replay** target (`signal_replay.authority` / `entries`). Never import
+   onto a database that already has those tables. Other uses of this cluster
+   stay out of the replay schema.
 
 Budget inventory still has to close before paid activation. This runbook does
-not pick a paid plan.
+not pick a paid plan and does not authorize a new Postgres bill.
 
 ## Stage (console, writers still serving sqlite)
 
