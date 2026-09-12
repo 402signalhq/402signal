@@ -999,7 +999,8 @@ def preview_need(need: str, prefer_network: str | None = None, networks=None) ->
     named = prefer or named_chain(raw)
     rails = probe.normalize_networks(networks)
     try:
-        working = catalog.query_for_need(raw, prefer_network=named, networks=rails)
+        with catalog.free_discovery():
+            working = catalog.query_for_need(raw, prefer_network=named, networks=rails)
     except Exception:
         working = {"items": []}
     items = list(working.get("items") or [])

@@ -89,6 +89,11 @@ STATE_NOT_SETTLED = "not_settled"
 STATE_REJECTED = "rejected"
 NON_TERMINAL_STATES = frozenset({STATE_PENDING, STATE_UNKNOWN})
 TERMINAL_STATES = frozenset({STATE_SETTLED, STATE_NOT_SETTLED, STATE_REJECTED})
+# Both published SKUs: the $0.003 check and the $0.005 hosted session open.
+_BILLING_AMOUNTS = frozenset({
+    (payment.AMOUNT_ATOMIC, payment.AMOUNT_USD),
+    (payment.SESSION_AMOUNT_ATOMIC, payment.SESSION_AMOUNT_USD),
+})
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS settle_ledger (
@@ -700,9 +705,7 @@ def _explicit_outcome_state(result: tuple) -> str | None:
         return None
     if billing.get("asset") != "USDC":
         return None
-    if billing.get("amount_atomic") != payment.AMOUNT_ATOMIC:
-        return None
-    if billing.get("display_amount") != payment.AMOUNT_USD:
+    if (billing.get("amount_atomic"), billing.get("display_amount")) not in _BILLING_AMOUNTS:
         return None
     if billing.get("rail") not in payment.SUPPORTED_RAILS:
         return None
@@ -994,6 +997,30 @@ def abandon(fp: str) -> None:
         if entry is not None:
             entry.event.set()
         _ledger_mark_unknown(fp_hash)
+
+
+def capacity_snapshot() -> dict | None:
+    """Coarse retained-identity usage for operator alerts. No identities or DSNs."""
+    with _lock:
+        try:
+            store = _selected_store_locked()
+            if isinstance(store, SQLiteStore):
+                rows = int(_connect().execute("SELECT count(*) FROM settle_ledger").fetchone()[0])
+                return {"backend": "sqlite", "admitted": rows, "max_rows": MAX_LEDGER_ROWS,
+                        "rows_pct": round(100.0 * rows / MAX_LEDGER_ROWS, 2)}
+            capacity = getattr(store, "capacity", None)
+            if capacity is None:
+                return None
+            admitted, max_rows, max_bytes, outcome_bytes = capacity()
+            return {
+                "backend": "postgres",
+                "admitted": admitted,
+                "max_rows": max_rows,
+                "rows_pct": round(100.0 * admitted / max(1, max_rows), 2),
+                "bytes_pct": round(100.0 * (admitted * 512 + outcome_bytes) / max(1, max_bytes), 2),
+            }
+        except Exception:
+            return None
 
 
 def ledger_state(fp: str) -> str | None:

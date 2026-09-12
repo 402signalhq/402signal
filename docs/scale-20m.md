@@ -224,3 +224,26 @@ Required failure tests include:
 - backup restore followed by duplicate authorization replay.
 
 The success criterion is economic correctness first, throughput second.
+
+## Current capacity profile (2026-09-12)
+
+Deployed on one writer Machine, still one paid router:
+
+- `performance-1x` / 2 GB dedicated vCPU; proxy concurrency by requests
+  (soft 150, hard 190); `LIVE402_MAX_HANDLERS=200`.
+- 32 process-wide outbound probe slots (`LIVE402_MAX_PROCESS_PROBES`), per-host
+  cap unchanged.
+- Free discovery and paid need-routing use separate worker pools; upstream
+  facilitator discovery searches are shared for 120 s per (rail, query).
+- IPv6 abuse identity is the client /64.
+- Readiness is cached 5 s; readiness failure refuses paid work in-process
+  instead of removing the Machine from routing. SIGTERM drains in-flight work.
+- Writer lease guards publishers (`docs/leadership-lease.md`).
+- Base authorizations valid for more than 900 s are counted
+  (`payment.long_window.base`). Setting `LIVE402_MAX_AUTH_LIFETIME_S` refuses
+  them before verification, which bounds how long retained replay identities
+  must be kept. Enable it only after the counter shows real clients stay inside
+  the window.
+
+Next scale steps remain Phase 2 onward above: the Postgres lease backend,
+shared catalog/history/PQ writer, and payer-keyed commercial quotas.

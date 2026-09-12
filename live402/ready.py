@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import threading
+import time
+
 
 def _check_sqlite(connect_fn) -> bool:
     try:
@@ -85,3 +89,44 @@ def readiness() -> dict:
         "replay_ledger": _replay_ok(),
     }
     return {"ok": all(checks.values()), "checks": checks}
+
+
+_cache_lock = threading.Lock()
+_cached: dict | None = None
+_cached_at = 0.0
+
+
+def cache_seconds() -> float:
+    raw = (os.environ.get("LIVE402_READY_CACHE_S") or "").strip()
+    if raw:
+        try:
+            return max(0.0, min(30.0, float(raw)))
+        except ValueError:
+            pass
+    from live402 import fixtures
+
+    return 0.0 if fixtures.fixture_mode() else 5.0
+
+
+def cached_readiness() -> dict:
+    """Readiness computed at most once per cache window, single-flight.
+
+    readiness() writes a probe transaction under the replay lock. Public /ready
+    floods and the in-process paid gate must not multiply that work.
+    """
+    global _cached, _cached_at
+    ttl = cache_seconds()
+    if ttl <= 0:
+        return readiness()
+    with _cache_lock:
+        if _cached is not None and time.monotonic() - _cached_at < ttl:
+            return {"ok": _cached["ok"], "checks": dict(_cached["checks"])}
+        payload = readiness()
+        _cached, _cached_at = payload, time.monotonic()
+        return {"ok": payload["ok"], "checks": dict(payload["checks"])}
+
+
+def reset_cache() -> None:
+    global _cached, _cached_at
+    with _cache_lock:
+        _cached, _cached_at = None, 0.0

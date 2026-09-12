@@ -45,7 +45,17 @@ EXPAND_TRANCHE = 3
 STANDARD_PROBE_CAP = 7
 THOROUGH_PROBE_CAP = 15
 MAX_IN_FLIGHT = 3
-MAX_PROCESS_PROBES = 10
+def _bounded_env_int(name: str, default: int, low: int, high: int) -> int:
+    raw = (os.environ.get(name) or "").strip()
+    try:
+        value = int(raw) if raw else default
+    except ValueError:
+        value = default
+    return max(low, min(high, value))
+
+
+# Process-wide outbound probe slots. The operator may raise this on a larger Machine.
+MAX_PROCESS_PROBES = _bounded_env_int("LIVE402_MAX_PROCESS_PROBES", 10, 4, 64)
 MAX_PER_HOST = 2
 MAX_HOST_SLOT_KEYS = 256
 MAX_DNS_WORKERS = 8

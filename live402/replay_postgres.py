@@ -245,6 +245,21 @@ class PostgresStore:
         except StoreError:
             return False
 
+    def capacity(self):
+        """(admitted, max_rows, max_bytes, outcome_bytes) for operator alerts only."""
+        with self._transaction() as conn:
+            if self.functions_api:
+                row = conn.execute(
+                    "SELECT admitted,max_rows,max_bytes,outcome_bytes "
+                    "FROM signal_replay.api_authority(%s,false,false)", (self.authority,)).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT admitted,max_rows,max_bytes,outcome_bytes "
+                    "FROM signal_replay.authority WHERE singleton = TRUE").fetchone()
+        if not row:
+            raise StoreError("replay authority capacity unavailable")
+        return tuple(int(value) for value in row)
+
     def prune_outcomes(self):
         # Expiry removes private bodies, never economic identities.
         now = time.monotonic()

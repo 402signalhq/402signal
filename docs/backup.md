@@ -63,3 +63,26 @@ See [the rollout runbook](remediation-rollout.md) for migration and recovery gat
 The standalone `pq_log_restore_drill.py` remains a fixture-only Merkle identity
 drill. It refuses `/data`, never produces a production recovery manifest, and
 does not require or obtain payment authority.
+
+## Schedule (Week 4)
+
+High-level steps only. Destinations, credentials and retention evidence stay
+in the private operator repository, never here.
+
+1. Writer volume (`402signal` `/data`): Fly scheduled daily snapshots with
+   14-day retention, plus an on-demand snapshot before every release.
+2. Replay PostgreSQL (Fly Managed Postgres): provider-managed backups. Confirm
+   the latest backup time before any release that touches replay.
+3. Signer volume (`402signal-pq-signer-mainnet`): Fly scheduled daily snapshots
+   with 14-day retention.
+4. Off-host copy, daily, pulled by the operator workstation:
+   - a verified SQLite recovery bundle created with `scripts/backup_sqlite.py`
+     into a temporary directory outside `/data`, then copied off the Machine
+     and removed from it;
+   - the signer `state.json` and `attest/last_authorized.json` only.
+5. Store off-host copies in an owner-only location that is not world-readable
+   or public cloud-synced. Keep 30 days.
+
+The Falcon keyfile is never copied, snapshotted into an object, or included in
+any off-host bundle. Fly volume snapshots of the signer contain state only;
+the keyfile is a Fly file secret, not volume content.

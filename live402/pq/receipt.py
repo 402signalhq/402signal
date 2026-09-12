@@ -236,6 +236,11 @@ def append_event(event: dict) -> dict:
     """Durable append only. Does not sign. Independent of Ed25519."""
     if not log_enabled():
         raise ReceiptError("pq log unavailable")
+    from live402 import leadership
+
+    if not leadership.holds():
+        # Only the writer appends; a standby must never grow a second tree.
+        raise ReceiptError("pq log writer lease not held")
     body = events.leaf_bytes(event)
     for hook in list(_before_append_hooks):
         hook(body)

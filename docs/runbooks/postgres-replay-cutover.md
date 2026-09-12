@@ -68,7 +68,8 @@ mid-recovery and do not pay to “prove” a migrate that already happened.
 - Unfence sqlite or treat `/data/live402-replay.sqlite` as the live authority
 - Raise the writer count or `min_machines_running`
 - Move catalog, history, or the PQ log onto Postgres
-- Add a second paid `/route` app or a leadership lease
+- Add a second paid `/route` app. The writer lease (`docs/leadership-lease.md`)
+  guards publishers on this one writer; it does not permit a second paid router
 - Put Falcon keys on the router
 - Publish DSN, authority id, or backup contents
 - Restore sqlite over the fenced source or an older ledger over newer payments
