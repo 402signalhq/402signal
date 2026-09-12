@@ -73,6 +73,7 @@ MISS_REASONS = (
     "fingerprint_miss",
     "scheme_mismatch",
     "network_mismatch",
+    "invalid_session_shape",
 )
 STOP_REASONS = (
     "probe_capacity",
@@ -114,6 +115,7 @@ _MISS_MAP = {
     "fingerprint_miss": "fingerprint_miss",
     "scheme_mismatch": "scheme_mismatch",
     "network_mismatch": "network_mismatch",
+    "invalid_session_shape": "invalid_session_shape",
 }
 BLOCKED_HOSTS = {
     "localhost",

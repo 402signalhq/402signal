@@ -1904,6 +1904,7 @@ class ProductBriefTests(unittest.TestCase):
             "fingerprint_miss",
             "scheme_mismatch",
             "network_mismatch",
+            "invalid_session_shape",
         }
         self.assertEqual(set(MISS_REASONS), expected)
         self.assertEqual(public_miss_reason("probe_budget_exhausted"), "probe_budget_exhausted")

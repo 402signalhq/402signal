@@ -907,10 +907,11 @@ def recover_route(body: dict, headers, resource_url: str) -> tuple[int, dict, di
 def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = None) -> tuple[int, dict, dict | None]:
     """Returns (status, json_body, extra_headers). Never probes before verify.
 
-    Unpaid requests always 402 (empty JSON / missing need+url included) so
-    CDP validate and bazaar crawlers can index. That 402 is the router
-    payment challenge, not proof that body or chk_grp caps admission passed.
-    Body 400 only after verify succeeds, and we do not settle on 400.
+    Unpaid ordinary requests always 402 (empty JSON / missing need+url included) so
+    CDP validate and bazaar crawlers can index. Hosted hops and invalid session
+    shapes return HTTP 200 unpaid typed misses instead (no probe, no fee). That 402
+    is the router payment challenge, not proof that body or chk_grp caps admission
+    passed. Body 400 only after verify succeeds, and we do not settle on 400.
     """
     if replay.recovery_requested(headers):
         return recover_route(body, headers, resource_url)
@@ -925,6 +926,8 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
 
     sess_mode = session_mod.mode(body if isinstance(body, dict) else {})
     sku = "session" if sess_mode == "open" else None
+    if sess_mode == "invalid":
+        return session_mod._miss("invalid_session_shape")
     if sess_mode == "hop":
         return session_mod.handle_hop(body if isinstance(body, dict) else {}, headers)
     if session_mod.trial_token(headers) and sess_mode != "hop":

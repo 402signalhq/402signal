@@ -70,8 +70,17 @@ def outcome(code, result):
         reason = 'route_settled' if code == 200 else 'route_settled_receipt_unavailable'
         action = 'verify_receipt' if code == 200 else 'reconcile_existing_payment'
     elif state == 'not_attempted' and settled is False and attempted is False:
-        reason = 'binding_failed' if result.get('binding_error') else 'free_miss'
-        action = 'fix_request_or_compatibility' if reason == 'binding_failed' else 'change_constraints'
+        session = result.get('session')
+        hop_count = session.get('hop_count') if isinstance(session, dict) else None
+        if (
+            type(hop_count) is int and hop_count >= 1
+            and isinstance(result.get('selected_payment'), dict)
+            and result.get('live') is True
+        ):
+            reason, action = 'session_hop', 'none'
+        else:
+            reason = 'binding_failed' if result.get('binding_error') else 'free_miss'
+            action = 'fix_request_or_compatibility' if reason == 'binding_failed' else 'change_constraints'
     elif state == 'rejected' and settled is False:
         reason, action = 'payment_rejected', 'inspect_rejection'
     return {'version': 1, 'code': reason, 'next_action': action,

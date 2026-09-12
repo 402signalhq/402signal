@@ -159,14 +159,23 @@ def _header_get(headers, name: str) -> str:
 def mode(body) -> str | None:
     if not isinstance(body, dict):
         return None
-    raw = body.get("session")
+    if "session" in body:
+        raw = body.get("session")
+        if raw is not None and not isinstance(raw, str):
+            return "invalid"
+    else:
+        raw = None
     text = raw.strip().lower() if isinstance(raw, str) else ""
     sid = body.get("session_id")
     sid_ok = isinstance(sid, str) and bool(SESSION_ID_RE.fullmatch(sid.strip()))
     if text == "open":
         return "open"
-    if text == "hop" or sid_ok:
-        return "hop" if sid_ok else None
+    if text == "hop":
+        return "hop"
+    if text:
+        return "invalid"
+    if sid_ok:
+        return "hop"
     return None
 
 
@@ -401,7 +410,7 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
 
     sid = body.get("session_id") if isinstance(body, dict) else None
     if not isinstance(sid, str) or not SESSION_ID_RE.fullmatch(sid.strip()):
-        return _miss("fingerprint_miss")
+        return _miss("invalid_session_shape")
     sid = sid.strip()
     digest = _hash_secret(sid)
     now = int(time.time())
