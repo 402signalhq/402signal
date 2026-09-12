@@ -21,7 +21,8 @@ Record = tuple[str, str | None, int, str | None, float | None]
 
 class ReplayStore(Protocol):
     def lookup(self, key: str) -> Record | None: ...
-    def reserve(self, key: str, scope: str | None, expires: float) -> bool: ...
+    def reserve(self, key: str, scope: str | None, expires: float,
+                authorization_expires: float | None = None) -> bool: ...
     def finish(self, key: str, state: str, outcome: str | None, keep: bool) -> None: ...
     def abandon(self, key: str) -> None: ...
     def ready(self) -> bool: ...
@@ -57,7 +58,9 @@ class SQLiteStore:
             "FROM settle_ledger WHERE fp_hash = ?", (key,),
         ).fetchone()
 
-    def reserve(self, key: str, scope: str | None, expires: float) -> bool:
+    def reserve(self, key: str, scope: str | None, expires: float,
+                authorization_expires: float | None = None) -> bool:
+        # SQLite is the fenced legacy source; identity expiry is PostgreSQL-only.
         conn = self.connect()
         try:
             # Serialize the identity check with the reservation. A migration

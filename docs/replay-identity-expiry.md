@@ -1,7 +1,9 @@
 # Replay identity expiry (design)
 
-Status: design. Not deployed. Requires a migration-owner change on the
-managed replay database and a router release.
+Status: router support implemented. Activation requires the migration owner to
+install `ops/replay-postgres-identity-expiry.sql` on the managed replay database;
+until then reservations use `api_reserve` and expiry is a no-op. Base is the only
+rail that records an authorization expiry today.
 
 ## Problem
 

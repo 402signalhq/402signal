@@ -314,14 +314,15 @@ def durable_hash(fp: str) -> str:
 
 
 class _Entry:
-    __slots__ = ("event", "result", "scope_hash", "reserved", "expires_at")
+    __slots__ = ("event", "result", "scope_hash", "reserved", "expires_at", "authorization_expires_at")
 
-    def __init__(self, scope_hash: str | None) -> None:
+    def __init__(self, scope_hash: str | None, authorization_expires_at: float | None = None) -> None:
         self.event = threading.Event()
         self.result: tuple | None = None
         self.scope_hash = scope_hash
         self.reserved = False
         self.expires_at = time.time() + COMPLETED_TTL_SECONDS
+        self.authorization_expires_at = authorization_expires_at
 
 
 _lock = threading.Lock()
@@ -785,11 +786,18 @@ def _decode_ledger_row(row, scope_hash, *, enforce_scope=True):
     return "reject", None
 
 
-def _ledger_reserve(fp_hash: str, scope_hash: str | None = None, expires_at: float | None = None) -> str:
+def _ledger_reserve(fp_hash: str, scope_hash: str | None = None, expires_at: float | None = None,
+                    authorization_expires_at: float | None = None) -> str:
     """Only an acknowledged committed admission allows an economic action."""
     try:
         expires = expires_at if expires_at is not None else time.time() + COMPLETED_TTL_SECONDS
-        return "run" if _selected_store_locked().reserve(fp_hash, scope_hash, expires) else "reject"
+        store = _selected_store_locked()
+        if authorization_expires_at is None:
+            admitted = store.reserve(fp_hash, scope_hash, expires)
+        else:
+            # Positional: wrappers and fault injectors forward *args to the real store.
+            admitted = store.reserve(fp_hash, scope_hash, expires, authorization_expires_at)
+        return "run" if admitted else "reject"
     except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
         return "reject"
 
@@ -890,6 +898,7 @@ def begin(
     legacy_fp: str | None = None,
     scope: str | None = None,
     *, reserve: bool = True,
+    authorization_expires_at: float | None = None,
 ) -> tuple[str, _Entry | tuple | None]:
     """Acquire execution, return a cached result, wait, or reject a duplicate.
 
@@ -925,9 +934,9 @@ def begin(
                 return "reject", None
         if len(_inflight) >= MAX_COMPLETED:
             return "reject", None
-        if reserve and _ledger_reserve(fp_hash, scope_hash) != "run":
+        if reserve and _ledger_reserve(fp_hash, scope_hash, None, authorization_expires_at) != "run":
             return "reject", None
-        entry = _Entry(scope_hash)
+        entry = _Entry(scope_hash, authorization_expires_at)
         entry.reserved = reserve
         _inflight[fp] = entry
         return "run", entry
@@ -940,7 +949,9 @@ def authorize(fp: str) -> bool:
         if entry is None:
             return False
         if not entry.reserved:
-            entry.reserved = _ledger_reserve(durable_hash(fp), entry.scope_hash, entry.expires_at) == "run"
+            entry.reserved = _ledger_reserve(
+                durable_hash(fp), entry.scope_hash, entry.expires_at, entry.authorization_expires_at
+            ) == "run"
         return entry.reserved
 
 
@@ -997,6 +1008,17 @@ def abandon(fp: str) -> None:
         if entry is not None:
             entry.event.set()
         _ledger_mark_unknown(fp_hash)
+
+
+def expire_identities(batch: int = 1000) -> int:
+    """Drop long-expired terminal identities when the authority supports it."""
+    with _lock:
+        try:
+            store = _selected_store_locked()
+            expire = getattr(store, "expire_identities", None)
+            return int(expire(int(batch))) if expire is not None else 0
+        except Exception:
+            return 0
 
 
 def capacity_snapshot() -> dict | None:

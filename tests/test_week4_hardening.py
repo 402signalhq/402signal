@@ -385,9 +385,13 @@ class GracefulDrainTests(unittest.TestCase):
         fake = FakeServer()
         with patch.object(server, "request_thread_stats", side_effect=lambda: next(states, (0, 2))), \
                 patch.object(server.leadership, "release") as release, \
-                patch.object(server.metrics, "flush", return_value={}):
+                patch.object(server.metrics, "flush", return_value={}), \
+                patch.object(server, "_stop_publishers") as stop_publishers, \
+                patch.object(server, "_close_sqlite_connections") as close_sqlite:
             server.drain_and_release(fake, timeout=5)
         release.assert_called_once()
+        stop_publishers.assert_called_once()
+        close_sqlite.assert_called_once()
         self.assertTrue(fake.socket.closed)
 
 
