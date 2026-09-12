@@ -475,9 +475,15 @@ class HostedSessionTests(unittest.TestCase):
         body = self._assert_shape_refuse({"session": "wat", "url": WEATHER})
         self.assertEqual(body.get("miss_reason"), "invalid_session_shape")
 
-    def test_hop_without_session_id_is_fingerprint_miss_without_settle(self):
+    def test_hop_without_session_id_is_invalid_shape_without_settle(self):
         body = self._assert_shape_refuse({"session": "hop"})
-        self.assertEqual(body.get("miss_reason"), "fingerprint_miss")
+        self.assertEqual(body.get("miss_reason"), "invalid_session_shape")
+
+    def test_non_string_session_is_invalid_shape_without_settle(self):
+        body = self._assert_shape_refuse({"session": True, "url": WEATHER})
+        self.assertEqual(body.get("miss_reason"), "invalid_session_shape")
+        body = self._assert_shape_refuse({"session": {"id": "ab" * 32}, "url": WEATHER})
+        self.assertEqual(body.get("miss_reason"), "invalid_session_shape")
 
     def test_successful_hop_route_outcome_is_session_hop(self):
         token = session.issue_trial()
