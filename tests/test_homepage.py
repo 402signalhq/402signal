@@ -164,7 +164,7 @@ class HomepageProductTests(unittest.TestCase):
         self.assertWords(self.how, ("Direct payment", "checking fee is a separate payment", "buyer validates transaction effects"))
 
     def test_pricing_not_fulfillment_or_every_session_call(self):
-        self.assertWords(self.home, ("$0.003", "Completed no-match checks are free", "No subscription", "Seller charges", "later buyer refusal", "does not buy another observation for every call"))
+        self.assertWords(self.home, ("$0.003", "$0.005", "Completed no-match checks are free", "No subscription", "Seller charges", "later buyer refusal", "does not buy another observation for every call", "hosted session open", "do not call a facilitator"))
         self.assertIn("not a guarantee of delivery or output quality", self.home)
         self.assertWords(self.devs, ("billing.settlement_state=not_attempted", "HTTP 503", "already-settled checking fee"))
 

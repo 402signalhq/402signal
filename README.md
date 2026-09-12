@@ -2,7 +2,7 @@
 
 Check a paid API's current offer against your buyer's rules, verify the evidence before signing, and keep a record of the decision. 402Signal supplies a hosted offer check, an offline guard and optional buyer clients for named x402 and MPP profiles. Your application keeps its wallet, signing authority and final payment decision.
 
-A qualifying hosted observation costs **$0.003 USDC**. Completed normal misses are not settled. Seller payment, channel funding and network costs are separate. The observation does not guarantee delivery or output quality.
+A qualifying hosted observation costs **$0.003 USDC**. Opening a hosted session costs **$0.005 USDC**; hops inside that window do not run a new probe and do not call a facilitator. Completed normal misses are not settled. Seller payment, channel funding and network costs are separate. The observation does not guarantee delivery or output quality.
 
 [Website](https://402signal.com/) · [Choose an integration](https://402signal.com/developers) · [Customer guide index](docs/customer/README.md) · [Free catalog](https://402signal.com/catalog) · [OpenAPI](https://402signal.com/openapi.json) · [MCP](https://402signal.com/mcp.json)
 
@@ -41,6 +41,8 @@ curl -sS -D - https://402signal.com/route \
 
 This unpaid request returns HTTP 402 with the checking-fee requirements. Validate those requirements and your budget in the buyer, authorize the $0.003 fee once, and submit the identical request with the resulting payment header. Never send a wallet private key to the service.
 
+To reuse one observation, open a [hosted session](https://402signal.com/developers/hosted-session) (`session=open`, $0.005). Hops are `session=hop` plus `session_id`. A raw id in `session` is not a hop and does not pay.
+
 For an existing endpoint, use `url` instead of `need`. `networks` is a hard filter. `prefer_network` only affects ranking within that filter. Unknown measurements do not satisfy required bounds. HTTP probe time is not settlement latency. The [developer guide](https://402signal.com/developers#route-binding) and [OpenAPI](https://402signal.com/openapi.json) define the actual request and response contracts.
 
 ## Choose the component that fits
@@ -50,6 +52,7 @@ For an existing endpoint, use `url` instead of `need`. `networks` is a hard filt
 | Find candidates | [Preview and catalog](https://402signal.com/catalog) | No new seller probe |
 | Check a listed endpoint | [Seller readiness](docs/customer/sellers.md) | Catalog-listed exact URL only; no signed routing evidence |
 | Check an exact x402 purchase | [Guard and client](sdk/route-guard/README.md) | Buyer still validates transactions and owns the wallet |
+| Open a hosted session | [Hosted session](https://402signal.com/developers/hosted-session) | $0.005 open; hops do not probe or settle; not the merchant Session Client |
 | Compose a complete buyer | [Reference buyer](integration/reference-buyer/README.md) | Planning, durable limits, signing and execution are buyer-owned |
 | Select a native Base MPP charge | [Native Base guide](integration/mpp-client/NATIVE.md) | Base USDC EIP-3009; not all EVM methods |
 | Select a native Algorand charge | [Native Algorand guide](integration/mpp-algorand/README.md) | Explicit supported transaction and fee profile |

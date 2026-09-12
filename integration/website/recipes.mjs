@@ -6,7 +6,7 @@ import { chromium, webkit } from 'playwright';
 const root=resolve(import.meta.dirname,'../..'),out=resolve(root,'website-evidence');
 const exports=JSON.parse(await readFile(resolve(out,'exports.json'),'utf8'));
 const recipes=Object.keys(exports).filter(p=>p.startsWith('/developers/'));
-assert.equal(recipes.length,12);
+assert.equal(recipes.length,13);
 const staticFiles=new Map([['/','index.html'],['/developers','developers.html'],['/app.js','app.js'],['/styles.css','styles.css'],['/favicon.svg','favicon.svg']]);
 const server=createServer(async(req,res)=>{try{
  const path=new URL(req.url,'http://127.0.0.1').pathname;
@@ -47,7 +47,7 @@ try{for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
   await page.goto(origin+'/');assert.ok(await page.getByRole('link',{name:'Building a payment client? Run the free offline checks.'}).isVisible());
   await page.screenshot({path:resolve(out,`adoption-home-${engine}-${width}.png`),fullPage:true});
   await page.goto(origin+'/developers#request');assert.ok(await page.locator('#route-binding').isVisible());
-  for (const id of ['quickstart','route-binding','native-mpp','check-group-offer','batch-support','sellers','recovery','seller-recovery','interfaces','pq-trust','policy-guide','compatibility']) { await page.locator('[data-guide-link="'+id+'"]').click(); await page.locator('#'+id).waitFor({state:'visible'}); assert.ok(await page.locator('#'+id).isVisible()); assert.equal(await page.locator('[data-guide]:visible').count(),1); }
+  for (const id of ['quickstart','route-binding','hosted-session','native-mpp','check-group-offer','batch-support','sellers','recovery','seller-recovery','interfaces','pq-trust','policy-guide','compatibility']) { await page.locator('[data-guide-link="'+id+'"]').click(); await page.locator('#'+id).waitFor({state:'visible'}); assert.ok(await page.locator('#'+id).isVisible()); assert.equal(await page.locator('[data-guide]:visible').count(),1); }
   await page.goto(origin+'/developers#seller-recovery');assert.ok(await page.locator('#seller-recovery').isVisible());
   await page.screenshot({path:resolve(out,`adoption-index-${engine}-${width}.png`),fullPage:true});
   assert.deepEqual(errors,[]);assert.ok(!requests.some(u=>u.includes('/route?')||u.endsWith('/route')||u.includes('/validate')));
@@ -55,7 +55,7 @@ try{for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
  }
  const context=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:900}});
  const page=await context.newPage();for(const path of recipes){await page.goto(origin+path);assert.ok(await page.locator('[data-guide]').isVisible());}
-  await page.goto(origin+'/developers');assert.equal(await page.locator('[data-guide]:visible').count(),12);await context.close();
+  await page.goto(origin+'/developers');assert.equal(await page.locator('[data-guide]:visible').count(),13);await context.close();
  }finally{await browser.close();}
 }}finally{await new Promise(done=>server.close(done));await writeFile(resolve(out,'recipe-results.json'),JSON.stringify(results,null,2));}
 console.log('Permanent recipe browser checks:',results.length,'passed; screenshots retained, no payments or seller probes.');

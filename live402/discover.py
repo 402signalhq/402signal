@@ -1373,6 +1373,7 @@ LLMS_TXT = "# 402Signal\n\n" + DESC + """
 
 Free offline checks: https://402signal.com/developers/test-buyer
 Add a purchase check: https://402signal.com/developers/check-offer
+Open a hosted session: https://402signal.com/developers/hosted-session
 Select native MPP: https://402signal.com/developers/native-mpp
 Sessions and invoices: https://402signal.com/developers/sessions-and-invoices
 Inspect a listed API: https://402signal.com/developers/check-api-listing
@@ -1384,7 +1385,7 @@ Use ordinary free APIs directly when no paid-offer check is needed. A hosted off
 
 ## What 402Signal checks
 
-402Signal checks a current paid API offer against a buyer's rules. We support Base, Solana, and Algorand. A qualifying observation costs $0.003 USDC (3000 atomic, 6 decimals). Normal typed misses are not settled. Catalog search and preview are free; they do not perform a new live endpoint check. Seller payment, network fees and channel funding are separate.
+402Signal checks a current paid API offer against a buyer's rules. We support Base, Solana, and Algorand. A qualifying observation costs $0.003 USDC (3000 atomic, 6 decimals). A hosted session open costs $0.005 USDC; hops reuse that snapshot and do not probe or call a facilitator. Normal typed misses are not settled. Catalog search and preview are free; they do not perform a new live endpoint check. Seller payment, network fees and channel funding are separate.
 
 The buyer retains its wallet, transaction validation, signing and purchase decision. 402Signal does not pay the chosen seller, hold buyer funds, operate escrow or determine whether delivered work is satisfactory. A successful observation is not a delivery or output-quality guarantee.
 
