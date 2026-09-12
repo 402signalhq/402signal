@@ -795,7 +795,8 @@ def _ledger_reserve(fp_hash: str, scope_hash: str | None = None, expires_at: flo
         if authorization_expires_at is None:
             admitted = store.reserve(fp_hash, scope_hash, expires)
         else:
-            admitted = store.reserve(fp_hash, scope_hash, expires, authorization_expires=authorization_expires_at)
+            # Positional: wrappers and fault injectors forward *args to the real store.
+            admitted = store.reserve(fp_hash, scope_hash, expires, authorization_expires_at)
         return "run" if admitted else "reject"
     except (StoreError, OSError, sqlite3.Error, TypeError, ValueError):
         return "reject"
