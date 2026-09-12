@@ -15,7 +15,7 @@ import threading
 import time
 from urllib.parse import urlsplit
 
-from live402 import history, payment, probe, reqctx, validate
+from live402 import history, metrics, payment, probe, reqctx, validate
 
 SESSION_TTL_S = 600
 HOP_CEILING = 20
@@ -70,6 +70,12 @@ CREATE TABLE IF NOT EXISTS obs_cache (
     ts INTEGER NOT NULL,
     body_json TEXT NOT NULL,
     PRIMARY KEY (dest, rail, scheme)
+);
+CREATE TABLE IF NOT EXISTS metric_counters (
+    day TEXT NOT NULL,
+    name TEXT NOT NULL,
+    n INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, name)
 );
 """
 
@@ -377,6 +383,7 @@ def open_window(result: dict, body: dict, *, traffic_class: str, trial_hash: str
             ),
         )
         conn.commit()
+    metrics.inc("session.open." + metrics.traffic_label(traffic_class))
     result["session"] = _session_block(session_id, 0, now + SESSION_TTL_S, HOP_CEILING)
     return session_id
 
@@ -425,7 +432,7 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
             row = cur.execute(
                 """
                 SELECT expires_at, hop_count, hop_ceiling, url, rail, scheme,
-                       fingerprint, mandate_hash, offer_json
+                       fingerprint, mandate_hash, offer_json, traffic_class
                 FROM windows WHERE id_hash=?
                 """,
                 (digest,),
@@ -442,6 +449,7 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
                 fingerprint,
                 mandate_hash,
                 offer_json,
+                window_class,
             ) = row
             if int(expires_at) < now or int(hop_count) >= int(hop_ceiling):
                 return _miss("window_spent")
@@ -482,6 +490,7 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
             )
             conn.commit()
             hop_count = int(hop_count) + 1
+            metrics.inc("session.hop." + metrics.traffic_label(window_class))
         out = dict(offer)
         out["session"] = _session_block(sid, hop_count, int(expires_at), max(0, int(hop_ceiling) - hop_count))
         out["billing"] = {
@@ -668,5 +677,51 @@ def cached_probe(url: str, *, rail: str | None = None, scheme: str | None = None
             continue
         if isinstance(body, dict) and body.get("live") is True:
             body["cache_hit"] = True
+            metrics.inc("obs_cache.hit." + metrics.traffic_label())
             return body
+    metrics.inc("obs_cache.miss." + metrics.traffic_label())
     return None
+
+
+def add_counters(day: str, counts: dict) -> None:
+    """Private metric rollup storage. Names are coarse labels, never identities."""
+    rows = [(str(day), str(name), int(value)) for name, value in counts.items() if int(value) > 0]
+    if not rows:
+        return
+    with _lock:
+        conn = _connect()
+        conn.executemany(
+            """
+            INSERT INTO metric_counters (day, name, n) VALUES (?, ?, ?)
+            ON CONFLICT(day, name) DO UPDATE SET n = n + excluded.n
+            """,
+            rows,
+        )
+        conn.commit()
+
+
+# Windows stay 35 days so the weekly organic rollup can read them.
+PRUNE_WINDOW_GRACE_S = 35 * 86400
+PRUNE_TRIAL_GRACE_S = 7 * 86400
+PRUNE_CACHE_S = 3600
+PRUNE_COUNTER_DAYS = 400
+
+
+def prune(now: int | None = None) -> dict:
+    """Drop stale windows, credits, cache rows and old counters. Writer housekeeping only."""
+    ts = int(time.time() if now is None else now)
+    cutoff_day = time.strftime("%Y-%m-%d", time.gmtime(ts - PRUNE_COUNTER_DAYS * 86400))
+    with _lock:
+        conn = _connect()
+        out = {
+            "windows": conn.execute(
+                "DELETE FROM windows WHERE expires_at < ?", (ts - PRUNE_WINDOW_GRACE_S,)).rowcount,
+            "obs_cache": conn.execute(
+                "DELETE FROM obs_cache WHERE ts < ?", (ts - PRUNE_CACHE_S,)).rowcount,
+            "trial_credits": conn.execute(
+                "DELETE FROM trial_credits WHERE expires_at < ?", (ts - PRUNE_TRIAL_GRACE_S,)).rowcount,
+            "metric_counters": conn.execute(
+                "DELETE FROM metric_counters WHERE day < ?", (cutoff_day,)).rowcount,
+        }
+        conn.commit()
+    return out

@@ -9,11 +9,15 @@ limit+offset+total only. Never send page= or cursor=. Never fetch caller URLs.
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
+import copy
 import logging
 import os
 import re
 import threading
 import time
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
@@ -224,6 +228,7 @@ def _empty_index() -> dict:
 _working_peak = 0
 _working_peak_lock = threading.Lock()
 _query_pool: ThreadPoolExecutor | None = None
+_free_query_pool: ThreadPoolExecutor | None = None
 _query_pool_lock = threading.Lock()
 _refresh_thread: threading.Thread | None = None
 _refresh_stop = threading.Event()
@@ -255,12 +260,107 @@ def _note_working(n: int) -> None:
             _working_peak = count
 
 
-def _discovery_pool() -> ThreadPoolExecutor:
-    global _query_pool
+PAID_DISCOVERY_WORKERS = 6
+FREE_DISCOVERY_WORKERS = 3
+DISCOVERY_CACHE_MAX = 512
+
+
+def _discovery_pool(free: bool = False) -> ThreadPoolExecutor:
+    """Separate pools so free previews can never occupy paid need-routing workers."""
+    global _query_pool, _free_query_pool
     with _query_pool_lock:
+        if free:
+            if _free_query_pool is None:
+                _free_query_pool = ThreadPoolExecutor(
+                    max_workers=FREE_DISCOVERY_WORKERS, thread_name_prefix="disc-free"
+                )
+            return _free_query_pool
         if _query_pool is None:
-            _query_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="disc")
+            _query_pool = ThreadPoolExecutor(max_workers=PAID_DISCOVERY_WORKERS, thread_name_prefix="disc")
         return _query_pool
+
+
+_FREE_DISCOVERY = contextvars.ContextVar("live402_free_discovery", default=False)
+
+
+@contextlib.contextmanager
+def free_discovery():
+    """Mark discovery in this context as unpaid, so it uses the free worker pool."""
+    token = _FREE_DISCOVERY.set(True)
+    try:
+        yield
+    finally:
+        _FREE_DISCOVERY.reset(token)
+
+
+_disc_cache: OrderedDict = OrderedDict()
+_disc_inflight: dict = {}
+_disc_lock = threading.Lock()
+
+
+def discovery_cache_seconds() -> float:
+    raw = (os.environ.get("LIVE402_DISCOVERY_CACHE_S") or "").strip()
+    if raw:
+        try:
+            return max(0.0, min(900.0, float(raw)))
+        except ValueError:
+            pass
+    return 0.0 if (os.environ.get("LIVE402_FIXTURE") or "").strip() == "1" else 120.0
+
+
+def reset_discovery_cache() -> None:
+    with _disc_lock:
+        _disc_cache.clear()
+
+
+def _cached_query_rail(rail: str, q: str) -> dict:
+    """Request-path discovery search shared for a short window.
+
+    Free previews and paid need-routing reuse one upstream search per
+    (rail, query) instead of calling the facilitators on every request.
+    Spend-time payment terms still come from the live seller probe.
+    Failed searches are shared for at most 15 s.
+    """
+    ttl = discovery_cache_seconds()
+    if ttl <= 0:
+        return query_rail(rail, q)
+    from live402 import metrics
+
+    key = (rail, (q or "").strip().lower())
+    while True:
+        with _disc_lock:
+            hit = _disc_cache.get(key)
+            if hit is not None and time.monotonic() - hit[0] < (ttl if hit[2] else min(ttl, 15.0)):
+                _disc_cache.move_to_end(key)
+                metrics.inc("discovery_cache.hit")
+                return copy.deepcopy(hit[1])
+            waiter = _disc_inflight.get(key)
+            owner = waiter is None
+            if owner:
+                waiter = threading.Event()
+                _disc_inflight[key] = waiter
+        if owner:
+            break
+        if not waiter.wait(timeout=12.0):
+            return query_rail(rail, q)
+    metrics.inc("discovery_cache.miss")
+    try:
+        result = query_rail(rail, q)
+    except BaseException:
+        with _disc_lock:
+            _disc_inflight.pop(key, None)
+        waiter.set()
+        raise
+    with _disc_lock:
+        if isinstance(result, dict):
+            ok = result.get("error") is None
+            _disc_cache[key] = (time.monotonic(), copy.deepcopy(result), ok)
+            _disc_cache.move_to_end(key)
+            while len(_disc_cache) > DISCOVERY_CACHE_MAX:
+                _disc_cache.popitem(last=False)
+        _disc_inflight.pop(key, None)
+    waiter.set()
+    return result
 
 
 def reset_index() -> None:
@@ -1147,6 +1247,8 @@ def query_for_need(
     need: str,
     prefer_network: str | None = None,
     networks=None,
+    *,
+    free: bool = False,
 ) -> dict:
     """Need-scoped working set. Never stores a 44k index. Never walks MAX_ITEMS.
 
@@ -1223,8 +1325,8 @@ def query_for_need(
     live_results: dict[str, dict] = {}
     local_items: list[dict] = []
     contracts: dict = {}
-    pool = _discovery_pool()
-    futs = {pool.submit(query_rail, rail, q): ("rail", rail) for rail in rails}
+    pool = _discovery_pool(free=free or _FREE_DISCOVERY.get())
+    futs = {pool.submit(_cached_query_rail, rail, q): ("rail", rail) for rail in rails}
     futs[pool.submit(_local_fts, q, rails)] = ("local", "local")
     for fut in as_completed(futs):
         kind, key = futs[fut]
@@ -1467,8 +1569,10 @@ def trickle_once() -> str:
 
 def _trickle_loop() -> None:
     """Catalog trickle only. PQ submit/confirm runs on its own worker thread."""
+    from live402 import leadership
+
     while not _refresh_stop.wait(shadow.trickle_sleep_s()):
-        if fixtures.fixture_mode() or _refresh_disabled():
+        if fixtures.fixture_mode() or _refresh_disabled() or not leadership.holds():
             continue
         try:
             trickle_once()
@@ -1479,6 +1583,11 @@ def _trickle_loop() -> None:
 def start_refresher() -> None:
     """Start the trickle loop. Does not walk the world. Does not block /route."""
     if fixtures.fixture_mode() or _refresh_disabled():
+        return
+    from live402 import leadership
+
+    if not leadership.holds():
+        # Only the writer crawls; a standby never refreshes the shadow catalog.
         return
     global _refresh_thread
     with _refresh_lock:

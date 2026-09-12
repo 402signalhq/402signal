@@ -7,6 +7,7 @@ from collections import Counter
 import json
 import os
 import re
+import time
 
 DEFAULT_PAYTO = "0xb18fc2275f36dae99eb215caeff03b431f887d16"
 USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
@@ -1677,3 +1678,59 @@ def normalize_payload_for_facilitator(payload: dict, requirements: dict) -> dict
     if "resource" not in out and isinstance(payload, dict):
         pass
     return out
+
+
+MAX_AUTHORIZATION_LIFETIME_SECONDS = 900
+AUTH_WINDOW_ERROR = "Payment authorization validity window is too long"
+
+
+def _uint_or_none(value) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value >= 0 else None
+    if isinstance(value, str) and value.isascii() and value.isdigit() and len(value) <= 78:
+        return int(value)
+    return None
+
+
+def max_authorization_lifetime_seconds() -> int | None:
+    """Enforced bound from LIVE402_MAX_AUTH_LIFETIME_S. Unset means observe only."""
+    raw = (os.environ.get("LIVE402_MAX_AUTH_LIFETIME_S") or "").strip()
+    if not raw:
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        return None
+    return max(60, min(30 * 86400, value))
+
+
+def authorization_window_error(
+    payload, accept, now: int | None = None, limit_seconds: int = MAX_AUTHORIZATION_LIFETIME_SECONDS
+) -> str | None:
+    """Refuse Base authorizations that stay valid far beyond the offer timeout.
+
+    A bounded validity lets retained economic identities become safely
+    expirable once the authorization can no longer settle on-chain. Malformed
+    fields are left to the replay fingerprint and facilitator, which fail closed.
+    Solana and Algorand payments are already bounded by blockhash and round
+    validity.
+    """
+    if rail_of_accept(accept if isinstance(accept, dict) else {}) != "base":
+        return None
+    inner = payload.get("payload") if isinstance(payload, dict) else None
+    if not isinstance(inner, dict):
+        return None
+    limit = int(time.time() if now is None else now) + int(limit_seconds)
+    auth = inner.get("authorization")
+    if isinstance(auth, dict):
+        before = _uint_or_none(auth.get("validBefore"))
+        if before is not None and before > limit:
+            return AUTH_WINDOW_ERROR
+    permit = inner.get("permit2Authorization")
+    if isinstance(permit, dict):
+        deadline = _uint_or_none(permit.get("deadline"))
+        if deadline is not None and deadline > limit:
+            return AUTH_WINDOW_ERROR
+    return None

@@ -10,7 +10,7 @@ import sys
 import time
 
 from live402 import deadline as deadline_mod
-from live402 import facilitator, fixtures, payment, probe, replay, reqctx, select
+from live402 import facilitator, fixtures, metrics, payment, probe, replay, reqctx, select
 from live402 import policy as policy_mod
 from live402.route_outcomes import is_normal_miss
 
@@ -768,11 +768,13 @@ def _paid_execute_inner(
         # Free misses remain tentative history and create no PQ route leaf.
         # Classify only after the independent winner gate has skipped settlement.
         if result.get("miss_reason") == "probe_capacity":
+            metrics.inc("route.probe_capacity." + metrics.traffic_label())
             result["retryable"] = True
             _strip_private_probe_state(result)
             return 503, result, {"Retry-After": "60", "Cache-Control": "no-store"}
         if code == 503 and is_normal_miss(result):
             code = 200
+        metrics.inc(("route.miss." if code == 200 else "route.unqualified.") + metrics.traffic_label())
         _strip_private_probe_state(result)
         return code, result, None
 
@@ -824,6 +826,7 @@ def _paid_execute_inner(
         return _unknown_outcome(rail, attempted=True)
     extra["PAYMENT-RESPONSE"] = payment.payment_response_header(safe_receipt)
     _log_settle(True, rail)
+    metrics.inc("route.qualified." + metrics.traffic_label())
     result["billing"] = _billing(
         rail,
         settlement_attempted=True,
@@ -978,6 +981,17 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
         )
         return 402, required, extra
 
+    # Authorization lifetime: always measured, refused before any verification or
+    # reservation only when the operator sets LIVE402_MAX_AUTH_LIFETIME_S.
+    if payment.authorization_window_error(parsed, accept):
+        metrics.inc("payment.long_window." + payment.rail_of_accept(accept))
+    enforced = payment.max_authorization_lifetime_seconds()
+    if enforced is not None:
+        window_error = payment.authorization_window_error(parsed, accept, limit_seconds=enforced)
+        if window_error:
+            required, extra = _required_pair(resource_url, window_error, bazaar=bazaar, sku=sku)
+            return 402, required, extra
+
     paid_deadline = deadline_mod.payment_deadline(accept)
     try:
         fp = replay.canonical_fingerprint(parsed, accept)
@@ -985,7 +999,7 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
         private_scope = replay.request_scope(body, resource_url, headers)
     except (TypeError, ValueError):
         required, extra = _required_pair(
-            resource_url, "Payment verification failed", bazaar=bazaar
+            resource_url, "Payment verification failed", bazaar=bazaar, sku=sku
         )
         return 402, required, extra
     with telemetry.phase("replay_lookup"):

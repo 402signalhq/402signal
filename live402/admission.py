@@ -26,22 +26,37 @@ from live402 import reqctx
 # handshake admission. Separate bucket namespace from paid /route ingress and
 # unpaid work reserve. Numeric defaults live in code so image-only deploys do
 # not require a machine policy-file rewrite.
-DISCOVERY_GLOBAL = 24
+def _env_capacity(name: str, default: int, low: int = 1, high: int = 1_000_000) -> int:
+    """Operator override for an image default. Invalid values keep the default."""
+    raw = (os.environ.get(name) or "").strip()
+    try:
+        value = int(raw) if raw else default
+    except ValueError:
+        value = default
+    return max(low, min(high, value))
+
+
+DISCOVERY_GLOBAL = _env_capacity("LIVE402_ADMISSION_DISCOVERY_GLOBAL", 24, 2)
 # Image-only default. One anonymous identity can finish a cold MCP
 # setup (initialize, initialized, tools/list) and still run preview
 # and validate. Not a published production quota.
 MCP_COLD_SETUP = 3
 MCP_COLD_FREE_TOOLS = 2
-DISCOVERY_ANONYMOUS = MCP_COLD_SETUP + MCP_COLD_FREE_TOOLS
-DISCOVERY_ANONYMOUS_TOTAL = 16
-DISCOVERY_CUSTOMER = 8
+DISCOVERY_ANONYMOUS = _env_capacity(
+    "LIVE402_ADMISSION_DISCOVERY_ANONYMOUS", MCP_COLD_SETUP + MCP_COLD_FREE_TOOLS
+)
+# The anonymous total always leaves shared headroom under the global bucket.
+DISCOVERY_ANONYMOUS_TOTAL = min(
+    _env_capacity("LIVE402_ADMISSION_DISCOVERY_ANONYMOUS_TOTAL", 16), DISCOVERY_GLOBAL - 1
+)
+DISCOVERY_CUSTOMER = _env_capacity("LIVE402_ADMISSION_DISCOVERY_CUSTOMER", 8)
 # Paid work, unpaid discovery, recovery, trial, and session-hop each have
 # an independent map capped at policy.max_keys. Combined resident counters
 # stay within this many maps times max_keys.
 COUNTER_POOLS = 5
-TRIAL_GLOBAL = 12
+TRIAL_GLOBAL = _env_capacity("LIVE402_ADMISSION_TRIAL_GLOBAL", 12)
 TRIAL_TOKEN = 5
-SESSION_HOP_GLOBAL = 40
+SESSION_HOP_GLOBAL = _env_capacity("LIVE402_ADMISSION_SESSION_HOP_GLOBAL", 40)
 SESSION_HOP_WINDOW = 20
 
 class Unavailable(Exception):

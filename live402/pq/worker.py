@@ -542,6 +542,11 @@ def start_worker() -> None:
 
     if fixtures.fixture_mode():
         return
+    from live402 import leadership
+
+    if not leadership.holds():
+        # Standby or lease lost: never a second PQ publisher.
+        return
     global _tick_thread
     with _tick_lock:
         if _tick_thread is not None and _tick_thread.is_alive():
@@ -558,8 +563,10 @@ def stop_worker() -> None:
 def _tick_loop() -> None:
     from live402 import fixtures
 
+    from live402 import leadership
+
     while not _tick_stop.wait(_tick_sleep_s()):
-        if fixtures.fixture_mode():
+        if fixtures.fixture_mode() or not leadership.holds():
             continue
         try:
             tick()

@@ -6,6 +6,7 @@ import argparse
 import ipaddress
 import json
 import os
+import signal
 import socket
 import sys
 import threading
@@ -17,7 +18,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from live402 import asset_version, capabilities, catalog, discover, history, mcp, payment, pulse, rails, ready, reqctx, validate
-from live402 import admission, http_body, replay, developer_guides
+from live402 import admission, fixtures, http_body, leadership, metrics, replay, developer_guides
 from live402.http_body import BodyReadError
 from live402.route import handle_route, recover_route
 
@@ -113,6 +114,25 @@ CSP = (
     "style-src 'self'; img-src 'self' data:; base-uri 'self'; "
     "frame-ancestors 'none'"
 )
+_STATIC_TEXT: dict[str, str] = {}
+_STATIC_TEXT_LOCK = threading.Lock()
+
+
+def _static_text(page: str) -> str:
+    """Image-immutable HTML, read once per process outside fixture mode."""
+    path = STATIC_DIR / page
+    if fixtures.fixture_mode():
+        return path.read_text(encoding="utf-8")
+    key = str(path)
+    with _STATIC_TEXT_LOCK:
+        cached = _STATIC_TEXT.get(key)
+    if cached is None:
+        cached = path.read_text(encoding="utf-8")
+        with _STATIC_TEXT_LOCK:
+            _STATIC_TEXT[key] = cached
+    return cached
+
+
 class _RateLimiter:
     """In-memory sliding window with TTL/LRU bound. Fail closed on errors."""
 
@@ -384,14 +404,32 @@ def on_fly() -> bool:
     return False
 
 
+def rate_key_ip(raw: str) -> str:
+    """Abuse-control identity. IPv6 clients collapse to their /64 so address
+    rotation inside one allocation cannot multiply per-client budgets."""
+    text = (raw or "").strip()
+    try:
+        ip = ipaddress.ip_address(text)
+    except ValueError:
+        return text or "unknown"
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped is not None:
+            return str(ip.ipv4_mapped)
+        return str(ipaddress.IPv6Network((ip, 64), strict=False).network_address) + "/64"
+    return str(ip)
+
+
 def client_ip(handler: SimpleHTTPRequestHandler) -> str:
-    """On Fly, trust Fly-Client-IP. Otherwise the socket peer. Never X-Forwarded-For."""
+    """On Fly, trust Fly-Client-IP. Otherwise the socket peer. Never X-Forwarded-For.
+
+    The value is a rate-limit identity (see rate_key_ip), not an audit address.
+    """
     if on_fly():
         fly = (handler.headers.get("Fly-Client-IP") or "").split(",")[0].strip()
         if fly:
-            return fly
+            return rate_key_ip(fly)
     if handler.client_address:
-        return handler.client_address[0]
+        return rate_key_ip(handler.client_address[0])
     return "unknown"
 
 
@@ -610,6 +648,9 @@ class Handler(SimpleHTTPRequestHandler):
         )
 
     def _json(self, code: int, payload: dict, extra_headers: dict | None = None) -> None:
+        if code == 429:
+            reason = payload.get("error") if isinstance(payload, dict) else None
+            metrics.inc("http429.%s.%s" % (self._coarse_endpoint(), metrics.slug(reason)))
         body = b"" if payload is None else json.dumps(payload).encode("utf-8")
         headers = {"Cache-Control": "no-store"}
         headers.update(extra_headers or {})
@@ -673,7 +714,7 @@ class Handler(SimpleHTTPRequestHandler):
         page = HUMAN_PAGES.get(parsed.path)
         if not page:
             return None
-        html = (STATIC_DIR / page).read_text(encoding="utf-8")
+        html = _static_text(page)
         if page == "developers.html":
             return capabilities.apply_developers_copy(html)
         return html
@@ -866,7 +907,7 @@ class Handler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path not in ("/", "/index.html"):
             return None
-        html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+        html = _static_text("index.html")
         try:
             from live402.pq import worker as pq_worker
             from live402.pq import transparency as pq_view
@@ -929,7 +970,7 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/health":
             return self._json(200, {"ok": True})
         if parsed.path == "/ready":
-            payload = ready.readiness()
+            payload = ready.cached_readiness()
             return self._json(200 if payload.get("ok") else 503, payload)
         if parsed.path == "/preview":
             if not self._preview_allowed():
@@ -1065,6 +1106,9 @@ class Handler(SimpleHTTPRequestHandler):
             payload = self._read_json_body()
             if payload is None:
                 return
+            gate = self._paid_gate()
+            if gate is not None:
+                return self._json(*gate)
             code, body, extra = recover_route(payload, self.headers, self._resource_url())
             return self._json(code, body, extra)
         if parsed.path in {"/mcp", "/mcp.json", MCP_REGISTRY_PATH}:
@@ -1077,6 +1121,10 @@ class Handler(SimpleHTTPRequestHandler):
         payload = self._read_json_body()
         if payload is None:
             return
+        if payment.payment_presented(self.headers):
+            gate = self._paid_gate()
+            if gate is not None:
+                return self._json(*gate)
         from live402 import session as session_mod
 
         sess_mode = session_mod.mode(payload if isinstance(payload, dict) else {})
@@ -1093,6 +1141,21 @@ class Handler(SimpleHTTPRequestHandler):
             extra = {"PAYMENT-REQUIRED": payment.payment_required_header(body)}
         return self._json(code, body, extra)
 
+    def _paid_gate(self) -> tuple[int, dict, dict] | None:
+        """Refuse new payment work before verification when this process must not take it.
+
+        Replaces removing the whole Machine from Fly routing: the site, docs,
+        catalog and unpaid challenges keep serving while paid work waits.
+        Nothing was verified or reserved, so the same authorization may retry.
+        """
+        headers = {"Retry-After": "15", "Cache-Control": "no-store"}
+        base = {"retryable": True, "retry_same_request": True, "new_payment_allowed": False}
+        if not leadership.holds():
+            return 503, {"error": "writer_unavailable", **base}, headers
+        if paid_ready_gate_enabled() and not ready.cached_readiness().get("ok"):
+            return 503, {"error": "service_not_ready", **base}, headers
+        return None
+
     def _mcp_origin_allowed(self) -> bool:
         origin = self.headers.get('Origin')
         return origin is None or origin in {discover.ORIGIN, 'https://www.402signal.com'}
@@ -1106,6 +1169,10 @@ class Handler(SimpleHTTPRequestHandler):
         if mcp.is_paid_call(payload):
             if not self._route_allowed():
                 return self._close_error(429, "rate limit")
+            if payment.payment_presented(self.headers):
+                gate = self._paid_gate()
+                if gate is not None:
+                    return self._json(*gate)
         elif mcp.is_preview_call(payload):
             if not self._preview_allowed():
                 return self._close_error(429, "rate limit")
@@ -1132,6 +1199,81 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(400, {"error": "url must be a string", "miss_reason": "invalid_need"})
         code, body = validate.validate_url(url if isinstance(url, str) else "")
         return self._json(code, body, extra_headers={"Cache-Control": "no-store"})
+
+
+def paid_ready_gate_enabled() -> bool:
+    raw = (os.environ.get("LIVE402_PAID_READY_GATE") or "").strip()
+    if raw in {"0", "1"}:
+        return raw == "1"
+    return not fixtures.fixture_mode()
+
+
+TREASURY_OVERRIDE_ACK = "reviewed-treasury-override"
+
+
+def assert_pinned_treasury() -> None:
+    """On Fly, refuse to boot with an unreviewed routing-fee payTo override."""
+    if not on_fly():
+        return
+    pinned = (
+        ("PAYTO_ADDRESS", payment.DEFAULT_PAYTO, "base"),
+        ("PAYTO_SOLANA", payment.DEFAULT_PAYTO_SOLANA, "solana"),
+        ("PAYTO_ALGORAND", payment.DEFAULT_PAYTO_ALGORAND, "algorand"),
+    )
+    ack = (os.environ.get("LIVE402_TREASURY_OVERRIDE_ACK") or "").strip()
+    for name, default, rail in pinned:
+        raw = (os.environ.get(name) or "").strip()
+        if raw and not payment.payto_equal(raw, default, rail) and ack != TREASURY_OVERRIDE_ACK:
+            raise SystemExit("refusing unreviewed treasury override: " + name)
+
+
+def drain_seconds() -> float:
+    raw = (os.environ.get("LIVE402_DRAIN_S") or "").strip()
+    try:
+        value = float(raw) if raw else 60.0
+    except ValueError:
+        value = 60.0
+    return max(0.0, min(240.0, value))
+
+
+_DRAINING = threading.Event()
+
+
+def install_graceful_shutdown(httpd) -> None:
+    """SIGTERM stops accepting; drain_and_release finishes in-flight work."""
+
+    def _on_term(signum, frame):
+        if _DRAINING.is_set():
+            return
+        _DRAINING.set()
+        sys.stderr.write("shutdown signal=SIGTERM draining\n")
+        threading.Thread(target=httpd.shutdown, name="http-shutdown", daemon=True).start()
+
+    try:
+        signal.signal(signal.SIGTERM, _on_term)
+    except ValueError:
+        pass
+
+
+def drain_and_release(httpd, timeout: float | None = None) -> None:
+    """Wait for in-flight requests, flush private counters, release the writer lease."""
+    deadline = time.monotonic() + (drain_seconds() if timeout is None else float(timeout))
+    while time.monotonic() < deadline:
+        active, _peak = request_thread_stats()
+        if active <= 0:
+            break
+        time.sleep(0.1)
+    try:
+        counts = metrics.flush()
+        if counts:
+            metrics.log_line(counts)
+    except Exception:
+        pass
+    leadership.release()
+    try:
+        httpd.socket.close()
+    except (OSError, AttributeError):
+        pass
 
 
 def default_host() -> str:
@@ -1170,6 +1312,7 @@ def boot_http_process() -> None:
     PRODUCTION fail-closed: unset/unknown network never becomes TestNet.
     Automatic MainNet anchoring remains default-off. No Algorand SK load.
     """
+    assert_pinned_treasury()
     from live402.pq import log_identity
 
     if log_identity.is_production_runtime():
@@ -1185,10 +1328,13 @@ def main(argv: list[str] | None = None) -> None:
     assert_safe_http_boot(args.host)
     boot_http_process()
     httpd = BoundedThreadingHTTPServer((args.host, args.port), Handler)
-    catalog.start_refresher()
+    from live402 import maintenance
     from live402.pq import worker as pq_worker
 
-    pq_worker.start_worker()
+    # Publishers (catalog crawl, PQ anchoring, housekeeping) start only while
+    # this process holds the writer lease. A standby never publishes.
+    leadership.start(on_acquire=(catalog.start_refresher, pq_worker.start_worker, maintenance.start))
+    install_graceful_shutdown(httpd)
     print(
         "402Signal http://%s:%s  fixture=%r local_free=%r"
         % (
@@ -1203,7 +1349,8 @@ def main(argv: list[str] | None = None) -> None:
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nstopped")
-        httpd.server_close()
+    finally:
+        drain_and_release(httpd)
 
 
 if __name__ == "__main__":

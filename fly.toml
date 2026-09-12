@@ -1,16 +1,23 @@
-# fly.toml - single app 402signal. No extra hostnames.
-# Launch later with: fly launch --ha=false
-# Do not set auto_stop; keep one machine running.
-# Do not fly deploy, fly scale, or set secrets from this PR.
+# fly.toml - single paid router app 402signal. No extra hostnames.
+# One writer Machine: min_machines_running = 1 plus the writer lease
+# (docs/leadership-lease.md) keep one publisher and one paid router.
+# Replay authority is Fly Managed Postgres via secrets. Catalog, history,
+# sessions and the MainNet PQ log stay on the /data volume.
+# Never set test-support modes here. Falcon SK is never on this app.
 
 app = "402signal"
 primary_region = "iad"
+# SIGTERM drains in-flight paid requests for up to LIVE402_DRAIN_S before exit.
+kill_signal = "SIGTERM"
+kill_timeout = "75s"
 
 [build]
-  # Optional. Fingerprints /styles.css and /app.js as ?v=<gitsha>.
-  # If omitted, the image records SHA from copied .git/HEAD at build.
-  #   fly deploy --build-arg GIT_SHA=$(git rev-parse HEAD)
+  # Build the Postgres-capable image with an exact build identity:
+  #   fly deploy --dockerfile Dockerfile.postgres --build-arg GIT_SHA=$(git rev-parse HEAD)
   # Do not expose FLY_IMAGE_REF or add a public SHA/status endpoint.
+
+[deploy]
+  strategy = "rolling"
 
 [http_service]
   internal_port = 8080
@@ -20,8 +27,16 @@ primary_region = "iad"
   min_machines_running = 1
   processes = ["app"]
 
-# Keep /health for process liveness and require /ready independently for
-# durable storage/integrity. Both must pass before Fly routes paid traffic.
+  # The proxy queues above the soft limit and sheds above the hard limit, so
+  # the process handler cap (LIVE402_MAX_HANDLERS) is never the first limit.
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 150
+    hard_limit = 190
+
+# Liveness gates proxy routing. Readiness must not take the site, docs,
+# catalog and unpaid challenges offline: paid work is refused in-process with
+# HTTP 503 before verification whenever readiness or the writer lease fails.
 [[http_service.checks]]
   grace_period = "10s"
   interval = "15s"
@@ -29,29 +44,31 @@ primary_region = "iad"
   path = "/health"
   timeout = "5s"
 
-[[http_service.checks]]
-  grace_period = "10s"
-  interval = "15s"
+# Machine check for durable storage/integrity: visible in Fly, gates deploys.
+[checks.ready]
+  type = "http"
+  port = 8080
   method = "GET"
   path = "/ready"
+  interval = "15s"
   timeout = "5s"
+  grace_period = "30s"
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "1gb"  # Ross GO 2026-08-30; ~$5.92/mo. Do not ship 256mb.
+  # Dedicated vCPU: no shared-CPU throttling under sustained routing load.
+  size = "performance-1x"
+  memory = "2gb"
   cpus = 1
 
-# 1GB persistent volume for probe history + catalog.sqlite + pq-log*.sqlite (Ross approved ~$0.15/mo).
+# 1GB persistent volume for probe history, sessions, catalog.sqlite and pq-log*.sqlite.
 # Process-local only. Do not HTTP-serve /data or sqlite files.
 # PRODUCTION is MainNet-only. Unset/unknown network must fail closed.
 # Live log: /data/pq-log-mainnet.sqlite (epoch mainnet-v1).
 # pq-log.sqlite is the archived TestNet shard (TEST SUPPORT only). Do not delete it.
 # Do not set TestNet Falcon address, TestNet log SK, TestNet signer HMAC,
 # or TestNet broadcast flags here.
-# Do not enable TestNet or MainNet Falcon broadcast from this file.
-# Automatic anchoring stays off. No extra machines in this PR. Falcon SK is not on this app.
-# Snapshot schedule, retention and off-host recovery copies are managed by
-# 402ops. Verify the actual volume settings; comments are not a backup policy.
+# Anchoring flags are operator secrets, never this file.
+# Snapshot schedule and off-host copies: docs/backup.md.
 [[mounts]]
   source = "data"
   destination = "/data"
@@ -67,3 +84,14 @@ primary_region = "iad"
   # TestNet OBHYX... must not appear as a MainNet default.
   LIVE402_PQ_FALCON_MAINNET_ADDRESS = "GVIAG3YMJ7OLJ3JAUBNI2YP5JCQQCQYWN25UAGLC2BTPOBUL3ZZTILIMWU"
   LIVE402_PQ_FALCON_NETWORK = "mainnet"
+  # Writer lease and capacity tunables (docs/leadership-lease.md, docs/scale-20m.md).
+  LIVE402_LEADERSHIP_BACKEND = "file"
+  LIVE402_MAX_HANDLERS = "200"
+  LIVE402_MAX_PROCESS_PROBES = "32"
+  LIVE402_READY_CACHE_S = "5"
+  LIVE402_DISCOVERY_CACHE_S = "120"
+  LIVE402_DRAIN_S = "60"
+  LIVE402_ADMISSION_DISCOVERY_GLOBAL = "240"
+  LIVE402_ADMISSION_DISCOVERY_ANONYMOUS = "20"
+  LIVE402_ADMISSION_DISCOVERY_ANONYMOUS_TOTAL = "160"
+  LIVE402_ADMISSION_SESSION_HOP_GLOBAL = "400"
