@@ -447,6 +447,61 @@ class HostedSessionTests(unittest.TestCase):
             verify.assert_not_called()
             settle.assert_not_called()
 
+    def _assert_shape_refuse(self, payload):
+        with patch.object(route, "run_probe", side_effect=AssertionError("probed")) as probed, \
+             patch.object(facilitator, "verify") as verify, \
+             patch.object(facilitator, "settle") as settle:
+            code, body, extra = route.handle_route(payload, {}, "https://402signal.com/route")
+        self.assertEqual(code, 200, body)
+        self.assertFalse(body.get("live"))
+        self.assertFalse(body.get("payable"))
+        self.assertIsNone(body.get("selected_payment"))
+        self.assertEqual(body["billing"]["settlement_state"], "not_attempted")
+        self.assertFalse(body["billing"].get("settled"))
+        self.assertFalse(body["billing"].get("settlement_attempted"))
+        self.assertNotEqual(code, 402)
+        self.assertNotIn("PAYMENT-REQUIRED", extra or {})
+        probed.assert_not_called()
+        verify.assert_not_called()
+        settle.assert_not_called()
+        return body
+
+    def test_session_id_in_session_field_is_invalid_shape_without_settle(self):
+        body = self._assert_shape_refuse({"session": "ab" * 32, "url": WEATHER})
+        self.assertEqual(body.get("miss_reason"), "invalid_session_shape")
+        self.assertEqual(body.get("route_outcome", {}).get("code"), "free_miss")
+
+    def test_unknown_session_value_is_invalid_shape_without_settle(self):
+        body = self._assert_shape_refuse({"session": "wat", "url": WEATHER})
+        self.assertEqual(body.get("miss_reason"), "invalid_session_shape")
+
+    def test_hop_without_session_id_is_fingerprint_miss_without_settle(self):
+        body = self._assert_shape_refuse({"session": "hop"})
+        self.assertEqual(body.get("miss_reason"), "fingerprint_miss")
+
+    def test_successful_hop_route_outcome_is_session_hop(self):
+        token = session.issue_trial()
+        code, opened, _ = self._open(token)
+        self.assertEqual(code, 200)
+        sid = opened["session"]["id"]
+        with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
+            hop_code, hop, _ = route.handle_route(
+                {"session": "hop", "session_id": sid},
+                {},
+                "https://402signal.com/route",
+            )
+        self.assertEqual(hop_code, 200, hop)
+        self.assertTrue(hop.get("live"))
+        self.assertEqual(hop["billing"]["settlement_state"], "not_attempted")
+        self.assertFalse(hop["billing"].get("settlement_attempted"))
+        self.assertEqual(hop.get("route_outcome", {}).get("code"), "session_hop")
+        self.assertEqual(hop["route_outcome"]["next_action"], "none")
+        self.assertNotEqual(hop["route_outcome"]["code"], "free_miss")
+        self.assertNotEqual(hop["route_outcome"]["next_action"], "change_constraints")
+        verify.assert_not_called()
+        settle.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -925,6 +925,8 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
 
     sess_mode = session_mod.mode(body if isinstance(body, dict) else {})
     sku = "session" if sess_mode == "open" else None
+    if sess_mode == "invalid":
+        return session_mod._miss("invalid_session_shape")
     if sess_mode == "hop":
         return session_mod.handle_hop(body if isinstance(body, dict) else {}, headers)
     if session_mod.trial_token(headers) and sess_mode != "hop":

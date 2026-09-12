@@ -341,6 +341,39 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
             },
             "traction": {"type": "string"},
             "miss_reason": {"type": "string", "enum": miss_enum},
+            "route_outcome": {
+                "type": "object",
+                "description": "Advisory server state from billing. Not independent confirmation.",
+                "properties": {
+                    "version": {"type": "integer", "const": 1},
+                    "code": {
+                        "type": "string",
+                        "enum": [
+                            "free_miss",
+                            "binding_failed",
+                            "session_hop",
+                            "route_settled",
+                            "route_settled_receipt_unavailable",
+                            "payment_rejected",
+                            "settlement_unknown",
+                        ],
+                    },
+                    "next_action": {
+                        "type": "string",
+                        "enum": [
+                            "change_constraints",
+                            "fix_request_or_compatibility",
+                            "none",
+                            "verify_receipt",
+                            "reconcile_existing_payment",
+                            "inspect_rejection",
+                        ],
+                    },
+                    "automatic_payment_retry": {"type": "boolean", "const": False},
+                    "independent_confirmation": {"type": "string"},
+                    "seller_execution": {"type": "string"},
+                },
+            },
             "schema_source": {"type": ["string", "null"], "enum": ["envelope", "catalog", "bazaar"]},
             "claimed": schema_fields.claimed_output_schema(),
             "target": target_schema,
@@ -1386,7 +1419,7 @@ The routing fee pays for the qualifying observation even if the buyer declines t
 
 Published client and guard: https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.2
 One-command verified install from a reviewed checkout: node scripts/install_route_guard.mjs
-It downloads the published GitHub archive, checks both /capabilities.json pins, then npm install --ignore-scripts. Without a checkout, download 402signal-route-guard-0.7.2.tgz and SHA256SUMS from that release, run sha256sum --check SHA256SUMS, then npm install the matching archive. Node.js >=22 is required. This is a release archive, not an npm registry publication. Package exports include @402signal/route-guard, /client, /file-store, /recovery and the separate /batch guard. The default wrap is wrapExactAuthorize in exact-authorize.mjs (written by the installer): observe, bind, locally verify, then the existing wallet. Same wrap on the next spend. Fail closed. On HTTP 503 with binding_error=route_binding_unavailable it returns state=binding_unavailable and keep_calling_route true (retry the next /route). That is policy working, not a crash. The packaged examples/search.ts is the longer pay-fetch form. Full API: https://github.com/402signalhq/402signal/tree/main/sdk/route-guard
+It downloads the published GitHub archive, checks both /capabilities.json pins, then npm install --ignore-scripts. Without a checkout, download 402signal-route-guard-0.7.2.tgz and SHA256SUMS from that release, run sha256sum --check SHA256SUMS, then npm install the matching archive. Node.js >=22 is required. This is a release archive, not an npm registry publication. Package exports include @402signal/route-guard, /client, /file-store, /recovery and the separate /batch guard. The default wrap is wrapExactAuthorize in exact-authorize.mjs (written by the installer): observe, bind, locally verify, then the existing wallet. Same wrap on the next spend. Fail closed. On HTTP 503 with binding_error=route_binding_unavailable it returns state=binding_unavailable and keep_calling_route true (retry the next /route). That is policy working, not a crash. The packaged examples/search.ts is the longer pay-fetch form. Hosted hop is session=hop plus session_id; a raw id in session is miss_reason=invalid_session_shape, HTTP 200, no routing fee. wrapExactAuthorize already refuses hops. Full API: https://github.com/402signalhq/402signal/tree/main/sdk/route-guard
 
 Set require_route_binding:true for a v4 exact-payment receipt. If the ranked winner cannot build valid binding or evidence, the router may fall through to the next already-probed selectable candidate that can bind under the same objective and constraints. There is no unguarded (non-binding) settle and no second router fee. HTTP 503 binding_error route_binding_unavailable means none remained bindable; it is not a router crash. wrapExactAuthorize reports that as state=binding_unavailable with keep_calling_route true. Inspect binding_error_reason and route_outcome.next_action (usually fix_request_or_compatibility). A completed miss is HTTP 200 live:false with a typed miss_reason; next_action is usually change_constraints. That is policy working, not a reason to stop calling /route. Failed binding losers in compared[] use excluded_reason binding_unavailable and selectable false. Preserve the original route request JSON, raw response JSON, exact seller URL/method/body and raw unpaid challenge. Immediately before signing, call withVerifiedRoute using an independently trusted log verification key. It checks the signature, inclusion, request binding, observed terms and expiry before invoking your buyer-owned callback. Unsupported, changed, malformed or expired evidence fails closed; a local guard refusal must not fall through to unguarded seller payment. The default freshness window is 60 seconds and is never renewed by replay, issuance or human approval.
 

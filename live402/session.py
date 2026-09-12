@@ -165,8 +165,12 @@ def mode(body) -> str | None:
     sid_ok = isinstance(sid, str) and bool(SESSION_ID_RE.fullmatch(sid.strip()))
     if text == "open":
         return "open"
-    if text == "hop" or sid_ok:
-        return "hop" if sid_ok else None
+    if text == "hop":
+        return "hop"
+    if text:
+        return "invalid"
+    if sid_ok:
+        return "hop"
     return None
 
 

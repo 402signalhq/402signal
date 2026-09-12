@@ -27,8 +27,10 @@ reason before correcting the seller challenge or request; do not relax
 verification to make a route succeed.
 
 Non-challenge responses with billing add `route_outcome` version 1. Its code and next_action
-separate free_miss, binding_failed, route_settled,
+separate free_miss, binding_failed, session_hop, route_settled,
 route_settled_receipt_unavailable, payment_rejected and settlement_unknown.
+A hosted hop that restored the bound winner with no new settle uses
+`session_hop` and `next_action=none`. That is snapshot reuse, not a miss.
 All outcomes explicitly set automatic_payment_retry to false. Contradictory
 billing remains unknown. This advice is not independent chain confirmation.
 

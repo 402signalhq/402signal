@@ -1084,7 +1084,7 @@ class Handler(SimpleHTTPRequestHandler):
         trial_live = bool(trial_header) and sess_mode != "hop" and session_mod.trial_remaining(self.headers) > 0
         # Hops and live trial credits have their own buckets. They must not
         # debit paid ingress, or credits can starve organic /route.
-        if admission.configured() and (sess_mode == "hop" or trial_live):
+        if admission.configured() and (sess_mode in {"hop", "invalid"} or trial_live):
             reqctx.peer_ip.set(client_ip(self))
         elif not self._route_allowed():
             return self._close_error(429, "rate limit")
