@@ -1255,6 +1255,43 @@ def install_graceful_shutdown(httpd) -> None:
         pass
 
 
+def _stop_publishers() -> None:
+    from live402 import maintenance
+    from live402.pq import worker as pq_worker
+
+    for stop in (catalog.stop_refresher, pq_worker.stop_worker, maintenance.stop):
+        try:
+            stop()
+        except Exception:
+            pass
+
+
+def _close_sqlite_connections() -> None:
+    """Close process SQLite handles so the volume unmounts cleanly after exit."""
+    from live402 import session, shadow
+    from live402.pq import store as pq_store
+
+    for module in (history, session, shadow):
+        lock = getattr(module, "_lock", None)
+        if lock is None or not lock.acquire(timeout=2):
+            continue
+        try:
+            conn = getattr(module, "_conn", None)
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                module._conn = None
+                module._conn_path = None
+        finally:
+            lock.release()
+    try:
+        pq_store.close()
+    except Exception:
+        pass
+
+
 def drain_and_release(httpd, timeout: float | None = None) -> None:
     """Wait for in-flight requests, flush private counters, release the writer lease."""
     deadline = time.monotonic() + (drain_seconds() if timeout is None else float(timeout))
@@ -1263,6 +1300,7 @@ def drain_and_release(httpd, timeout: float | None = None) -> None:
         if active <= 0:
             break
         time.sleep(0.1)
+    _stop_publishers()
     try:
         counts = metrics.flush()
         if counts:
@@ -1270,6 +1308,7 @@ def drain_and_release(httpd, timeout: float | None = None) -> None:
     except Exception:
         pass
     leadership.release()
+    _close_sqlite_connections()
     try:
         httpd.socket.close()
     except (OSError, AttributeError):

@@ -13,6 +13,7 @@ JOBS = (
     ("session_prune", 600.0),
     ("metrics_flush", 300.0),
     ("replay_capacity", 300.0),
+    ("replay_expire", 60.0),
 )
 
 _thread: threading.Thread | None = None
@@ -49,10 +50,19 @@ def _replay_capacity() -> None:
         )
 
 
+def _replay_expire() -> None:
+    from live402 import replay
+
+    removed = replay.expire_identities(1000)
+    if removed:
+        sys.stderr.write("replay_expired count=%d\n" % removed)
+
+
 _JOB_FUNCS = {
     "session_prune": _session_prune,
     "metrics_flush": _metrics_flush,
     "replay_capacity": _replay_capacity,
+    "replay_expire": _replay_expire,
 }
 
 

@@ -1018,7 +1018,10 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
         )
         return 402, required, extra
     with telemetry.phase("replay_lookup"):
-        kind, token = replay.begin(fp, legacy_fp=legacy_fp, scope=private_scope, reserve=False)
+        kind, token = replay.begin(
+            fp, legacy_fp=legacy_fp, scope=private_scope, reserve=False,
+            authorization_expires_at=payment.authorization_expiry(parsed, accept),
+        )
     if kind == "cached" and isinstance(token, tuple) and len(token) == 3:
         telemetry.mark_replayed()
         return token[0], token[1], token[2]

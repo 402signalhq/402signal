@@ -1695,6 +1695,30 @@ def _uint_or_none(value) -> int | None:
     return None
 
 
+def authorization_expiry(payload, accept) -> float | None:
+    """Unix time after which this authorization can no longer settle on-chain.
+
+    Base only: EIP-3009 validBefore or Permit2 deadline from the signed
+    authorization the facilitator verifies. Ambiguous, malformed, oversized
+    and non-Base values return None, which keeps the replay identity forever.
+    """
+    if rail_of_accept(accept if isinstance(accept, dict) else {}) != "base":
+        return None
+    inner = payload.get("payload") if isinstance(payload, dict) else None
+    if not isinstance(inner, dict):
+        return None
+    auth, permit = inner.get("authorization"), inner.get("permit2Authorization")
+    if isinstance(auth, dict) and permit is None:
+        value = _uint_or_none(auth.get("validBefore"))
+    elif isinstance(permit, dict) and auth is None:
+        value = _uint_or_none(permit.get("deadline"))
+    else:
+        return None
+    if value is None or value > 2**53:
+        return None
+    return float(value)
+
+
 def max_authorization_lifetime_seconds() -> int | None:
     """Enforced bound from LIVE402_MAX_AUTH_LIFETIME_S. Unset means observe only."""
     raw = (os.environ.get("LIVE402_MAX_AUTH_LIFETIME_S") or "").strip()

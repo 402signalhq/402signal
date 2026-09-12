@@ -86,6 +86,8 @@ class PostgresStore:
         self.last_used = 0.0
         self.lock = threading.Lock()
         self.last_prune = 0.0
+        self.expiry_api: bool | None = None
+        self.expiry_api_at = 0.0
 
     def close(self):
         with self.lock:
@@ -164,14 +166,31 @@ class PostgresStore:
                 "SELECT state,outcome_json,fingerprint_version,scope_hash,expires_at "
                 "FROM signal_replay.entries WHERE fp_hash = %s", (key,)).fetchone()
 
-    def reserve(self, key, scope, expires):
+    def _expiry_api(self, conn):
+        """True once the owner installed ops/replay-postgres-identity-expiry.sql."""
+        now = time.monotonic()
+        if self.expiry_api is None or now - self.expiry_api_at > 600:
+            self.expiry_api = bool(conn.execute(
+                "SELECT to_regprocedure('signal_replay.api_expire_identities(text,integer)') IS NOT NULL "
+                "AND to_regprocedure('signal_replay.api_reserve_v2(text,text,text,double precision,double precision)') "
+                "IS NOT NULL").fetchone()[0])
+            self.expiry_api_at = now
+        return self.expiry_api
+
+    def reserve(self, key, scope, expires, authorization_expires=None):
         self._key(key)
         if scope is not None:
             self._key(scope)
         if isinstance(expires, bool) or not isinstance(expires, (int, float)) or not math.isfinite(expires):
             raise StoreError("invalid replay expiry")
+        if (isinstance(authorization_expires, bool) or not isinstance(authorization_expires, (int, float))
+                or not math.isfinite(authorization_expires) or authorization_expires < 0):
+            authorization_expires = None
         if self.functions_api:
             with self._transaction(capacity=True, guarded_api=True) as conn:
+                if authorization_expires is not None and self._expiry_api(conn):
+                    return conn.execute("SELECT signal_replay.api_reserve_v2(%s,%s,%s,%s,%s)",
+                                        (self.authority,key,scope,expires,authorization_expires)).fetchone()[0]
                 return conn.execute("SELECT signal_replay.api_reserve(%s,%s,%s,%s)",
                                     (self.authority,key,scope,expires)).fetchone()[0]
         admitted = False
@@ -259,6 +278,16 @@ class PostgresStore:
         if not row:
             raise StoreError("replay authority capacity unavailable")
         return tuple(int(value) for value in row)
+
+    def expire_identities(self, batch=1000):
+        """Drop long-expired terminal identities. 0 before the owner migration or in direct mode."""
+        if not self.functions_api:
+            return 0
+        with self._transaction(write_meta=True, guarded_api=True) as conn:
+            if not self._expiry_api(conn):
+                return 0
+            return int(conn.execute("SELECT signal_replay.api_expire_identities(%s,%s)",
+                                    (self.authority, max(1, min(10000, int(batch))))).fetchone()[0])
 
     def prune_outcomes(self):
         # Expiry removes private bodies, never economic identities.
