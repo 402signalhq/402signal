@@ -733,7 +733,8 @@ def _paid_execute_inner(
 
     # Verified payer: bound unsettled attempts per wallet before any durable
     # identity is admitted. Settled attempts are refunded in _handle_route.
-    verified_payer = verify.body.get("payer") if isinstance(verify.body, dict) else None
+    verify_body = getattr(verify, "body", None)
+    verified_payer = verify_body.get("payer") if isinstance(verify_body, dict) else None
     try:
         payer_quota.hold(payer_quota.reserve(payment.rail_of_accept(accept), verified_payer))
     except payer_quota.Exhausted:
