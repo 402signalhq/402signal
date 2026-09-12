@@ -113,6 +113,20 @@ of a bot change. Until isolation exists, bots stay on repo-scoped PR
 credentials only and treat any operator Fly, GitHub, SSH, or wallet
 material as out of bounds.
 
+## CI production release (Ross / 402ops)
+
+`.github/workflows/deploy-router.yml` is a manual `workflow_dispatch`
+release of `main` to the `402signal` app only. It requires typing the app
+name and approval in the protected `production` GitHub environment, whose
+required reviewer is Ross. Its only secret is an app-scoped Fly deploy token
+stored on that environment. It never runs on pull requests, never reads or
+sets Fly secrets, never touches the signer app, and never changes anchoring
+flags. It snapshots the writer volume, deploys the exact commit with
+`Dockerfile.postgres`, then runs unpaid public smoke checks.
+
+Triggering or approving that workflow is a Ross / 402ops action. Bots may
+edit the workflow file only through a reviewed pull request.
+
 ## Scope reminder
 
 Allowed without Ross / 402ops: feature-branch code, docs, CODEOWNERS

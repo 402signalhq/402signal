@@ -17,6 +17,7 @@ Names in use:
   route.probe_capacity.<traffic> shed for probe capacity
   http429.<endpoint>.<reason>   429 reason mix
   payment.long_window.<rail>    authorizations valid > 900 s (observe before enforcing)
+  payer_quota.exhausted.<traffic> verified payers over the unsettled attempt budget
 """
 
 from __future__ import annotations

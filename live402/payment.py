@@ -425,6 +425,7 @@ def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sen
             "typedMissesSettled": False,
             "sellerPaymentSeparate": True,
             "contact": "https://x.com/402Signal",
+            "replayKey": "Send Replay-Key (64 random lowercase hex, private) with the paid request so a lost response can be recovered with Replay-Only: 1 and the same authorization.",
             "post": "POST /route with PAYMENT-SIGNATURE after this 402. Agents should POST, not GET.",
         },
     }

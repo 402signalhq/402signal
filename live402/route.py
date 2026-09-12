@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from live402 import admission, probe_profile
+from live402 import admission, payer_quota, probe_profile
 
 from live402 import lab_traffic, route_observability as telemetry
 
@@ -731,6 +731,20 @@ def _paid_execute_inner(
     if bad:
         return bad[0], bad[1], None
 
+    # Verified payer: bound unsettled attempts per wallet before any durable
+    # identity is admitted. Settled attempts are refunded in _handle_route.
+    verified_payer = verify.body.get("payer") if isinstance(verify.body, dict) else None
+    try:
+        payer_quota.hold(payer_quota.reserve(payment.rail_of_accept(accept), verified_payer))
+    except payer_quota.Exhausted:
+        metrics.inc("payer_quota.exhausted." + metrics.traffic_label())
+        return 429, {
+            "error": "payer attempt budget exhausted",
+            "retryable": True,
+            "retry_same_request": True,
+            "new_payment_allowed": False,
+        }, {"Retry-After": "60", "Cache-Control": "no-store"}
+
     if not replay.authorize(fp):
         return _unknown_outcome(payment.rail_of_accept(accept), attempted=False)
 
@@ -1029,7 +1043,7 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
         out = _paid_execute(body, parsed, accept, resource_url, bazaar, paid_deadline, fp)
         out = telemetry.finish_current(out)
         # Input 400s are validated before admission; admitted identities stay unique.
-        cache = out[0] != 400
+        cache = out[0] not in (400, 429)
         replay.finish(fp, out, cache=cache)
         return out
     except Exception:
@@ -1038,6 +1052,11 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
         replay.finish(fp, out, cache=True)
         return out
     finally:
+        final = locals().get("out")
+        payer_quota.finish_current(
+            isinstance(final, tuple) and len(final) > 1 and isinstance(final[1], dict)
+            and isinstance(final[1].get("billing"), dict) and final[1]["billing"].get("settled") is True
+        )
         if work_lease is not None:
             billing = out[1].get("billing", {}) if "out" in locals() and isinstance(out[1], dict) else {}
             work_lease.finish(earned=billing.get("settled") is True)
