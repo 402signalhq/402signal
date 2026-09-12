@@ -230,7 +230,13 @@ def verify(payload: dict, accept: dict, timeout: float | None = None) -> Facilit
         )
     body = result.body
     if body.get("isValid") is True:
-        return FacilitatorResult(ok=True, body={"isValid": True}, url=verify_url)
+        out = {"isValid": True}
+        # The verified payer is kept only as a rail-valid address; it keys the
+        # unsettled attempt budget and is never logged or returned to callers.
+        payer = body.get("payer")
+        if isinstance(payer, str) and len(payer) <= 128 and payment.valid_payto_for_rail(payer, rail):
+            out["payer"] = payer
+        return FacilitatorResult(ok=True, body=out, url=verify_url)
     return FacilitatorResult(
         ok=False, error="payment_verification_failed", url=verify_url
     )

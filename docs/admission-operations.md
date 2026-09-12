@@ -29,3 +29,14 @@ Tests cover same-path non-reload, versioned revocation, invalid replacement, con
 ## Retry behavior
 
 An outer429 may concern a repeat request whose previous attempt already settled. Never infer nonpayment from that response. Use the explicit recovery-only contract and retain the original request, authorization and private replay credential. A capacity response after durable admission may itself be the recorded outcome. Backoff does not authorize a fresh nonce, payment or seller request. Recovery is bounded and time-limited; no guarantee extends the private outcome-retention window.
+
+## Per-payer unsettled attempt budget
+
+After the facilitator verifies a payment, the verified payer address keys a
+budget of unsettled attempts: `LIVE402_PAYER_UNSETTLED_PER_WINDOW` (default
+600) per `LIVE402_PAYER_WINDOW_S` (default 600 s). The budget is charged before
+the durable replay identity is admitted and refunded when the route settles,
+so qualifying paid traffic is never throttled by it. A payer over budget gets
+HTTP 429 `payer attempt budget exhausted` with `retry_same_request: true`;
+nothing was reserved or settled. Set the capacity to `0` to disable. Payer
+addresses are hashed in memory and never logged or returned.

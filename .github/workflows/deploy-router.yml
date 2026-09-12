@@ -1,0 +1,68 @@
+name: deploy-router
+
+# Manual production release of main. Requires typing the app name and the
+# protected `production` environment (required reviewer). The only secret is
+# an app-scoped Fly deploy token stored on that environment. Never runs on
+# pull requests. Signer and anchoring flags are never touched here.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_app:
+        description: "Type 402signal to deploy main to production"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-402signal
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm_app == '402signal' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      FLYCTL_VERSION: "0.4.99"
+      FLYCTL_SHA256: "384a14958b214b18ebda784dee101a633ceae626ac4bcccee0fc7ebb111247a4"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install pinned flyctl (verify digest before executing)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            "https://github.com/superfly/flyctl/releases/download/v${FLYCTL_VERSION}/flyctl_${FLYCTL_VERSION}_Linux_x86_64.tar.gz" \
+            --output flyctl.tgz
+          echo "${FLYCTL_SHA256}  flyctl.tgz" | sha256sum --check --strict
+          tar xzf flyctl.tgz flyctl
+          ./flyctl version
+
+      - name: Snapshot the writer volume before release
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: ./flyctl volumes snapshots create vol_re1enj256zme7ld4 -a 402signal
+
+      - name: Deploy this exact commit
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./flyctl deploy -a 402signal --remote-only --dockerfile Dockerfile.postgres \
+            --build-arg GIT_SHA="${GITHUB_SHA}" --image-label "ci-${GITHUB_SHA}" --wait-timeout 10m
+
+      - name: Public unpaid smoke checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          code() { curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$@"; }
+          test "$(code https://402signal.com/health)" = 200
+          test "$(code https://402signal.com/ready)" = 200
+          test "$(code -H 'Accept: application/json' https://402signal.com/route)" = 402
+          test "$(code https://402signal.com/pq/log/checkpoint)" = 200
