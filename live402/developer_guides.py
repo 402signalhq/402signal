@@ -20,6 +20,8 @@ GUIDES = {
     'evidence': ('pq-trust', 'Verify a retained decision record', 'Compare retained evidence with independent policy and wallet records; distinguish receipts from anchors.'),
     'operating-limits': ('policy-guide', 'Operate a buyer within explicit limits', 'Keep spending controls, private evidence and recovery state in trusted application code.'),
     'supported-profiles': ('compatibility', 'Check supported profiles and releases', 'Distinguish source support, published packages, hosted availability and dated qualification.'),
+    'alerts': ('alerts', 'Get told when a seller changes', 'Subscribe a signed webhook to observed price, recipient and liveness changes for the hosts you depend on. Admission key required.'),
+    'evidence-record': ('evidence-record', 'Read the Offer Evidence Record', 'The versioned, protocol-independent record a check produces: what was requested, what was offered, when, signed how, anchored where.'),
 }
 PATHS = {'/developers/' + slug: slug for slug in GUIDES}
 MARKDOWN_PATHS = {path + '.md': slug for path, slug in PATHS.items()}

@@ -5,6 +5,7 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Two developer guides served from the site with `.md` twins: `/developers/alerts` (change alerts: subscribe, payload, signature, failures, management) and `/developers/evidence-record` (the Offer Evidence Record v1). `llms.txt`, `/trust`, `/try` and the report point at them instead of the repository.
 - Website and docs, proof-first: the homepage leads with the signed record
   ("Signed proof of what your agent was offered before it paid"), opens three
   doors (buyers and platforms, sellers, auditors and compliance), names the

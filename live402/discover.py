@@ -1538,7 +1538,8 @@ Recover a check attempt: https://402signal.com/developers/recover-routing-attemp
 Reconcile a seller payment: https://402signal.com/developers/reconcile-seller-payment
 Verify retained evidence: https://402signal.com/developers/evidence
 Check your credits or key: GET https://402signal.com/keys/usage
-Subscribe to seller change alerts (admission key): https://github.com/402signalhq/402signal/blob/main/docs/customer/alerts.md
+Subscribe to seller change alerts (admission key): https://402signal.com/developers/alerts
+The Offer Evidence Record, the record format across protocols: https://402signal.com/developers/evidence-record
 Try a sample check without a wallet: https://402signal.com/try
 Pricing on one page: https://402signal.com/pricing
 What a receipt proves and the record format: https://402signal.com/trust
