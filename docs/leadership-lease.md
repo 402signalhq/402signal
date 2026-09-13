@@ -40,15 +40,29 @@ An unknown backend value fails closed (never leader).
 
 The lease table belongs on the same Postgres as replay. The router's runtime
 login on the managed cluster is a non-owner Reader. It cannot create schemas
-or tables, and runtime DDL is forbidden by the replay design. The migration
-owner must install `ops/router-leadership.sql` and grant execute to the runtime
-login. Until then the single attached volume already provides exclusive
-ownership for the one writer Machine, which is the only paid router.
+or tables, and runtime DDL is forbidden by the replay design. Fly Managed
+Postgres also refuses every GRANT and REVOKE ("MPG system roles cannot be
+modified"), so `ops/router-leadership.sql` cannot be installed there.
+
+`ops/router-leadership-managed.sql` is the managed variant: the same table and
+function signatures, no GRANT or REVOKE, and each function refuses every login
+except the replay runtime login pinned in `signal_replay.runtime_policy`. The
+runtime login reaches the schema through its read-all role and still cannot
+write the table directly. Installing it changes nothing until the backend is
+switched.
+
+Staying on `file` with one Machine is deliberate. The kernel releases a
+crashed process's `flock` immediately, while a database lease stays held until
+it expires (up to `LIVE402_LEADERSHIP_TTL_S`), so a crash restart would wait
+before taking paid traffic. The Postgres backend also makes anchoring and
+catalog work depend on the database. Switch when a second Machine exists.
 
 Activation of the Postgres backend (operator, when a standby is planned):
 
-1. As migration owner: `psql -f ops/router-leadership.sql`, then the three
-   `GRANT` statements in its header for the runtime login.
+1. As migration owner, after `ops/replay-postgres-functions.sql`:
+   - managed PostgreSQL: `psql -f ops/router-leadership-managed.sql`;
+   - self-managed PostgreSQL: `psql -f ops/router-leadership.sql`, then the
+     three `GRANT` statements in its header for the runtime login.
 2. Set `LIVE402_LEADERSHIP_BACKEND = "postgres"` in `fly.toml` and deploy.
 3. Confirm logs show `leadership acquired backend=postgres` exactly once.
 
