@@ -758,7 +758,7 @@ class TestNetDPlumbingTests(unittest.TestCase):
         readme = Path(__file__).resolve().parent.parent.joinpath("README.md").read_text(encoding="utf-8")
         self.assertNotIn("Not set on 402signal", readme)
         self.assertIn("402signal (router) env", readme)
-        self.assertIn("402security must GO before anyone sets it to `1`", readme)
+        self.assertIn("a security review must approve before anyone sets it to `1`", readme)
         self.assertIn("Signer never reads BROADCAST", readme)
         self.assertNotIn("lives on the signer", readme.lower())
         comments = (

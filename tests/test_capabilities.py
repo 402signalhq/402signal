@@ -20,7 +20,7 @@ REVIEWED_KEYS = (
     "verifier_package",
     "historical_verifier",
 )
-# Tag route-guard-v0.7.2 at the PR169 merge. sdk/route-guard bytes are unchanged after 1a9da77.
+# Tag route-guard-v0.7.2 at its merge commit. sdk/route-guard bytes are unchanged after 1a9da77.
 PUBLISHED_TIP = "fdbcff3bc9b31826567b8cb456d4a883009eb9ff"
 PUBLISHED_PACK_SHA256 = (
     "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a"

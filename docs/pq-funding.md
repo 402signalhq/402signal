@@ -5,7 +5,7 @@ Do not fund from this PR. This is a recommendation only.
 The MainNet Falcon account sends pay-0 self-transfers. It spends only
 the transaction fee. Amount is always 0 ALGO.
 
-## Fee (402security: please review this calculation)
+## Fee (calculation pending security review)
 
 Official Algorand rule for a Falcon-1024 authorized txn:
 

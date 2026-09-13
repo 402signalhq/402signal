@@ -8,7 +8,7 @@
  * File-system mtimes and SOURCE_DATE_EPOCH therefore do not change the tar.
  * npm gzip bytes still vary by Node/zlib. After pack, portable_npm_tgz.py
  * rewrites the gzip stream (level 9, mtime 0, XFL 2, OS 255) so the tgz
- * digest matches 402security's pair for this tree.
+ * digest matches the reviewed pair for this tree.
  * This script packs, asserts those invariants, writes SHA256SUMS, and checks
  * the pending capabilities record when present.
  */

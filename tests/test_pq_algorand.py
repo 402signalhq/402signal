@@ -403,7 +403,7 @@ class TestNetSubmitTests(unittest.TestCase):
         self.assertFalse(any(ln.strip() == "[processes]" for ln in text.splitlines()))
         self.assertNotIn("falcon =", text)
         self.assertIn('processes = ["app"]', text)
-        # One writer Machine and one paid router (Week 4 lease); VM size is operator-approved.
+        # One writer Machine and one paid router (writer lease); VM size is operator-approved.
         self.assertIn("min_machines_running = 1", text)
         self.assertIn("One writer Machine", text)
         self.assertIn("Never set test-support modes here", text)

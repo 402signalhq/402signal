@@ -26,7 +26,7 @@ another auth, never auto-spend another fee, and never auto-POST
 again. First query the locally expected txid. One-shot canary has
 NO automatic second POST after SEND_ATTEMPTED.
 
-Explicit human recovery (not implemented here; 402security must
+Explicit human recovery (not implemented here; a security reviewer must
 approve later) may retransmit the EXACT SAME stored SignedTxn and
 expected txid while the validity window is still open. If validity
 has expired and the provider still has no matching txn, stop for

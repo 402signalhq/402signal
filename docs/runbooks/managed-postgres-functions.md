@@ -36,7 +36,7 @@ insufficient. Restoring/restarting an old binary cannot clear this database fenc
 `ops/replay-postgres-fence.sql` and `scripts/replay_fence.sh` implement this
 procedure: a verified plain restart re-pins with one command, and any other
 instance change requires a reconciled, recorded operator attestation. See
-`docs/runbooks/replay-instance-fence.md`.
+the replay instance fence runbook in the private operations repository.
 
 Use the existing SQLite-first, one-writer drain, source-fence-before-activation
 migration procedure. The new migration installs the policy only into a fresh

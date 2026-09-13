@@ -92,7 +92,7 @@ other requests.
 
 Basic handles today's volume. The limits above apply to Starter as well, so
 paying for Starter buys no replay throughput. Switching plans restarts Postgres,
-which trips the instance fence; use `docs/runbooks/replay-instance-fence.md`.
+which trips the instance fence; use the replay instance fence runbook in the private operations repository.
 
 ## Reproduce
 
@@ -101,9 +101,9 @@ authority and runtime policy for a benchmark authority ID, from a Machine in the
 same region with `BENCH_DATABASE_URL` set as a secret:
 
 ```bash
-LIVE402_BENCH_ACK=disposable-benchmark-authority \
+LIVE402_BENCH_ACK=disposable-benchmark-authority BENCH_CLUSTER_ID=<disposable cluster id> \
   python -m scripts.replay_bench --authority <32-hex id> \
   --levels 1x1,1x4,1x16,1x64,2x16,4x16,8x16 --seconds 20 --warmup 3
 ```
 
-The script refuses the production cluster ID and prints JSON only.
+The script refuses any database host that does not name the disposable cluster given in `BENCH_CLUSTER_ID`, and prints JSON only.

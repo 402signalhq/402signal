@@ -34,52 +34,8 @@ def _vkey(origin: str, key: Ed25519PrivateKey) -> str:
     return ckpt.vkey_encode(origin, pk)
 
 
-class RunbookStaticTests(unittest.TestCase):
-    def test_runbook_covers_required_steps(self):
-        text = (ROOT / "docs/runbooks/mainnet-prelaunch-reset.md").read_text(encoding="utf-8")
-        for needle in (
-            "Ross only",
-            "A. Confirm broadcast",
-            "B. Optional offline archive",
-            "C. Retire the old MainNet test DB",
-            "D. Init a fresh empty",
-            "E. Generate a fresh Ed25519",
-            "F. Derive the C2SP vkey",
-            "G. Install router SK",
-            "H. NEVER put the Ed25519 SK on the Falcon signer",
-            "I. Verify the new vkey is distinct",
-            "J. Verify fresh state is empty",
-            "K. No Algorand transaction during reset",
-            "L. No copy of old leaves",
-            "M. Remove the compromised",
-            "TestNet runtime secrets",
-            "LIVE402_PQ_LOG_SK",
-            "LIVE402_PQ_SIGNER_TOKEN",
-            "LIVE402_PQ_FALCON_BROADCAST",
-            "MAINNET_FALCON_IDENTITY_DISTINCT",
-            "algokey pq info",
-            "LIVE402_PQ_LOG_SK_MAINNET=-",
-            "LIVE402_PQ_LOG_VKEY_MAINNET=-",
-            "umask 077",
-            "402signal.com/pq/log/mainnet-v1",
-            "/data/pq-log-mainnet.sqlite",
-            "leaves=0",
-            "Do not generate keys",
-        ):
-            self.assertIn(needle, text, needle)
-        self.assertNotIn("\u2014", text)
-        self.assertIn("fly secrets set LIVE402_PQ_LOG_SK_MAINNET=-", text)
-        self.assertNotIn("fly secrets set LIVE402_PQ_LOG_SK_MAINNET=<", text)
-        self.assertIn("No CLI secret arguments", text)
-        self.assertIn("Do not run `scripts/pq_mainnet_canary.py --prepare`", text)
-        self.assertIn("Do not decode or `algokey pq info` the Falcon keyfile", text)
-
-    def test_runbook_forbids_cli_secret_and_keyfile_decode(self):
-        text = (ROOT / "docs/runbooks/mainnet-prelaunch-reset.md").read_text(encoding="utf-8")
-        self.assertIn("No CLI secret arguments", text)
-        self.assertIn("Never NAME=hex on the CLI", text)
-        self.assertIn("Do not `fly ssh console` and print env", text)
-        self.assertIn("Signer does not have `LIVE402_PQ_LOG_SK`", text)
+# The operator-only prelaunch reset runbook lives in the private operations
+# repository; its static wording checks moved there with it.
 
 
 class IdentityHelperTests(unittest.TestCase):

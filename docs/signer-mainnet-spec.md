@@ -174,7 +174,7 @@ fields plus the **HMAC-bound policy**:
 - fv = `policy.fv` = `policy.last_round`
 - lv = `policy.lv` = `fv + 1000`
 
-Fee formula (same as the router; 402security must review):
+Fee formula (same as the router; requires security review):
 
 ```
 required = max(fee_per_byte * deterministic_falcon_envelope_estimate, protocol_base_min * 3)

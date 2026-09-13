@@ -1,4 +1,4 @@
-"""Week 4 hardening: abuse identity, readiness cache, payment windows, SKU accounting, metrics."""
+"""Capacity hardening: abuse identity, readiness cache, payment windows, SKU accounting, metrics."""
 
 from __future__ import annotations
 

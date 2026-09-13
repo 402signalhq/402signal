@@ -122,7 +122,7 @@ def flip_stats(path, since: int, until: int, top: int = TOP_FLIPS) -> list[dict]
 
 
 def price_recommendation(hops_per_open, cache_hit_rate) -> dict:
-    """Week 4 rule. Never changes price; it tells the operator what the data supports."""
+    """Pricing rule. Never changes price; it tells the operator what the data supports."""
     if hops_per_open is None or cache_hit_rate is None:
         return {"session_open": SESSION_OPEN_PRICE, "decision": "keep",
                 "reason": "insufficient organic data"}

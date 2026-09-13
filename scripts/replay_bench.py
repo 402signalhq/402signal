@@ -5,7 +5,7 @@ identities in P processes (router processes) x T threads (concurrent paid
 requests per process). Prints JSON only: no DSN, credential or row content.
 
 Refuses to run unless LIVE402_BENCH_ACK=disposable-benchmark-authority and the
-database host does not name the production replay cluster. The connection
+database host names the disposable cluster given in BENCH_CLUSTER_ID. The connection
 string comes from BENCH_DATABASE_URL (a Fly app secret on the benchmark app).
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ import secrets
 import threading
 import time
 
-PRODUCTION_CLUSTER_IDS = ("k1v53ol153gr8q6p",)
+BENCH_CLUSTER_ENV = "BENCH_CLUSTER_ID"
 SCOPE = "5" * 64
 
 
@@ -27,12 +27,13 @@ def settings(authority: str) -> dict:
     from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
     cfg = conninfo_to_dict(os.environ["BENCH_DATABASE_URL"])
-    if any(cluster in cfg.get("host", "") for cluster in PRODUCTION_CLUSTER_IDS):
-        raise SystemExit("refusing to benchmark the production replay cluster")
+    cluster = os.environ.get(BENCH_CLUSTER_ENV, "").strip()
+    if not re.fullmatch(r"[a-z0-9]{8,32}", cluster) or cluster not in cfg.get("host", ""):
+        raise SystemExit("BENCH_CLUSTER_ID must name the disposable cluster in the database host")
     keep = {k: v for k, v in cfg.items() if k in {"host", "port", "dbname", "user", "password"}}
     override = os.environ.get("BENCH_HOST", "")
     if override:
-        if not re.fullmatch(r"[a-z0-9.-]{1,253}", override) or any(c in override for c in PRODUCTION_CLUSTER_IDS):
+        if not re.fullmatch(r"[a-z0-9.-]{1,253}", override) or cluster not in override:
             raise SystemExit("invalid BENCH_HOST")
         keep["host"] = override
     keep["sslmode"] = "verify-full"

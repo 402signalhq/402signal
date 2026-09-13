@@ -29,7 +29,7 @@ economic replay ledger or other required state is unavailable:
 Changing this file does not itself deploy. Deployment remains a separate
 reviewed action.
 
-## Update (Week 4)
+## Update (September 2026)
 
 `/health` is the only proxy routing check. `/ready` moved to a Fly Machine
 check (`[checks.ready]`): it stays visible and gates deploys, but a readiness
