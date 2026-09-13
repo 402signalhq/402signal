@@ -3,7 +3,7 @@
 -- Before this migration every paid admission took the single
 -- signal_replay.authority row FOR UPDATE twice (reserve, then finish) and held
 -- it until commit, so writers serialized across every router process
--- (docs/replay-throughput-benchmark.md: 100 to 120 admissions per second).
+-- (measured at 100 to 120 admissions per second before this migration).
 --
 -- After it, identity uniqueness still comes from the entries primary key and
 -- every entry point still checks the runtime login, the instance fence, the
