@@ -32,8 +32,7 @@ def credits_usage(headers) -> dict:
         return {"presented": False}
     digest = session._hash_secret(token)
     now = int(time.time())
-    with session._lock:
-        row = session._trial_row(session._connect().cursor(), digest)
+    row = session._trial_row(digest)
     if not row:
         return {"presented": True, "recognized": False}
     expires_at, used, ceiling = (int(v) for v in row)

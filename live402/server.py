@@ -1488,12 +1488,16 @@ def main(argv: list[str] | None = None) -> None:
     assert_safe_http_boot(args.host)
     boot_http_process()
     httpd = BoundedThreadingHTTPServer((args.host, args.port), Handler)
-    from live402 import maintenance
+    from live402 import maintenance, session
     from live402.pq import worker as pq_worker
 
     # Publishers (catalog crawl, PQ anchoring, housekeeping) start only while
-    # this process holds the writer lease. A standby never publishes.
-    leadership.start(on_acquire=(catalog.start_refresher, pq_worker.start_worker, maintenance.start))
+    # this process holds the writer lease. A standby never publishes. The
+    # one-time copy of the local session file into a shared session store runs
+    # on the holder first and is a no-op afterwards.
+    leadership.start(on_acquire=(
+        session.import_local_state, catalog.start_refresher, pq_worker.start_worker, maintenance.start,
+    ))
     install_graceful_shutdown(httpd)
     print(
         "402Signal http://%s:%s  fixture=%r local_free=%r"

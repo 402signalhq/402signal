@@ -1,6 +1,12 @@
 """Hosted session window, observation cache, and issued trial credits.
 
 Hops never probe and never call a facilitator. Trials never mint over HTTP.
+
+Windows, credits, the private counters and payer days and the alert tables
+live in the session store (`live402.session_store`): the SQLite file on this
+machine by default, or the shared replay PostgreSQL when
+LIVE402_SESSION_BACKEND=postgres. The observation cache is always the local
+SQLite file: a miss costs one probe, so it never needs to be shared.
 """
 
 from __future__ import annotations
@@ -11,11 +17,13 @@ import os
 import re
 import secrets
 import sqlite3
+import sys
 import threading
 import time
 from urllib.parse import urlsplit
 
-from live402 import history, metrics, payment, probe, reqctx, validate
+from live402 import history, metrics, payment, probe, reqctx, session_store, validate
+from live402.session_store import StoreUnavailable
 
 SESSION_TTL_S = 600
 HOP_CEILING = 20
@@ -39,6 +47,8 @@ VOLUME_DB = "/data/live402-session.sqlite"
 _lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
 _conn_path: str | None = None
+_store_lock = threading.Lock()
+_store_obj = None
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS windows (
@@ -113,6 +123,10 @@ CREATE TABLE IF NOT EXISTS alert_deliveries (
     error TEXT
 );
 CREATE INDEX IF NOT EXISTS alert_deliveries_sub_ts ON alert_deliveries(subscription_id, ts);
+CREATE TABLE IF NOT EXISTS session_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -159,8 +173,42 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def backend_name() -> str:
+    return session_store.backend_name()
+
+
+def store():
+    """The configured session store. An unknown backend name is an unavailable store (fail closed)."""
+    global _store_obj
+    with _store_lock:
+        if _store_obj is not None:
+            return _store_obj
+        try:
+            name = session_store.backend_name()
+        except ValueError:
+            raise StoreUnavailable("session store unavailable") from None
+        if name == "postgres":
+            _store_obj = session_store.PostgresStore()
+        else:
+            _store_obj = session_store.SqliteStore(_connect, _lock)
+        return _store_obj
+
+
+def forget_store() -> None:
+    """Drop the store object so the next call re-reads the backend setting. Files are untouched."""
+    global _store_obj
+    with _store_lock:
+        obj, _store_obj = _store_obj, None
+    if obj is not None:
+        try:
+            obj.close()
+        except Exception:
+            pass
+
+
 def reset() -> None:
     global _conn, _conn_path
+    forget_store()
     with _lock:
         path = _conn_path or db_path()
         if _conn is not None:
@@ -245,63 +293,36 @@ def issue_trial(raw: str | None = None, *, ttl_s: int = TRIAL_TTL_S, opens: int 
     if isinstance(opens, bool) or not isinstance(opens, int) or not 1 <= opens <= TRIAL_OPEN_MAX:
         raise ValueError("invalid trial open ceiling")
     now = int(time.time())
-    digest = _hash_secret(token)
-    with _lock:
-        conn = _connect()
-        conn.execute(
-            """
-            INSERT INTO trial_credits (token_hash, created_at, expires_at, opens_used, open_ceiling)
-            VALUES (?, ?, ?, 0, ?)
-            ON CONFLICT(token_hash) DO UPDATE SET
-                expires_at = excluded.expires_at,
-                open_ceiling = MAX(trial_credits.open_ceiling, excluded.open_ceiling)
-            """,
-            (digest, now, now + int(ttl_s), int(opens)),
-        )
-        conn.commit()
+    store().trial_issue(_hash_secret(token), now, now + int(ttl_s), int(opens))
     return token
 
 
-def _trial_row(cur, digest: str):
-    return cur.execute(
-        "SELECT expires_at, opens_used, open_ceiling FROM trial_credits WHERE token_hash=?",
-        (digest,),
-    ).fetchone()
+def _trial_row(digest: str):
+    """(expires_at, opens_used, open_ceiling) or None. An unavailable store reads as no credit."""
+    try:
+        return store().trial_get(digest)
+    except StoreUnavailable:
+        return None
 
 
 def trial_remaining(headers) -> int:
     token = trial_token(headers)
     if not token:
         return 0
-    digest = _hash_secret(token)
-    now = int(time.time())
-    with _lock:
-        row = _trial_row(_connect().cursor(), digest)
+    row = _trial_row(_hash_secret(token))
     if not row:
         return 0
     expires_at, used, ceiling = row
-    if int(expires_at) < now:
+    if int(expires_at) < int(time.time()):
         return 0
     return max(0, int(ceiling) - int(used))
 
 
 def _consume_trial_open(digest: str) -> bool:
-    now = int(time.time())
-    with _lock:
-        conn = _connect()
-        cur = conn.cursor()
-        row = _trial_row(cur, digest)
-        if not row:
-            return False
-        expires_at, used, ceiling = row
-        if int(expires_at) < now or int(used) >= int(ceiling):
-            return False
-        cur.execute(
-            "UPDATE trial_credits SET opens_used = opens_used + 1 WHERE token_hash=? AND opens_used < open_ceiling",
-            (digest,),
-        )
-        conn.commit()
-        return cur.rowcount == 1
+    try:
+        return store().trial_consume(digest, int(time.time()))
+    except StoreUnavailable:
+        return False
 
 
 def offer_fingerprint(result: dict) -> str:
@@ -400,33 +421,22 @@ def open_window(result: dict, body: dict, *, traffic_class: str, trial_hash: str
     session_id = secrets.token_hex(32)
     now = int(time.time())
     offer = _public_offer(result)
-    with _lock:
-        conn = _connect()
-        conn.execute(
-            """
-            INSERT INTO windows (
-                id_hash, created_at, expires_at, observed_at, hop_count, hop_ceiling,
-                url, rail, scheme, fingerprint, mandate_hash, offer_json, traffic_class, trial_hash, sku
-            ) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                _hash_secret(session_id),
-                now,
-                now + SESSION_TTL_S,
-                now,
-                HOP_CEILING,
-                offer.get("url"),
-                (offer.get("selected_payment") or {}).get("network") if isinstance(offer.get("selected_payment"), dict) else offer.get("rail"),
-                (offer.get("selected_payment") or {}).get("scheme") if isinstance(offer.get("selected_payment"), dict) else "exact",
-                offer_fingerprint(offer),
-                _mandate(body),
-                json.dumps(offer, separators=(",", ":"), default=str),
-                traffic_class,
-                trial_hash,
-                sku,
-            ),
-        )
-        conn.commit()
+    selected = offer.get("selected_payment") if isinstance(offer.get("selected_payment"), dict) else None
+    store().window_insert({
+        "id_hash": _hash_secret(session_id),
+        "created_at": now,
+        "expires_at": now + SESSION_TTL_S,
+        "hop_ceiling": HOP_CEILING,
+        "url": offer.get("url"),
+        "rail": selected.get("network") if selected is not None else offer.get("rail"),
+        "scheme": selected.get("scheme") if selected is not None else "exact",
+        "fingerprint": offer_fingerprint(offer),
+        "mandate_hash": _mandate(body),
+        "offer_json": json.dumps(offer, separators=(",", ":"), default=str),
+        "traffic_class": traffic_class,
+        "trial_hash": trial_hash,
+        "sku": sku,
+    })
     metrics.inc("session.open." + metrics.traffic_label(traffic_class))
     result["session"] = _session_block(session_id, 0, now + SESSION_TTL_S, HOP_CEILING)
     return session_id
@@ -456,6 +466,16 @@ def _miss(reason: str, **extra) -> tuple[int, dict, None]:
     return 200, body, None
 
 
+def _store_unavailable() -> tuple[int, dict, dict]:
+    """A hop cannot be answered without its window; the same hop may be retried shortly."""
+    return 503, {
+        "error": "session_store_unavailable",
+        "retryable": True,
+        "retry_same_request": True,
+        "new_payment_allowed": False,
+    }, {"Retry-After": "5", "Cache-Control": "no-store"}
+
+
 def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
     from live402 import admission
 
@@ -470,71 +490,66 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
     except admission.Unavailable:
         return admission.rejected()
     try:
-        with _lock:
-            conn = _connect()
-            cur = conn.cursor()
-            row = cur.execute(
-                """
-                SELECT expires_at, hop_count, hop_ceiling, url, rail, scheme,
-                       fingerprint, mandate_hash, offer_json, traffic_class
-                FROM windows WHERE id_hash=?
-                """,
-                (digest,),
-            ).fetchone()
-            if not row:
-                return _miss("fingerprint_miss")
-            (
-                expires_at,
-                hop_count,
-                hop_ceiling,
-                url,
-                rail,
-                scheme,
-                fingerprint,
-                mandate_hash,
-                offer_json,
-                window_class,
-            ) = row
-            if int(expires_at) < now or int(hop_count) >= int(hop_ceiling):
-                return _miss("window_spent")
-            try:
-                offer = json.loads(offer_json)
-            except Exception:
-                return _miss("fingerprint_miss")
-            if not isinstance(offer, dict):
-                return _miss("fingerprint_miss")
-            req_url = (body.get("url") or "").strip() if isinstance(body.get("url"), str) else ""
-            if req_url and req_url != (url or ""):
-                return _miss("fingerprint_miss")
-            selected = offer.get("selected_payment") if isinstance(offer.get("selected_payment"), dict) else {}
-            bound = _bound_terms(offer, url=url, rail=rail, scheme=scheme)
-            bound_miss = _hop_bound_miss(body, bound)
-            if bound_miss:
-                return _miss(bound_miss)
-            networks = body.get("networks")
-            bound_net = str(rail or selected.get("network") or "")
-            if isinstance(networks, list) and networks:
-                allowed = {str(n).strip().lower() for n in networks}
-                rail_name = "base"
-                low = bound_net.lower()
-                if "solana" in low:
-                    rail_name = "solana"
-                elif "algorand" in low:
-                    rail_name = "algorand"
-                if rail_name not in allowed and bound_net.lower() not in allowed:
-                    return _miss("network_mismatch")
-            hop_mandate = _mandate(body)
-            if mandate_hash and hop_mandate and hop_mandate != mandate_hash:
-                return _miss("scheme_mismatch")
-            if offer_fingerprint(offer) != fingerprint:
-                return _miss("fingerprint_miss")
-            cur.execute(
-                "UPDATE windows SET hop_count = hop_count + 1 WHERE id_hash=? AND hop_count < hop_ceiling",
-                (digest,),
-            )
-            conn.commit()
-            hop_count = int(hop_count) + 1
-            metrics.inc("session.hop." + metrics.traffic_label(window_class))
+        try:
+            row = store().window_get(digest)
+        except StoreUnavailable:
+            return _store_unavailable()
+        if not row:
+            return _miss("fingerprint_miss")
+        (
+            expires_at,
+            hop_count,
+            hop_ceiling,
+            url,
+            rail,
+            scheme,
+            fingerprint,
+            mandate_hash,
+            offer_json,
+            window_class,
+        ) = row
+        if int(expires_at) < now or int(hop_count) >= int(hop_ceiling):
+            return _miss("window_spent")
+        try:
+            offer = json.loads(offer_json)
+        except Exception:
+            return _miss("fingerprint_miss")
+        if not isinstance(offer, dict):
+            return _miss("fingerprint_miss")
+        req_url = (body.get("url") or "").strip() if isinstance(body.get("url"), str) else ""
+        if req_url and req_url != (url or ""):
+            return _miss("fingerprint_miss")
+        selected = offer.get("selected_payment") if isinstance(offer.get("selected_payment"), dict) else {}
+        bound = _bound_terms(offer, url=url, rail=rail, scheme=scheme)
+        bound_miss = _hop_bound_miss(body, bound)
+        if bound_miss:
+            return _miss(bound_miss)
+        networks = body.get("networks")
+        bound_net = str(rail or selected.get("network") or "")
+        if isinstance(networks, list) and networks:
+            allowed = {str(n).strip().lower() for n in networks}
+            rail_name = "base"
+            low = bound_net.lower()
+            if "solana" in low:
+                rail_name = "solana"
+            elif "algorand" in low:
+                rail_name = "algorand"
+            if rail_name not in allowed and bound_net.lower() not in allowed:
+                return _miss("network_mismatch")
+        hop_mandate = _mandate(body)
+        if mandate_hash and hop_mandate and hop_mandate != mandate_hash:
+            return _miss("scheme_mismatch")
+        if offer_fingerprint(offer) != fingerprint:
+            return _miss("fingerprint_miss")
+        # The store decides the count: two hops racing on the last slot get one success.
+        try:
+            new_count = store().window_hop(digest, now)
+        except StoreUnavailable:
+            return _store_unavailable()
+        if new_count is None:
+            return _miss("window_spent")
+        hop_count = int(new_count)
+        metrics.inc("session.hop." + metrics.traffic_label(window_class))
         out = dict(offer)
         out["session"] = _session_block(sid, hop_count, int(expires_at), max(0, int(hop_ceiling) - hop_count))
         out["billing"] = {
@@ -626,13 +641,16 @@ def handle_trial_open(body: dict, headers, run_probe, strip_private) -> tuple[in
             "settlement_state": "not_attempted",
         }
         if code == 200 and result.get("live") is True:
-            open_window(
-                result,
-                body,
-                traffic_class=history.TRAFFIC_SPONSORED,
-                trial_hash=digest,
-                sku="trial",
-            )
+            try:
+                open_window(
+                    result,
+                    body,
+                    traffic_class=history.TRAFFIC_SPONSORED,
+                    trial_hash=digest,
+                    sku="trial",
+                )
+            except StoreUnavailable:
+                sys.stderr.write("session_open_failed sku=trial\n")
         return code, result, None
     finally:
         reqctx.traffic_class.reset(token_cls)
@@ -641,10 +659,14 @@ def handle_trial_open(body: dict, headers, run_probe, strip_private) -> tuple[in
 
 
 def attach_paid_open(result: dict, body: dict) -> dict:
+    """Open the paid window. A store failure is logged and leaves the answer without a session block."""
     if not isinstance(result, dict) or result.get("live") is not True:
         return result
     cls = reqctx.traffic_class.get() or history.route_traffic_from_env()
-    open_window(result, body, traffic_class=cls, trial_hash=None, sku="session")
+    try:
+        open_window(result, body, traffic_class=cls, trial_hash=None, sku="session")
+    except StoreUnavailable:
+        sys.stderr.write("session_open_failed sku=session\n")
     return result
 
 
@@ -729,19 +751,10 @@ def cached_probe(url: str, *, rail: str | None = None, scheme: str | None = None
 
 def add_counters(day: str, counts: dict) -> None:
     """Private metric rollup storage. Names are coarse labels, never identities."""
-    rows = [(str(day), str(name), int(value)) for name, value in counts.items() if int(value) > 0]
+    rows = [(str(name), int(value)) for name, value in counts.items() if int(value) > 0]
     if not rows:
         return
-    with _lock:
-        conn = _connect()
-        conn.executemany(
-            """
-            INSERT INTO metric_counters (day, name, n) VALUES (?, ?, ?)
-            ON CONFLICT(day, name) DO UPDATE SET n = n + excluded.n
-            """,
-            rows,
-        )
-        conn.commit()
+    store().counters_add(str(day), rows)
 
 
 PAYER_HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
@@ -757,14 +770,16 @@ def record_payer(payer_hash, traffic: str | None = None, now: float | None = Non
         return False
     day = time.strftime("%Y-%m-%d", time.gmtime(time.time() if now is None else float(now)))
     label = re.sub(r"[^a-z0-9_]+", "_", str(traffic or "unclassified").lower())[:32] or "unclassified"
-    with _lock:
-        conn = _connect()
-        cur = conn.execute(
-            "INSERT OR IGNORE INTO payer_days (day, payer_hash, traffic) VALUES (?, ?, ?)",
-            (day, payer_hash, label),
-        )
-        conn.commit()
-        return cur.rowcount == 1
+    try:
+        return store().payer_record(day, payer_hash, label)
+    except StoreUnavailable:
+        sys.stderr.write("payer_record_failed\n")
+        return False
+
+
+def _day_list(days: int, now: float | None = None) -> list[str]:
+    ts = time.time() if now is None else float(now)
+    return [time.strftime("%Y-%m-%d", time.gmtime(ts - i * 86400)) for i in range(max(1, int(days)))]
 
 
 def north_star(days: int = 7, now: float | None = None) -> dict:
@@ -774,33 +789,29 @@ def north_star(days: int = 7, now: float | None = None) -> dict:
     payers are distinct hashed verified payers from `payer_days`. Organic excludes
     sponsored credits, lab and self-test traffic. Private operator numbers only.
     """
-    ts = time.time() if now is None else float(now)
-    day_list = [time.strftime("%Y-%m-%d", time.gmtime(ts - i * 86400)) for i in range(max(1, int(days)))]
-    marks = ",".join("?" * len(day_list))
-    with _lock:
-        conn = _connect()
-        receipts = conn.execute(
-            "SELECT coalesce(sum(n), 0) FROM metric_counters WHERE name = 'route.qualified.organic' AND day IN (%s)" % marks,
-            day_list,
-        ).fetchone()[0]
-        receipts_all = conn.execute(
-            "SELECT coalesce(sum(n), 0) FROM metric_counters WHERE name LIKE 'route.qualified.%%' AND day IN (%s)" % marks,
-            day_list,
-        ).fetchone()[0]
-        payers = conn.execute(
-            "SELECT count(DISTINCT payer_hash) FROM payer_days WHERE traffic = 'organic' AND day IN (%s)" % marks,
-            day_list,
-        ).fetchone()[0]
-        payers_all = conn.execute(
-            "SELECT count(DISTINCT payer_hash) FROM payer_days WHERE day IN (%s)" % marks, day_list
-        ).fetchone()[0]
+    day_list = _day_list(days, now)
+    st = store()
     return {
         "days": len(day_list),
-        "receipts_organic": int(receipts or 0),
-        "receipts_all": int(receipts_all or 0),
-        "distinct_payers_organic": int(payers or 0),
-        "distinct_payers_all": int(payers_all or 0),
+        "receipts_organic": st.counters_sum(day_list, name="route.qualified.organic"),
+        "receipts_all": st.counters_sum(day_list, prefix="route.qualified."),
+        "distinct_payers_organic": st.payers_distinct(day_list, "organic"),
+        "distinct_payers_all": st.payers_distinct(day_list),
     }
+
+
+def rollup_stats(since: int, until: int, traffic: str = "organic") -> dict:
+    """Private rollup input for the operator script: opens, hops, counters and distinct payers."""
+    days: list[str] = []
+    cursor = int(since) - (int(since) % 86400)
+    while cursor < int(until):
+        days.append(time.strftime("%Y-%m-%d", time.gmtime(cursor)))
+        cursor += 86400
+    if not days:
+        days = [time.strftime("%Y-%m-%d", time.gmtime(int(since)))]
+    out = store().rollup(int(since), int(until), days, traffic)
+    out["since"], out["until"], out["days"] = int(since), int(until), days
+    return out
 
 
 # Windows stay 35 days so the weekly organic rollup can read them.
@@ -814,19 +825,48 @@ def prune(now: int | None = None) -> dict:
     """Drop stale windows, credits, cache rows and old counters. Writer housekeeping only."""
     ts = int(time.time() if now is None else now)
     cutoff_day = time.strftime("%Y-%m-%d", time.gmtime(ts - PRUNE_COUNTER_DAYS * 86400))
+    out = store().prune(ts, PRUNE_WINDOW_GRACE_S, PRUNE_TRIAL_GRACE_S, cutoff_day)
     with _lock:
         conn = _connect()
-        out = {
-            "windows": conn.execute(
-                "DELETE FROM windows WHERE expires_at < ?", (ts - PRUNE_WINDOW_GRACE_S,)).rowcount,
-            "obs_cache": conn.execute(
-                "DELETE FROM obs_cache WHERE ts < ?", (ts - PRUNE_CACHE_S,)).rowcount,
-            "trial_credits": conn.execute(
-                "DELETE FROM trial_credits WHERE expires_at < ?", (ts - PRUNE_TRIAL_GRACE_S,)).rowcount,
-            "metric_counters": conn.execute(
-                "DELETE FROM metric_counters WHERE day < ?", (cutoff_day,)).rowcount,
-            "payer_days": conn.execute(
-                "DELETE FROM payer_days WHERE day < ?", (cutoff_day,)).rowcount,
-        }
+        out["obs_cache"] = conn.execute("DELETE FROM obs_cache WHERE ts < ?", (ts - PRUNE_CACHE_S,)).rowcount
         conn.commit()
     return out
+
+
+def import_local_state() -> dict | None:
+    """One-time copy of this machine's SQLite session state into the shared store.
+
+    Runs on the writer once the lease is held, when the backend is postgres and
+    a local file exists. The source id is written into the SQLite file before
+    the copy, so a machine recreated on the same volume never copies twice.
+    A restored older copy of the file would; the file is not restored after the
+    switch. Idempotent and safe to call on every lease acquisition.
+    """
+    try:
+        if session_store.backend_name() != "postgres":
+            return None
+    except ValueError:
+        return None
+    path = db_path()
+    if not os.path.exists(path):
+        return None
+    local = session_store.SqliteStore(_connect, _lock)
+    try:
+        source = local.meta_get("import_source")
+        if not source:
+            source = "sqlite:" + secrets.token_hex(8)
+            local.meta_set("import_source", source)
+        shared = store()
+        if shared.imported(source):
+            return {"source": source, "imported": False}
+        payload = local.export_state(int(time.time()))
+        done = shared.import_state(source, payload)
+        counts = {name: len(rows) for name, rows in payload.items()}
+        sys.stderr.write(
+            "session_import source=%s imported=%s %s\n"
+            % (source, "yes" if done else "already", " ".join("%s=%d" % kv for kv in sorted(counts.items())))
+        )
+        return {"source": source, "imported": done, **counts}
+    except (StoreUnavailable, sqlite3.Error, OSError) as exc:
+        sys.stderr.write("session_import_failed kind=%s\n" % type(exc).__name__)
+        return None
