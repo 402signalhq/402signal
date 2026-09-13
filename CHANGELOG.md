@@ -12,10 +12,10 @@ server. The format follows Keep a Changelog; dates are UTC.
   load-test harness move to the private operations repository. The replay SQL
   stays public because CI exercises it. `/security` states capacity and reviews
   as commitments (classes fixed, the measured number) instead of linking the
-  harness and the lab records. `@402signal/route-guard` and the `402signal`
-  Python package carry the Apache License 2.0 from the next release; the
-  published 0.7.3 and 0.1.0 stay MIT as published. The repository root stays
-  MIT.
+  harness and the lab records. The SDK licence switch to Apache-2.0 lands
+  with the next release of each package (`route-guard` 0.7.4, `402signal`
+  0.1.1), where the pack digests are re-pinned; the published 0.7.3 and 0.1.0
+  stay MIT. The repository root stays MIT.
 - North-star metric, private: after every settled qualifying check the
   writer records the SHA-256 of the verified payer per UTC day
   (`payer_days`, never the address) and logs `north_star` hourly: signed
