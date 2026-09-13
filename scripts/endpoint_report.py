@@ -114,6 +114,11 @@ def catalog_section(conn, since: int) -> dict:
     return out
 
 
+def own_host(host: str) -> bool:
+    """402Signal's own listings never appear in the report: exact host or a subdomain, never a substring."""
+    return host == "402signal.com" or host.endswith(".402signal.com")
+
+
 def usd(atomic) -> str | None:
     """Atomic USDC (6 decimals) as dollars; None when it is not a plain integer string."""
     try:
@@ -135,7 +140,7 @@ def named_changes(conn, since: int) -> list[dict]:
         "WHERE (price_changed_at >= ?) OR (payTo_changed_at >= ?)", (since, since)).fetchall()
     for url, pay_at, price_at in rows:
         host = host_of(url)
-        if not host or host.endswith("402signal.com"):
+        if not host or own_host(host):
             continue
         for kind, field, at in (("price", "amount", price_at), ("recipient", "payTo", pay_at)):
             if at is None or int(at) < since:
@@ -169,7 +174,7 @@ def host_table(rows: list, limit: int = 15) -> list[dict]:
         if (r[8] or "unclassified") not in ("organic", "unclassified"):
             continue
         h = host_of(r[0])
-        if not h or h.endswith("402signal.com"):
+        if not h or own_host(h):
             continue
         entry = by_host.setdefault(h, {"host": h, "probes": 0, "live": 0, "latencies": [], "urls": set()})
         entry["probes"] += 1
