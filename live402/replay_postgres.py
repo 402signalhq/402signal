@@ -42,6 +42,8 @@ FEATURE_PROBES = {
                "AND to_regprocedure('signal_replay.api_reserve_v2(text,text,text,double precision,double precision)') "
                "IS NOT NULL"),
     "capacity": "SELECT to_regprocedure('signal_replay.api_capacity(text)') IS NOT NULL",
+    "outbox": ("SELECT to_regprocedure('signal_replay.api_outbox_put(text,bytea,bytea,text)') IS NOT NULL "
+               "AND to_regprocedure('signal_replay.api_outbox_ack(text,bigint,bigint)') IS NOT NULL"),
 }
 
 
@@ -429,6 +431,57 @@ class PostgresStore:
                     (time.time(),)).fetchone()[0]
                 conn.execute("UPDATE signal_replay.authority SET outcome_bytes=outcome_bytes-%s WHERE singleton",(removed,))
         self.last_prune = now
+
+    # Transparency-leaf outbox (ops/replay-postgres-leaf-outbox.sql). Public
+    # leaf bytes only; the functions re-check the leaf hash and every guard.
+
+    def outbox_supported(self):
+        return bool(self.functions_api and self._feature("outbox"))
+
+    def outbox_put(self, body, leaf_hash, queued_by):
+        if not isinstance(body, (bytes, bytearray)) or not 1 <= len(body) <= 65536:
+            raise StoreError("invalid replay operation")
+        if not isinstance(leaf_hash, (bytes, bytearray)) or len(leaf_hash) != 32:
+            raise StoreError("invalid replay operation")
+        if not isinstance(queued_by, str) or not 1 <= len(queued_by) <= 128:
+            raise StoreError("invalid replay operation")
+        if not self.outbox_supported():
+            raise StoreError("leaf outbox unsupported")
+        row = self._call("SELECT id, duplicate, appended_idx FROM signal_replay.api_outbox_put(%s,%s,%s,%s)",
+                         (self.authority, bytes(leaf_hash), bytes(body), queued_by))
+        if not row:
+            raise StoreError("replay authority unavailable")
+        return {"id": int(row[0]), "duplicate": bool(row[1]),
+                "appended_idx": None if row[2] is None else int(row[2])}
+
+    def outbox_pending(self, batch=200):
+        if not self.outbox_supported():
+            return []
+        with self._transaction(guarded_api=True) as conn:
+            rows = conn.execute("SELECT id, leaf_hash, body FROM signal_replay.api_outbox_pending(%s,%s)",
+                                (self.authority, max(1, min(1000, int(batch))))).fetchall()
+        return [(int(row[0]), bytes(row[1]), bytes(row[2])) for row in rows]
+
+    def outbox_ack(self, row_id, idx):
+        if not self.outbox_supported():
+            raise StoreError("leaf outbox unsupported")
+        row = self._call("SELECT signal_replay.api_outbox_ack(%s,%s,%s)", (self.authority, int(row_id), int(idx)))
+        return bool(row and row[0])
+
+    def outbox_depth(self):
+        if not self.outbox_supported():
+            return (0, 0.0)
+        with self._transaction(guarded_api=True) as conn:
+            row = conn.execute("SELECT pending, oldest_age_s FROM signal_replay.api_outbox_depth(%s)",
+                               (self.authority,)).fetchone()
+        return (int(row[0]), float(row[1])) if row else (0, 0.0)
+
+    def outbox_prune(self, older_than_days=14):
+        if not self.outbox_supported():
+            return 0
+        row = self._call("SELECT signal_replay.api_outbox_prune(%s,%s)",
+                         (self.authority, max(1, min(365, int(older_than_days)))))
+        return int(row[0]) if row else 0
 
     @staticmethod
     def _key(key):

@@ -14,6 +14,8 @@ JOBS = (
     ("metrics_flush", 300.0),
     ("replay_capacity", 300.0),
     ("replay_expire", 60.0),
+    ("leaf_outbox_drain", 15.0),
+    ("leaf_outbox_prune", 3600.0),
 )
 
 _thread: threading.Thread | None = None
@@ -58,11 +60,29 @@ def _replay_expire() -> None:
         sys.stderr.write("replay_expired count=%d\n" % removed)
 
 
+def _leaf_outbox_drain() -> None:
+    from live402.pq import outbox
+
+    appended = outbox.drain()
+    if appended:
+        sys.stderr.write("leaf_outbox_drained count=%d\n" % appended)
+
+
+def _leaf_outbox_prune() -> None:
+    from live402.pq import outbox
+
+    removed = outbox.prune()
+    if removed:
+        sys.stderr.write("leaf_outbox_pruned count=%d\n" % removed)
+
+
 _JOB_FUNCS = {
     "session_prune": _session_prune,
     "metrics_flush": _metrics_flush,
     "replay_capacity": _replay_capacity,
     "replay_expire": _replay_expire,
+    "leaf_outbox_drain": _leaf_outbox_drain,
+    "leaf_outbox_prune": _leaf_outbox_prune,
 }
 
 

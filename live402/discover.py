@@ -427,8 +427,9 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "durable signed leaf unless require_transparency or require_route_binding is true. Free typed "
                     "misses create no route-decision leaf. status is "
                     "pending (durable leaf + signed checkpoint, not MainNet-anchored), "
+                    "queued (public leaf durably queued for the log writer, not yet appended), "
                     "logged_uncheckpointed (durable leaf, no signed checkpoint), or "
-                    "unavailable (receipt unavailable; append may have occurred). logged_uncheckpointed is never success "
+                    "unavailable (receipt unavailable; append may have occurred). queued and logged_uncheckpointed are never success "
                     "when require_transparency is true. "
                     + schema_fields.TRANSPARENCY_RETENTION_DESC
                     + " Not a /trust page."

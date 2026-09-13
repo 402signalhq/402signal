@@ -1021,6 +1021,51 @@ def expire_identities(batch: int = 1000) -> int:
             return 0
 
 
+def _store_method(name: str):
+    """A bound store method for the selected backend, or None when it lacks it."""
+    with _lock:
+        store = _selected_store_locked()
+    return getattr(store, name, None)
+
+
+def outbox_supported() -> bool:
+    """True when the shared authority accepts queued transparency leaves."""
+    try:
+        supported = _store_method("outbox_supported")
+        return bool(supported()) if supported is not None else False
+    except Exception:
+        return False
+
+
+def outbox_put(body: bytes, leaf_hash: bytes, queued_by: str) -> dict:
+    put = _store_method("outbox_put")
+    if put is None:
+        raise StoreError("leaf outbox unsupported")
+    return put(body, leaf_hash, queued_by)
+
+
+def outbox_pending(batch: int = 200) -> list:
+    pending = _store_method("outbox_pending")
+    return list(pending(batch)) if pending is not None else []
+
+
+def outbox_ack(row_id: int, idx: int) -> bool:
+    ack = _store_method("outbox_ack")
+    if ack is None:
+        raise StoreError("leaf outbox unsupported")
+    return bool(ack(row_id, idx))
+
+
+def outbox_depth() -> tuple:
+    depth = _store_method("outbox_depth")
+    return tuple(depth()) if depth is not None else (0, 0.0)
+
+
+def outbox_prune(older_than_days: int = 14) -> int:
+    prune = _store_method("outbox_prune")
+    return int(prune(older_than_days)) if prune is not None else 0
+
+
 def capacity_snapshot() -> dict | None:
     """Coarse retained-identity usage for operator alerts. No identities or DSNs."""
     with _lock:
