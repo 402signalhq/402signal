@@ -9,6 +9,19 @@ server. The format follows Keep a Changelog; dates are UTC.
   hooks, with the returns table, field numbers and a shorter evidence
   section; the September "State of x402 endpoints" report is published at
   `/insights/state-of-x402-endpoints-2026-09` and listed in the sitemap.
+- Public per-host endpoint pages at `/endpoints/<host>` (catalog listings,
+  declared networks, 30-day public probe results, an embeddable SVG badge), a
+  host index at `/endpoints`, and `/endpoints/sitemap.xml`. Only public
+  organic probes from trusted observation classes are counted; nothing a
+  seller pays for changes the numbers.
+- `/verify`: receipt verification in the browser with WebCrypto and a key you
+  pin yourself; nothing is uploaded. Checked in CI against the conformance
+  fixture under Node.
+- `/status` (live readiness booleans, monitoring method, incident issues) and
+  `/security` (custody boundaries, controls, automated checks, reviews so
+  far); Status and Security links in every footer.
+- Developer guides show the x402 `onBeforePaymentCreation` hook and the mppx
+  `onChallenge` hook next to the existing wrap.
 - Replay authority runbook records the move to the Basic cluster
   `402signal-replay-v3`.
 - Python package `402signal` (import `signal402`, `sdk/python`): unpaid

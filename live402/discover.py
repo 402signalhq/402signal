@@ -1363,8 +1363,10 @@ Allow: /validate
 Allow: /attestation
 Allow: /pq/log/checkpoint
 Allow: /transparency
+Allow: /endpoints
 
 Sitemap: https://402signal.com/sitemap.xml
+Sitemap: https://402signal.com/endpoints/sitemap.xml
 """
 
 LLMS_TXT = "# 402Signal\n\n" + DESC + """

@@ -45,6 +45,8 @@ HUMAN_PAGES = {
     "/status.html": "status.html",
     "/security": "security.html",
     "/security.html": "security.html",
+    "/verify": "verify.html",
+    "/verify.html": "verify.html",
     "/privacy": "privacy.html",
     "/privacy.html": "privacy.html",
     "/terms": "terms.html",
@@ -57,6 +59,7 @@ STATIC_FILES = {
     "/app.js",
     "/dashboard.js",
     "/transparency.js",
+    "/verify.js",
     "/favicon.svg",
     "/og.png",
     "/hero-routing.png",
@@ -68,6 +71,7 @@ _ASSET_PATHS = {
     "/app.js": STATIC_DIR / "app.js",
     "/dashboard.js": STATIC_DIR / "dashboard.js",
     "/transparency.js": STATIC_DIR / "transparency.js",
+    "/verify.js": STATIC_DIR / "verify.js",
     "/favicon.svg": STATIC_DIR / "favicon.svg",
     "/og.png": STATIC_DIR / "og.png",
     "/hero-routing.png": STATIC_DIR / "hero-routing.png",
@@ -579,6 +583,8 @@ class Handler(SimpleHTTPRequestHandler):
             return "attestation"
         if path in HUMAN_PAGES or path in STATIC_FILES or path in HUMAN_DYNAMIC_PATHS:
             return "human"
+        if path == "/endpoints" or path.startswith("/endpoints/"):
+            return "human"
         return "other"
 
     def _access_path(self) -> str:
@@ -896,7 +902,7 @@ class Handler(SimpleHTTPRequestHandler):
                 self._omit_body = False
         if self._rewrite_static_path():
             return SimpleHTTPRequestHandler.do_HEAD(self)
-        if parsed.path in head_ok or parsed.path.startswith("/pq/log/"):
+        if parsed.path in head_ok or parsed.path.startswith("/pq/log/") or parsed.path == "/endpoints" or parsed.path.startswith("/endpoints/"):
             self._omit_body = True
             try:
                 return self.do_GET()
@@ -934,6 +940,37 @@ class Handler(SimpleHTTPRequestHandler):
 
         return pq_view.render_html()
 
+    def _endpoint_pages(self, path: str) -> None:
+        """Public per-host readiness pages, the host index, its sitemap and badges. Cached, aggregate-only."""
+        from live402 import endpoints
+
+        if not self._public_allowed("endpoints"):
+            return self._json(429, {"error": "rate limit"})
+        cache = {"Cache-Control": "public, max-age=300"}
+        if path in ("/endpoints", "/endpoints/"):
+            return self._html(200, endpoints.render_index_html(), cache)
+        if path == "/endpoints/sitemap.xml":
+            return self._bytes(200, endpoints.sitemap_xml().encode("utf-8"), "application/xml; charset=utf-8", cache)
+        parts = path[len("/endpoints/"):].split("/")
+        host = endpoints.normalize_host(parts[0]) if parts else None
+        if host is None or len(parts) > 2 or (len(parts) == 2 and parts[1] != "badge.svg"):
+            return self._not_found()
+        if len(parts) == 2:
+            svg = endpoints.badge_svg(host)
+            if svg is None:
+                return self._not_found()
+            return self._bytes(200, svg.encode("utf-8"), "image/svg+xml; charset=utf-8", cache)
+        page = endpoints.render_host_html(host)
+        if page is None:
+            return self._not_found()
+        return self._html(200, page, cache)
+
+    def _not_found(self) -> None:
+        if self._wants_html():
+            html = (STATIC_DIR / "404.html").read_text(encoding="utf-8")
+            return self._html(404, html, extra_headers={"Cache-Control": "no-store"})
+        return self._json(404, {"error": "not found"})
+
     def do_GET(self) -> None:
         if self._redirect_www():
             return
@@ -949,6 +986,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._bytes(200, text.encode("utf-8"), "text/markdown; charset=utf-8", {"Cache-Control": asset_version.HTML_REVALIDATE})
             finally:
                 self._omit_body = False
+        if parsed.path == "/endpoints" or parsed.path.startswith("/endpoints/"):
+            return self._endpoint_pages(parsed.path)
         human = self._read_human_html()
         if human is not None:
             extra = (
