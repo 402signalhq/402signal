@@ -33,6 +33,11 @@ the new primary answers queries, and never restore an unfenced SQLite authority.
 If continuity cannot be established, remain unavailable; a stale backup alone is
 insufficient. Restoring/restarting an old binary cannot clear this database fence.
 
+`ops/replay-postgres-fence.sql` and `scripts/replay_fence.sh` implement this
+procedure: a verified plain restart re-pins with one command, and any other
+instance change requires a reconciled, recorded operator attestation. See
+`docs/runbooks/replay-instance-fence.md`.
+
 Use the existing SQLite-first, one-writer drain, source-fence-before-activation
 migration procedure. The new migration installs the policy only into a fresh
 target and verifies the same instance before activation. A retry never overwrites
