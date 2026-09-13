@@ -5,6 +5,7 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- `/ready` reports `writer` (true while this process holds the writer lease) as a top-level boolean beside `ok` and `checks`; it never changes the status code, so a standby machine without the lease stays healthy. Documented in `docs/fly-ready-check.md`; `/status` shows it as its own row and states what the outside monitoring watches (instance up, server-error share, traffic, memory and volume use, with a person paged by email) next to the ten-minute external probe.
 - Two developer guides served from the site with `.md` twins: `/developers/alerts` (change alerts: subscribe, payload, signature, failures, management) and `/developers/evidence-record` (the Offer Evidence Record v1). `llms.txt`, `/trust`, `/try` and the report point at them instead of the repository.
 - Website and docs, proof-first: the homepage leads with the signed record
   ("Signed proof of what your agent was offered before it paid"), opens three
