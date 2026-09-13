@@ -36,6 +36,7 @@ import urllib.request
 from urllib.parse import quote, urlsplit
 
 from live402 import endpoints, history, session
+from live402.session_store import StoreUnavailable
 
 EVENTS = ("price", "recipient", "liveness")
 MAX_SUBSCRIPTIONS = 10
@@ -56,10 +57,6 @@ NO_STORE = {"Cache-Control": "no-store, private"}
 OWN_HOSTS = frozenset({"402signal.com", "www.402signal.com"})
 ID_RE = re.compile(r"[0-9a-f]{16}\Z")
 
-_COLS = (
-    "id, owner, url, hosts_json, events_json, secret, created_at, cursor_ts, state_json, "
-    "last_delivery_at, last_status, failures, next_attempt_at, disabled_at, disabled_reason"
-)
 _scan_lock = threading.Lock()
 
 
@@ -72,6 +69,14 @@ class AlertError(Exception):
 
     def body(self) -> dict:
         return {"error": self.error, **self.extra}
+
+
+def _store():
+    """The session store, or a 503 the customer can retry when it cannot be reached."""
+    try:
+        return session.store()
+    except StoreUnavailable:
+        raise AlertError(503, "alerts_unavailable", retryable=True) from None
 
 
 def _now() -> int:
@@ -223,10 +228,10 @@ class _Sub:
 def _own(owner: str, sub_id) -> _Sub:
     if not isinstance(sub_id, str) or not ID_RE.match(sub_id):
         raise AlertError(404, "subscription_not_found")
-    with session._lock:
-        row = session._connect().execute(
-            "SELECT %s FROM alert_subscriptions WHERE id = ? AND owner = ?" % _COLS, (sub_id, owner)
-        ).fetchone()
+    try:
+        row = _store().alert_sub_get(sub_id, owner)
+    except StoreUnavailable:
+        raise AlertError(503, "alerts_unavailable", retryable=True) from None
     if not row:
         raise AlertError(404, "subscription_not_found")
     return _Sub(row)
@@ -385,43 +390,24 @@ def _deliver(sub: _Sub, payload: dict) -> tuple[int | None, str | None]:
 def _record(sub: _Sub, kind: str, delivery_id: str, status, error, n_events: int, ts: int, *,
             cursor_ts: int | None = None, state: dict | None = None) -> bool:
     ok = status is not None and 200 <= int(status) < 300
-    with session._lock:
-        conn = session._connect()
-        conn.execute(
-            "INSERT INTO alert_deliveries (id, subscription_id, ts, kind, status, events, error) VALUES (?,?,?,?,?,?,?)",
-            (delivery_id, sub.id, ts, kind, status, n_events, error),
+    st = _store()
+    st.alert_delivery_add(delivery_id, sub.id, ts, kind, status, n_events, error, DELIVERIES_KEPT)
+    if ok:
+        state_json = json.dumps(state or {}, sort_keys=True) if cursor_ts is not None else None
+        st.alert_sub_delivered(sub.id, ts, int(status), cursor_ts, state_json)
+    else:
+        failures = int(sub.failures or 0) + 1
+        backoff = min(BACKOFF_MAX_S, BACKOFF_BASE_S * (2 ** min(failures - 1, 10)))
+        disabled = failures >= MAX_FAILURES
+        st.alert_sub_failed(
+            sub.id, failures, ts + backoff, status,
+            ts if disabled else None, "delivery_failed" if disabled else None,
         )
-        if ok:
-            sets = ("failures = 0, next_attempt_at = 0, last_delivery_at = ?, last_status = ?, "
-                    "disabled_at = NULL, disabled_reason = NULL")
-            args: list = [ts, int(status)]
-            if cursor_ts is not None:
-                sets += ", cursor_ts = ?, state_json = ?"
-                args += [int(cursor_ts), json.dumps(state or {}, sort_keys=True)]
-            conn.execute("UPDATE alert_subscriptions SET %s WHERE id = ?" % sets, (*args, sub.id))
-        else:
-            failures = int(sub.failures or 0) + 1
-            backoff = min(BACKOFF_MAX_S, BACKOFF_BASE_S * (2 ** min(failures - 1, 10)))
-            disabled = failures >= MAX_FAILURES
-            conn.execute(
-                "UPDATE alert_subscriptions SET failures = ?, next_attempt_at = ?, last_status = ?, "
-                "disabled_at = COALESCE(disabled_at, ?), disabled_reason = COALESCE(disabled_reason, ?) WHERE id = ?",
-                (failures, ts + backoff, status, ts if disabled else None, "delivery_failed" if disabled else None, sub.id),
-            )
-        conn.execute(
-            "DELETE FROM alert_deliveries WHERE subscription_id = ? AND id NOT IN "
-            "(SELECT id FROM alert_deliveries WHERE subscription_id = ? ORDER BY ts DESC LIMIT ?)",
-            (sub.id, sub.id, DELIVERIES_KEPT),
-        )
-        conn.commit()
     return ok
 
 
 def _prune(ts: int) -> None:
-    with session._lock:
-        conn = session._connect()
-        conn.execute("DELETE FROM alert_deliveries WHERE ts < ?", (ts - DELIVERY_RETENTION_S,))
-        conn.commit()
+    _store().alert_deliveries_prune(ts - DELIVERY_RETENTION_S)
 
 
 # --- customer API -------------------------------------------------------------
@@ -437,18 +423,19 @@ def create(owner: str, body) -> dict:
     ts = _now()
     sub_id = secrets.token_hex(8)
     secret = "whsec_" + secrets.token_urlsafe(32)
-    with session._lock:
-        conn = session._connect()
-        count = conn.execute("SELECT count(*) FROM alert_subscriptions WHERE owner = ?", (owner,)).fetchone()[0]
-        if int(count) >= MAX_SUBSCRIPTIONS:
-            raise AlertError(409, "too_many_subscriptions", max=MAX_SUBSCRIPTIONS)
-        conn.execute(
-            "INSERT INTO alert_subscriptions (id, owner, url, hosts_json, events_json, secret, created_at, cursor_ts, state_json) "
-            "VALUES (?,?,?,?,?,?,?,?,?)",
-            (sub_id, owner, url, json.dumps(hosts), json.dumps(events), secret, ts, ts, json.dumps(state, sort_keys=True)),
+    st = _store()
+    try:
+        created = st.alert_sub_create(
+            sub_id, owner, url, json.dumps(hosts), json.dumps(events), secret, ts,
+            json.dumps(state, sort_keys=True), MAX_SUBSCRIPTIONS,
         )
-        conn.commit()
-        row = conn.execute("SELECT %s FROM alert_subscriptions WHERE id = ?" % _COLS, (sub_id,)).fetchone()
+        if not created:
+            raise AlertError(409, "too_many_subscriptions", max=MAX_SUBSCRIPTIONS)
+        row = st.alert_sub_get(sub_id, owner)
+    except StoreUnavailable:
+        raise AlertError(503, "alerts_unavailable", retryable=True) from None
+    if not row:
+        raise AlertError(503, "alerts_unavailable", retryable=True)
     out = _Sub(row).public()
     out["signing_secret"] = secret
     out["hosts_known"] = {host: _known(host) for host in hosts}
@@ -460,21 +447,19 @@ def create(owner: str, body) -> dict:
 
 
 def list_for(owner: str) -> list[dict]:
-    with session._lock:
-        rows = session._connect().execute(
-            "SELECT %s FROM alert_subscriptions WHERE owner = ? ORDER BY created_at, id" % _COLS, (owner,)
-        ).fetchall()
+    try:
+        rows = _store().alert_sub_list(owner)
+    except StoreUnavailable:
+        raise AlertError(503, "alerts_unavailable", retryable=True) from None
     return [_Sub(row).public() for row in rows]
 
 
 def get(owner: str, sub_id) -> dict:
     sub = _own(owner, sub_id)
-    with session._lock:
-        rows = session._connect().execute(
-            "SELECT id, ts, kind, status, events, error FROM alert_deliveries WHERE subscription_id = ? "
-            "ORDER BY ts DESC LIMIT 20",
-            (sub.id,),
-        ).fetchall()
+    try:
+        rows = _store().alert_deliveries(sub.id, 20)
+    except StoreUnavailable:
+        raise AlertError(503, "alerts_unavailable", retryable=True) from None
     out = sub.public()
     out["deliveries"] = [
         {"id": r[0], "at": _iso(r[1]), "kind": r[2], "status": r[3], "events": r[4], "error": r[5]} for r in rows
@@ -484,11 +469,10 @@ def get(owner: str, sub_id) -> dict:
 
 def delete(owner: str, sub_id) -> None:
     sub = _own(owner, sub_id)
-    with session._lock:
-        conn = session._connect()
-        conn.execute("DELETE FROM alert_deliveries WHERE subscription_id = ?", (sub.id,))
-        conn.execute("DELETE FROM alert_subscriptions WHERE id = ?", (sub.id,))
-        conn.commit()
+    try:
+        _store().alert_sub_delete(sub.id, owner)
+    except StoreUnavailable:
+        raise AlertError(503, "alerts_unavailable", retryable=True) from None
 
 
 def ping(owner: str, sub_id) -> dict:
@@ -501,7 +485,10 @@ def ping(owner: str, sub_id) -> dict:
         "generated_at": _iso(ts), "hosts": list(sub.hosts), "events": [],
     }
     status, error = _deliver(sub, payload)
-    ok = _record(sub, "ping", delivery_id, status, error, 0, ts)
+    try:
+        ok = _record(sub, "ping", delivery_id, status, error, 0, ts)
+    except StoreUnavailable:
+        raise AlertError(503, "alerts_unavailable", retryable=True, delivered=status is not None) from None
     return {"id": sub.id, "delivered": ok, "status": status, "error": error, "active": ok or sub.disabled_at is None}
 
 
@@ -512,12 +499,8 @@ def scan(now: int | None = None) -> int:
     """Writer job. Delivers due change batches; returns the number of deliveries attempted."""
     ts = _now() if now is None else int(now)
     with _scan_lock:
-        with session._lock:
-            rows = session._connect().execute(
-                "SELECT %s FROM alert_subscriptions WHERE disabled_at IS NULL AND next_attempt_at <= ? "
-                "ORDER BY created_at, id" % _COLS,
-                (ts,),
-            ).fetchall()
+        st = session.store()
+        rows = st.alert_sub_due(ts)
         attempted = 0
         observations: dict[str, dict] = {}
         for row in rows:
@@ -529,13 +512,7 @@ def scan(now: int | None = None) -> int:
             # One second of overlap so a change committed in the scan second is not lost.
             cursor = ts - 1
             if not events:
-                with session._lock:
-                    conn = session._connect()
-                    conn.execute(
-                        "UPDATE alert_subscriptions SET cursor_ts = ?, state_json = ? WHERE id = ? AND disabled_at IS NULL",
-                        (cursor, json.dumps(state, sort_keys=True), sub.id),
-                    )
-                    conn.commit()
+                st.alert_sub_cursor(sub.id, cursor, json.dumps(state, sort_keys=True))
                 continue
             delivery_id = secrets.token_hex(8)
             payload = {

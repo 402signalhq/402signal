@@ -61,6 +61,8 @@
       setText("status-replay", ready ? label(checks.replay_ledger === true) : "Unknown");
       setText("status-pq", ready ? label(checks.pq_log === true) : "Unknown");
       setText("status-storage", ready ? label(checks.catalog === true && checks.history === true && checks.admission === true && checks.storage === true) : "Unknown");
+      // The lease sits beside ready, never inside it: a standby machine stays ready without it.
+      setText("status-writer", ready ? (ready.writer === true ? "Held by the answering machine" : ready.writer === false ? "Not held by the answering machine" : "Unknown") : "Unknown");
       setText("status-at", new Date().toISOString().replace(/\.\d{3}Z$/, "Z") + " (your clock)");
     })();
   }

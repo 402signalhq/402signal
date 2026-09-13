@@ -185,6 +185,18 @@ class ManagerTests(unittest.TestCase):
             self.assertFalse(leadership.start())
             self.assertFalse(leadership.holds())
 
+    def test_readiness_reports_the_lease_beside_ok_never_inside_checks(self):
+        ready.reset_cache()
+        with patch.dict(os.environ, {"LIVE402_LEADERSHIP_BACKEND": "bogus"}):
+            payload = ready.readiness()
+            self.assertIs(payload["writer"], False)
+            self.assertNotIn("writer", payload["checks"])
+            # A standby without the lease is still a healthy machine.
+            self.assertEqual(payload["ok"], all(payload["checks"].values()))
+        with patch.dict(os.environ, {"LIVE402_LEADERSHIP_BACKEND": "none"}):
+            self.assertIs(ready.readiness()["writer"], True)
+            self.assertIs(ready.cached_readiness()["writer"], True)
+
 
 class PublisherGatingTests(unittest.TestCase):
     def tearDown(self):
