@@ -6,7 +6,9 @@ requests per process). Prints JSON only: no DSN, credential or row content.
 
 Refuses to run unless LIVE402_BENCH_ACK=disposable-benchmark-authority and the
 database host names the disposable cluster given in BENCH_CLUSTER_ID. The connection
-string comes from BENCH_DATABASE_URL (a Fly app secret on the benchmark app).
+string comes from BENCH_DATABASE_URL, or DATABASE_URL as written by `fly mpg attach`
+(a Fly app secret on the benchmark app; never printed). BENCH_POOL_SIZE sets the
+router pool size per process (LIVE402_REPLAY_POOL_SIZE).
 """
 from __future__ import annotations
 
@@ -26,7 +28,8 @@ SCOPE = "5" * 64
 def settings(authority: str) -> dict:
     from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
-    cfg = conninfo_to_dict(os.environ["BENCH_DATABASE_URL"])
+    # `fly mpg attach` writes DATABASE_URL; a dedicated BENCH_DATABASE_URL wins.
+    cfg = conninfo_to_dict(os.environ.get("BENCH_DATABASE_URL") or os.environ["DATABASE_URL"])
     cluster = os.environ.get(BENCH_CLUSTER_ENV, "").strip()
     if not re.fullmatch(r"[a-z0-9]{8,32}", cluster) or cluster not in cfg.get("host", ""):
         raise SystemExit("BENCH_CLUSTER_ID must name the disposable cluster in the database host")
@@ -40,11 +43,17 @@ def settings(authority: str) -> dict:
     # psycopg's bundled libpq/OpenSSL cannot locate the OS store for "system";
     # Fly Managed Postgres presents a Let's Encrypt certificate.
     keep["sslrootcert"] = os.environ.get("BENCH_SSLROOTCERT", "/etc/ssl/certs/ca-certificates.crt")
-    return {
+    env = {
         "LIVE402_REPLAY_AUTHORITY_ID": authority,
         "LIVE402_REPLAY_POSTGRES_DSN": make_conninfo(**keep),
         "LIVE402_REPLAY_POSTGRES_API": "functions-v1",
     }
+    pool = os.environ.get("BENCH_POOL_SIZE", "").strip()
+    if pool:
+        if not re.fullmatch(r"[0-9]{1,2}", pool):
+            raise SystemExit("invalid BENCH_POOL_SIZE")
+        env["LIVE402_REPLAY_POOL_SIZE"] = pool
+    return env
 
 
 def percentile(values, q):

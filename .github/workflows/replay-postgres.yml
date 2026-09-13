@@ -56,6 +56,7 @@ jobs:
           python -m unittest discover -s tests -p test_leadership_managed_postgres.py -v
           python -m unittest discover -s tests -p test_replay_identity_expiry_postgres.py -v
           python -m unittest discover -s tests -p test_replay_fence_postgres.py -v
+          python -m unittest discover -s tests -p test_replay_hotpath_postgres.py -v
       - name: Default-backend compatibility and budget gates
         env:
           LIVE402_FIXTURE: "1"

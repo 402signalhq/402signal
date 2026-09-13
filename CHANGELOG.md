@@ -5,6 +5,14 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Replay hot path: the PostgreSQL replay client keeps a bounded pool of
+  connections per process (`LIVE402_REPLAY_POOL_SIZE`, default 8) and runs
+  each paid admission write as one pipelined round trip. The owner migration
+  `ops/replay-postgres-hotpath.sql` moves the admission and byte counters to
+  sixteen shard rows so reservations stop serializing on the authority row;
+  every guard, the identity primary key and exact quota enforcement are
+  unchanged. `api_capacity` reports live totals; `fence_status` reconciles
+  against the shards. Runbook: `docs/runbooks/replay-hotpath-migration.md`.
 - `@402signal/route-guard` 0.7.3 is published: the GitHub release archive
   (`route-guard-v0.7.3`, digest pinned in `/capabilities.json`) and the npm
   registry package with a provenance attestation. `capabilities.json` records
