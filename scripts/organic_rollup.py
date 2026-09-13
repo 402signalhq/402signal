@@ -7,6 +7,11 @@ wallets, payer addresses, authorizations, observed payTo values, or requests.
 
     PYTHONPATH=. python3 scripts/organic_rollup.py --days 7
     PYTHONPATH=. python3 scripts/organic_rollup.py --days 7 --json
+
+Once the session store is shared (LIVE402_SESSION_BACKEND=postgres) the
+session numbers come from `scripts/session_stats.py`, run where the store is
+reachable, and are passed in with `--session-stats FILE`; the history file is
+still read directly.
 """
 
 from __future__ import annotations
@@ -82,6 +87,21 @@ def session_stats(path, since: int, until: int) -> dict:
     return stats
 
 
+def session_stats_from_file(path) -> dict:
+    """The same numbers as session_stats(), read from a scripts/session_stats.py export."""
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict) or data.get("ok") is not True:
+        raise ValueError("session stats file is not a successful export")
+    opens, hops = int(data.get("opens", 0)), int(data.get("hops", 0))
+    counters = {str(k): int(v) for k, v in (data.get("counters") or {}).items()}
+    payers = data.get("distinct_payers")
+    return {
+        "opens": opens, "hops": hops, "hops_per_open": _ratio(hops, opens), "counters": counters,
+        "distinct_payers_organic": None if payers is None else int(payers),
+    }
+
+
 def _norm_pay(value):
     text = (value or "").strip()
     if not text:
@@ -144,10 +164,13 @@ def price_recommendation(hops_per_open, cache_hit_rate) -> dict:
             "reason": "cache hit < 50%; investigate observation reuse before any price change"}
 
 
-def build(session_db, history_db, *, days: int = 7, now: int | None = None) -> dict:
+def build(session_db, history_db, *, days: int = 7, now: int | None = None, session_stats_file=None) -> dict:
     until = int(time.time() if now is None else now)
     since = until - int(days) * DAY
-    stats = session_stats(session_db, since, until)
+    if session_stats_file:
+        stats = session_stats_from_file(session_stats_file)
+    else:
+        stats = session_stats(session_db, since, until)
     counters = stats["counters"]
 
     def n(name: str) -> int:
@@ -229,10 +252,13 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--session-db", default=os.environ.get("LIVE402_SESSION_DB") or "/data/live402-session.sqlite")
     parser.add_argument("--history-db", default=os.environ.get("LIVE402_HISTORY_DB") or "/data/live402-history.sqlite")
+    parser.add_argument("--session-stats", default=None,
+                        help="JSON from scripts/session_stats.py instead of reading the session file")
     parser.add_argument("--days", type=int, default=7)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
-    report = build(args.session_db, args.history_db, days=max(1, min(92, args.days)))
+    report = build(args.session_db, args.history_db, days=max(1, min(92, args.days)),
+                   session_stats_file=args.session_stats)
     print(json.dumps(report, indent=2, sort_keys=True) if args.json else render_markdown(report))
     return 0
 
