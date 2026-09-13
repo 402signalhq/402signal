@@ -706,7 +706,9 @@ class PostgreSQLRuntimeContracts(unittest.TestCase):
         headers['Replay-Key'] = 'b2'*32
         with patch('live402.facilitator.settle') as settle:
             denied = handle_route({'need':'weather'},headers,RESOURCE)
-        self.assertEqual(denied[0],503)
+        # Final identity, wrong key: the state is disclosed, the output is not.
+        self.assertEqual(denied[0],409)
+        self.assertEqual(denied[1]['error'],'authorization_already_used')
         self.assertNotIn('url',denied[1])
         settle.assert_not_called()
 
@@ -770,7 +772,9 @@ class PostgreSQLRuntimeContracts(unittest.TestCase):
             self.assertEqual(job.exitcode,0)
         self.assertEqual(sum(calls for _code,calls in results),1)
         self.assertIn(200,[code for code,_calls in results])
-        self.assertTrue(all(code in (200,503) for code,_calls in results))
+        # Losers see the unknown outcome while the winner is in flight, or the
+        # typed 409 once its identity is final. Never a second settle.
+        self.assertTrue(all(code in (200,409,503) for code,_calls in results))
         self.assertEqual(self.admin.execute('SELECT admitted FROM signal_replay.authority').fetchone()[0],1)
 
     def test_runtime_expiry_and_abandon_never_release_identity(self):
