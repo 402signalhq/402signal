@@ -57,7 +57,7 @@ payment.
 
 ## Paid traffic after this state
 
-One organic paid open is allowed only when operator + 402security treat the
+One organic paid open is allowed only when the operator and security reviewer treat the
 current `/ready` as post-cut green. Skip if replay is uncertain. Do not pay
 mid-recovery and do not pay to “prove” a migrate that already happened.
 

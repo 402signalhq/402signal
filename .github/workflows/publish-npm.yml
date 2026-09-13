@@ -1,0 +1,60 @@
+name: Publish route-guard to npm
+
+# Publishes sdk/route-guard to the npm registry with provenance. Runs only
+# from a version tag or a manual dispatch naming one. Uses the NPM_TOKEN
+# secret from the `release` environment for the first publish; once the
+# package exists, switch it to npm Trusted Publishing and delete the token.
+on:
+  push:
+    tags:
+      - "route-guard-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish (for example route-guard-v0.8.0)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Check the tag matches the package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref="${{ github.event.inputs.tag || github.ref_name }}"
+          version="$(node -p "require('./sdk/route-guard/package.json').version")"
+          test "$ref" = "route-guard-v$version" || { echo "tag $ref does not match package version $version"; exit 1; }
+
+      - name: Test the package (zero dependencies, no network)
+        run: |
+          npm --prefix sdk/route-guard run check
+          npm --prefix sdk/route-guard test
+
+      - name: Publish with provenance
+        working-directory: sdk/route-guard
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public --ignore-scripts

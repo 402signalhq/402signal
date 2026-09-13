@@ -216,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     print("HOLD: no Fly, no secrets, no MainNet txn from this script unless every gate is set.")
-    print("READY_FOR_PRODUCTION_KEY_INSTALL remains NO until 402security GO and independent_provider true.")
+    print("READY_FOR_PRODUCTION_KEY_INSTALL remains NO until security review GO and independent_provider true.")
     print("")
     live_action = bool(args.prepare or args.go)
     print("=== preflight 1-11 ===")

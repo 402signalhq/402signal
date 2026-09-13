@@ -566,9 +566,7 @@ class PrekeyCorrectionTests(unittest.TestCase):
         self.assertIn("v=pq-anchor/3", spec)
         self.assertNotIn("policy=<canonical_fee=", spec)
 
-    def test_ready_stays_no(self):
-        text = (__import__("pathlib").Path("docs/pq-prekey-closeout.md").read_text(encoding="utf-8"))
-        self.assertIn("READY_FOR_PRODUCTION_KEY_INSTALL = NO", text)
+    def test_spec_names_v3_and_paired_requirements(self):
         spec = (__import__("pathlib").Path("docs/signer-mainnet-spec.md").read_text(encoding="utf-8"))
         self.assertIn("pq-anchor/3", spec)
         self.assertIn("Paired private-signer requirements", spec)

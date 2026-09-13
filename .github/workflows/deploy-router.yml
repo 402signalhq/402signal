@@ -55,7 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           ./flyctl deploy -a 402signal --remote-only --dockerfile Dockerfile.postgres \
-            --build-arg GIT_SHA="${GITHUB_SHA}" --image-label "ci-${GITHUB_SHA}" --wait-timeout 10m
+            --build-arg GIT_SHA="${GITHUB_SHA}" --image-label "api-${GITHUB_SHA}" --wait-timeout 10m
 
       - name: Public unpaid smoke checks
         shell: bash

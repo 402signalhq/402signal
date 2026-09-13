@@ -120,7 +120,7 @@ PostgreSQL replay authority supplies durable payment identities across processes
 
 Production admission policy, customer identities and live limits remain private operator configuration. Historical observation metadata is not a promise of future reliability or proof of adoption. See [admission operations](docs/admission-operations.md).
 
-The [documentation index](docs/README.md) separates current contracts from historical release gates. Preserve economic identities, signed history and recovery material during upgrades. Historical TestNet broadcasting is a `402signal (router) env` capability: 402security must GO before anyone sets it to `1`. Signer never reads BROADCAST. This historical flag does not enable MainNet; use the separate reviewed [MainNet anchoring runbook](docs/pq-automatic-anchoring.md).
+The [documentation index](docs/README.md) separates current contracts from historical release gates. Preserve economic identities, signed history and recovery material during upgrades. Historical TestNet broadcasting is a `402signal (router) env` capability: a security review must approve before anyone sets it to `1`. Signer never reads BROADCAST. This historical flag does not enable MainNet; use the separate reviewed [MainNet anchoring runbook](docs/pq-automatic-anchoring.md).
 
 ## Repository and contact
 

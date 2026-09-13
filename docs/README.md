@@ -45,23 +45,16 @@ Start free with the [offline buyer checks](../integration/buyer-checks/README.md
 - [Historical fee assumptions; obtain a current quote before funding](pq-funding.md)
 - [Read-only preservation of the historical TestNet log](pq-testnet-archive.md)
 - [Controlled production routing tests and traffic provenance](runbooks/lab-route-testing.md)
-- [route-guard 0.7.2 release checklist (pending until security GO)](runbooks/route-guard-0.7.2-release.md)
 - [Repository branch protections](github-protection.md)
 - [Role boundaries and explicit operator authorization](automation-security-boundaries.md)
 
 ## Scaling plans and historical release evidence
 
-These documents preserve decisions and safety requirements from specific releases. Their candidate statuses, account assumptions, dollar budgets and one-time commands are not a current production inventory or authorization to act. Never replay a prelaunch reset against retained live history.
+Architecture targets and measurements. Historical release gates, closeouts and operator runbooks are kept in the private operations repository and are not needed to integrate.
 
 - [Architecture target and gaps, not a throughput promise or live inventory](scale-20m.md)
-- [Original migration candidate gates; historical budget/status assumptions](scale-production-gates.md)
+- [Replay admission throughput benchmark on Managed Postgres (September 2026)](replay-throughput-benchmark.md)
 - [Dated incremental Merkle measurements, not end-to-end capacity](merkle-bench.md)
-- [Historical SQLite release gates and rollback context](runbooks/pr109-sqlite-release.md)
-- [Historical security rollout requirements and retained recovery constraints](remediation-rollout.md)
-- [Historical MainNet preparation and gate reasoning](pq-mainnet-prep.md)
-- [Historical first-event procedure](pq-first-production-event.md)
-- [Historical pre-key review; its original NO status is not current deployment status](pq-prekey-closeout.md)
-- [Historical empty prelaunch reset; not a live reset procedure](runbooks/mainnet-prelaunch-reset.md)
 
 ## Integration packages
 

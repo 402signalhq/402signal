@@ -10,7 +10,7 @@ change GitHub rulesets.
 
 ## Roles
 
-### 402dev
+### Developer automation
 
 Code, pull requests, and local plus CI tests only.
 
@@ -22,7 +22,7 @@ Code, pull requests, and local plus CI tests only.
 - Must not hold MainNet transaction authority.
 - Must not run live MainNet `--prepare` or `--go`.
 
-### 402security
+### Security reviewer
 
 Threat model and exact-diff review only.
 
@@ -33,7 +33,7 @@ Threat model and exact-diff review only.
 - Must not deploy.
 - GO is not a deploy, not a secret set, and not a MainNet send.
 
-### 402QA
+### QA automation
 
 Black-box public interfaces plus local fixtures.
 
@@ -44,7 +44,7 @@ Black-box public interfaces plus local fixtures.
 - Must not deploy.
 - Must not inspect production process environment.
 
-### 402Website
+### Website automation
 
 Website, UI, and content only.
 
@@ -54,12 +54,12 @@ Website, UI, and content only.
 - Must not deploy.
 - Must not treat a content PR as production mutation.
 
-### Ross / 402ops
+### Operator
 
 The only production-mutation role.
 
 - Deploy.
-- Fly secrets (`fly secrets set` / `unset`) after 402security GO where
+- Fly secrets (`fly secrets set` / `unset`) after security review GO where
   required.
 - Tightly controlled SSH. Not general console use. Not environment
   dumps.
@@ -68,7 +68,7 @@ The only production-mutation role.
   this role, never from a bot.
 - Rollback.
 
-Bots are not Ross / 402ops even when they can open a PR.
+Bots are not the operator even when they can open a PR.
 
 ## Production prohibitions (bots)
 
@@ -95,7 +95,7 @@ is shown by not holding the value, not by printing `environ`.
 
 ## Credential isolation (document only)
 
-Bots must not use Ross's normal Fly or GitHub credential directories.
+Bots must not use the operator's normal Fly or GitHub credential directories.
 
 Eventual target: a separate OS user or container whose home does not
 contain operator credentials. That environment must not mount or copy:
@@ -113,24 +113,24 @@ of a bot change. Until isolation exists, bots stay on repo-scoped PR
 credentials only and treat any operator Fly, GitHub, SSH, or wallet
 material as out of bounds.
 
-## CI production release (Ross / 402ops)
+## CI production release (operator)
 
 `.github/workflows/deploy-router.yml` is a manual `workflow_dispatch`
 release of `main` to the `402signal` app only. It requires typing the app
 name and approval in the protected `production` GitHub environment, whose
-required reviewer is Ross. Its only secret is an app-scoped Fly deploy token
+required reviewer is the operator. Its only secret is an app-scoped Fly deploy token
 stored on that environment. It never runs on pull requests, never reads or
 sets Fly secrets, never touches the signer app, and never changes anchoring
 flags. It snapshots the writer volume, deploys the exact commit with
 `Dockerfile.postgres`, then runs unpaid public smoke checks.
 
-Triggering or approving that workflow is a Ross / 402ops action. Bots may
+Triggering or approving that workflow is an operator action. Bots may
 edit the workflow file only through a reviewed pull request.
 
 ## Scope reminder
 
-Allowed without Ross / 402ops: feature-branch code, docs, CODEOWNERS
+Allowed without the operator: feature-branch code, docs, CODEOWNERS
 text, and fixture CI.
 
-Forbidden without Ross / 402ops: Fly, deploy, secrets, SSH, MainNet
+Forbidden without the operator: Fly, deploy, secrets, SSH, MainNet
 send, and signer-repo access.

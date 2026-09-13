@@ -1,4 +1,4 @@
-"""Week 4 writer lease: exclusivity, conservative validity and publisher gating."""
+"""Writer lease: exclusivity, conservative validity and publisher gating."""
 
 from __future__ import annotations
 

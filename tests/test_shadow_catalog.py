@@ -527,7 +527,7 @@ class CatalogBenchTests(_IsolatedCatalog):
 
 
 class CatalogNotHttpExposedTests(unittest.TestCase):
-    """402security: /data sqlite is process-local. No dump endpoint."""
+    """Security: /data sqlite is process-local. No dump endpoint."""
 
     DUMP_PATHS = (
         "/catalog.sqlite",

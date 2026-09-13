@@ -2,7 +2,7 @@
 """Rewrite an npm pack tgz with a pinned gzip stream.
 
 npm's gzip bytes vary by Node/zlib even when the uncompressed tar is
-identical (portable mtimes, uid 0). 402security's digest for this tree is
+identical (portable mtimes, uid 0). The reviewed digest for this tree is
 the same tar compressed with zlib level 9, gzip mtime 0, XFL 2, OS 255.
 """
 

@@ -57,7 +57,7 @@ the regenerated hashes whenever the direct dependency is updated.
 
 The image runs as UID/GID `10001:10001`. A fresh image-owned `/data` directory
 belongs to that user. Mounted volumes preserve their existing ownership;
-they require the explicit migration described in `docs/remediation-rollout.md`.
+they require the explicit migration described in the private operations runbook.
 
 `scripts/prepare_volume.py --volume /data` prints a plan. It never recursively
 changes files and refuses symlinks and hard-linked database files. After the

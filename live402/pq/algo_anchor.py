@@ -17,7 +17,7 @@ does not load a Falcon SK. send_forbidden() always raises.
 
 TestNet submit of a signer-approved SignedTxn is gated on
 LIVE402_PQ_FALCON_BROADCAST=1. That env lives on this 402signal
-router (default unset). 402security must GO before anyone sets it
+router (default unset). A security review must approve before anyone sets it
 to 1. The isolated signer never reads BROADCAST and never POSTs.
 Falcon SK must never live here. Fixture mode and CI never hit live
 algod unless a send/fetch hook is injected.

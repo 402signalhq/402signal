@@ -1,0 +1,64 @@
+name: uptime
+
+# External availability check for the public service. Read-only public HTTPS
+# only: it never uses Fly, secrets or SSH. A failure opens or updates the open
+# "incident" issue and fails the run so GitHub notifies the operator by email.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe public endpoints
+        id: probe
+        shell: bash
+        run: |
+          set -u
+          fail=0
+          report=""
+          code() { curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$@" || echo 000; }
+          check() {
+            if [ "$3" != "$2" ]; then fail=1; report="$report $1=$3(expected $2)"; fi
+          }
+          check health 200 "$(code https://402signal.com/health)"
+          check ready 200 "$(code https://402signal.com/ready)"
+          check challenge 402 "$(code -H 'Accept: application/json' https://402signal.com/route)"
+          check checkpoint 200 "$(code https://402signal.com/pq/log/checkpoint)"
+          check rails 200 "$(code https://402signal.com/rails)"
+          echo "fail=$fail" >> "$GITHUB_OUTPUT"
+          echo "report=${report# }" >> "$GITHUB_OUTPUT"
+          echo "probe:${report:- all ok}"
+
+      - name: Open or update the incident issue
+        if: steps.probe.outputs.fail == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPORT: ${{ steps.probe.outputs.report }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          body="Uptime probe failed at ${stamp}: ${REPORT}. Run: ${RUN_URL}. If paid routes stopped after a Postgres restart, follow the replay instance fence runbook in the private operations repository."
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --label incident --state open --search 'Uptime probe failed in:title' --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "Uptime probe failed" --label incident --body "$body"
+          fi
+
+      - name: Fail the run so the operator is notified
+        if: steps.probe.outputs.fail == '1'
+        run: exit 1

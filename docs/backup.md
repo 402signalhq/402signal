@@ -56,15 +56,15 @@ is restricted to `LIVE402_FIXTURE=1` for isolated historical drills. It is not
 a production recovery path.
 
 The actual Fly snapshot schedule, last successful backup, retention, off-host
-copies and alert owner must be checked by 402ops. Repository comments do not
+copies and alert owner must be checked by the operator. Repository comments do not
 prove that backups are active. This patch adds tooling, not a claimed schedule.
-See [the rollout runbook](remediation-rollout.md) for migration and recovery gates.
+Migration and recovery gates are kept in the private operations repository.
 
 The standalone `pq_log_restore_drill.py` remains a fixture-only Merkle identity
 drill. It refuses `/data`, never produces a production recovery manifest, and
 does not require or obtain payment authority.
 
-## Schedule (Week 4)
+## Schedule
 
 High-level steps only. Destinations, credentials and retention evidence stay
 in the private operator repository, never here.

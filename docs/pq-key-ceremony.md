@@ -45,7 +45,7 @@ Documented, not executed with real secrets in CI. Fresh MainNet
 Ed25519. Do not reuse the TestNet Ed25519 secret or public key.
 Ross-only production steps (stdin/files/umask, no CLI secret args,
 retire the compromised MainNet SK, empty the 2-leaf test DB) live in
-`docs/runbooks/mainnet-prelaunch-reset.md`. This page stays the
+the private prelaunch-reset runbook (operations repository). This page stays the
 ceremony outline.
 
 1. Generate a new Ed25519 seed offline. Do not reuse

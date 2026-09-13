@@ -1,4 +1,4 @@
-"""402security: seller-body tightening + DNS IP-pin. No Falcon, no PQ."""
+"""Security: seller-body tightening + DNS IP-pin. No Falcon, no PQ."""
 
 from __future__ import annotations
 
