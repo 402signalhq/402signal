@@ -69,6 +69,7 @@ Aggregate, read-only reports generated from the shadow catalog and probe history
 
 ## Integration packages
 
+- [Sixty-second demo: a price change caught before the wallet signs](demo-price-change.md)
 - [Native MPP charge offer selection and full-response binding](../integration/mpp-client/NATIVE_SELECTION.md)
 - [Explicit native Algorand MPP charge adapter](../integration/mpp-algorand/README.md)
 - [Node/TypeScript client and offline guard](../sdk/route-guard/README.md)
