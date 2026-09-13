@@ -1895,6 +1895,10 @@ def health_from_probe(url: str, snap: dict) -> dict:
         out["traction"] = snap["traction"]
     if "payTo_changed" in snap:
         out["payTo_changed"] = snap["payTo_changed"]
+    if isinstance(snap.get("mpp_offers"), list) and snap["mpp_offers"]:
+        from live402 import mpp_offers
+
+        out["mpp_offers"] = mpp_offers.public_terms(snap["mpp_offers"])
     return out
 
 
@@ -2019,9 +2023,20 @@ def _one_request(
 
     envelope, miss = parse_envelope(status, hdrs, body)
     live = envelope is not None and miss is None and status == 402
+    # MPP sellers answer with WWW-Authenticate Payment challenges, with or
+    # without an x402 body. Their terms are observed either way; an MPP-only
+    # 402 with at least one classified charge is live without an x402 envelope.
+    mpp = []
+    if status == 402:
+        from live402 import mpp_offers
+
+        mpp = mpp_offers.from_headers(hdrs)
+    mpp_live = bool(mpp) and any(o.get("intent") == "charge" and o.get("classified") for o in mpp)
+    if not live and mpp_live and final_url == url and not req.binding_redirected:
+        live, miss = True, None
     binding_observation = None
     binding_error_reason = "redirected_quote" if live and (final_url != url or req.binding_redirected) else None
-    if live and final_url == url and not req.binding_redirected:
+    if live and envelope is not None and final_url == url and not req.binding_redirected:
         from live402 import route_binding
 
         try:
@@ -2038,16 +2053,22 @@ def _one_request(
         except route_binding.BindingError as exc:
             from live402 import route_observability
             binding_error_reason = route_observability.binding_reason(exc)
-    return {
+    pay_to = _payto_from_envelope(envelope) if (live and envelope is not None) else None
+    if live and pay_to is None and mpp:
+        pay_to = next((o.get("payTo") for o in mpp if o.get("intent") == "charge" and o.get("classified") and o.get("payTo")), None)
+    out = {
         "binding_observation": binding_observation,
         "binding_error_reason": binding_error_reason,
         "live": live,
         "status": status,
         "has_402_challenge": _has_402_challenge(status, hdrs),
-        "payTo": _payto_from_envelope(envelope) if live else None,
+        "payTo": pay_to,
         "miss_reason": None if live else (miss or _miss_from_status(status)),
         "envelope": envelope if live else None,
     }
+    if mpp:
+        out["mpp_offers"] = mpp
+    return out
 
 
 def _infer_fixture_miss(canned: dict) -> str:

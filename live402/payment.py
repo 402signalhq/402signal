@@ -911,6 +911,24 @@ def _accepts_declared(blob) -> bool:
     return isinstance(blob, dict) and "accepts" in blob
 
 
+def _mpp_charge_options(result) -> list[dict]:
+    """Observed MPP charge offers (result['mpp_offers']) as payment options."""
+    offers = result.get("mpp_offers") if isinstance(result, dict) else None
+    if not isinstance(offers, list) or not offers:
+        return []
+    from live402 import mpp_offers
+
+    return mpp_offers.charge_options(offers)
+
+
+def _unique_options(opts: list[dict]) -> list[dict]:
+    # Raw duplicates are already collapsed. Count full public projections
+    # once so ambiguous terms cannot hide an independently usable offer.
+    keys = [json.dumps(selected_payment_fields(opt), sort_keys=True, default=str) for opt in opts]
+    counts = Counter(keys)
+    return [opt for opt, key in zip(opts, keys) if counts[key] == 1]
+
+
 def payment_options_from_result(result, *, require_unique=False) -> list[dict]:
     """Observed payment options only. Catalog claims are never promoted.
 
@@ -922,12 +940,13 @@ def payment_options_from_result(result, *, require_unique=False) -> list[dict]:
         return []
     target = result.get("target") if isinstance(result.get("target"), dict) else {}
     env = result.get("envelope") if isinstance(result.get("envelope"), dict) else {}
+    mpp = _mpp_charge_options(result)
     for blob in (env, target, result):
         if not _accepts_declared(blob):
             continue
         raw = blob.get("accepts")
         if not isinstance(raw, list):
-            return []
+            return _unique_options(mpp) if require_unique else mpp
         opts: list[dict] = []
         seen: set[tuple] = set()
         for acc in raw:
@@ -938,13 +957,12 @@ def payment_options_from_result(result, *, require_unique=False) -> list[dict]:
                     continue
                 seen.add(identity)
                 opts.append(opt)
+        opts.extend(mpp)
         if require_unique:
-            # Raw duplicates are already collapsed. Count full public projections
-            # once so ambiguous terms cannot hide an independently usable offer.
-            keys = [tuple(selected_payment_fields(opt).values()) for opt in opts]
-            counts = Counter(keys)
-            return [opt for opt, key in zip(opts, keys) if counts[key] == 1]
+            return _unique_options(opts)
         return opts
+    if mpp:
+        return _unique_options(mpp) if require_unique else mpp
     fallback = result.get("network") or result.get("rail")
     extra = {}
     display = target.get("displayAmount") or result.get("displayAmount")
@@ -976,6 +994,10 @@ FEE_RAILS = SUPPORTED_RAILS
 OBSERVED_RAILS = SUPPORTED_RAILS | frozenset(evm_chains.RAILS)
 SUPPORTED_X402_VERSIONS = frozenset((1, 2))
 SUPPORTED_SCHEMES = frozenset(("exact",))
+# Schemes an observed option may carry: x402 exact, plus MPP charges read
+# from WWW-Authenticate Payment challenges (live402.mpp_offers). Only exact
+# x402 offers bind through the v4 route receipt.
+OBSERVED_SCHEMES = SUPPORTED_SCHEMES | frozenset(("mpp-charge",))
 # Payment-amount bound only. Not the PQ checkpoint integer range.
 MAX_ATOMIC_AMOUNT = (2**63) - 1
 MAX_ACCEPT_TIMEOUT_SECONDS = 86400
@@ -1147,7 +1169,7 @@ def _scheme_ok(raw) -> bool:
     text = _text(raw)
     if text is None:
         return True
-    return text.lower() in SUPPORTED_SCHEMES
+    return text.lower() in OBSERVED_SCHEMES
 
 
 def _literal_x402_version(raw) -> int | None:
@@ -1264,7 +1286,7 @@ def selected_payment_fields(opt) -> dict | None:
     """Public selected_payment object. One observed option, no mixed rails."""
     if not isinstance(opt, dict):
         return None
-    return {
+    out = {
         "rail": opt.get("rail"),
         "network": opt.get("network"),
         "asset": opt.get("asset"),
@@ -1274,6 +1296,11 @@ def selected_payment_fields(opt) -> dict | None:
         "payTo": opt.get("payTo"),
         "facilitator": opt.get("facilitator"),
     }
+    if opt.get("scheme") == "mpp-charge":
+        # An MPP charge is paid with a Payment credential, not an x402 header.
+        out["scheme"] = "mpp-charge"
+        out["mpp"] = opt.get("mpp") if isinstance(opt.get("mpp"), dict) else None
+    return out
 
 
 def selected_payment_matches_current_envelope(selected, result) -> bool:
