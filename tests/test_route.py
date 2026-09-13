@@ -1895,6 +1895,7 @@ class ProductBriefTests(unittest.TestCase):
             "unlisted",
             "no_input_schema",
             "constraints_unmet",
+            "binding_unavailable",
             "probe_budget_exhausted",
             "probe_capacity",
             "probe_limit_reached",

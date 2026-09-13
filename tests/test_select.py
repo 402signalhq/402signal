@@ -878,6 +878,15 @@ class RouteNeedSelectTests(unittest.TestCase):
         self.assertEqual(result.get("url"), fast["url"])
         self.assertEqual(result.get("objective"), "fastest")
 
+    def test_price_bound_alone_never_reads_as_a_network_miss(self):
+        live = self._live("https://dear.example/weather", amount=9000, latency=10)
+        cons = select.parse_constraints({"networks": ["base"], "max_price_usd": 0})
+        self.assertEqual(select.unmet_constraint_names(live, cons), ["max_price_usd"])
+        cons = select.parse_constraints({"networks": ["solana"], "max_price_usd": 0})
+        self.assertEqual(select.unmet_constraint_names(live, cons), ["networks", "max_price_usd"])
+        cons = select.parse_constraints({"networks": ["base"], "max_price_usd": 1})
+        self.assertEqual(select.unmet_constraint_names(live, cons), [])
+
     def test_max_amount_atomic_only_expensive_is_constraints_unmet(self):
         dear = self._item("https://dear-only.example/weather", amount="9000")
         dead = self._item("https://dead.example/weather", amount="1000")
