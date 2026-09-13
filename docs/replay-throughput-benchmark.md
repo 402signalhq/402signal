@@ -86,8 +86,57 @@ other requests.
   counters to sixteen shard rows with exact per-shard quotas that sum to the
   authority quotas. Reservations lock one shard row; the authority row is
   taken `FOR SHARE` only. Installation: `docs/runbooks/replay-hotpath-migration.md`.
-- **Measured:** rerun this benchmark on a disposable cluster after the
-  migration and record the numbers here before enabling a second router.
+- **Measured (2026-09-13, second disposable Basic cluster, same rig, pool of
+  8 connections per process, 20 s per level):**
+
+  New client against the *old* functions (authority row lock still there),
+  pooled host:
+
+  | Processes × threads | Admissions/s | p50 | p95 | p99 | errors |
+  |---|---:|---:|---:|---:|---:|
+  | 1 × 1 | 20.5 | 24 ms | 66 ms | 493 ms | 0 |
+  | 1 × 4 | 108.0 | 31 ms | 53 ms | 97 ms | 0 |
+  | 1 × 16 | 97.5 | 65 ms | 694 ms | 1,596 ms | 3 |
+  | 4 × 16 | 87.0 | 303 ms | 2,402 ms | 4,416 ms | 48 |
+  | 8 × 16 | 63.5 | 684 ms | 4,476 ms | 5,564 ms | 281 |
+
+  Pooling alone lifts one process from 43 to 108 admissions/s at four
+  threads, then the row lock takes over: more concurrency means longer
+  waits and `lock_timeout` errors (the errors are refused admissions, never
+  duplicates; the counters stayed consistent throughout).
+
+  New client against the *sharded* functions, pooled host:
+
+  | Processes × threads | Admissions/s | p50 | p95 | p99 | errors |
+  |---|---:|---:|---:|---:|---:|
+  | 1 × 1 | 18.6 | 18 ms | 63 ms | 594 ms | 3 |
+  | 1 × 4 | 143.9 | 22 ms | 45 ms | 145 ms | 0 |
+  | 1 × 16 | 210.9 | 31 ms | 259 ms | 1,131 ms | 1 |
+  | 4 × 16 | 448.1 | 70 ms | 525 ms | 1,077 ms | 0 |
+  | 8 × 16 | 295.6 | 165 ms | 1,428 ms | 3,903 ms | 62 |
+
+  Direct host:
+
+  | Processes × threads | Admissions/s | p50 | p95 | p99 | errors |
+  |---|---:|---:|---:|---:|---:|
+  | 1 × 1 | 45.1 | 20 ms | 27 ms | 38 ms | 0 |
+  | 1 × 4 | 169.7 | 22 ms | 33 ms | 55 ms | 0 |
+  | 1 × 16 | 276.1 | 26 ms | 224 ms | 769 ms | 0 |
+  | 4 × 16 | 406.6 | 67 ms | 648 ms | 1,482 ms | 0 |
+  | 8 × 16 | 110.4 | 151 ms | 895 ms | 3,637 ms | 1,712 |
+
+  Findings: the plateau moved from 100–120 to about 400–450 admissions per
+  second (3.5 to 4 times), and one process now reaches 210–276 per second
+  instead of 45. The 300 per second target is met at 4 × 16; the p95 target
+  of 100 ms is met only up to about 170 per second (1 × 4 direct), because
+  the shared-2x database CPU is now the limit: at 400 per second it commits
+  800 synchronous transactions per second. The 8 × 16 errors are connections
+  refused or pool waits that hit the five-second fail-closed limit (64
+  direct connections against the Basic plan's connection budget), not
+  duplicates; the fence reported consistent counters after every run. A
+  larger plan now buys throughput, which it did not before. Use the direct
+  host for the router: it saves about 5 ms per admission and avoids the
+  pooler's serialization at 16 threads.
 
 ## Proposed changes (proposals 1 to 3 are implemented above)
 
