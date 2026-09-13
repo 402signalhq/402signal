@@ -64,10 +64,20 @@ jobs:
         working-directory: sdk/route-guard
         shell: bash
         # Trusted Publishing needs npm 11.5.1 or newer. No token, no .npmrc:
-        # npm requests the OIDC token from the job itself.
+        # npm requests the OIDC token from the job itself. The runner's npm is
+        # used when it is new enough; otherwise npm 11 is installed into a
+        # job-local prefix. Never a global install: on the ubuntu-24.04 image
+        # `npm install -g` fails with EACCES on /usr/local/share/man
+        # (run 34790149245, 2026-09-13).
         run: |
           set -euo pipefail
-          npm install -g npm@11 >/dev/null
-          npm --version
-          node -e 'const [a,b,c]=require("child_process").execSync("npm --version").toString().trim().split(".").map(Number); if (a<11||(a===11&&(b<5||(b===5&&c<1)))) { console.error("npm 11.5.1+ required"); process.exit(1) }'
-          npm publish --provenance --access public --ignore-scripts
+          node --version; npm --version
+          recent() { node -e 'const [a,b,c]=process.argv[1].trim().split(".").map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)' "$1"; }
+          NPM=npm
+          if ! recent "$(npm --version)"; then
+            npm install --prefix "$RUNNER_TEMP/npm11" --no-audit --no-fund --ignore-scripts npm@11 >/dev/null
+            NPM="node $RUNNER_TEMP/npm11/node_modules/npm/bin/npm-cli.js"
+          fi
+          $NPM --version
+          recent "$($NPM --version)" || { echo "npm 11.5.1+ required"; exit 1; }
+          $NPM publish --provenance --access public --ignore-scripts
