@@ -102,9 +102,9 @@ def _unknown(reason: str, **extra) -> dict:
 
 
 def _rail_of(opt, result=None) -> str | None:
-    if isinstance(opt, dict) and opt.get("rail") in payment.SUPPORTED_RAILS:
+    if isinstance(opt, dict) and opt.get("rail") in payment.OBSERVED_RAILS:
         return opt["rail"]
-    if isinstance(result, dict) and result.get("rail") in payment.SUPPORTED_RAILS:
+    if isinstance(result, dict) and result.get("rail") in payment.OBSERVED_RAILS:
         return result["rail"]
     if isinstance(opt, dict):
         return payment._rail_name(opt.get("network") or opt.get("rail"))

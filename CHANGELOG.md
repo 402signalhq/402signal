@@ -5,6 +5,14 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Observed EVM networks beyond Base: seller offers on Polygon, Arbitrum One,
+  Monad, World Chain, X Layer, BNB Smart Chain, HyperEVM, Ethereum, OP
+  Mainnet and Avalanche are classified by their exact CAIP-2 id, priced in
+  dollars when the asset is that chain's native Circle USDC, validated as
+  EVM recipients, and selectable with `networks` / `prefer_network` by rail
+  name or CAIP-2 id (`live402/evm_chains.py`, `payment.OBSERVED_RAILS`). The
+  checking fee is still paid on Base, Solana or Algorand only
+  (`payment.SUPPORTED_RAILS`, alias `FEE_RAILS`).
 - Transparency-leaf outbox (`LIVE402_PQ_OUTBOX=1` plus the owner migration
   `ops/replay-postgres-leaf-outbox.sql`): a router process without the writer
   lease completes plain paid checks by queueing the public leaf bytes in the

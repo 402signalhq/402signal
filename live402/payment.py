@@ -9,6 +9,8 @@ import os
 import re
 import time
 
+from live402 import evm_chains
+
 DEFAULT_PAYTO = "0xa2604ae688228af8349363770351bfcec66d4fa0"
 USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 DEFAULT_PAYTO_ALGORAND = "N2JSJZCSORMYGYO2NSIYRUEMBFRHEOMYODVXV2MXYYHB5H2JVUGG6NJ4NQ"
@@ -485,9 +487,9 @@ def sanitize_settlement_receipt(payload, rail: str | None = None) -> dict | None
         "algorand": ALGORAND_MAINNET,
     }
     inferred = rail_of_network(network)
-    expected_rail = rail if rail in SUPPORTED_RAILS else inferred
+    expected_rail = rail if rail in FEE_RAILS else inferred
     if (
-        expected_rail not in SUPPORTED_RAILS
+        expected_rail not in FEE_RAILS
         or inferred != expected_rail
         or network != expected_networks.get(expected_rail)
     ):
@@ -582,7 +584,10 @@ def _as_int(val):
 
 
 def rail_of_network(network: str) -> str | None:
-    """Internal rail aliases (our 402, prefer_network, match_accept). Case-folded exact ids."""
+    """Internal rail aliases (our 402, prefer_network, match_accept). Case-folded exact ids.
+
+    Fee rails first; then the observed EVM chains (live402.evm_chains).
+    """
     n = _norm(network)
     if not n:
         return None
@@ -592,7 +597,7 @@ def rail_of_network(network: str) -> str | None:
         return "solana"
     if n == "algorand" or n == _norm(ALGORAND_MAINNET):
         return "algorand"
-    return None
+    return evm_chains.rail_of_network(n)
 
 
 def rail_of_observed_network(network, version: int) -> str | None:
@@ -606,7 +611,7 @@ def rail_of_observed_network(network, version: int) -> str | None:
             return "solana"
         if network == ALGORAND_MAINNET:
             return "algorand"
-        return None
+        return evm_chains.rail_of_caip2(network)
     if version == 1:
         if network == "base" or network == BASE_CAIP2:
             return "base"
@@ -614,7 +619,7 @@ def rail_of_observed_network(network, version: int) -> str | None:
             return "solana"
         if network == "algorand" or network == ALGORAND_MAINNET:
             return "algorand"
-        return None
+        return evm_chains.rail_of_caip2(network) or evm_chains.rail_of_network(network)
     return None
 
 
@@ -632,6 +637,8 @@ def _rail_name(rail) -> str | None:
     low = text.lower()
     if low in {"base", "solana", "algorand", "evm"}:
         return "base" if low == "evm" else low
+    if evm_chains.is_rail(low):
+        return low
     return rail_of_network(text)
 
 
@@ -661,7 +668,7 @@ def payto_canonical(addr, rail=None) -> str | None:
     r = _rail_name(rail)
     if r == "algorand":
         return text.upper()
-    if r == "base":
+    if evm_chains.is_evm_rail(r):
         return text.lower()
     return text
 
@@ -687,7 +694,7 @@ def payto_equal(a, b, rail=None) -> bool:
         return left == right
     if r == "algorand":
         return left.upper() == right.upper()
-    if r == "base":
+    if evm_chains.is_evm_rail(r):
         return left.lower() == right.lower()
     return left == right
 
@@ -701,24 +708,33 @@ def _token_equal(a, b, rail) -> bool:
         return left == right
     if r == "algorand":
         return left.upper() == right.upper()
-    if r == "base":
+    if evm_chains.is_evm_rail(r):
         return left.lower() == right.lower()
     return left == right
 
 
 def known_usdc_asset(asset, network=None) -> bool:
-    """True only for the three exact USDC ids. Bare USDC/USD is not those ids."""
+    """True only for an exact native USDC id on its own network. Bare USDC/USD is not those ids.
+
+    With a network (or rail) given, only that chain's USDC counts: Arbitrum's
+    USDC address offered on Polygon is an unknown asset there. Without one,
+    any known USDC id counts.
+    """
     raw = _text(asset)
     if not raw:
         return False
-    _ = network
+    r = _rail_name(network) if network else None
+    if r is not None:
+        expected = usdc_asset_for_rail(r)
+        return bool(expected) and _token_equal(raw, expected, r)
     if _token_equal(raw, USDC_BASE, "base"):
         return True
     if _token_equal(raw, USDC_SOLANA_MINT, "solana"):
         return True
     if _token_equal(raw, USDC_ALGORAND_ASA, "algorand"):
         return True
-    return False
+    return any(_token_equal(raw, evm_chains.usdc_of_rail(rail), rail)
+               for rail in evm_chains.RAILS if evm_chains.usdc_of_rail(rail))
 
 
 def usdc_asset_for_rail(rail) -> str | None:
@@ -729,7 +745,7 @@ def usdc_asset_for_rail(rail) -> str | None:
         return USDC_ALGORAND_ASA
     if r == "base":
         return USDC_BASE
-    return None
+    return evm_chains.usdc_of_rail(r)
 
 
 def _format_usd(usd: float) -> str:
@@ -951,7 +967,13 @@ def payment_options_from_result(result, *, require_unique=False) -> list[dict]:
     return [synth] if synth else []
 
 
+# Rails the routing fee itself can be paid on. Settlement receipts, billing
+# and replay fingerprints are checked against this set only.
 SUPPORTED_RAILS = frozenset(("base", "solana", "algorand"))
+FEE_RAILS = SUPPORTED_RAILS
+# Rails a seller offer can be observed and normalized on: the fee rails plus
+# the EVM chains in live402.evm_chains.
+OBSERVED_RAILS = SUPPORTED_RAILS | frozenset(evm_chains.RAILS)
 SUPPORTED_X402_VERSIONS = frozenset((1, 2))
 SUPPORTED_SCHEMES = frozenset(("exact",))
 # Payment-amount bound only. Not the PQ checkpoint integer range.
@@ -1062,7 +1084,7 @@ def valid_payto_for_rail(addr, rail) -> bool:
     if not text:
         return False
     r = _rail_name(rail)
-    if r == "base":
+    if evm_chains.is_evm_rail(r):
         if not _BASE_PAYTO_RE.match(text):
             return False
         return _eip55_ok(text)
@@ -1086,7 +1108,7 @@ def valid_asset_for_rail(asset, rail) -> bool:
     if not text:
         return False
     r = _rail_name(rail)
-    if r == "base":
+    if evm_chains.is_evm_rail(r):
         if text.upper() in {"USDC", "USD"}:
             return True
         return bool(_BASE_PAYTO_RE.match(text))
@@ -1213,7 +1235,7 @@ def is_complete_payment_option(opt, envelope=None) -> bool:
     """True iff the option is payable as observed. Fail closed. Never fill from catalog."""
     if not isinstance(opt, dict):
         return False
-    if opt.get("rail") not in SUPPORTED_RAILS:
+    if opt.get("rail") not in OBSERVED_RAILS:
         return False
     network = _text(opt.get("network"))
     if not network or rail_of_network(network) != opt.get("rail"):
@@ -1274,7 +1296,7 @@ def selected_payment_matches_current_envelope(selected, result) -> bool:
     asset = selected.get("asset")
     amount = sane_atomic_amount(selected.get("amount_atomic"))
     pay_to = selected.get("payTo")
-    if rail not in SUPPORTED_RAILS or type(network) is not str or amount is None:
+    if rail not in OBSERVED_RAILS or type(network) is not str or amount is None:
         return False
     selected_asset = asset_identity(
         {"rail": rail, "network": network, "asset": asset}
@@ -1330,8 +1352,8 @@ def asset_identity(opt: dict | None) -> str | None:
         known = usdc_asset_for_rail(rail)
         return ("usdc:%s" % (known or asset)).lower()
     r = _rail_name(rail)
-    if r == "base":
-        return "base:%s" % asset.lower()
+    if evm_chains.is_evm_rail(r):
+        return "%s:%s" % (r, asset.lower())
     if r == "algorand":
         return "algorand:%s" % asset.upper()
     if r == "solana":

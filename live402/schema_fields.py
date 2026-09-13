@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from live402 import probe, select
+from live402 import evm_chains, probe, select
 
 OBJECTIVES = select.OBJECTIVES
 MISS_REASONS = probe.MISS_REASONS
 STOP_REASONS = probe.STOP_REASONS
-RAILS = ("base", "solana", "algorand")
+# Fee rails first (the routing fee is paid on these), then the observed EVM chains.
+RAILS = ("base", "solana", "algorand") + evm_chains.RAILS
 SEARCH_DEPTHS = tuple(sorted(select.SEARCH_DEPTHS))
 
 TRANSPARENCY_STATES = (
@@ -49,9 +50,12 @@ OBJECTIVE_DESC = (
 NEED_DESC = "What the caller wants routed (plain English)."
 URL_DESC = "Optional https URL to probe instead of discovery. need or url (or both) is required."
 PREFER_NETWORK_DESC = (
-    "Weak ranking preference only. Ranks this pay-in rail first but still "
-    "searches and selects across all supported rails. Not a filter. "
-    "Use networks for a hard policy lock."
+    "Weak ranking preference only. Ranks this seller network first but still "
+    "searches and selects across all supported networks. Not a filter. "
+    "Use networks for a hard policy lock. Observed networks: base, solana, algorand "
+    "and the EVM chains polygon, arbitrum, monad, worldchain, xlayer, bnb, hyperevm, "
+    "ethereum, optimism, avalanche (CAIP-2 ids such as eip155:137 are accepted); "
+    "the checking fee itself is paid on base, solana or algorand."
 )
 ACCEPT_PAYTO_CHANGE_DESC = (
     "If true, allow selecting a destination whose payTo just changed for the first time. "

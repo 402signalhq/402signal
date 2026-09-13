@@ -29,7 +29,8 @@ OBJECTIVES = (
     "lowest_total_cost",
     "fastest_settlement",
 )
-RAILS = frozenset(("base", "solana", "algorand"))
+# Observed rails: the fee rails plus the EVM chains in live402.evm_chains.
+RAILS = payment.OBSERVED_RAILS
 WEAK_MIN_N = 3
 MATURE_N = 10
 COMPARED_CAP = 5
@@ -45,7 +46,7 @@ EXCLUDED_REASONS = (
 # Keys we still cannot compute. Empty in this slice: settlement/reputation/success
 # are measured when data exists and fail closed when unknown.
 UNMEASURED_CONSTRAINTS = ()
-PREFER_NETWORKS = frozenset(("base", "solana", "algorand"))
+PREFER_NETWORKS = payment.OBSERVED_RAILS
 SEARCH_DEPTHS = frozenset(("standard", "thorough"))
 EXPLICIT_CONSTRAINT_KEYS = (
     "objective",
@@ -160,7 +161,7 @@ def _parse_rails(raw):
         name = _text(item)
         if not name:
             continue
-        name = name.lower()
+        name = payment.rail_of_network(name) or name.lower()
         if name in RAILS:
             rails.append(name)
     return frozenset(rails)
@@ -239,7 +240,7 @@ def _parse_explicit_networks(raw, name: str = "networks"):
     for item in items:
         if not isinstance(item, str):
             _reject("%s entries must be strings" % name)
-        name_s = item.strip().lower()
+        name_s = payment.rail_of_network(item) or item.strip().lower()
         if name_s not in RAILS:
             _reject("unsupported network")
         if name_s not in rails:
@@ -271,7 +272,7 @@ def validate_explicit_constraints(body: dict) -> None:
             _reject("unsupported objective")
     if _explicit_present(src, "prefer_network"):
         raw = src.get("prefer_network")
-        if not isinstance(raw, str) or raw.strip().lower() not in PREFER_NETWORKS:
+        if not isinstance(raw, str) or (payment.rail_of_network(raw) or raw.strip().lower()) not in PREFER_NETWORKS:
             _reject("unsupported prefer_network")
     if _explicit_present(src, "networks"):
         _parse_explicit_networks(src.get("networks"))

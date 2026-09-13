@@ -141,7 +141,7 @@ class ParseTests(unittest.TestCase):
                 "max_price_usd": "0.05",
                 "max_latency_ms": "50",
                 "require_invocable": True,
-                "networks": ["solana", "ethereum", "base"],
+                "networks": ["solana", "tron", "base"],
             }
         )
         self.assertEqual(ok["max_amount_atomic"], 10000)
