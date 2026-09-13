@@ -295,6 +295,8 @@ class ReadyAndHeaderTests(unittest.TestCase):
             self.assertTrue(body["ok"])
             for key in ("storage", "catalog", "history", "pq_log"):
                 self.assertTrue(body["checks"][key])
+            self.assertIs(body["writer"], True)
+            self.assertNotIn("writer", body["checks"])
             blob = raw.decode("utf-8").lower()
             self.assertNotIn("/data", blob)
             self.assertNotIn("sqlite", blob)
