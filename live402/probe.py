@@ -78,6 +78,7 @@ MISS_REASONS = (
     "probe_limit_reached",
     "unsafe_to_probe",
     "settlement_unknown",
+    "authorization_used",
     "probe_capacity",
     "window_spent",
     "fingerprint_miss",
