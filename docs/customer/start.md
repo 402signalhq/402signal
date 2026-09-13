@@ -15,11 +15,12 @@ A hosted session is a paid `/route` product, not the merchant [session client](.
 - Hop: `session=hop` plus `session_id`. A raw session id (or any other value) in `session` is `invalid_session_shape`: HTTP 200, no probe, no routing fee. Hops do **not** run a new 7-URL probe and do **not** call facilitator `/verify` or `/settle`. Optional `scheme`, `amount_atomic`, and `payTo` are checked against the ceiling and channel shape stored at open; a break misses and does not settle. A hop that restores the bound winner reports `route_outcome.code=session_hop` and `next_action=none`, not `free_miss`.
 - The merchant session-client contract is unchanged.
 
-## Trial
+## Check credits (API key, v0)
 
-A trial is a hand-issued hashed token (`X-402Signal-Trial`). It is not a public faucet and has no mint endpoint.
+A check credit is an operator-issued hashed token sent as `X-402Signal-Trial`. It lets you run checks against catalog-listed URLs without a funded wallet, so you can try the hosted check in minutes. There is no public mint endpoint; ask for one at ross@402signal.com with the subject "check credits", your intended use and the endpoints you want to check.
 
-- Scope: **5 listed-URL opens**, **48-hour TTL**. A listed-URL probe that is not live still consumes a credit.
-- No facilitator settlement on the trial path. `billing.settlement_state` is not USDC settled.
-- Rows are labeled `traffic_class=sponsored` and do not move public `last_success_402` or public `n_7d`.
-- A sixth open returns the real $0.003 / $0.005 payment challenge. `search_depth=thorough` is rejected.
+- Default scope: **5 listed-URL checks**, **48-hour TTL**. Operators can issue up to 1,000 checks and 30 days. A listed-URL probe that is not live still consumes a credit.
+- Listed URLs only: unlisted hosts return `miss_reason=unlisted` without a probe. Paid checks with a wallet cover any public HTTPS URL.
+- No facilitator settlement on the credit path. `billing.settlement_state` is `not_attempted`.
+- Rows are labeled `traffic_class=sponsored` and never move public reliability data (`last_success_402`, `n_7d`).
+- Once credits are spent, the same request returns the real $0.003 / $0.005 payment challenge. `search_depth=thorough` is rejected on credits.

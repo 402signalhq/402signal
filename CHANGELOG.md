@@ -5,6 +5,24 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- `@402signal/route-guard`: new `./x402` export with `signalGuard`, an
+  `onBeforePaymentCreation` hook for the official x402 client that runs the
+  hosted check, verifies the receipt locally and aborts mismatched payments.
+- Replay identities now expire on Solana and Algorand too (conservative
+  bounds from verification time), not only on Base.
+- Check credits (API key v0): operator-issued credits can now cover up to
+  1,000 listed-URL checks for up to 30 days.
+- MCP tool descriptions cut to about a third of their length.
+- `scripts/endpoint_report.py` renders the "State of x402 endpoints" report
+  from catalog and probe history copies; the September 2026 edition is
+  published under `docs/insights/`.
+- README, homepage and `llms.txt` now open with a one-minute start (unpaid
+  curl, the x402 hook, evaluation credits) and document the `./x402` hook.
+- The provisional route-guard 0.7.3 pack digest is re-pinned because the
+  `x402` adapter joined the package.
+- `ops/loadtest/`: k6 scripts for the free and paid paths and a disposable
+  free-path staging config; `docs/load-test.md` records the procedure and
+  results.
 - Repository hygiene: external uptime probe with incident issues, OpenSSF
   Scorecard, npm publish workflow with provenance, security and contributing
   policies, issue and pull request templates.

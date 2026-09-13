@@ -55,6 +55,13 @@ Architecture targets and measurements. Historical release gates, closeouts and o
 - [Architecture target and gaps, not a throughput promise or live inventory](scale-20m.md)
 - [Replay admission throughput benchmark on Managed Postgres (September 2026)](replay-throughput-benchmark.md)
 - [Dated incremental Merkle measurements, not end-to-end capacity](merkle-bench.md)
+- [HTTP-layer load test procedure and results](load-test.md)
+
+## Insights
+
+Aggregate, read-only reports generated from the shadow catalog and probe history. No buyer or payer identities.
+
+- [State of x402 endpoints, September 2026](insights/state-of-x402-endpoints-2026-09.md) (regenerate with `scripts/endpoint_report.py`)
 
 ## Integration packages
 

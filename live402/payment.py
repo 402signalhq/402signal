@@ -1695,17 +1695,34 @@ def _uint_or_none(value) -> int | None:
     return None
 
 
-def authorization_expiry(payload, accept) -> float | None:
+# A Solana transaction is processable only while its recent blockhash is
+# valid (about 60 to 90 seconds); an Algorand transaction only inside its
+# validity window of at most 1000 rounds (about 47 minutes). Both identities
+# are admitted only after the facilitator verified the authorization as
+# currently valid, so a bound counted from that moment is safe.
+SOLANA_AUTHORIZATION_LIFETIME_S = 300
+ALGORAND_AUTHORIZATION_LIFETIME_S = 3600
+
+
+def authorization_expiry(payload, accept, now: float | None = None) -> float | None:
     """Unix time after which this authorization can no longer settle on-chain.
 
-    Base only: EIP-3009 validBefore or Permit2 deadline from the signed
-    authorization the facilitator verifies. Ambiguous, malformed, oversized
-    and non-Base values return None, which keeps the replay identity forever.
+    Base: EIP-3009 validBefore or Permit2 deadline from the signed
+    authorization the facilitator verifies. Solana and Algorand: a conservative
+    upper bound on blockhash or round validity, counted from now. Ambiguous,
+    malformed or oversized values return None, which keeps the replay identity
+    forever.
     """
-    if rail_of_accept(accept if isinstance(accept, dict) else {}) != "base":
-        return None
+    rail = rail_of_accept(accept if isinstance(accept, dict) else {})
     inner = payload.get("payload") if isinstance(payload, dict) else None
     if not isinstance(inner, dict):
+        return None
+    current = float(time.time() if now is None else now)
+    if rail == "solana":
+        return current + SOLANA_AUTHORIZATION_LIFETIME_S if isinstance(inner.get("transaction"), str) else None
+    if rail == "algorand":
+        return current + ALGORAND_AUTHORIZATION_LIFETIME_S if isinstance(inner.get("paymentGroup"), list) else None
+    if rail != "base":
         return None
     auth, permit = inner.get("authorization"), inner.get("permit2Authorization")
     if isinstance(auth, dict) and permit is None:

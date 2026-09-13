@@ -21,7 +21,9 @@ SESSION_TTL_S = 600
 HOP_CEILING = 20
 CACHE_TTL_S = 20
 TRIAL_TTL_S = 48 * 3600
+TRIAL_TTL_MAX_S = 30 * 86400
 TRIAL_OPEN_CEILING = 5
+TRIAL_OPEN_MAX = 1000
 TRIAL_HEADER = "x-402signal-trial"
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{32,128}\Z")
 SESSION_ID_RE = re.compile(r"[0-9a-f]{64}\Z")
@@ -192,15 +194,22 @@ def trial_token(headers) -> str | None:
     return None
 
 
-def issue_trial(raw: str | None = None, *, ttl_s: int = TRIAL_TTL_S) -> str:
+def issue_trial(raw: str | None = None, *, ttl_s: int = TRIAL_TTL_S, opens: int = TRIAL_OPEN_CEILING) -> str:
     """Store only the hash. Returns the bearer token once.
 
-    Re-issuing the same raw token may refresh expires_at. It must not reset
-    opens_used.
+    Re-issuing the same raw token may refresh expires_at and raise the open
+    ceiling (an operator top-up). It must not reset opens_used. Credits are
+    operator-issued check allowances for catalog-listed URLs: the same abuse
+    limits apply as to paid checks, no facilitator is called, and sponsored
+    traffic never moves public reliability data.
     """
     token = raw or secrets.token_urlsafe(32)
     if not TOKEN_RE.fullmatch(token):
         raise ValueError("invalid trial token")
+    if isinstance(ttl_s, bool) or not isinstance(ttl_s, int) or not 60 <= ttl_s <= TRIAL_TTL_MAX_S:
+        raise ValueError("invalid trial ttl")
+    if isinstance(opens, bool) or not isinstance(opens, int) or not 1 <= opens <= TRIAL_OPEN_MAX:
+        raise ValueError("invalid trial open ceiling")
     now = int(time.time())
     digest = _hash_secret(token)
     with _lock:
@@ -210,9 +219,10 @@ def issue_trial(raw: str | None = None, *, ttl_s: int = TRIAL_TTL_S) -> str:
             INSERT INTO trial_credits (token_hash, created_at, expires_at, opens_used, open_ceiling)
             VALUES (?, ?, ?, 0, ?)
             ON CONFLICT(token_hash) DO UPDATE SET
-                expires_at = excluded.expires_at
+                expires_at = excluded.expires_at,
+                open_ceiling = MAX(trial_credits.open_ceiling, excluded.open_ceiling)
             """,
-            (digest, now, now + int(ttl_s), TRIAL_OPEN_CEILING),
+            (digest, now, now + int(ttl_s), int(opens)),
         )
         conn.commit()
     return token

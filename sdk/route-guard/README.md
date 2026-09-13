@@ -16,6 +16,45 @@ through to the next already-probed selectable bindable winner; this guard
 still refuses unguarded payment when local verification fails. See the
 [developer walkthrough](https://402signal.com/developers#route-binding).
 
+## Use it inside the official x402 client
+
+If your buyer already uses `@x402/fetch` with an `x402Client`, one hook adds the
+check before every seller payment. The hook pays the $0.003 checking fee with
+the same wallet through your payment-capable fetch, re-reads the seller's
+unpaid challenge with a plain fetch, verifies the signed receipt against the
+pinned log key, and aborts the payment unless the verified offer is exactly
+what the client selected. 402Signal's own fee challenge passes through
+unchecked, so nothing recurses.
+
+```js
+import { x402Client } from "@x402/core/client";
+import { wrapFetchWithPayment } from "@x402/fetch";
+import { signalGuard } from "@402signal/route-guard/x402";
+
+const client = new x402Client();
+client.register("eip155:*", new ExactEvmScheme(signer));
+const fetchWithPayment = wrapFetchWithPayment(fetch, client);
+
+client.onBeforePaymentCreation(
+  signalGuard({
+    fetchWithPayment,
+    trustedLogVkey: process.env.SIGNAL_LOG_VKEY, // pinned in your configuration
+    requestFor: ({ paymentRequired }) => ({
+      url: paymentRequired.resource.url,
+      require_route_binding: true,
+      max_price_usd: 0.02,
+    }),
+    onResult: (result) => retain(result.text), // keep the raw check for later verification
+  }),
+);
+```
+
+A completed miss, a binding that could not be built, a changed challenge or a
+receipt that fails verification returns `{ abort: true, reason }` to the
+client, which then does not sign. Set `onMiss: "allow"` to treat a miss as
+advisory. The hosted check observes `GET`; pass `challengeFor` when your buyer
+already holds the raw challenge text for a `POST` profile.
+
 ## Offline example
 
 From the repository root with Node 22 or newer:

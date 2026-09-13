@@ -26,14 +26,30 @@ class AuthorizationExpiryTests(unittest.TestCase):
             1789000100.0,
         )
 
-    def test_ambiguous_malformed_oversized_and_other_rails_never_expire(self):
+    def test_ambiguous_malformed_oversized_and_unknown_rails_never_expire(self):
         both = {"payload": {"authorization": {"validBefore": "1"}, "permit2Authorization": {"deadline": "2"}}}
         self.assertIsNone(payment.authorization_expiry(both, BASE))
         self.assertIsNone(payment.authorization_expiry({"payload": {"authorization": {"validBefore": "soon"}}}, BASE))
         self.assertIsNone(payment.authorization_expiry({"payload": {"authorization": {"validBefore": str(2**60)}}}, BASE))
+        # A Base-shaped payload on the Solana rail carries no transaction, so it never expires.
         self.assertIsNone(payment.authorization_expiry(
             {"payload": {"authorization": {"validBefore": "1789000000"}}}, {"network": payment.SOLANA_MAINNET}))
         self.assertIsNone(payment.authorization_expiry(None, BASE))
+        self.assertIsNone(payment.authorization_expiry({"payload": {"transaction": "AQ=="}}, {"network": "unknown:1"}))
+
+    def test_solana_and_algorand_expire_on_a_conservative_bound_from_now(self):
+        now = 1789000000.0
+        solana = payment.authorization_expiry(
+            {"payload": {"transaction": "AQ=="}}, {"network": payment.SOLANA_MAINNET}, now=now)
+        self.assertEqual(solana, now + payment.SOLANA_AUTHORIZATION_LIFETIME_S)
+        self.assertLessEqual(payment.SOLANA_AUTHORIZATION_LIFETIME_S, 600)
+        algorand = payment.authorization_expiry(
+            {"payload": {"paymentGroup": ["AQ=="], "paymentIndex": 0}}, {"network": payment.ALGORAND_MAINNET}, now=now)
+        self.assertEqual(algorand, now + payment.ALGORAND_AUTHORIZATION_LIFETIME_S)
+        # 1000 rounds at about 2.8 s is about 47 minutes; the bound must cover it.
+        self.assertGreaterEqual(payment.ALGORAND_AUTHORIZATION_LIFETIME_S, 3000)
+        self.assertIsNone(payment.authorization_expiry({"payload": {}}, {"network": payment.SOLANA_MAINNET}, now=now))
+        self.assertIsNone(payment.authorization_expiry({"payload": {"paymentGroup": "x"}}, {"network": payment.ALGORAND_MAINNET}, now=now))
 
 
 class FakeStore:

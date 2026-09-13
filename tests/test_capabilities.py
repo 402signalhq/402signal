@@ -93,11 +93,11 @@ class CapabilitiesHonestyTests(unittest.TestCase):
         self.assertNotIn("published_at", pending)
         self.assertEqual(
             pending["provisional_pack_sha256"],
-            "b2e8949a10cd2241b2b0988acd2e8e5134f36f7f40edb482616321b9e135e909",
+            "8b3597db5a7cb4cb90135c24ffc439a627d0189bd29d351c78f2fc32ce59ffc6",
         )
         self.assertEqual(
             pending["provisional_sums_sha256"],
-            "c5bfe83176171e6c66fb1fdcbe0d3ebf1de299d0bc3715c366e29f48b7a4af51",
+            "c3eaf9486aea8270f2814965ed68bd4c05c5257ac68d20da699244076e6a595c",
         )
         published = next(package for package in record["packages"] if package["tag"] == "route-guard-v0.7.2")
         self.assertEqual(published["state"], "published")
