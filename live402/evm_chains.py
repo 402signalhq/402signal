@@ -27,6 +27,10 @@ CHAINS: tuple[tuple[str, str, str, str | None], ...] = (
     ("ethereum", "eip155:1", "Ethereum", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"),
     ("optimism", "eip155:10", "OP Mainnet", "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"),
     ("avalanche", "eip155:43114", "Avalanche C-Chain", "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"),
+    # Tempo (Stripe and Paradigm's payments chain, mainnet since 2026-03-18): the
+    # home of MPP "tempo" challenges. TIP-20 tokens are ERC-20 shaped with six
+    # decimals; no Circle USDC address is confirmed, so prices stay unnormalized.
+    ("tempo", "eip155:4217", "Tempo", None),
 )
 
 RAILS: tuple[str, ...] = tuple(chain[0] for chain in CHAINS)
