@@ -748,7 +748,7 @@ class PaywallTests(unittest.TestCase):
         self.assertIn("api.cdp.coinbase.com/platform/v2/x402/discovery/search?query=402signal", llms)
         self.assertIn("facilitator.goplausible.xyz/discovery/resources", llms)
         self.assertIn("facilitator.goplausible.xyz/dashboard/merchants/56466a9400d70f08", llms)
-        self.assertIn("www.x402scan.com/recipient/0xb18fc2275f36dae99eb215caeff03b431f887d16", llms)
+        self.assertIn("www.x402scan.com/recipient/0xa2604ae688228af8349363770351bfcec66d4fa0", llms)
         self.assertNotIn("dashboard/resources/UE9TVDpodHRwczovLzQwMnNpZ25hbC5jb20vcm91dGU", llms)
         self.assertNotIn("src=x402-global-challenge", llms)
         self.assertNotIn("24klabs.ai/listing/402signal", llms)

@@ -1481,7 +1481,7 @@ Free third-party catalogues may help agents find us; confirm any returned `base_
 - PayAPI Market free catalogue MCP: https://payapi.market/mcp
 - Agentic Market: https://agentic.market/services/402signal-com
 - GoPlausible: https://facilitator.goplausible.xyz/dashboard/merchants/56466a9400d70f08
-- x402scan: https://www.x402scan.com/recipient/0xb18fc2275f36dae99eb215caeff03b431f887d16
+- x402scan: https://www.x402scan.com/recipient/0xa2604ae688228af8349363770351bfcec66d4fa0
 - CDP discovery: https://api.cdp.coinbase.com/platform/v2/x402/discovery/search?query=402signal
 - PayAI discovery: https://facilitator.payai.network/discovery/resources
 - GoPlausible discovery: https://facilitator.goplausible.xyz/discovery/resources
