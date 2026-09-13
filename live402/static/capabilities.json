@@ -12,6 +12,16 @@
   "source_baseline": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
   "packages": [
     {
+      "tag": "route-guard-v0.7.4",
+      "source_revision": "922e8aaab4f6bc96a0845728f875caf6c4e4636d",
+      "digest_status": "provisional-until-release",
+      "provisional_pack_sha256": "164a1328ddcba856b667b74b43573bfb455016144cef84858ae66054be64b5ff",
+      "provisional_sums_sha256": "d414db64f83d5f68013451c912c7c6a6c03aa32d95d4007ac5b942b353abeaa9",
+      "distribution": "GitHub release archive and npm registry (@402signal/route-guard@0.7.4, provenance); tag not yet uploaded",
+      "state": "pending",
+      "recipe": "/developers/check-group-offer"
+    },
+    {
       "tag": "route-guard-v0.7.3",
       "published_at": "2026-09-13T14:06:05Z",
       "source_revision": "58241029bf3a7949c388bf3398279fdf446c2893",
