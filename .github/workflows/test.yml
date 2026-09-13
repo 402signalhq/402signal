@@ -79,10 +79,10 @@ jobs:
           node scripts/check_native_mpp_package.mjs
       - name: Qualify packed route-guard archive and historical 0.7.1 verifier
         # Digest-check local 0.7.3 pack + SHA256SUMS before install/import.
-        # 0.7.3 stays pending (provisional candidate digest). 0.7.2 remains the
-        # published installer pin. 0.7.1 is the published historical_verifier.
+        # 0.7.3 is the published installer pin (the tree must pack to the
+        # published bytes). 0.7.1 is the published historical_verifier.
         # No Fly secret, no BATCH enable, no spend. Local qualify is not gated
-        # on a GitHub download of the candidate.
+        # on a GitHub download.
         run: |
           pack_dir="$RUNNER_TEMP/route-guard-pack"
           node scripts/pack_route_guard.mjs --destination="$pack_dir"

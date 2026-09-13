@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /** Verify a packed route-guard archive, not the source tree.
  *
- * Candidate 0.7.3 packed bytes are digest-checked against the reviewed
- * expected pair before npm install or import. SHA256SUMS is checked the same
- * way: file digest plus contents vs the tarball hash. Mismatch fails closed.
- * 0.7.3 is pending (provisional candidate digest, not a published archive).
+ * 0.7.3 packed bytes are digest-checked against the published pair before
+ * npm install or import. SHA256SUMS is checked the same way: file digest plus
+ * contents vs the tarball hash. Mismatch fails closed. 0.7.3 is published
+ * (GitHub release archive and npm registry); the tree must still pack to the
+ * same bytes.
  * Default verify: current chk_grp without buyer merchant_profile, historical
  * leaves that still name merchant_profile, and refuse-on-drift.
  * --historical-verifier tests the published 0.7.1 path: historical leaves

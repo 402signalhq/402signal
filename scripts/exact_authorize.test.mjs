@@ -326,9 +326,9 @@ test("installer copies the wrap next to the published package", (t) => {
     t.skip("PACK_DIR not set");
     return;
   }
-  const publishedTgz = join(packDir, "402signal-route-guard-0.7.2.tgz");
+  const publishedTgz = join(packDir, "402signal-route-guard-0.7.3.tgz");
   if (!existsSync(publishedTgz)) {
-    t.skip("PACK_DIR is the pending 0.7.3 candidate, not the published 0.7.2 installer pin");
+    t.skip("PACK_DIR does not hold the published 0.7.3 installer pin");
     return;
   }
   const dest = mkdtempSync(join(tmpdir(), "exact-auth-install-"));

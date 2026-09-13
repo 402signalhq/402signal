@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /** Verified install of the published GitHub route-guard archive.
  *
- * Not an npm-registry publish. No BATCH enablement. No spend. No wallet.
+ * The same bytes are on the npm registry as @402signal/route-guard@0.7.3
+ * with a provenance attestation; this path is for buyers who pin the
+ * digest themselves. No BATCH enablement. No spend. No wallet.
  *
  * From a buyer project (Node 22+ / npm 10+, or bun / pnpm):
  *   node scripts/install_route_guard.mjs
@@ -29,12 +31,13 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CANDIDATE_TAG = "route-guard-v0.7.2";
-const CANDIDATE_TGZ = "402signal-route-guard-0.7.2.tgz";
+const CANDIDATE_TAG = "route-guard-v0.7.3";
+const CANDIDATE_TGZ = "402signal-route-guard-0.7.3.tgz";
+const CANDIDATE_VERSION = "0.7.3";
 const REVIEWED_PACK_SHA256 =
-  "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a";
+  "bb5b49e63b37297b4460c37c6337ff80070988f8103c55ac309549d7d1790f76";
 const REVIEWED_SUMS_SHA256 =
-  "5fae35204f6c309b4f30384cf6cd66958e6bf09edfe8fea3d6859094d4754639";
+  "e8502e1f3e7c510fa41f579b65dd64168ac85d105e28b2482e8e4c184442d66d";
 const PUBLIC_CAPABILITIES = "https://402signal.com/capabilities.json";
 const ALLOWED_ARCHIVE_HOST = "https://github.com/402signalhq/402signal/releases/download/";
 const ALLOWED_CAPABILITIES = new Set([
@@ -81,14 +84,14 @@ export function formatIdealTreeError({ nodeVersion, npmVersion, available = {} }
   if (fallbacks.length) {
     return (
       `npm failed with Tracker "idealTree" already exists (${detected}). ` +
-      "Digest verify already passed; the published 0.7.2 archive is intact. " +
+      "Digest verify already passed; the published 0.7.3 archive is intact. " +
       `Fallback installer(s) also failed: ${fallbacks.join(", ")}. ${floor}`
     );
   }
   return (
     `npm failed with Tracker "idealTree" already exists ` +
     `(known Debian npm 9 / Node 20 arborist bug; ${detected}). ` +
-    "Digest verify already passed; the published 0.7.2 archive is intact. " +
+    "Digest verify already passed; the published 0.7.3 archive is intact. " +
     `No bun or pnpm fallback is on PATH. ${floor}`
   );
 }
@@ -311,7 +314,7 @@ function publishedGuard(capabilities) {
   assert.equal(entry.state, "published", `${CANDIDATE_TAG} is not a published install URL`);
   assert.equal(entry.sha256, REVIEWED_PACK_SHA256);
   assert.equal(entry.checksum_file_sha256, REVIEWED_SUMS_SHA256);
-  assert.match(String(entry.distribution || ""), /not npm registry/i);
+  assert.match(String(entry.distribution || ""), /GitHub release archive/i);
   assertHttpsAllowlisted(entry.archive, ALLOWED_ARCHIVE_HOST);
   assertHttpsAllowlisted(entry.checksum_file, ALLOWED_ARCHIVE_HOST);
   assert.ok(entry.archive.endsWith("/" + CANDIDATE_TGZ), "archive name must match the reviewed tarball");
@@ -354,8 +357,8 @@ export async function runInstallRouteGuard(argv = process.argv.slice(2)) {
 
   const report = {
     tag: CANDIDATE_TAG,
-    version: "0.7.2",
-    distribution: "GitHub release archive; not npm registry",
+    version: CANDIDATE_VERSION,
+    distribution: published.distribution,
     archive: archiveSpec || published.archive,
     sha256,
     checksum_file_sha256: checksumFileSha256,
@@ -379,7 +382,7 @@ export async function runInstallRouteGuard(argv = process.argv.slice(2)) {
       readFileSync(join(destination, "node_modules/@402signal/route-guard/package.json"), "utf8"),
     );
     assert.equal(installed.name, "@402signal/route-guard");
-    assert.equal(installed.version, "0.7.2");
+    assert.equal(installed.version, CANDIDATE_VERSION);
     copyFileSync(wrapJs, join(destination, "exact-authorize.mjs"));
     if (existsSync(wrapDts)) copyFileSync(wrapDts, join(destination, "exact-authorize.d.ts"));
     report.installed = true;
