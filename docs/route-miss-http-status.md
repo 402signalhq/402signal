@@ -35,6 +35,11 @@ Buyers should treat a completed miss as an answer, not a broken router. Inspect
 `miss_reason` and `route_outcome.next_action` (usually `change_constraints`).
 HTTP 503 `binding_error: route_binding_unavailable` means no remaining bindable
 candidate after fall-through; `next_action` is `fix_request_or_compatibility`.
+That answer carries `miss_reason: binding_unavailable` (the seller did answer
+with a live challenge; what failed is the signed binding, named in
+`binding_error_reason`), keeps `has_402_challenge` and the challenge's
+economic terms, and omits the seller's input and output schemas, which only
+matter for a route that will be executed.
 `wrapExactAuthorize` reports that 503 as `state=binding_unavailable` with
 `keep_calling_route: true` so the next `/route` call can proceed. That is
 policy working, not a crash. Neither outcome authorizes an unguarded seller
