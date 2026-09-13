@@ -11,6 +11,8 @@ the writer, excluding sponsored trial credits, internal and lab self-tests.
 
 | Metric | Definition | Source |
 |---|---|---|
+| North star: receipts issued | Settled qualifying checks (`route.qualified.organic`) in the window; each one returned a receipt to a buyer | `metric_counters` |
+| North star: distinct payers | Distinct SHA-256 hashes of verified payers that settled an organic check in the window; the address itself is never stored | session DB `payer_days` |
 | Session opens | Paid `session=open` windows created (`sku = session`) | session DB `windows` |
 | Hops/open | Sum of `hop_count` over those windows divided by opens | session DB `windows` |
 | Cache hit rate | `obs_cache.hit` / (`hit` + `miss`) on `/route` observation reuse | `metric_counters` |
@@ -22,6 +24,12 @@ the writer, excluding sponsored trial credits, internal and lab self-tests.
 Counters are process-local, flushed every 5 minutes by the writer into the
 session database table `metric_counters(day, name, n)` and logged as one
 `organic_metrics {...}` line. Rows older than 400 days are pruned.
+
+The north star is one number pair, read weekly: signed receipts issued to
+distinct non-lab payers. The writer logs it hourly as `north_star days=7
+receipts_organic=… distinct_payers_organic=…` and the rollup prints it first.
+It answers "are real buyers coming back for the record" without a scoreboard,
+a wallet list or any public surface.
 
 ## Weekly rollup
 

@@ -703,6 +703,20 @@ def _attach_pq_trust(code: int, result: dict, body: dict) -> dict:
         return result
 
 
+def _remember_payer(payer) -> None:
+    """North-star input after a settled qualifying check: the payer's hash per day, never the address."""
+    if not payer:
+        return
+    try:
+        import hashlib
+
+        from live402 import session as session_mod
+
+        session_mod.record_payer(hashlib.sha256(str(payer).encode("utf-8")).hexdigest(), metrics.traffic_label())
+    except Exception:
+        pass
+
+
 def _paid_execute(
     body: dict,
     parsed: dict,
@@ -884,6 +898,7 @@ def _paid_execute_inner(
     extra["PAYMENT-RESPONSE"] = payment.payment_response_header(safe_receipt)
     _log_settle(True, rail)
     metrics.inc("route.qualified." + metrics.traffic_label())
+    _remember_payer(verified_payer)
     result["billing"] = _billing(
         rail,
         settlement_attempted=True,

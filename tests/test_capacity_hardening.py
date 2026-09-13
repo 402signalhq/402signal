@@ -232,7 +232,7 @@ class SessionStorageTests(unittest.TestCase):
         conn.execute("INSERT INTO trial_credits (token_hash, created_at, expires_at) VALUES ('t', ?, ?)", (now - 30 * 86400, now - 20 * 86400))
         conn.commit()
         removed = session.prune(now=now)
-        self.assertEqual(removed, {"windows": 1, "obs_cache": 1, "trial_credits": 1, "metric_counters": 0})
+        self.assertEqual(removed, {"windows": 1, "obs_cache": 1, "trial_credits": 1, "metric_counters": 0, "payer_days": 0})
         self.assertEqual([r[0] for r in conn.execute("SELECT id_hash FROM windows")], ["recent"])
 
     def test_metrics_flush_persists_and_accumulates_counters(self):
