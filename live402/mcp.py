@@ -6,29 +6,48 @@ import json
 from live402 import payment, pulse, replay, schema_fields, validate
 from live402.route import handle_route
 
-ROUTE_DESCRIPTION = (
-    "Selects a live paid API endpoint matching buyer spending and readiness rules, and returns "
-    "signed evidence. Does not buy the seller's service; the agent keeps the wallet and pays the "
-    "seller separately.\n\n"
-    "Pass need (capability) and/or url (HTTPS). The first unsigned call returns HTTP 402 for the "
-    "$0.003 USDC checking fee, which an x402-capable HTTP client pays. The fee settles only when "
-    "a qualifying live offer is found; a completed miss is free. A settled fee is not reversed if "
-    "the offer later changes. On billing.settlement_state=unknown, stop and reconcile; never "
-    "create another authorization.\n\n"
-    "networks is a hard allowlist; prefer_network only ranks. max_price_usd bounds the seller "
-    "price, not the fee. require_route_binding=true returns a signed receipt for local "
-    "verification before signing and may select the next bindable candidate; HTTP 503 "
-    "route_binding_unavailable means none could bind and is a completed answer, not an error "
-    "(the reference wrapExactAuthorize reports state=binding_unavailable with "
-    "keep_calling_route true). Guide: https://402signal.com/developers#route-binding"
-)
+# Every description leads with the task, names the sibling tools and when to
+# use them instead, states cost and side effects, then explains the parameter
+# interactions the schema cannot (docs/mcp-tool-descriptions.md). Each claim
+# traces to a handler: route.run_probe, policy.merge_constraints,
+# select.parse_constraints, probe.probe_plan, pulse.preview_need and
+# validate.validate_url.
 CHECK_DESCRIPTION = (
-    "Alias of route: the same hosted pre-flight check with the same arguments, $0.003 USDC "
-    "checking fee, signed evidence and settlement rules. Agents that look for a check tool "
-    "can call this one; route and check are interchangeable."
+    "Runs the paid pre-flight check on a live paid API endpoint: probes one exact HTTPS url, or "
+    "the candidates discovered for a need, applies the buyer's price, network and readiness "
+    "rules, and returns the selected offer with signed evidence of what the seller quoted "
+    "(price, recipient, asset, network, expiry) before the agent pays the seller. Does not buy "
+    "the seller's service, hold keys or pay anything for the agent; the agent keeps its wallet "
+    "and pays the seller separately.\n\n"
+    "Use preview to discover candidates without paying, validate for a free readiness check of "
+    "one listed URL, and check when a fresh live observation or a signed receipt is needed "
+    "before a seller payment. Never call check to pay a seller. After "
+    "billing.settlement_state=unknown, stop and reconcile; never create another authorization. "
+    "route is the former name of this tool and is still accepted.\n\n"
+    "Cost and outcomes: the first unsigned call answers HTTP 402 with the $0.003 USDC "
+    "checking-fee terms (Base, Solana or Algorand), which an x402-capable HTTP client pays. The "
+    "fee settles only when a qualifying live offer is found; a completed miss (HTTP 200, "
+    "live=false, typed miss_reason) is free; a settled fee is not reversed if the offer later "
+    "changes. HTTP 503 with binding_error=route_binding_unavailable means the seller answered "
+    "but no probed candidate could be bound to a signed receipt: a completed unpaid answer, not "
+    "an outage (the reference wrapExactAuthorize reports state=binding_unavailable with "
+    "keep_calling_route true).\n\n"
+    "Parameter interactions: need or url is required; with both, url is probed directly and no "
+    "discovery runs. policy is plain English compiled into the structured fields; an explicit "
+    "structured field wins over the compiled value, and phrases that do not compile are echoed "
+    "in unresolved_constraints, never guessed. networks is a hard allowlist judged on the "
+    "current 402; prefer_network only orders results and never filters. Three independent "
+    "price bounds: max_price_usd (seller price in USD), max_amount_atomic (atomic units of the "
+    "seller's asset) and max_total_cost_usd (seller price plus known fees); every bound fails "
+    "closed when its value is unknown. require_route_binding=true implies require_transparency "
+    "and may select the next bindable candidate. Defaults: objective best, search_depth "
+    "standard (up to 7 probes; thorough up to 15; hard ceiling 20), accept_payTo_change false, "
+    "require_route_binding false. Guide: https://402signal.com/developers#route-binding"
 )
-# Tool names that carry the checking fee. Everything else is unpaid.
+# Tool names that carry the checking fee. Everything else is unpaid. route is
+# the former name of check: not listed, still callable for existing clients.
 PAID_TOOLS = frozenset({"route", "check"})
+FORMER_TOOL_NAMES = {"route": "check"}
 PROTOCOL_VERSION = "2025-06-18"
 SUPPORTED_PROTOCOLS = ("2025-03-26", PROTOCOL_VERSION)
 
@@ -36,9 +55,14 @@ PREVIEW_DESCRIPTION = (
     "Discovers catalog-listed paid API endpoints by capability without paying or contacting "
     "sellers. Returns claimed listings and earlier observations; not_probed=true means no new "
     "live check. Results may be incomplete.\n\n"
-    "Pass a nonblank need (capability), not a URL. networks is a hard allowlist; prefer_network "
-    "only ranks. Use validate for a free readiness check of one listed URL, and route for a "
-    "fresh paid check or signed evidence."
+    "Free and read-only: no fee, no seller contact, nothing recorded; safe to repeat. It "
+    "queries the current upstream catalogs and the local shadow catalog. Use validate for a "
+    "free readiness check of one listed URL, and check for a fresh paid observation or a signed "
+    "receipt before paying.\n\n"
+    "Pass a nonblank need (capability), not a URL; a URL in need finds nothing. networks is a "
+    "hard allowlist and prefer_network only orders the results within it; an empty or "
+    "unrecognized networks value restricts to nothing rather than widening to every network. "
+    "Seller-written fields in hits are catalog claims, not observations."
 )
 
 INPUT_SCHEMA = schema_fields.route_body_schema(surface="mcp")
@@ -233,6 +257,10 @@ VALIDATE_DESCRIPTION = (
     "Checks unpaid readiness for one concrete HTTPS seller URL already listed in the local "
     "catalog (for example a URL from preview). Compares claimed against observed payment and "
     "readiness flags without buying the service.\n\n"
+    "Free: one unpaid probe of the seller, no fee, nothing paid, and the public numbers do not "
+    "change; safe to repeat. Use preview to find listed URLs; use check instead when the URL "
+    "is not listed, when price or network rules must apply, or when a signed receipt is "
+    "needed before paying.\n\n"
     "Supply the exact listed URL including its query string. Unlisted or modified URLs return "
     "miss_reason=unlisted without a probe (not listed, not proven offline). Inspect live, "
     "readiness, observed and miss_reason; HTTP 200 alone is not success. No price or network "
@@ -263,30 +291,55 @@ VALIDATE_OUTPUT_SCHEMA = {
     },
 }
 
+# MCP tool annotations (protocol 2025-03-26 and later). Hints, stated as they
+# are: check spends the checking fee and probes sellers; preview queries
+# catalogs only; validate probes one seller without paying. None deletes or
+# overwrites anything the caller owns.
+CHECK_ANNOTATIONS = {
+    "title": "Paid pre-flight check",
+    "readOnlyHint": False,
+    "destructiveHint": False,
+    "idempotentHint": False,
+    "openWorldHint": True,
+}
+PREVIEW_ANNOTATIONS = {
+    "title": "Free catalog discovery",
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+VALIDATE_ANNOTATIONS = {
+    "title": "Free readiness check",
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+
+# Listed surface: three distinct tools. The paid tool is check; its former
+# name route is accepted by tools/call (PAID_TOOLS) but no longer listed.
 TOOLS = [
-    {
-        "name": "route",
-        "description": ROUTE_DESCRIPTION,
-        "inputSchema": INPUT_SCHEMA,
-        "outputSchema": OUTPUT_SCHEMA,
-    },
     {
         "name": "check",
         "description": CHECK_DESCRIPTION,
         "inputSchema": INPUT_SCHEMA,
         "outputSchema": OUTPUT_SCHEMA,
+        "annotations": CHECK_ANNOTATIONS,
     },
     {
         "name": "preview",
         "description": PREVIEW_DESCRIPTION,
         "inputSchema": PREVIEW_INPUT_SCHEMA,
         "outputSchema": PREVIEW_OUTPUT_SCHEMA,
+        "annotations": PREVIEW_ANNOTATIONS,
     },
     {
         "name": "validate",
         "description": VALIDATE_DESCRIPTION,
         "inputSchema": VALIDATE_INPUT_SCHEMA,
         "outputSchema": VALIDATE_OUTPUT_SCHEMA,
+        "annotations": VALIDATE_ANNOTATIONS,
     },
 ]
 

@@ -42,8 +42,9 @@ GUIDANCE = (
     "that is not a guarantee the seller call succeeds; "
     "no_input_schema is only the top-level miss when invocation schema is required and unmet. "
     "constraints_unmet includes the named unmet bounds in unresolved_constraints. "
-    "GET /mcp.json lists the MCP route and check tools (type mcp, toolName route or check); "
-    "POST /mcp initialize and tools/list need no payment; tools/call route is the paid probe. "
+    "GET /mcp.json lists the MCP tools: check (the paid pre-flight check; type mcp, toolName check; "
+    "route is its former name and is still accepted by tools/call), preview and validate (free); "
+    "POST /mcp initialize and tools/list need no payment; tools/call check is the paid probe. "
     "GET /preview?need= is a free request-time catalog search (not_probed:true). Optional prefer_network=base|solana|algorand is a weak ranking preference (still searches all rails). Optional networks= is a hard policy lock. GET /rails lists pay-in rails. "
     "GET /pulse and GET /dashboard are sample lookups. Pulse discovery copy is hybrid: "
     "current upstream catalogs plus a local shadow catalog. index_status is "
@@ -854,7 +855,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "operationId": "mcpJsonRpc",
                     "tags": ["Paid"],
                     "parameters": [{"$ref": "#/components/parameters/ReplayKey"}],
-                    "summary": "Post MCP JSON-RPC; tools/call route is x402-gated",
+                    "summary": "Post MCP JSON-RPC; tools/call check is x402-gated",
                     "description": DESC,
                     "x-payment-info": {
                         "price": {"mode": "fixed", "currency": "USD", "amount": ROUTING_PRICE_USDC},
@@ -866,7 +867,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "responses": {
                         "200": {"description": "Correlated JSON-RPC result; tool content is in result.content and, for protocol 2025-06-18, result.structuredContent. Tool failures set result.isError."},
                         "202": {"description": "Accepted notification; empty body"},
-                        "402": {"description": "Payment required for tools/call route"},
+                        "402": {"description": "Payment required for tools/call check (or its former name route)"},
                     },
                 }
             },

@@ -39,7 +39,7 @@ curl -sS -D - https://402signal.com/route \
   --data '{"need":"web search","networks":["base"],"max_price_usd":0.02,"require_route_binding":true}'
 ```
 
-The HTTP 402 lists the fee requirements on Base, Solana and Algorand. Use `url` for an exact endpoint or `need` to discover candidates; `networks` is a hard filter and `prefer_network` only ranks. Over MCP, call the `check` tool (an alias of `route`) with the same arguments.
+The HTTP 402 lists the fee requirements on Base, Solana and Algorand. Use `url` for an exact endpoint or `need` to discover candidates; `networks` is a hard filter and `prefer_network` only ranks. Over MCP, call the `check` tool with the same arguments (`route`, its former name, is still accepted).
 
 **Python.** `pip install 402signal` gives you the unpaid challenge, the paid check, read-only recovery and an offline receipt verifier (`signal402.verify.verify_route_receipt`).
 

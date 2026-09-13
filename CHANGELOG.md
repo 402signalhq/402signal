@@ -5,6 +5,17 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- MCP: the listed tools are `check` (paid), `preview` and `validate`. `route`
+  is the former name of `check`: `tools/call route` keeps working for
+  existing clients, but it is no longer listed, because two identical listed
+  tools confused agents and tool graders. Every description now leads with
+  the task, names the sibling tools and when to use them instead, states cost
+  and side effects, and explains the parameter interactions the schema
+  cannot (structured fields win over `policy`, the three price bounds, the
+  defaults). Each tool carries MCP annotations (`title`, `readOnlyHint`,
+  `destructiveHint`, `idempotentHint`, `openWorldHint`) that state what its
+  handler does. The CDP bazaar entry, `/mcp.json`, `llms.txt`, the README
+  and the Glama adapter note name `check`.
 - `@402signal/route-guard` 0.7.4 (release candidate; the capabilities row is
   `pending` with provisional pack digests until the tag is uploaded and the
   downloaded bytes are verified, then a follow-up flips it to `published` and

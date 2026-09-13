@@ -546,7 +546,7 @@ class AdmissionTests(unittest.TestCase):
                 status, body = request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}, "buyer-nat")
                 self.assertEqual(status, 200)
                 names = [t.get("name") for t in ((body.get("result") or {}).get("tools") or [])]
-                self.assertEqual(set(names), {"route", "check", "preview", "validate"})
+                self.assertEqual(set(names), {"check", "preview", "validate"})
                 status, body = request({"jsonrpc": "2.0", "id": 3, "method": "initialize", "params": {}}, "other-nat")
                 self.assertEqual(status, 429)
         finally:
@@ -587,7 +587,7 @@ class AdmissionTests(unittest.TestCase):
                 status, body = request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
                 self.assertEqual(status, 200)
                 names = [t.get("name") for t in ((body.get("result") or {}).get("tools") or [])]
-                self.assertEqual(set(names), {"route", "check", "preview", "validate"})
+                self.assertEqual(set(names), {"check", "preview", "validate"})
                 status, body = request({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "preview", "arguments": {"need": "weather"}}})
                 self.assertEqual(status, 200)
                 preview = json.loads(body["result"]["content"][0]["text"])

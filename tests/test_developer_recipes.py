@@ -103,7 +103,7 @@ class DeveloperRecipes(unittest.TestCase):
             'guidance': discover.GUIDANCE,
             'openapi': json.dumps(discover.openapi_spec()),
             'route_binding_desc': schema_fields.ROUTE_BINDING_DESC,
-            'mcp_route': mcp.ROUTE_DESCRIPTION,
+            'mcp_check': mcp.CHECK_DESCRIPTION,
             'customer_start': (root / 'docs/customer/start.md').read_text(),
             'miss_http': (root / 'docs/route-miss-http-status.md').read_text(),
             'proof': (root / 'docs/proof-carrying-route-v1.md').read_text(),
