@@ -7,7 +7,7 @@ const root=resolve(import.meta.dirname,'../..'),out=resolve(root,'website-eviden
 const exports=JSON.parse(await readFile(resolve(out,'exports.json'),'utf8'));
 const recipes=Object.keys(exports).filter(p=>p.startsWith('/developers/'));
 assert.equal(recipes.length,13);
-const staticFiles=new Map([['/','index.html'],['/developers','developers.html'],['/app.js','app.js'],['/styles.css','styles.css'],['/favicon.svg','favicon.svg']]);
+const staticFiles=new Map([['/','index.html'],['/developers','developers.html'],['/try','try.html'],['/pricing','pricing.html'],['/trust','trust.html'],['/app.js','app.js'],['/styles.css','styles.css'],['/favicon.svg','favicon.svg']]);
 const server=createServer(async(req,res)=>{try{
  const path=new URL(req.url,'http://127.0.0.1').pathname;
  const file=exports[path] ? resolve(out,exports[path]) : staticFiles.has(path) ? resolve(root,'live402/static',staticFiles.get(path)) : null;
