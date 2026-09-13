@@ -1,9 +1,9 @@
 # Replay identity expiry (design)
 
-Status: router support implemented. Activation requires the migration owner to
-install `ops/replay-postgres-identity-expiry.sql` on the managed replay database;
-until then reservations use `api_reserve` and expiry is a no-op. Base is the only
-rail that records an authorization expiry today.
+Status: implemented and installed. `ops/replay-postgres-identity-expiry.sql` is
+applied on the managed replay database. Base records the authorization's own
+expiry; Solana and Algorand record a conservative upper bound counted from the
+moment the facilitator verified the authorization (see rule 2).
 
 ## Problem
 
@@ -23,10 +23,13 @@ All of these must hold:
 2. The row carries a known authorization expiry, recorded at reservation from
    verified payment fields:
    - Base EIP-3009: `validBefore`. Permit2: `deadline`.
-   - Algorand: `lastValid` converted conservatively from the current round
-     (at most 3.3 s per round, plus margin).
-   - Solana: unknown (durable nonce transactions have no fixed expiry), so
-     `NULL`, which is never dropped.
+   - Algorand: verification time plus 3600 s. A transaction is valid for at
+     most 1000 rounds (about 47 minutes at 2.8 s per round), and the identity
+     is admitted only after the facilitator verified it as currently valid.
+   - Solana: verification time plus 300 s. A transaction is processable only
+     while its recent blockhash is valid (about 60 to 90 seconds). The exact
+     x402 scheme uses recent blockhashes; a durable-nonce transaction would
+     not pass the facilitator's freshness checks in this profile.
 3. `authorization_expires_at + 3600 s < now` by the database clock.
 
 After expiry the chain itself refuses settlement (USDC `validBefore`, Algorand

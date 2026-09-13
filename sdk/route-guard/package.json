@@ -24,11 +24,17 @@
     "./batch": {
       "types": "./batch.d.ts",
       "import": "./batch.mjs"
+    },
+    "./x402": {
+      "types": "./x402.d.ts",
+      "import": "./x402.mjs"
     }
   },
   "files": [
     "index.mjs",
     "index.d.ts",
+    "x402.mjs",
+    "x402.d.ts",
     "README.md",
     "recovery.mjs",
     "recovery.d.ts",
@@ -55,7 +61,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "check": "node --check index.mjs && node --check recovery.mjs && node --check client.mjs && node --check file-store.mjs && node --check internal-json.mjs && node --check batch.mjs"
+    "check": "node --check index.mjs && node --check recovery.mjs && node --check client.mjs && node --check file-store.mjs && node --check internal-json.mjs && node --check batch.mjs && node --check x402.mjs"
   },
   "repository": {
     "type": "git",
