@@ -5,6 +5,19 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Change alerts for admission-key holders (`live402/alerts.py`, `POST /alerts`,
+  `GET /alerts`, `GET /alerts/{id}`, `POST /alerts/{id}/test`,
+  `DELETE /alerts/{id}`): a subscription names up to 20 seller hosts and one
+  public HTTPS webhook; the writer's maintenance loop (`alerts_scan`, every
+  two minutes) delivers one signed batch (`X-402Signal-Signature:
+  t=<unix>,v1=<hex HMAC-SHA256>`) of `price_changed`, `recipient_changed` and
+  `liveness_changed` events drawn from the same public observations the
+  endpoint pages count. Webhook targets pass the probe's SSRF guard at
+  creation and on every delivery; delivery is at least once with backoff,
+  disabled after 20 consecutive failures, re-enabled by a successful test
+  ping. Every call answers only for the presented key's own subscriptions.
+  Guide: `docs/customer/alerts.md`; OpenAPI tag `Keys` also documents
+  `GET /keys/usage`.
 - Keyless recovery, minimal: repeating a payment authorization whose replay
   identity is already final, without a `Replay-Key`, returns HTTP 409
   `authorization_already_used` with `replay.state`, the matching `billing`

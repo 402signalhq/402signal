@@ -79,6 +79,34 @@ CREATE TABLE IF NOT EXISTS metric_counters (
     n INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (day, name)
 );
+CREATE TABLE IF NOT EXISTS alert_subscriptions (
+    id TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    url TEXT NOT NULL,
+    hosts_json TEXT NOT NULL,
+    events_json TEXT NOT NULL,
+    secret TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    cursor_ts INTEGER NOT NULL,
+    state_json TEXT NOT NULL DEFAULT '{}',
+    last_delivery_at INTEGER,
+    last_status INTEGER,
+    failures INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at INTEGER NOT NULL DEFAULT 0,
+    disabled_at INTEGER,
+    disabled_reason TEXT
+);
+CREATE INDEX IF NOT EXISTS alert_subscriptions_owner ON alert_subscriptions(owner);
+CREATE TABLE IF NOT EXISTS alert_deliveries (
+    id TEXT PRIMARY KEY,
+    subscription_id TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    status INTEGER,
+    events INTEGER NOT NULL DEFAULT 0,
+    error TEXT
+);
+CREATE INDEX IF NOT EXISTS alert_deliveries_sub_ts ON alert_deliveries(subscription_id, ts);
 """
 
 
