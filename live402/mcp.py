@@ -1,4 +1,4 @@
-"""Stdlib JSON-RPC MCP over HTTP with live routing and free catalog preflight."""
+"""Stdlib JSON-RPC MCP over HTTP with live checks and free catalog preflight."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from live402.route import handle_route
 
 ROUTE_DESCRIPTION = (
     "Selects a live paid API endpoint matching buyer spending and readiness rules, and returns "
-    "routing evidence. Does not buy the seller's service; the agent keeps the wallet and pays the "
+    "signed evidence. Does not buy the seller's service; the agent keeps the wallet and pays the "
     "seller separately.\n\n"
     "Pass need (capability) and/or url (HTTPS). The first unsigned call returns HTTP 402 for the "
     "$0.003 USDC checking fee, which an x402-capable HTTP client pays. The fee settles only when "
@@ -27,7 +27,7 @@ CHECK_DESCRIPTION = (
     "checking fee, signed evidence and settlement rules. Agents that look for a check tool "
     "can call this one; route and check are interchangeable."
 )
-# Tool names that carry the routing fee. Everything else is unpaid.
+# Tool names that carry the checking fee. Everything else is unpaid.
 PAID_TOOLS = frozenset({"route", "check"})
 PROTOCOL_VERSION = "2025-06-18"
 SUPPORTED_PROTOCOLS = ("2025-03-26", PROTOCOL_VERSION)
@@ -67,7 +67,7 @@ OUTPUT_SCHEMA = {
         },
         "billing": {
             "type": "object",
-            "description": "402Signal routing-fee outcome. Seller payment is separate.",
+            "description": "402Signal checking-fee outcome. Seller payment is separate.",
             "properties": {
                 "model": {"type": "string", "const": payment.ROUTING_BILLING_MODEL},
                 "condition": {"type": "string", "const": payment.ROUTING_SETTLEMENT_CONDITION},

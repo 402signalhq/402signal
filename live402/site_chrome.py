@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 CONTACT_EMAIL = "ross@402signal.com"
 CONTACT_MAILTO = "mailto:ross@402signal.com"
-NAV = (("/#product", "Product"), ("/developers", "Developers"), ("/catalog", "Explore"), ("/#pricing", "Pricing"), ("/how#trust", "Trust"))
+NAV = (("/#product", "Product"), ("/developers", "Developers"), ("/catalog", "Explore"), ("/pricing", "Pricing"), ("/trust", "Trust"))
 FOOTER = (
     ("https://github.com/402signalhq/402signal", "GitHub", True),
     ("https://x.com/402Signal", "@402Signal", True),
@@ -41,8 +41,8 @@ def esc(value) -> str:
 
 
 def header_html(current: str = "") -> str:
-    if current in ("/transparency", "/how"):
-        current = "/how#trust"
+    if current == "/transparency":
+        current = "/trust"
     links = []
     for href, label in NAV:
         cur = ' aria-current="page"' if current == href else ""

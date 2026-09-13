@@ -14,7 +14,7 @@ GUIDES = {
     'sessions-and-invoices': ('batch-support', 'Check a session or invoice commitment', 'Separate seller call prices, cumulative spend, deposited capital and native fees.'),
     'check-group-offer': ('check-group-offer', 'Check a group offer', 'Validate a grouped seller challenge from the live wire. Send caps, not a merchant profile.'),
     'check-api-listing': ('sellers', 'Check your API listing', 'Use free discovery and listed-endpoint readiness without initiating a seller payment.'),
-    'recover-routing-attempt': ('recovery', 'Recover a lost 402Signal response', 'Recover the original routing attempt and inspect its checking-fee outcome without signing again.'),
+    'recover-routing-attempt': ('recovery', 'Recover a lost 402Signal response', 'Recover the original check attempt and inspect its checking-fee outcome without signing again.'),
     'reconcile-seller-payment': ('seller-recovery', 'Reconcile a seller payment after a timeout', 'Inspect the original payment without resubmitting or claiming that a missing response was recovered.'),
     'interfaces': ('interfaces', 'Choose HTTP, SDK or MCP', 'Choose the smallest applicable free or authorized paid interface.'),
     'evidence': ('pq-trust', 'Verify a retained decision record', 'Compare retained evidence with independent policy and wallet records; distinguish receipts from anchors.'),

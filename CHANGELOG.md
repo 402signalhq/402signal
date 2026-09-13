@@ -5,6 +5,26 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Website and docs, proof-first: the homepage leads with the signed record
+  ("Signed proof of what your agent was offered before it paid"), opens three
+  doors (buyers and platforms, sellers, auditors and compliance), names the
+  outputs (receipt, record, report), replaces the invented illustrations with
+  named incidents from September's probe history (api.kadec0.xyz +67%,
+  api.agentstools.dev tripled, api.syraa.fun doubled overnight against an
+  unchanged listing) and gathers its limitations in one block. New pages:
+  `/pricing` (per-check on-ramp, platform plans priced on receipts issued and
+  records retained, credits and keys), `/trust` (what a receipt contains, how
+  to verify it offline, the log and the anchor, the record format) and `/try`
+  (a real unpaid readiness check on a listed endpoint, no wallet). The
+  navigation points at real URLs instead of anchors; the endpoint index sorts
+  by listings, probes or live rate and every host page carries a claim link.
+  "Router" and "routing fee" leave the public copy (`llms.txt`, the catalog
+  description, OpenAPI guidance, MCP descriptions, README, guides); contract
+  field names are unchanged. `llms.txt` now lists `/keys/usage`, change
+  alerts, `/try`, `/pricing` and `/trust`. New docs: the Offer Evidence
+  Record specification (`docs/evidence-record.md`, versioned and protocol
+  independent, with a reserved mandate reference) and a draft x402
+  `offer-evidence` extension proposal (`docs/proposals/`).
 - Change alerts for admission-key holders (`live402/alerts.py`, `POST /alerts`,
   `GET /alerts`, `GET /alerts/{id}`, `POST /alerts/{id}/test`,
   `DELETE /alerts/{id}`): a subscription names up to 20 seller hosts and one

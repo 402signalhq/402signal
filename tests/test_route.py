@@ -290,7 +290,8 @@ class PaywallTests(unittest.TestCase):
         self.assertNotIn("How agents use it", html)
         self.assertIn("How it works", html)
         self.assertNotIn("What /route is", html)
-        self.assertIn("Buyer-side checks for x402 and MPP", html)
+        self.assertIn("For x402 and MPP payments", html)
+        self.assertIn("Signed proof of what your agent was offered before it paid.", html)
         self.assertNotIn(">Pay on Base<", html)
         self.assertNotIn("<h2>Next</h2>", html)
         self.assertNotIn("Try one of these", html)
@@ -446,7 +447,7 @@ class PaywallTests(unittest.TestCase):
         self.assertIn("$0.003", html)
         self.assertIn('href="/"', html)
         self.assertIn("POST /route", html)
-        self.assertIn("paid routing endpoint", html)
+        self.assertIn("paid check endpoint", html)
         self.assertIn('href="/developers"', html)
         self.assertIn('href="/catalog"', html)
         self.assertIn('href="/transparency"', html)
@@ -728,7 +729,7 @@ class PaywallTests(unittest.TestCase):
         self.assertIn("success_7d", llms)
         self.assertNotIn("search_complete", llms)
         self.assertIn(
-            "We support Base, Solana, and Algorand.",
+            "the checking fee is paid on Base, Solana or Algorand.",
             llms,
         )
         self.assertNotIn("x402scan skips Algorand", llms)
@@ -825,13 +826,12 @@ class PaywallTests(unittest.TestCase):
         self.assertNotIn("\u2014", catalog)
         self.assertEqual(
             catalog,
-            "402Signal checks x402 routes across Base, Solana, and Algorand before spending. "
-            "$0.003 only when a valid live route is found. Normal typed misses are not settled. "
-            "Seller payment is separate. Your agent keeps the wallet. "
-            "Routing evidence enters the PQ Trust log on Algorand MainNet. "
-            "Optional require_route_binding=true adds a signed v4 receipt for buyer-side "
-            "comparison with current seller terms before signing. "
-            "Guide: https://402signal.com/developers#route-binding",
+            "402Signal checks the endpoint, price and recipient before your agent pays, on x402 "
+            "and MPP, and returns a signed record verifiable offline. $0.003 on Base, Solana, and "
+            "Algorand only when a qualifying live offer is found; a miss is free. Seller payment is "
+            "separate. Your agent keeps the wallet. Evidence enters the PQ Trust log on Algorand "
+            "MainNet. require_route_binding=true adds a signed v4 receipt for buyer-side comparison "
+            "before signing. Guide: https://402signal.com/developers#route-binding",
         )
         self.assertIn("Base, Solana, and Algorand", catalog)
         self.assertIn("Your agent keeps the wallet", catalog)
