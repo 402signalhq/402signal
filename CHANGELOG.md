@@ -13,6 +13,12 @@ server. The format follows Keep a Changelog; dates are UTC.
   malformed or expired credentials read as `recognized: false` or
   `active: false` with HTTP 200, never as an error, and the answer never
   echoes the secret. No listing, no minting. `Cache-Control: no-store`.
+- Keyless recovery, minimal: repeating a payment authorization whose replay
+  identity is already final, without a `Replay-Key`, returns HTTP 409
+  `authorization_already_used` with `replay.state`, the matching `billing`
+  outcome and `new_payment_allowed: false` instead of the coarse unknown
+  outcome. The private response stays sealed behind the key; pending or
+  uncertain identities are unchanged. New miss reason `authorization_used`.
 - MPP challenges are observed on every check (`live402/mpp_offers.py`): each
   `WWW-Authenticate: Payment` challenge is parsed for its method, intent and
   request terms. A classified `charge` on Tempo (`eip155:4217`, new rail

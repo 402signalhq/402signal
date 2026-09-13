@@ -49,9 +49,14 @@ class PrivateReplayTests(unittest.TestCase):
                     ({**body, 'max_price_usd': 0}, headers),
                     ({**body, 'require_route_binding': True}, headers)]:
                     result = handle_route(request, credential, URL)
-                    self.assertEqual(result[0], 503)
+                    # Final identity: the state is disclosed (keyless recovery,
+                    # minimal), the endpoint-scoped output never is.
+                    self.assertEqual(result[0], 409)
+                    self.assertEqual(result[1]['error'], 'authorization_already_used')
+                    self.assertIs(result[1]['new_payment_allowed'], False)
                     self.assertNotIn('pq_trust', result[1])
                     self.assertNotIn('url', result[1])
+                    self.assertNotIn('target', result[1])
                 original = handle_route(dict(reversed(list(body.items()))), headers, URL)
                 self.assertEqual(original, first)
                 verify.assert_not_called()
@@ -63,7 +68,9 @@ class PrivateReplayTests(unittest.TestCase):
         with patch('live402.facilitator.post_json', side_effect=_fake_facilitator):
             self.assertEqual(handle_route(_weather_body(), headers, URL)[0], 200)
         with patch('live402.facilitator.settle') as settle:
-            self.assertEqual(handle_route(_weather_body(), headers, URL)[0], 503)
+            code, again, _ = handle_route(_weather_body(), headers, URL)
+            self.assertEqual((code, again['error'], again['replay']['state']), (409, 'authorization_already_used', 'settled'))
+            self.assertNotIn('url', again)
             settle.assert_not_called()
 
     def test_invalid_authorizations_create_no_durable_rows(self):
@@ -80,7 +87,9 @@ class PrivateReplayTests(unittest.TestCase):
             self.assertEqual(handle_route(_weather_body(), headers, URL)[0], 200)
         replay.reset_memory()
         with patch('live402.replay.time.time', return_value=time.time() + 121), patch('live402.facilitator.settle') as settle:
-            self.assertEqual(handle_route(_weather_body(), headers, URL)[0], 503)
+            code, again, _ = handle_route(_weather_body(), headers, URL)
+            self.assertEqual((code, again['error']), (409, 'authorization_already_used'))
+            self.assertNotIn('url', again)
             self.assertEqual(replay.begin('fresh-auth', scope='private')[0], 'run')
             settle.assert_not_called()
         rows = replay._connect().execute('SELECT state, outcome_json FROM settle_ledger').fetchall()

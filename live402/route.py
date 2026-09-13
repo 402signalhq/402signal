@@ -385,6 +385,48 @@ def _unknown_outcome(rail: str, *, attempted: bool | None) -> tuple[int, dict, N
     }, None
 
 
+_USED_BILLING = {
+    replay.STATE_SETTLED: (True, True, "settled"),
+    replay.STATE_NOT_SETTLED: (False, False, "not_attempted"),
+    replay.STATE_REJECTED: (None, False, "rejected"),
+}
+
+
+def _used_outcome(rail: str, fp: str) -> tuple[int, dict, dict] | None:
+    """Keyless recovery, minimal: a repeated authorization whose identity is terminal.
+
+    Without the Replay-Key the private response stays sealed, but the payer
+    who presents the same signed authorization learns its final settlement
+    state instead of a coarse unknown. Pending or unknown identities keep the
+    unknown outcome: nothing here ever authorizes a second settlement.
+    """
+    state = replay.ledger_state(fp)
+    if state not in _USED_BILLING:
+        return None
+    attempted, settled, billing_state = _USED_BILLING[state]
+    return 409, {
+        "error": "authorization_already_used",
+        "live": False,
+        "payable": False,
+        "invocable": False,
+        "selected_payment": None,
+        "miss_reason": "authorization_used",
+        "replay": {
+            "state": state,
+            "response_available_with": "Replay-Only: 1 and the Replay-Key sent with the first request",
+        },
+        "retryable": False,
+        "retry_same_request": False,
+        "new_payment_allowed": False,
+        "billing": _billing(
+            rail,
+            settlement_attempted=attempted,
+            settled=settled,
+            settlement_state=billing_state,
+        ),
+    }, {"Cache-Control": "no-store"}
+
+
 def _billable_winner(body: dict, code: int, result: dict) -> bool:
     """Independent final settlement gate over current observed wire evidence."""
     from live402 import batch_binding
@@ -1026,6 +1068,9 @@ def _handle_route(body: dict, headers, resource_url: str, bazaar: dict | None = 
         telemetry.mark_replayed()
         return token[0], token[1], token[2]
     if kind == "reject":
+        used = _used_outcome(payment.rail_of_accept(accept), fp)
+        if used is not None:
+            return used
         return _unknown_outcome(payment.rail_of_accept(accept), attempted=None)
     if kind == "wait":
         waited = replay.wait_result(token, paid_deadline)

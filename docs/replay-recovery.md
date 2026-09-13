@@ -25,10 +25,17 @@ key. A signature or public blockchain transaction is not a recovery credential.
 
 Responses expire 120 seconds after the original request begins. A recovered
 quote keeps its original observation and expiry times. Always validate the
-quote's expiry before seller execution. Expiry, a missing key, a conflicting
-request, and an older cache entry return a coarse unavailable/unknown outcome;
-they never grant permission for a second settlement. Clients without a key can
+quote's expiry before seller execution. Expiry, a missing or wrong key, a
+conflicting request, and an older cache entry never return the response and
+never grant permission for a second settlement. Clients without a key can
 execute once but cannot retrieve the response through the cache.
+
+Repeating a payment authorization whose identity already reached a final state
+(settled, not settled, or rejected) returns HTTP 409
+`authorization_already_used` with `replay.state`, the matching `billing`
+outcome and `new_payment_allowed: false`, whether the key is missing, wrong,
+or the request differs. It carries no response contents. Pending or uncertain
+identities return the coarse unknown outcome instead.
 
 Do not automatically create a new payment after an uncertain result. Reconcile
 the existing authorization first. The lab buyer continues to stop after an
