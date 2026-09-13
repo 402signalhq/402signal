@@ -79,6 +79,12 @@ CREATE TABLE IF NOT EXISTS metric_counters (
     n INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (day, name)
 );
+CREATE TABLE IF NOT EXISTS payer_days (
+    day TEXT NOT NULL,
+    payer_hash TEXT NOT NULL,
+    traffic TEXT NOT NULL DEFAULT 'unclassified',
+    PRIMARY KEY (day, payer_hash)
+);
 CREATE TABLE IF NOT EXISTS alert_subscriptions (
     id TEXT PRIMARY KEY,
     owner TEXT NOT NULL,
@@ -738,6 +744,65 @@ def add_counters(day: str, counts: dict) -> None:
         conn.commit()
 
 
+PAYER_HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def record_payer(payer_hash, traffic: str | None = None, now: float | None = None) -> bool:
+    """North-star input: a hashed verified payer settled a qualifying check today.
+
+    Stores the SHA-256 hex of the payer per UTC day, never the address. Returns
+    True the first time a payer is seen on a day. Private; never published.
+    """
+    if not isinstance(payer_hash, str) or not PAYER_HASH_RE.match(payer_hash):
+        return False
+    day = time.strftime("%Y-%m-%d", time.gmtime(time.time() if now is None else float(now)))
+    label = re.sub(r"[^a-z0-9_]+", "_", str(traffic or "unclassified").lower())[:32] or "unclassified"
+    with _lock:
+        conn = _connect()
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO payer_days (day, payer_hash, traffic) VALUES (?, ?, ?)",
+            (day, payer_hash, label),
+        )
+        conn.commit()
+        return cur.rowcount == 1
+
+
+def north_star(days: int = 7, now: float | None = None) -> dict:
+    """Signed receipts issued and distinct payers over the trailing window.
+
+    Receipts are the settled qualifying checks counted by `route.qualified.<traffic>`;
+    payers are distinct hashed verified payers from `payer_days`. Organic excludes
+    sponsored credits, lab and self-test traffic. Private operator numbers only.
+    """
+    ts = time.time() if now is None else float(now)
+    day_list = [time.strftime("%Y-%m-%d", time.gmtime(ts - i * 86400)) for i in range(max(1, int(days)))]
+    marks = ",".join("?" * len(day_list))
+    with _lock:
+        conn = _connect()
+        receipts = conn.execute(
+            "SELECT coalesce(sum(n), 0) FROM metric_counters WHERE name = 'route.qualified.organic' AND day IN (%s)" % marks,
+            day_list,
+        ).fetchone()[0]
+        receipts_all = conn.execute(
+            "SELECT coalesce(sum(n), 0) FROM metric_counters WHERE name LIKE 'route.qualified.%%' AND day IN (%s)" % marks,
+            day_list,
+        ).fetchone()[0]
+        payers = conn.execute(
+            "SELECT count(DISTINCT payer_hash) FROM payer_days WHERE traffic = 'organic' AND day IN (%s)" % marks,
+            day_list,
+        ).fetchone()[0]
+        payers_all = conn.execute(
+            "SELECT count(DISTINCT payer_hash) FROM payer_days WHERE day IN (%s)" % marks, day_list
+        ).fetchone()[0]
+    return {
+        "days": len(day_list),
+        "receipts_organic": int(receipts or 0),
+        "receipts_all": int(receipts_all or 0),
+        "distinct_payers_organic": int(payers or 0),
+        "distinct_payers_all": int(payers_all or 0),
+    }
+
+
 # Windows stay 35 days so the weekly organic rollup can read them.
 PRUNE_WINDOW_GRACE_S = 35 * 86400
 PRUNE_TRIAL_GRACE_S = 7 * 86400
@@ -760,6 +825,8 @@ def prune(now: int | None = None) -> dict:
                 "DELETE FROM trial_credits WHERE expires_at < ?", (ts - PRUNE_TRIAL_GRACE_S,)).rowcount,
             "metric_counters": conn.execute(
                 "DELETE FROM metric_counters WHERE day < ?", (cutoff_day,)).rowcount,
+            "payer_days": conn.execute(
+                "DELETE FROM payer_days WHERE day < ?", (cutoff_day,)).rowcount,
         }
         conn.commit()
     return out
