@@ -37,13 +37,12 @@ USDC_DECIMALS = 6
 
 # CDP / Bazaar / PayAI / GoPlausible listing blurb. Keep at or under 500 chars.
 CATALOG_DESCRIPTION = (
-    "402Signal checks x402 routes across Base, Solana, and Algorand before spending. "
-    "$0.003 only when a valid live route is found. Normal typed misses are not settled. "
-    "Seller payment is separate. Your agent keeps the wallet. "
-    "Routing evidence enters the PQ Trust log on Algorand MainNet. "
-    "Optional require_route_binding=true adds a signed v4 receipt for buyer-side "
-    "comparison with current seller terms before signing. "
-    "Guide: https://402signal.com/developers#route-binding"
+    "402Signal checks the endpoint, price and recipient before your agent pays, on x402 "
+    "and MPP, and returns a signed record verifiable offline. $0.003 on Base, Solana, and "
+    "Algorand only when a qualifying live offer is found; a miss is free. Seller payment is "
+    "separate. Your agent keeps the wallet. Evidence enters the PQ Trust log on Algorand "
+    "MainNet. require_route_binding=true adds a signed v4 receipt for buyer-side comparison "
+    "before signing. Guide: https://402signal.com/developers#route-binding"
 )
 
 # Spec-shaped bazaar declaration for POST /route.
@@ -106,7 +105,7 @@ BAZAAR_EXTENSION = {
                             "url": {"type": "string"},
                             "require_route_binding": {
                                 "type": "boolean",
-                                "description": "Opt in to a signed v4 route binding; implies require_transparency even if false. Default false; ordinary requests keep v3. A ranked winner that cannot bind may fall through to the next already-probed selectable bindable candidate; 503 route_binding_unavailable only when none remain. wrapExactAuthorize reports state=binding_unavailable with keep_calling_route true; policy working, not a crash. Buyer verifies raw response JSON with a pinned log key and compares the current seller request and challenge before signing. Expiry or changed terms do not undo a settled routing fee. Guide: https://402signal.com/developers#route-binding",
+                                "description": "Opt in to a signed v4 route binding; implies require_transparency even if false. Default false; ordinary requests keep v3. A ranked winner that cannot bind may fall through to the next already-probed selectable bindable candidate; 503 route_binding_unavailable only when none remain. wrapExactAuthorize reports state=binding_unavailable with keep_calling_route true; policy working, not a crash. Buyer verifies raw response JSON with a pinned log key and compares the current seller request and challenge before signing. Expiry or changed terms do not undo a settled checking fee. Guide: https://402signal.com/developers#route-binding",
                             },
                             "require_transparency": {
                                 "type": "boolean",
@@ -213,7 +212,7 @@ BAZAAR_MCP = {
                     },
                     "require_route_binding": {
                         "type": "boolean",
-                        "description": "Opt in to a v4 proof-carrying route. Requires exact observed x402 v2 terms and a signed checkpoint receipt; implies require_transparency even if false. Default false; ordinary requests keep v3. A ranked winner that cannot bind may fall through to the next already-probed selectable bindable candidate; 503 route_binding_unavailable only when none remain. wrapExactAuthorize reports state=binding_unavailable with keep_calling_route true; policy working, not a crash. Buyer verifies raw response JSON with a pinned log key and compares the current seller request and challenge before signing. Expiry or changed terms do not undo a settled routing fee. Guide: https://402signal.com/developers#route-binding",
+                        "description": "Opt in to a v4 proof-carrying route. Requires exact observed x402 v2 terms and a signed checkpoint receipt; implies require_transparency even if false. Default false; ordinary requests keep v3. A ranked winner that cannot bind may fall through to the next already-probed selectable bindable candidate; 503 route_binding_unavailable only when none remain. wrapExactAuthorize reports state=binding_unavailable with keep_calling_route true; policy working, not a crash. Buyer verifies raw response JSON with a pinned log key and compares the current seller request and challenge before signing. Expiry or changed terms do not undo a settled checking fee. Guide: https://402signal.com/developers#route-binding",
                     },
                     "require_transparency": {
                         "type": "boolean",
@@ -367,7 +366,7 @@ def payment_required(resource_url: str, bazaar: dict | None = None, algorand_sen
             "description": CATALOG_DESCRIPTION,
             "mimeType": "application/json",
             "serviceName": "402Signal",
-            "tags": ["x402", "router", "probe"],
+            "tags": ["x402", "mpp", "check", "evidence"],
         },
         "accepts": [
             {
@@ -985,7 +984,7 @@ def payment_options_from_result(result, *, require_unique=False) -> list[dict]:
     return [synth] if synth else []
 
 
-# Rails the routing fee itself can be paid on. Settlement receipts, billing
+# Rails the checking fee itself can be paid on. Settlement receipts, billing
 # and replay fingerprints are checked against this set only.
 SUPPORTED_RAILS = frozenset(("base", "solana", "algorand"))
 FEE_RAILS = SUPPORTED_RAILS

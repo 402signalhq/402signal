@@ -331,8 +331,8 @@ def render_host_html(host: str) -> str | None:
         '<pre class="code"><code>![402Signal readiness](%s)</code></pre><p><img src="%s" alt="402Signal readiness badge for %s" width="240" height="20" /></p></section>'
         % (esc(badge), esc("/endpoints/%s/badge.svg" % quote(host, safe="")), esc(host))
         + '<section class="block" id="method"><h2>Method and neutrality</h2>' + METHOD_NOTE
-        + '<p>Operate this host? Reply to the monthly report or write to <a href="mailto:ross@402signal.com?subject=%s">ross@402signal.com</a> to be named as a reference seller. Public data stays the same either way.</p></section>'
-        % esc(quote("endpoint page " + host))
+        + '<p>Operate this host? <a href="mailto:ross@402signal.com?subject=%s">Claim this page</a> to be named as a reference seller and to receive the monthly numbers for your host by email. Public data stays the same either way.</p></section>'
+        % esc(quote("claim " + host))
     )
     return _page(
         "%s · x402 endpoint readiness · 402Signal" % host,
@@ -341,19 +341,35 @@ def render_host_html(host: str) -> str | None:
     )
 
 
-def render_index_html() -> str:
-    hosts = index_hosts()
+INDEX_SORTS = {
+    "listings": lambda h: (-h["listings"], h["host"]),
+    "probes": lambda h: (-h["probes"], -h["listings"], h["host"]),
+    "live": lambda h: (-(h["live_rate"] if h["live_rate"] is not None else -1.0), -h["probes"], h["host"]),
+}
+
+
+def render_index_html(sort: str | None = None) -> str:
+    key = sort if sort in INDEX_SORTS else "listings"
+    hosts = sorted(index_hosts(), key=INDEX_SORTS[key])
     rows = "".join(
         '<tr><td><a href="/endpoints/%s">%s</a></td><td>%d</td><td>%d</td><td>%s</td></tr>'
         % (esc(quote(h["host"], safe="")), esc(h["host"]), h["listings"], h["probes"], esc(_pct(h["live_rate"])))
         for h in hosts
     )
+
+    def head(col: str, label: str) -> str:
+        if col == key:
+            return '<th scope="col" aria-sort="descending">%s</th>' % esc(label)
+        return '<th scope="col"><a href="/endpoints?sort=%s">%s</a></th>' % (col, esc(label))
+
     body = (
         '<section class="hero compact"><p class="eyebrow">Endpoints</p><h1>Sellers as buyers see them.</h1>'
         '<p class="lede">One page per host: catalog listings, declared networks, and what 402Signal observed in the last 30 days when buyers asked. Aggregates only.</p></section>'
-        '<section class="block" id="hosts"><div class="table-scroll"><table><thead><tr><th scope="col">Host</th><th scope="col">Listings</th><th scope="col">Public probes, 30 d</th><th scope="col">Live</th></tr></thead><tbody>%s</tbody></table></div>'
-        "<p>The %d hosts with the most active listings. Hosts without public probes show n/a until buyers' checks reach them.</p></section>"
-        '<section class="block" id="method"><h2>Method and neutrality</h2>%s</section>' % (rows, len(hosts), METHOD_NOTE)
+        '<section class="block" id="hosts"><div class="table-scroll"><table><thead><tr><th scope="col">Host</th>%s%s%s</tr></thead><tbody>%s</tbody></table></div>'
+        "<p>The %d hosts with the most active listings, sorted by %s. Hosts without public probes show n/a until buyers' checks reach them. Operate one of them? Open its page and claim it.</p></section>"
+        '<section class="block" id="method"><h2>Method and neutrality</h2>%s</section>'
+        % (head("listings", "Listings"), head("probes", "Public probes, 30 d"), head("live", "Live"), rows, len(hosts),
+           {"listings": "listings", "probes": "public probes", "live": "live rate"}[key], METHOD_NOTE)
     )
     return _page(
         "Endpoint readiness by host · 402Signal",

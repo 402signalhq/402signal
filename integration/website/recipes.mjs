@@ -7,7 +7,7 @@ const root=resolve(import.meta.dirname,'../..'),out=resolve(root,'website-eviden
 const exports=JSON.parse(await readFile(resolve(out,'exports.json'),'utf8'));
 const recipes=Object.keys(exports).filter(p=>p.startsWith('/developers/'));
 assert.equal(recipes.length,13);
-const staticFiles=new Map([['/','index.html'],['/developers','developers.html'],['/app.js','app.js'],['/styles.css','styles.css'],['/favicon.svg','favicon.svg']]);
+const staticFiles=new Map([['/','index.html'],['/developers','developers.html'],['/try','try.html'],['/pricing','pricing.html'],['/trust','trust.html'],['/app.js','app.js'],['/styles.css','styles.css'],['/favicon.svg','favicon.svg']]);
 const server=createServer(async(req,res)=>{try{
  const path=new URL(req.url,'http://127.0.0.1').pathname;
  const file=exports[path] ? resolve(out,exports[path]) : staticFiles.has(path) ? resolve(root,'live402/static',staticFiles.get(path)) : null;
@@ -44,7 +44,11 @@ try{for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
    await page.screenshot({path:resolve(out,`recipe-${engine}-${width}-${path.split('/').pop()}.png`),fullPage:true});
    results.push({engine,width,path,status:'passed'});
   }
-  await page.goto(origin+'/');assert.ok(await page.getByRole('link',{name:'Building a payment client? Run the free offline checks.'}).isVisible());
+  await page.goto(origin+'/');assert.ok(await page.getByRole('link',{name:'Run the free offline checks'}).isVisible());
+  assert.ok(await page.getByRole('link',{name:'Try a sample check without a wallet'}).isVisible());
+  await page.goto(origin+'/try');assert.equal(await page.locator('h1').count(),1);assert.ok(await page.locator('#seller-form').isVisible());assert.ok(await page.locator('#seller-check').isDisabled());
+  await page.goto(origin+'/pricing');assert.equal(await page.locator('h1').count(),1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await page.goto(origin+'/trust');assert.equal(await page.locator('h1').count(),1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.screenshot({path:resolve(out,`adoption-home-${engine}-${width}.png`),fullPage:true});
   await page.goto(origin+'/developers#request');assert.ok(await page.locator('#route-binding').isVisible());
   for (const id of ['quickstart','route-binding','hosted-session','native-mpp','check-group-offer','batch-support','sellers','recovery','seller-recovery','interfaces','pq-trust','policy-guide','compatibility']) { await page.locator('[data-guide-link="'+id+'"]').click(); await page.locator('#'+id).waitFor({state:'visible'}); assert.ok(await page.locator('#'+id).isVisible()); assert.equal(await page.locator('[data-guide]:visible').count(),1); }

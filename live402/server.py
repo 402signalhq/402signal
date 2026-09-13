@@ -51,6 +51,12 @@ HUMAN_PAGES = {
     "/privacy.html": "privacy.html",
     "/terms": "terms.html",
     "/terms.html": "terms.html",
+    "/pricing": "pricing.html",
+    "/pricing.html": "pricing.html",
+    "/trust": "trust.html",
+    "/trust.html": "trust.html",
+    "/try": "try.html",
+    "/try.html": "try.html",
 }
 # Server-rendered human pages. Intercept before static rewrite. Not STATIC_DIR files.
 HUMAN_DYNAMIC_PATHS = frozenset({"/transparency", "/transparency.html"})
@@ -954,7 +960,7 @@ class Handler(SimpleHTTPRequestHandler):
 
         return pq_view.render_html()
 
-    def _endpoint_pages(self, path: str) -> None:
+    def _endpoint_pages(self, path: str, query: str = "") -> None:
         """Public per-host readiness pages, the host index, its sitemap and badges. Cached, aggregate-only."""
         from live402 import endpoints
 
@@ -962,7 +968,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(429, {"error": "rate limit"})
         cache = {"Cache-Control": "public, max-age=300"}
         if path in ("/endpoints", "/endpoints/"):
-            return self._html(200, endpoints.render_index_html(), cache)
+            sort = (parse_qs(query or "").get("sort") or [None])[0]
+            return self._html(200, endpoints.render_index_html(sort), cache)
         if path == "/endpoints/sitemap.xml":
             return self._bytes(200, endpoints.sitemap_xml().encode("utf-8"), "application/xml; charset=utf-8", cache)
         parts = path[len("/endpoints/"):].split("/")
@@ -1001,7 +1008,7 @@ class Handler(SimpleHTTPRequestHandler):
             finally:
                 self._omit_body = False
         if parsed.path == "/endpoints" or parsed.path.startswith("/endpoints/"):
-            return self._endpoint_pages(parsed.path)
+            return self._endpoint_pages(parsed.path, parsed.query)
         human = self._read_human_html()
         if human is not None:
             extra = (

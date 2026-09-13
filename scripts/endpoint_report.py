@@ -96,7 +96,103 @@ def catalog_section(conn, since: int) -> dict:
     events = dict(conn.execute(
         "SELECT event, count(*) FROM claim_events WHERE ts >= ? GROUP BY event", (since,)).fetchall())
     out["claim_events_in_period"] = events
+    # Listing changes to price or recipient, named. These are catalog claims, not observations.
+    out["claim_changes"] = []
+    for ts, url, event, source, detail in conn.execute(
+        "SELECT ts, canonical_url, event, source, detail FROM claim_events "
+        "WHERE ts >= ? AND event IN ('payTo_changed', 'price_changed') ORDER BY ts", (since,)).fetchall():
+        parsed = None
+        try:
+            parsed = json.loads(detail) if detail else None
+        except (TypeError, ValueError):
+            parsed = None
+        out["claim_changes"].append({
+            "host": host_of(url), "url": url, "event": event, "source": source,
+            "at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(int(ts))),
+            "detail": parsed if isinstance(parsed, dict) else (str(detail)[:200] if detail else None),
+        })
     return out
+
+
+def own_host(host: str) -> bool:
+    """402Signal's own listings never appear in the report: exact host or a subdomain, never a substring."""
+    return host == "402signal.com" or host.endswith(".402signal.com")
+
+
+def usd(atomic) -> str | None:
+    """Atomic USDC (6 decimals) as dollars; None when it is not a plain integer string."""
+    try:
+        return "$%.3f" % (int(str(atomic)) / 1_000_000)
+    except (TypeError, ValueError):
+        return None
+
+
+def named_changes(conn, since: int) -> list[dict]:
+    """Observed price and recipient changes in the period, one row per change, hosts named.
+
+    Reads url_state for the change clocks and the observation rows for the value
+    before and after each clock. Only 402signal_observed rows count; catalog claims
+    never appear here. 402Signal's own endpoint is excluded.
+    """
+    out: list[dict] = []
+    rows = conn.execute(
+        "SELECT url, payTo_changed_at, price_changed_at FROM url_state "
+        "WHERE (price_changed_at >= ?) OR (payTo_changed_at >= ?)", (since, since)).fetchall()
+    for url, pay_at, price_at in rows:
+        host = host_of(url)
+        if not host or own_host(host):
+            continue
+        for kind, field, at in (("price", "amount", price_at), ("recipient", "payTo", pay_at)):
+            if at is None or int(at) < since:
+                continue
+            history = conn.execute(
+                "SELECT ts, value FROM observations WHERE url = ? AND field = ? AND source_type = '402signal_observed' "
+                "AND value IS NOT NULL ORDER BY ts", (url, field)).fetchall()
+            before = after = None
+            for ts, value in history:
+                if int(ts) < int(at):
+                    before = value
+                elif after is None:
+                    after = value
+            rail = conn.execute(
+                "SELECT rail FROM probes WHERE url = ? AND ts >= ? ORDER BY ts LIMIT 1", (url, int(at))).fetchone()
+            out.append({
+                "kind": kind, "host": host, "url": url, "before": before, "after": after,
+                "before_usd": usd(before) if kind == "price" else None,
+                "after_usd": usd(after) if kind == "price" else None,
+                "at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(int(at))),
+                "rail": (rail[0] if rail else None) or "unknown",
+            })
+    out.sort(key=lambda c: (c["kind"] != "recipient", c["at"]))
+    return out
+
+
+def host_table(rows: list, limit: int = 15) -> list[dict]:
+    """Per-host observation summary, largest hosts by probes first. Public organic rows only."""
+    by_host: dict = {}
+    for r in rows:
+        if (r[8] or "unclassified") not in ("organic", "unclassified"):
+            continue
+        h = host_of(r[0])
+        if not h or own_host(h):
+            continue
+        entry = by_host.setdefault(h, {"host": h, "probes": 0, "live": 0, "latencies": [], "urls": set()})
+        entry["probes"] += 1
+        entry["urls"].add(r[0])
+        if r[2]:
+            entry["live"] += 1
+            if r[5] is not None:
+                entry["latencies"].append(r[5])
+    table = []
+    for entry in sorted(by_host.values(), key=lambda e: (-e["probes"], e["host"]))[:limit]:
+        lat = entry["latencies"]
+        table.append({
+            "host": entry["host"], "probes": entry["probes"], "urls": len(entry["urls"]),
+            "live_rate": pct(entry["live"], entry["probes"]),
+            "latency_p50_ms": int(statistics.median(lat)) if lat else None,
+            "latency_p95_ms": percentile(lat, 0.95),
+        })
+    return table
 
 
 def history_section(conn, since: int) -> dict:
@@ -120,12 +216,12 @@ def history_section(conn, since: int) -> dict:
         by_rail[rail] = {
             "probes": len(sub),
             "live_rate": pct(sum(1 for r in sub if r[2]), len(sub)),
-            "latency_p50_ms": statistics.median(lat) if lat else None,
+            "latency_p50_ms": int(statistics.median(lat)) if lat else None,
             "latency_p95_ms": percentile(lat, 0.95),
         }
     out["by_rail"] = by_rail
     lat_all = [r[5] for r in live if r[5] is not None]
-    out["latency_p50_ms"] = statistics.median(lat_all) if lat_all else None
+    out["latency_p50_ms"] = int(statistics.median(lat_all)) if lat_all else None
     out["latency_p95_ms"] = percentile(lat_all, 0.95)
     out["miss_reasons"] = dict(Counter(r[6] or "unknown" for r in rows if not r[2]).most_common())
     # Per-URL stability inside the window: a URL is "flapping" when it was seen both live and not live.
@@ -150,7 +246,43 @@ def history_section(conn, since: int) -> dict:
             "SELECT date(ts, 'unixepoch') d, count(*), sum(live) FROM probes WHERE ts >= ? GROUP BY d ORDER BY d",
             (since,)).fetchall()
     ]
+    out["named_changes"] = named_changes(conn, since)
+    out["hosts"] = host_table(rows)
     return out
+
+
+def chart_svg(report: dict) -> str:
+    """One shareable chart: live rate by rail with median and p95 latency. Presentation attributes only."""
+    h = report["history"]
+    rails = [(rail, v) for rail, v in h["by_rail"].items() if rail != "unknown"]
+    rails.sort(key=lambda kv: -kv[1]["probes"])
+    width, row_h, top = 760, 54, 96
+    height = top + row_h * len(rails) + 56
+    ink, muted, bar, track = "#1c1c22", "#5f5f66", "#2f8f8a", "#e6e2d9"
+    parts = [
+        '<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" role="img" '
+        'aria-label="Live rate and latency by rail, %s">' % (width, height, width, height, report["meta"]["period_label"]),
+        '<rect width="%d" height="%d" fill="#fbf8f2"/>' % (width, height),
+        '<text x="32" y="40" font-family="Georgia, serif" font-size="24" fill="%s">State of x402 endpoints, %s</text>' % (ink, report["meta"]["period_label"]),
+        '<text x="32" y="66" font-family="Verdana, sans-serif" font-size="13" fill="%s">%s probes on %s URLs; share of probes answered with a live 402 challenge, by fee rail; median and p95 time to the challenge</text>'
+        % (muted, f"{h['probes']:,}", f"{h['distinct_urls']:,}"),
+    ]
+    for i, (rail, v) in enumerate(rails):
+        y = top + i * row_h
+        rate = float(v["live_rate"].rstrip("%")) if v["live_rate"] != "n/a" else 0.0
+        parts.append('<text x="32" y="%d" font-family="Verdana, sans-serif" font-size="14" fill="%s">%s</text>' % (y + 22, ink, rail.capitalize()))
+        parts.append('<rect x="140" y="%d" width="420" height="20" rx="4" fill="%s"/>' % (y + 8, track))
+        parts.append('<rect x="140" y="%d" width="%d" height="20" rx="4" fill="%s"/>' % (y + 8, int(4.2 * rate), bar))
+        parts.append('<text x="%d" y="%d" font-family="Verdana, sans-serif" font-size="13" fill="%s">%s live of %s</text>'
+                     % (570, y + 22, ink, v["live_rate"], f"{v['probes']:,}"))
+        parts.append('<text x="140" y="%d" font-family="Verdana, sans-serif" font-size="11" fill="%s">median %s ms, p95 %s ms to the challenge</text>'
+                     % (y + 44, muted, v["latency_p50_ms"] if v["latency_p50_ms"] is not None else "n/a",
+                        v["latency_p95_ms"] if v["latency_p95_ms"] is not None else "n/a"))
+    us = h["url_state"]
+    parts.append('<text x="32" y="%d" font-family="Verdana, sans-serif" font-size="12" fill="%s">%d observed price changes and %d observed recipient changes among %s tracked URLs. Source: 402signal.com/insights. Public organic probes; nothing a seller pays for changes these numbers.</text>'
+                 % (height - 22, muted, us["price_changes_in_period"], us["recipient_changes_in_period"], f"{us['tracked_urls']:,}"))
+    parts.append("</svg>")
+    return "\n".join(parts) + "\n"
 
 
 def render(report: dict) -> str:
@@ -163,6 +295,32 @@ def render(report: dict) -> str:
                  "readiness lookups, not uniform sampling; treat rates as observed, not population estimates. "
                  "Aggregates only: no buyer or payer identities." % (meta["days"], meta["until"]))
     lines.append("")
+    lines.append("## What changed, named")
+    lines.append("")
+    changes = h.get("named_changes") or []
+    if changes:
+        lines.append("Observed by 402Signal's own probes, comparing successive challenges from the same URL. "
+                     "Every host is treated the same way; a seller cannot pay to be left out.")
+        lines.append("")
+        lines.append("| Host | URL | Change | Before | After | Observed | Rail |")
+        lines.append("|---|---|---|---|---|---|---|")
+        for ch in changes:
+            if ch["kind"] == "price":
+                before = "%s (%s)" % (ch["before_usd"] or "?", ch["before"] if ch["before"] is not None else "?")
+                after = "%s (%s)" % (ch["after_usd"] or "?", ch["after"] if ch["after"] is not None else "?")
+            else:
+                before, after = (ch["before"] or "?"), (ch["after"] or "?")
+            lines.append("| %s | %s | %s | %s | %s | %s | %s |" % (
+                ch["host"], ch["url"], "recipient" if ch["kind"] == "recipient" else "price", before, after, ch["at"], ch["rail"]))
+        lines.append("")
+    else:
+        lines.append("No observed price or recipient change in the period.")
+        lines.append("")
+    claims = c.get("claim_changes") or []
+    if claims:
+        lines.append("Listing changes reported by the discovery feeds (catalog claims, not observations): " + "; ".join(
+            "%s %s on %s (%s)" % (cl["host"], cl["event"].replace("_", " "), cl["at"], cl["source"] or "feed") for cl in claims) + ".")
+        lines.append("")
     lines.append("## Catalog")
     lines.append("")
     lines.append("- Listings: %s across %s hosts; %s first seen in the period; %s carry an input schema."
@@ -221,6 +379,19 @@ def render(report: dict) -> str:
     if h["miss_reasons"]:
         lines.append("Why probes missed: " + ", ".join("%s %d" % (k, v) for k, v in h["miss_reasons"].items()) + ".")
         lines.append("")
+    if h.get("hosts"):
+        lines.append("### Hosts, named (largest by public probes)")
+        lines.append("")
+        lines.append("| Host | Probes | URLs | Live | Latency p50 | Latency p95 |")
+        lines.append("|---|---:|---:|---:|---:|---:|")
+        for hs in h["hosts"]:
+            lines.append("| %s | %s | %d | %s | %s | %s |" % (
+                hs["host"], f"{hs['probes']:,}", hs["urls"], hs["live_rate"],
+                ("%s ms" % hs["latency_p50_ms"]) if hs["latency_p50_ms"] is not None else "n/a",
+                ("%s ms" % hs["latency_p95_ms"]) if hs["latency_p95_ms"] is not None else "n/a"))
+        lines.append("")
+        lines.append("Each host has a public page at https://402signal.com/endpoints/<host> with the same numbers, a badge and a claim link.")
+        lines.append("")
     lines.append("Catalog claim events in the period: " + (", ".join(
         "%s %d" % (k, v) for k, v in sorted(c["claim_events_in_period"].items())) or "none") + ".")
     lines.append("")
@@ -243,6 +414,7 @@ def main(argv=None) -> int:
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--until", type=int, default=None, help="Unix seconds; default now")
     parser.add_argument("--json", default=None, help="also write the JSON summary here")
+    parser.add_argument("--svg", default=None, help="also write the shareable chart (SVG) here")
     args = parser.parse_args(argv)
     until = int(args.until or time.time())
     since = until - args.days * 86400
@@ -261,6 +433,9 @@ def main(argv=None) -> int:
     if args.json:
         with open(args.json, "w", encoding="utf-8") as fh:
             json.dump(report, fh, indent=2, sort_keys=True)
+    if args.svg:
+        with open(args.svg, "w", encoding="utf-8") as fh:
+            fh.write(chart_svg(report))
     print(render(report), end="")
     return 0
 

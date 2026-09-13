@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Paid routing endpoint · 402Signal</title>
+  <title>Paid check endpoint · 402Signal</title>
   <meta name="description" content="Use POST /route to check a paid API offer against your rules. A qualifying observation costs $0.003 USDC; seller payment is separate." />
   <link rel="canonical" href="https://402signal.com/route" />
-  <meta property="og:title" content="Paid routing endpoint · 402Signal" />
+  <meta property="og:title" content="Paid check endpoint · 402Signal" />
   <meta property="og:description" content="Use POST /route to check a paid API offer against your rules. A qualifying observation costs $0.003 USDC; seller payment is separate." />
   <meta property="og:url" content="https://402signal.com/route" />
   <meta property="og:type" content="website" />
@@ -15,7 +15,7 @@
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Paid routing endpoint · 402Signal" />
+  <meta name="twitter:title" content="Paid check endpoint · 402Signal" />
   <meta name="twitter:description" content="Use POST /route to check a paid API offer against your rules. A qualifying observation costs $0.003 USDC; seller payment is separate." />
   <meta name="twitter:image" content="https://402signal.com/og.png" />
   <meta name="twitter:site" content="@402Signal" />
@@ -39,14 +39,14 @@
     </header>
 
     <main id="main">
-<section class="hero compact"><p class="eyebrow">HTTP integration</p><h1>This is the paid routing endpoint.</h1>
-        <p class="lede">Agents POST /route. An unpaid request returns HTTP 402 with the advertised $0.003 USDC routing authorization. A qualifying live observation settles that fee; a normal typed miss is not settled.</p>
+<section class="hero compact"><p class="eyebrow">HTTP integration</p><h1>This is the paid check endpoint.</h1>
+        <p class="lede">Agents POST /route. An unpaid request returns HTTP 402 with the advertised $0.003 USDC checking-fee authorization. A qualifying live observation settles that fee; a normal typed miss is not settled.</p>
         <p>Your buyer keeps its wallet, signing authority and final decision. Seller payment is separate.</p>
         <div class="hero-actions"><a class="btn" href="/developers#quickstart">Developer docs</a><a class="btn secondary" href="/catalog">Try a free preview</a></div>
       </section>
       <section class="block"><h2>Make the result useful before signing</h2>
         <p>Add <code>"require_route_binding": true</code> for signed evidence of a supported seller request and observed payment offer. The hosted check may then select the next already-probed selectable candidate that can bind. Integrate the buyer guard to compare the current offer before your own payment code signs; a local guard refusal must not become an unguarded payment.</p>
-        <p>Changed terms or expired evidence stop that handoff. They do not undo an already-settled routing fee or guarantee the seller's output.</p>
+        <p>Changed terms or expired evidence stop that handoff. They do not undo an already-settled checking fee or guarantee the seller's output.</p>
         <p><a href="/developers#route-binding">Supported request shapes and buyer verification</a></p>
       </section>
       <section class="block"><h2>Read the result and the billing state</h2>

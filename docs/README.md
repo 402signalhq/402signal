@@ -20,9 +20,13 @@ Start free with the [offline buyer checks](../integration/buyer-checks/README.md
 - [Completed unpaid misses versus operational failures](route-miss-http-status.md)
 - [Client recovery, safe diagnostics and controlled test history](route-recovery-observability.md)
 - [Dated protocol and provider compatibility reference](x402-compatibility-2026-09.md)
+- [Change alerts: signed webhooks on observed price, recipient and liveness changes](customer/alerts.md)
+- [Check credits, admission keys and `GET /keys/usage`](customer/start.md)
 
 ## Protocol and evidence
 
+- [Offer Evidence Record, version 1: the record format across payment protocols](evidence-record.md)
+- [Proposed x402 `offer-evidence` extension (draft, not submitted)](proposals/offer-evidence-extension.md)
 - [Historical v3 evidence format; retained records remain verifiable](route-decision-v3.md)
 - [Authorization identity and settlement replay boundaries](settle-idempotency.md)
 - [What settlement evidence establishes](settlement-provenance.md)

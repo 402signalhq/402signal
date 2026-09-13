@@ -160,9 +160,11 @@ class C2SPHttpTests(unittest.TestCase):
             self.assertEqual(body.get("error"), "not found")
             self.assertTrue(is_private_store_path(path) or path in {"/data", "/data/"})
 
-    def test_no_trust_page(self):
-        status, raw, _hdrs = self._get("/trust")
-        self.assertEqual(status, 404)
+    def test_trust_page_is_human_and_log_root_is_not_served(self):
+        # /trust is the auditor's door (static HTML); the log itself has no index page.
+        status, raw, hdrs = self._get("/trust")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", hdrs.get("content-type", ""))
         status, raw, _hdrs = self._get("/pq/log")
         self.assertEqual(status, 404)
 
