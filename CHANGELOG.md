@@ -5,6 +5,12 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Python package `402signal` (import `signal402`, `sdk/python`): unpaid
+  challenge, paid check and read-only recovery helpers, outcome
+  classification, and an offline receipt verifier (reveal commitment, leaf
+  hash, RFC 6962 inclusion, Ed25519 checkpoint signature) that matches the
+  server implementation on the conformance fixture. Published from
+  `publish-pypi.yml` with PyPI Trusted Publishing on `python-v*` tags.
 - `@402signal/route-guard`: new `./mpp` export with `mppGuard`, an mppx
   `onChallenge` hook plus `challenge.received` observer that runs the hosted
   Check group offer observation for Base USDC charges, verifies the receipt
