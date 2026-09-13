@@ -1493,7 +1493,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
             "mcp": (
                 "POST https://402signal.com/mcp\n"
                 '{"jsonrpc":"2.0","id":1,"method":"tools/call",'
-                '"params":{"name":"route","arguments":{"need":"YOUR_NEED"}}}\n'
+                '"params":{"name":"check","arguments":{"need":"YOUR_NEED"}}}\n'
                 "# unpaid HTTP 402. Sign, retry the same tools/call with PAYMENT-SIGNATURE. "
                 "MCP result.isError is false for a winner or completed unpaid miss; operational failures are tool errors. Inspect the route body and billing before seller execution."
             ),
@@ -1629,12 +1629,12 @@ Public evidence: https://402signal.com/transparency and GET /pq/log/checkpoint, 
 - GET /pulse: historical operational snapshot; not a live guarantee or listing-total claim.
 - GET /health: liveness only. GET /ready: readiness booleans for configured storage and authority; no paths or secrets.
 - GET /openapi.json: full HTTP contract. GET /mcp.json and /.well-known/mcp.json: MCP manifest.
-- POST /mcp: JSON-RPC initialize, tools/list and tools/call. preview and validate are unpaid; route and its alias check use the paid authorization flow.
+- POST /mcp: JSON-RPC initialize, tools/list and tools/call. preview and validate are unpaid; check uses the paid authorization flow (route is its former name and still accepted).
 - GET /route: text/html yields the human guide; application/json or no Accept yields the unpaid HTTP 402 challenge. Use POST for authorization.
 - GET /llms.txt: this guide. Website: https://402signal.com/ . Docs index: https://github.com/402signalhq/402signal/blob/main/docs/README.md
 
 MCP example:
-{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"route","arguments":{"need":"web search","require_route_binding":true}}}
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"check","arguments":{"need":"web search","require_route_binding":true}}}
 
 ## Public listings and discovery
 
