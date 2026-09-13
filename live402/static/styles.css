@@ -38,8 +38,8 @@ h2 { font-size:clamp(25px,3vw,32px); } h3 { font-size:21px; }
 .nav { display:flex; align-items:center; flex-wrap:wrap; gap:4px 22px; font-size:14px; }
 .nav a:link,.nav a:visited { min-height:44px; display:inline-flex; align-items:center; padding:8px 0; color:var(--muted); text-decoration:none; }
 .nav a:hover,.nav a:focus,.nav a[aria-current="page"] { color:var(--accent); }
-.hero-actions,.page-links,.link-row,.row { display:flex; align-items:center; flex-wrap:wrap; gap:12px 18px; margin:22px 0 0; }
-.page-links a,.link-row a { padding:6px 0; min-height:44px; display:inline-flex; align-items:center; }
+.hero-actions,.page-links,.link-row,.row,p.try-links { display:flex; align-items:center; flex-wrap:wrap; gap:12px 18px; margin:22px 0 0; }
+.page-links a,.link-row a,p.try-links a { padding:6px 0; min-height:44px; display:inline-flex; align-items:center; }
 .btn { display:inline-flex; justify-content:center; align-items:center; min-height:44px; padding:12px 18px; background:var(--accent); color:var(--bg); border:1px solid transparent; border-radius:5px; cursor:pointer; font-size:15px; line-height:1.4; font-weight:600; text-decoration:none; text-align:center; }
 a.btn:link,a.btn:visited,a.btn:hover,a.btn:focus { color:var(--bg); text-decoration:none; }
 .btn.secondary { background:transparent; color:var(--accent); border-color:var(--line); }
