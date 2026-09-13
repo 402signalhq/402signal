@@ -48,7 +48,7 @@ durable admission occurs after successful verification. Permanent identities
 do not expire. With the SQLite backend, new admission fails closed at 100,000
 rows, a 256 MiB database budget, or less than 64 MiB free disk space. With the
 PostgreSQL backend, admission follows the activated authority's row and byte
-limits; see the [PostgreSQL authority contract](runbooks/managed-postgres-functions.md).
+limits set by the PostgreSQL authority contract (private operations repository).
 Individual stored responses are capped at 256 KiB; excess content does not
 reopen the authorization. Readiness checks exercise a write and remove expired
 stored response payloads.

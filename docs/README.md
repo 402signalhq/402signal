@@ -32,7 +32,6 @@ Start free with the [offline buyer checks](../integration/buyer-checks/README.md
 ## Operate and recover
 
 - [Private admission configuration and customer access revocation](admission-operations.md)
-- [Managed PostgreSQL authority, runtime privileges and instance fence](runbooks/managed-postgres-functions.md)
 - [Postgres replay on this writer (post-cut; do not re-cut)](runbooks/postgres-replay-cutover.md)
 - [Liveness and readiness](fly-ready-check.md)
 - [Complete SQLite recovery component and restore procedure](backup.md)
@@ -44,18 +43,12 @@ Start free with the [offline buyer checks](../integration/buyer-checks/README.md
 - [Isolated recovery scenarios and invariants](pq-recovery.md)
 - [Historical fee assumptions; obtain a current quote before funding](pq-funding.md)
 - [Read-only preservation of the historical TestNet log](pq-testnet-archive.md)
-- [Controlled production routing tests and traffic provenance](runbooks/lab-route-testing.md)
 - [Repository branch protections](github-protection.md)
 - [Role boundaries and explicit operator authorization](automation-security-boundaries.md)
 
-## Scaling plans and historical release evidence
+## What is private
 
-Architecture targets and measurements. Historical release gates, closeouts and operator runbooks are kept in the private operations repository and are not needed to integrate.
-
-- [Architecture target and gaps, not a throughput promise or live inventory](scale-20m.md)
-- [Replay admission throughput benchmark on Managed Postgres (September 2026)](replay-throughput-benchmark.md)
-- [Dated incremental Merkle measurements, not end-to-end capacity](merkle-bench.md)
-- [HTTP-layer load test procedure and results](load-test.md)
+Operating runbooks (the replay authority migrations and their windows, the leaf outbox, the managed-functions contract, lab route testing), the capacity evidence (replay admission benchmark, HTTP load test, Merkle measurements, the scaling plan) and the load-test harness live in the private operations repository. The public commitments they back are stated on [the security page](https://402signal.com/security): the replay authority sustains about 450 admissions per second measured in September 2026, every guard and quota is unchanged by scaling work, and reviews are listed by class of finding fixed. The replay SQL itself stays public in `ops/` because the Postgres compatibility jobs exercise it.
 
 ## Insights
 
