@@ -581,6 +581,8 @@ class Handler(SimpleHTTPRequestHandler):
             return "pq_log"
         if path == "/attestation":
             return "attestation"
+        if path == "/keys/usage":
+            return "keys"
         if path in HUMAN_PAGES or path in STATIC_FILES or path in HUMAN_DYNAMIC_PATHS:
             return "human"
         if path == "/endpoints" or path.startswith("/endpoints/"):
@@ -1055,6 +1057,13 @@ class Handler(SimpleHTTPRequestHandler):
 
             code, body, ctype, extra = pq_http.handle(parsed.path)
             return self._bytes(code, body, ctype, extra)
+        if parsed.path == "/keys/usage":
+            if not self._public_allowed("keys"):
+                return self._json(429, {"error": "rate limit"})
+            from live402 import keys
+
+            return self._json(200, keys.usage(self.headers, client_ip(self)),
+                              extra_headers={"Cache-Control": "no-store, private"})
         if parsed.path == "/attestation":
             if not self._public_allowed("attestation"):
                 return self._json(429, {"error": "rate limit"})
