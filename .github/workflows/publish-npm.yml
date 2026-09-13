@@ -1,9 +1,11 @@
 name: Publish route-guard to npm
 
-# Publishes sdk/route-guard to the npm registry with provenance. Runs only
-# from a version tag or a manual dispatch naming one. Uses the NPM_TOKEN
-# secret from the `release` environment for the first publish; once the
-# package exists, switch it to npm Trusted Publishing and delete the token.
+# Publishes sdk/route-guard to the npm registry with provenance through npm
+# Trusted Publishing: the job's GitHub OIDC token is exchanged for a
+# short-lived publish credential, so no npm token is stored anywhere. The
+# trusted publisher on npmjs.com is this repository, this workflow file and
+# the `release` environment. Runs only from a version tag or a manual
+# dispatch naming one.
 on:
   push:
     tags:
@@ -58,15 +60,14 @@ jobs:
           npm --prefix sdk/route-guard run check
           npm --prefix sdk/route-guard test
 
-      - name: Publish with provenance
+      - name: Publish with provenance (npm Trusted Publishing)
         working-directory: sdk/route-guard
         shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        # npm expands ${NODE_AUTH_TOKEN} itself when it reads .npmrc; the
-        # token never appears on a command line or in the log.
+        # Trusted Publishing needs npm 11.5.1 or newer. No token, no .npmrc:
+        # npm requests the OIDC token from the job itself.
         run: |
           set -euo pipefail
-          printf '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n' > "$HOME/.npmrc"
+          npm install -g npm@11 >/dev/null
+          npm --version
+          node -e 'const [a,b,c]=require("child_process").execSync("npm --version").toString().trim().split(".").map(Number); if (a<11||(a===11&&(b<5||(b===5&&c<1)))) { console.error("npm 11.5.1+ required"); process.exit(1) }'
           npm publish --provenance --access public --ignore-scripts
-          rm -f "$HOME/.npmrc"
