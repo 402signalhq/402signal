@@ -15,7 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 HTML_REVALIDATE = "no-cache, must-revalidate"
 ASSET_LONG_CACHE = "public, max-age=31536000, immutable"
-ASSET_PATHS = ("/styles.css", "/app.js", "/dashboard.js", "/transparency.js")
+ASSET_PATHS = ("/styles.css", "/app.js", "/dashboard.js", "/transparency.js", "/verify.js")
 ASSET_FILES = tuple(p.lstrip("/") for p in ASSET_PATHS)
 _TOKEN = re.compile(r"^[A-Za-z0-9._-]{7,64}$")
 _GIT_SHA = re.compile(r"^[0-9a-f]{7,40}$")

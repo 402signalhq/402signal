@@ -54,6 +54,8 @@ jobs:
           npm --prefix sdk/route-guard test
       - name: Test the Python package (offline, same cryptography pin as the router)
         run: PYTHONPATH=sdk/python/src python -m unittest discover -s sdk/python/tests
+      - name: Test the browser receipt verifier against the conformance fixture
+        run: node --test integration/website/verify.test.mjs
       - name: Qualify reference buyer and explicit MPP interoperability
         # Synthetic accounts only; no wallet secrets, RPC or paid requests.
         run: |
