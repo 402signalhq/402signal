@@ -55,6 +55,38 @@ client, which then does not sign. Set `onMiss: "allow"` to treat a miss as
 advisory. The hosted check observes `GET`; pass `challengeFor` when your buyer
 already holds the raw challenge text for a `POST` profile.
 
+## Use it inside mppx (Machine Payments Protocol)
+
+Buyers on `mppx` get the same guard as an `onChallenge` hook. mppx runs
+`challenge.received` observers first and `onChallenge` just before it creates a
+credential; the observer records which URL produced each challenge, and the
+hook asks 402Signal for a Check group offer observation of that URL under your
+caps, verifies the signed receipt against the pinned log key, and compares the
+verified terms with the live challenge. A thrown error leaves mppx's fetch
+without a credential, so nothing is signed.
+
+```js
+import { Mppx } from "mppx";
+import { mppGuard } from "@402signal/route-guard/mpp";
+
+const guard = mppGuard({
+  fetchWithPayment: (url, init) => mppx.fetch(url, init), // pays the $0.003 fee with the same wallet
+  trustedLogVkey: process.env.SIGNAL_LOG_VKEY,
+  maxCallAmountAtomic: "1000", // your per-call cap in atomic USDC
+  onResult: (result) => retain(result.text),
+});
+const mppx = Mppx.create({ methods, onChallenge: guard.onChallenge });
+mppx.onChallengeReceived(guard.onChallengeReceived);
+```
+
+MPP challenge ids and expiries are per request, so the live challenge is
+compared on its economic terms (network, asset, recipient, amount, intent,
+realm), not byte for byte. The hosted observation covers Base USDC `evm.charge`
+challenges today; other methods abort unless `onUnsupported: "allow"`. Hosted
+Check group offer must be enabled on the router (`/capabilities.json`
+`check_group_offer.codecs`), otherwise every check is a miss. `guard.check(url,
+challenge)` runs the same logic without mppx.
+
 ## Offline example
 
 From the repository root with Node 22 or newer:

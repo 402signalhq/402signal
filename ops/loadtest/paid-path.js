@@ -28,12 +28,14 @@ const misses = new Counter("route_miss");
 const busy = new Counter("route_503_or_429");
 
 // Bodies match the synthetic fixture catalog (live402/data/fixtures.json):
-// a Base hit, a Solana hit, a Base hit with route binding, and a listed URL
-// that no longer answers (a completed miss).
+// two Base hits, a Solana hit, and a listed URL that no longer answers (a
+// miss). The fixture harness has no log signer, so require_route_binding is
+// left out here; receipt signing is a sub-millisecond Ed25519 operation that
+// the Merkle benchmark covers separately.
 const BODIES = [
   { need: "weather", max_price_usd: 0.05 },
   { need: "web search", networks: ["solana"], max_price_usd: 0.02 },
-  { need: "erc20 token balance", require_route_binding: true },
+  { need: "erc20 token balance", networks: ["base"] },
   { url: "https://fixture.402signal.local/weather-stale" },
 ];
 

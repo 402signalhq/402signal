@@ -79,3 +79,42 @@ throughput adequately but adds its own network latency to every percentile.
 
 Appended by whoever runs the test: date, revision, target, k6 summary
 (requests per second, p50, p95, error rate) for each script.
+
+### 2026-09-13, revision b74f388 (k6 v2.2.0)
+
+**Local, fixture mode, one process, Intel i9-13980HX (WSL2).** Percentiles
+include loopback only. Treat as an upper bound for one Fly `performance-1x`
+vCPU; halve the throughput before planning.
+
+| Script | VUs | Duration | Requests/s | p50 | p95 | Errors |
+|---|---:|---:|---:|---:|---:|---:|
+| free-path (challenge, preview, rails, health) | 50 | 45 s | 849 | 1.3 ms | 35 ms | 0% |
+| paid-path (LOCAL_FREE, 3 hits + 1 miss) | 20 | 45 s | 59.5 | 116 ms | 833 ms | 0% (misses answered 503 by design) |
+
+Per endpoint on the free path: unpaid 402 challenge p50 1.2 ms / p95 2.6 ms,
+`/preview` p50 19 ms / p95 56 ms, `/rails` and `/health` about 1 ms. On the
+paid path 44.9 qualifying observations per second completed; the remaining
+quarter were the stale-URL misses, each a fast 503. Receipt signing was not
+exercised (no log signer in the fixture harness).
+
+**Fly, production-shaped staging app (`performance-1x`, 2 GB, iad), client on
+a residential connection in the eastern US.** Free path with `PREVIEW=0`
+because the fresh catalog was still warming from the upstream feeds.
+
+| Script | VUs | Duration | Requests/s | p50 | p95 | Max | Errors |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| free-path (challenge, rails, health) | 50 | 60 s | 273 | 18 ms | 236 ms | 14.3 s | 1 of 16,678 |
+
+Unpaid 402 challenge p50 23 ms / p95 246 ms; `/rails` and `/health` p50 17 ms.
+The gap between p50 and p95, and the 14 s outlier, come from the path between
+the client and the Fly edge plus proxy queueing, not from the process: the
+same endpoints answer in about a millisecond locally. Run the client from a
+machine in `iad` for a clean server-side number.
+
+Reading: one process serves roughly 850 cheap requests per second and about
+45 fixture-mode paid observations per second, the same order as the replay
+authority's 45 admissions per second per process. Real sellers add their own
+probe latency (p50 870 ms, p95 2.5 s in September 2026 probe history), which
+occupies handler threads rather than CPU, so the handler cap
+(`LIVE402_MAX_HANDLERS`, 200) and the probe cap (`LIVE402_MAX_PROCESS_PROBES`,
+32) bound production concurrency before CPU does.
