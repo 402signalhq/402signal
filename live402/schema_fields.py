@@ -11,6 +11,7 @@ RAILS = ("base", "solana", "algorand")
 SEARCH_DEPTHS = tuple(sorted(select.SEARCH_DEPTHS))
 
 TRANSPARENCY_STATES = (
+    "outbox_queued",
     "logged_uncheckpointed",
     "checkpoint_signed",
     "authorized",
@@ -20,7 +21,8 @@ TRANSPARENCY_STATES = (
 )
 
 # Public status kept for clients that still read pending = durable + signed checkpoint.
-TRANSPARENCY_STATUSES = ("pending", "logged_uncheckpointed", "unavailable")
+# queued: the public leaf is durably queued for the log writer, not yet appended.
+TRANSPARENCY_STATUSES = ("pending", "queued", "logged_uncheckpointed", "unavailable")
 
 TRANSPARENCY_RETENTION_DESC = (
     "To verify the routing decision later, securely retain the complete paid /route "

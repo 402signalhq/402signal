@@ -1167,7 +1167,7 @@ class Handler(SimpleHTTPRequestHandler):
         if payload is None:
             return
         if payment.payment_presented(self.headers):
-            gate = self._paid_gate()
+            gate = self._paid_gate(payload)
             if gate is not None:
                 return self._json(*gate)
         from live402 import session as session_mod
@@ -1186,17 +1186,23 @@ class Handler(SimpleHTTPRequestHandler):
             extra = {"PAYMENT-REQUIRED": payment.payment_required_header(body)}
         return self._json(code, body, extra)
 
-    def _paid_gate(self) -> tuple[int, dict, dict] | None:
+    def _paid_gate(self, payload=None) -> tuple[int, dict, dict] | None:
         """Refuse new payment work before verification when this process must not take it.
 
         Replaces removing the whole Machine from Fly routing: the site, docs,
         catalog and unpaid challenges keep serving while paid work waits.
         Nothing was verified or reserved, so the same authorization may retry.
+        Without the writer lease a plain paid check may still proceed when the
+        transparency-leaf outbox is available and the request needs neither a
+        signed leaf at response time nor per-machine session state.
         """
         headers = {"Retry-After": "15", "Cache-Control": "no-store"}
         base = {"retryable": True, "retry_same_request": True, "new_payment_allowed": False}
         if not leadership.holds():
-            return 503, {"error": "writer_unavailable", **base}, headers
+            from live402.pq import outbox
+
+            if not (isinstance(payload, dict) and not outbox.needs_writer(payload) and outbox.available()):
+                return 503, {"error": "writer_unavailable", **base}, headers
         if paid_ready_gate_enabled() and not ready.cached_readiness().get("ok"):
             return 503, {"error": "service_not_ready", **base}, headers
         return None
@@ -1215,7 +1221,9 @@ class Handler(SimpleHTTPRequestHandler):
             if not self._route_allowed():
                 return self._close_error(429, "rate limit")
             if payment.payment_presented(self.headers):
-                gate = self._paid_gate()
+                params = payload.get("params") if isinstance(payload, dict) else None
+                arguments = params.get("arguments") if isinstance(params, dict) else None
+                gate = self._paid_gate(arguments if isinstance(arguments, dict) else {})
                 if gate is not None:
                     return self._json(*gate)
         elif mcp.is_preview_call(payload):

@@ -428,6 +428,26 @@ def attach_to_route(result: dict, request_body: dict | None = None) -> dict:
             "leaf_type": ev["type"],
             "reveal": reveal,
         }
+        from live402 import leadership
+
+        if not leadership.holds() and not batch_binding.requested(req) \
+                and req.get("require_route_binding") is not True:
+            # No writer lease here: queue the public leaf for the writer when
+            # the shared authority accepts it. Not a signed receipt.
+            from live402.pq import outbox
+
+            if outbox.available():
+                queued = outbox.queue(ev)
+                transparency.update(
+                    {
+                        "status": outbox.STATUS,
+                        "state": outbox.STATE,
+                        "outbox_id": queued["id"],
+                        "receipt": {"leaf_hash": queued["leaf_hash"].hex()},
+                    }
+                )
+                result["pq_trust"] = {"transparency": transparency}
+                return result
         if available():
             try:
                 proof = issue(ev)

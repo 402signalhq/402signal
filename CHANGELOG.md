@@ -5,6 +5,14 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Transparency-leaf outbox (`LIVE402_PQ_OUTBOX=1` plus the owner migration
+  `ops/replay-postgres-leaf-outbox.sql`): a router process without the writer
+  lease completes plain paid checks by queueing the public leaf bytes in the
+  shared replay authority; the writer drains the queue in order into the log.
+  Such responses carry `pq_trust.transparency.status = "queued"` and no
+  checkpoint; `require_transparency`, `require_route_binding`, the Check
+  group offer and hosted sessions still wait for the writer. Runbook:
+  `docs/runbooks/leaf-outbox.md`.
 - Replay hot path: the PostgreSQL replay client keeps a bounded pool of
   connections per process (`LIVE402_REPLAY_POOL_SIZE`, default 8) and runs
   each paid admission write as one pipelined round trip. The owner migration
