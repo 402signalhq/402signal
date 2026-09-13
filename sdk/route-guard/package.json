@@ -50,7 +50,6 @@
     "file-store.d.ts",
     "internal-json.mjs",
     "LICENSE",
-    "NOTICE",
     "examples/search.ts",
     "batch.mjs",
     "batch.d.ts",
@@ -75,5 +74,5 @@
     "url": "https://github.com/402signalhq/402signal.git",
     "directory": "sdk/route-guard"
   },
-  "license": "Apache-2.0"
+  "license": "MIT"
 }
