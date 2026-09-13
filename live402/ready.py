@@ -76,8 +76,22 @@ def _storage_ok() -> bool:
     return _catalog_ok() and _history_ok() and _pq_log_sqlite_ok()
 
 
+def _writer() -> bool:
+    """Whether this process currently holds the writer lease. Never part of `ok`."""
+    try:
+        from live402 import leadership
+
+        return bool(leadership.holds())
+    except Exception:
+        return False
+
+
 def readiness() -> dict:
-    """Public /ready body. Booleans only. Never paths, never env, never keys."""
+    """Public /ready body. Booleans only. Never paths, never env, never keys.
+
+    `writer` is reported beside `ok`, not inside `checks`: a standby machine
+    without the lease is healthy and must not fail its readiness check.
+    """
     from live402 import admission
 
     checks = {
@@ -88,7 +102,7 @@ def readiness() -> dict:
         "pq_log": _pq_log_ok(),
         "replay_ledger": _replay_ok(),
     }
-    return {"ok": all(checks.values()), "checks": checks}
+    return {"ok": all(checks.values()), "checks": checks, "writer": _writer()}
 
 
 _cache_lock = threading.Lock()
@@ -120,10 +134,11 @@ def cached_readiness() -> dict:
         return readiness()
     with _cache_lock:
         if _cached is not None and time.monotonic() - _cached_at < ttl:
-            return {"ok": _cached["ok"], "checks": dict(_cached["checks"])}
+            return {"ok": _cached["ok"], "checks": dict(_cached["checks"]), "writer": _writer()}
         payload = readiness()
         _cached, _cached_at = payload, time.monotonic()
-        return {"ok": payload["ok"], "checks": dict(payload["checks"])}
+        # The lease is read live on every answer, never from the cached payload.
+        return {"ok": payload["ok"], "checks": dict(payload["checks"]), "writer": _writer()}
 
 
 def reset_cache() -> None:
