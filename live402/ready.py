@@ -137,7 +137,8 @@ def cached_readiness() -> dict:
             return {"ok": _cached["ok"], "checks": dict(_cached["checks"]), "writer": _writer()}
         payload = readiness()
         _cached, _cached_at = payload, time.monotonic()
-        return {"ok": payload["ok"], "checks": dict(payload["checks"]), "writer": payload["writer"]}
+        # The lease is read live on every answer, never from the cached payload.
+        return {"ok": payload["ok"], "checks": dict(payload["checks"]), "writer": _writer()}
 
 
 def reset_cache() -> None:
