@@ -5,6 +5,12 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Website: new homepage built around the one-minute try and the two client
+  hooks, with the returns table, field numbers and a shorter evidence
+  section; the September "State of x402 endpoints" report is published at
+  `/insights/state-of-x402-endpoints-2026-09` and listed in the sitemap.
+- Replay authority runbook records the move to the Basic cluster
+  `402signal-replay-v3`.
 - Python package `402signal` (import `signal402`, `sdk/python`): unpaid
   challenge, paid check and read-only recovery helpers, outcome
   classification, and an offline receipt verifier (reveal commitment, leaf

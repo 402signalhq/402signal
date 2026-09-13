@@ -37,6 +37,8 @@ HUMAN_PAGES = {
     "/developers.html": "developers.html",
     "/insights/pre-spend-routing": "pre-spend-routing.html",
     "/insights/pre-spend-routing.html": "pre-spend-routing.html",
+    "/insights/state-of-x402-endpoints-2026-09": "state-of-x402-endpoints-2026-09.html",
+    "/insights/state-of-x402-endpoints-2026-09.html": "state-of-x402-endpoints-2026-09.html",
     "/contact": "contact.html",
     "/contact.html": "contact.html",
     "/privacy": "privacy.html",

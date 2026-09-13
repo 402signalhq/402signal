@@ -230,6 +230,35 @@ th,td { text-align:left; vertical-align:top; padding:14px 12px; border-bottom:1p
 }
 @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
 
+/* Homepage: thesis on the left, the one-minute try on the right. */
+.hero-v2 { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:48px; align-items:start; margin:44px 0 36px; }
+.hero-v2 h1 { max-width:15ch; font-size:clamp(38px,5vw,60px); line-height:1.08; }
+.hero-v2 .lede { max-width:52ch; }
+.audience-row { list-style:none; padding:0; margin:26px 0 0; display:flex; flex-wrap:wrap; gap:8px; }
+.audience-row a:link,.audience-row a:visited { display:inline-flex; align-items:center; min-height:40px; padding:6px 14px; border:1px solid var(--line); border-radius:999px; color:var(--muted); text-decoration:none; font-size:14px; }
+.audience-row a:hover,.audience-row a:focus { color:var(--accent); border-color:var(--accent); }
+.try-card { margin:0; min-width:0; border:1px solid #625a4b; border-radius:10px; background:#202027; overflow:hidden; }
+.try-card figcaption { padding:16px 20px; border-bottom:1px solid var(--line); font-weight:600; }
+.try-card figcaption span { display:block; font-weight:400; color:var(--muted); font-size:14px; margin-top:4px; }
+.try-card pre.code { margin:0; border:0; border-radius:0; }
+.try-card .try-note,.try-card .try-links { margin:0; padding:14px 20px 0; font-size:14px; color:var(--muted); }
+.try-card .try-links { display:flex; flex-wrap:wrap; gap:6px 18px; padding-bottom:18px; }
+.try-card .try-links a { min-height:36px; display:inline-flex; align-items:center; }
+.primer-band { margin:0 0 44px; max-width:760px; }
+.code-pair-v2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
+.code-pair-v2 article { min-width:0; border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:20px; }
+.code-pair-v2 h3 { font:600 17px/1.4 system-ui,sans-serif; margin:0 0 8px; }
+.code-pair-v2 p { color:var(--muted); font-size:15px; }
+.code-pair-v2 pre.code { margin:14px 0; }
+.returns-table th:first-child { width:30%; } .returns-table td:last-child { white-space:nowrap; }
+.stat-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; margin:24px 0; }
+.stat-strip div { min-width:0; border-top:2px solid var(--accent); padding-top:12px; }
+.stat-strip b { display:block; font-family:Georgia,"Iowan Old Style",serif; font-size:30px; font-weight:400; letter-spacing:-.02em; }
+.stat-strip span { display:block; color:var(--muted); font-size:14px; margin-top:4px; }
+.offer-preview-inline { margin-top:32px; max-width:560px; }
+@media (max-width:900px) { .hero-v2 { grid-template-columns:minmax(0,1fr); gap:28px; margin-top:32px; } .code-pair-v2 { grid-template-columns:minmax(0,1fr); } .stat-strip { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:640px) { .hero-v2 h1 { font-size:clamp(34px,8vw,46px); } .stat-strip { grid-template-columns:minmax(0,1fr); } .try-card figcaption,.try-card .try-note,.try-card .try-links { padding-left:16px; padding-right:16px; } }
+
 /* Keep the four task groups within the existing chip navigation. */
 .developer-page .guide-group { flex: 1 1 15rem; min-width: 0; }
 .developer-page .guide-group .chip { margin: 0 .35rem .5rem 0; }
