@@ -199,9 +199,14 @@ class ChallengeBindingAdapterTests(unittest.TestCase):
         self.assertEqual(rb.canonical(observed), rb.canonical(env))
         self.assertNotIn("paymentRequirements", observed)
 
-    def test_floats_in_bazaar_examples_remain_invalid_json(self):
+    def test_floats_in_bazaar_examples_are_observed_and_laid_out_like_javascript(self):
         env = _stock_envelope()
-        env["extensions"]["bazaar"]["info"]["example"] = {"lat": 38.8977}
+        env["extensions"]["bazaar"]["info"]["example"] = {"lat": 38.8977, "tiny": 2.5e-5, "whole": 5.0}
+        observed = rb.observed_challenge(402, {}, json.dumps(env).encode())
+        self.assertEqual(observed["extensions"]["bazaar"]["info"]["example"]["lat"], 38.8977)
+        self.assertIn(b'"lat":38.8977,"tiny":0.000025,"whole":5', rb.canonical(observed))
+        # Out-of-range numbers still fail closed.
+        env["extensions"]["bazaar"]["info"]["example"] = {"lat": 2.0 ** 60}
         with self.assertRaises(rb.BindingError) as exc:
             rb.observed_challenge(402, {}, json.dumps(env).encode())
         self.assertEqual(str(exc.exception), "invalid_json")
