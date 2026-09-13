@@ -1,0 +1,49 @@
+name: Attest release archives
+
+# Attaches a GitHub artifact attestation (SLSA build provenance) to every
+# archive of a published release, so `gh attestation verify <file> -R
+# 402signalhq/402signal` proves the archive came from this repository's
+# release workflow. Complements the SHA256SUMS file and the npm provenance.
+# The repository's Actions allow-list must include
+# actions/attest-build-provenance@*; until it does this workflow fails at
+# startup and changes nothing.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Download the release archives and check their digests
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          gh release download "$TAG" --dir assets --pattern '*.tgz' --pattern '*.tar.gz' --pattern '*.whl' --pattern 'SHA256SUMS' || true
+          ls -l assets
+          test -n "$(ls assets/*.tgz assets/*.tar.gz assets/*.whl 2>/dev/null)" || { echo "no archives on $TAG"; exit 1; }
+          if [ -f assets/SHA256SUMS ]; then (cd assets && sha256sum --check --ignore-missing SHA256SUMS); fi
+
+      - name: Attest build provenance for every archive
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            assets/*.tgz
+            assets/*.tar.gz
+            assets/*.whl
