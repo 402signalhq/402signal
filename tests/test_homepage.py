@@ -293,7 +293,7 @@ class HomepageProductTests(unittest.TestCase):
         self.assertNotIn(".blur()", self.js)
 
     def test_runtime_installation_and_guard_responsibilities(self):
-        self.assertWords(self.devs, ("Node.js 22 or newer", "Node 24", "POSIX", "not an npm registry release", "sha256sum --check SHA256SUMS", "PUBLIC TEST KEY", "independent trusted configuration", "default observation window is 60 seconds", "transaction effects", "prevent", "scaffolding, not complete wallet code", "next already-probed selectable", "local guard refusal", "excluded_reason: binding_unavailable"))
+        self.assertWords(self.devs, ("Node.js 22 or newer", "Node 24", "POSIX", "npm install @402signal/route-guard@0.7.3", "npm audit signatures", "sha256sum --check SHA256SUMS", "PUBLIC TEST KEY", "independent trusted configuration", "default observation window is 60 seconds", "transaction effects", "prevent", "scaffolding, not complete wallet code", "next already-probed selectable", "local guard refusal", "excluded_reason: binding_unavailable"))
         self.assertWords(self.devs, ("node scripts/install_route_guard.mjs", "npm install --ignore-scripts", "not a broken router", "route_outcome.next_action", "isUnsettledRouteMiss", "examples/search.ts", "MCP preview/validate cannot complete a paid route", "wrapExactAuthorize", "keep_calling_route", "Do not stop calling"))
         self.assertIn("withVerifiedRoute", self.devs)
         self.assertIn("verifyReceipt", self.devs)

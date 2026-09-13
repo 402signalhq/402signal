@@ -35,10 +35,15 @@ jobs:
           ref: ${{ github.event.inputs.tag || github.ref }}
           persist-credentials: false
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+      # The repository allows only a short list of actions (setup-node is not
+      # on it), so the runner's preinstalled Node is used and checked.
+      - name: Check the runner's Node and npm
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version; npm --version
+          major="$(node -p 'Number(process.versions.node.split(".")[0])')"
+          test "$major" -ge 22 || { echo "Node 22 or newer is required (package engines)"; exit 1; }
 
       - name: Check the tag matches the package version
         shell: bash
@@ -55,6 +60,13 @@ jobs:
 
       - name: Publish with provenance
         working-directory: sdk/route-guard
+        shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public --ignore-scripts
+        # npm expands ${NODE_AUTH_TOKEN} itself when it reads .npmrc; the
+        # token never appears on a command line or in the log.
+        run: |
+          set -euo pipefail
+          printf '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n' > "$HOME/.npmrc"
+          npm publish --provenance --access public --ignore-scripts
+          rm -f "$HOME/.npmrc"

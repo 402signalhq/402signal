@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /** Verify a packed route-guard archive, not the source tree.
  *
- * Candidate 0.7.3 packed bytes are digest-checked against the reviewed
- * expected pair before npm install or import. SHA256SUMS is checked the same
- * way: file digest plus contents vs the tarball hash. Mismatch fails closed.
- * 0.7.3 is pending (provisional candidate digest, not a published archive).
+ * 0.7.3 packed bytes are digest-checked against the published pair before
+ * npm install or import. SHA256SUMS is checked the same way: file digest plus
+ * contents vs the tarball hash. Mismatch fails closed. 0.7.3 is published
+ * (GitHub release archive and npm registry); the tree must still pack to the
+ * same bytes.
  * Default verify: current chk_grp without buyer merchant_profile, historical
  * leaves that still name merchant_profile, and refuse-on-drift.
  * --historical-verifier tests the published 0.7.1 path: historical leaves
@@ -23,9 +24,9 @@ const root = resolve(new URL("..", import.meta.url).pathname);
 const CANDIDATE_TAG = "route-guard-v0.7.3";
 const CANDIDATE_TGZ = "402signal-route-guard-0.7.3.tgz";
 const REVIEWED_PACK_SHA256 =
-  "33b3f220f000fd35c02417db39c02cd38efbd6d68e59e4fc53c529311bf06276";
+  "bb5b49e63b37297b4460c37c6337ff80070988f8103c55ac309549d7d1790f76";
 const REVIEWED_SUMS_SHA256 =
-  "6c64a1226a9e04e3ace58f3251b0b5bdfd99f4477f75e887e8f1028332503d89";
+  "e8502e1f3e7c510fa41f579b65dd64168ac85d105e28b2482e8e4c184442d66d";
 
 const arguments_ = process.argv.slice(2);
 let candidate = CANDIDATE_TGZ;

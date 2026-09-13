@@ -13,6 +13,12 @@ server. The format follows Keep a Changelog; dates are UTC.
   every guard, the identity primary key and exact quota enforcement are
   unchanged. `api_capacity` reports live totals; `fence_status` reconciles
   against the shards. Runbook: `docs/runbooks/replay-hotpath-migration.md`.
+- `@402signal/route-guard` 0.7.3 is published: the GitHub release archive
+  (`route-guard-v0.7.3`, digest pinned in `/capabilities.json`) and the npm
+  registry package with a provenance attestation. `capabilities.json` records
+  the published digests, `verifier_package` moves to 0.7.3, the installer
+  script and every install instruction point at 0.7.3, and the developer
+  guide leads with `npm install` plus `npm audit signatures`.
 - MCP: `check` is a paid alias of `route` with the same schema, fee and
   result, listed right after `route` in `tools/list` and the manifest.
 - Website: new homepage built around the one-minute try and the two client

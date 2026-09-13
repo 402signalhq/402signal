@@ -8,8 +8,10 @@ retry or execute payments.
 
 The package includes the optional `./client` HTTP lifecycle and `./file-store`
 private persistence modules described below. The root verifier stays offline.
-Release tarballs can be installed with npm; the package is not yet published to
-the npm registry. Do not assume a registry package with this name is this code.
+It is published to the npm registry as `@402signal/route-guard` from the
+repository's release workflow with provenance attestations, and as a GitHub
+release archive whose digest is pinned in `/capabilities.json`; check one of
+the two before you install (see "Install the client" below).
 Request the server's opt-in v4 contract with `require_route_binding: true`;
 existing v3 receipts fail closed in this guard. The hosted check may fall
 through to the next already-probed selectable bindable winner; this guard
@@ -238,13 +240,22 @@ See [the response contract](../../docs/route-miss-http-status.md).
 
 ## Install the client
 
-Use the [v0.7.2 release tarball](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.2) and verify its published digest before installing. This is a GitHub release archive, not an npm-registry package:
+From the npm registry, then check the provenance attestation that the release
+workflow attaches (it names this repository and the `route-guard-v0.7.3` tag):
 
 ```sh
-npm install ./402signal-route-guard-0.7.2.tgz
+npm install @402signal/route-guard@0.7.3
+npm audit signatures
 ```
 
-From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.2.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
+Or use the [v0.7.3 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.3) and verify its digest against `SHA256SUMS` and the `packages` row in https://402signal.com/capabilities.json before installing:
+
+```sh
+sha256sum --check SHA256SUMS
+npm install --ignore-scripts ./402signal-route-guard-0.7.3.tgz
+```
+
+From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.3.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
 declarations, the local guard and HTTP client. Node 22 or newer is required.
 No install script or wallet dependency is included. Windows callers can supply
 their own durable store; the supplied filesystem adapter runs on POSIX, including WSL.
