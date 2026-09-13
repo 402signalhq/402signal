@@ -363,11 +363,31 @@ class BindingTests(unittest.TestCase):
     def test_all_remaining_binding_failures_are_503(self):
         first = mismatch_resource(bound_winner(url="https://a.example/x", amount="1000"))
         second = mismatch_resource(bound_winner(url="https://b.example/x", amount="2000"))
+        for row in (first, second):
+            # The answer is built from whichever candidate failed last; both carry the seller's schemas.
+            row["has_402_challenge"] = True
+            row["target"] = {"method": "GET", "inputSchema": {"type": "object"}, "outputSchema": {"type": "object"}}
+            row["envelope"]["accepts"][0]["outputSchema"] = {"type": "object", "properties": {"x": {"type": "string"}}}
+            row["binding_observation"]["quote_sha256"] = rb.digest(row["envelope"])
         out, calls = self.execute((200, self._ranked_with_pool(first, second)))
         self.assertEqual(out[0], 503)
         self.assertEqual(calls, (1, 1, 0, 0))
         self.assertFalse(out[1]["billing"]["settled"])
         self.assertEqual(out[1]["binding_error"], "route_binding_unavailable")
+        # The seller did answer with a challenge; the miss names the binding, not the envelope.
+        self.assertEqual(out[1]["error"], "route_binding_unavailable")
+        self.assertEqual(out[1]["miss_reason"], "binding_unavailable")
+        self.assertEqual(out[1]["stop_reason"], "candidate_set_exhausted")
+        self.assertNotIn("unmet_constraints", out[1])
+        self.assertTrue(out[1]["has_402_challenge"])
+        self.assertIs(out[1]["live"], False)
+        self.assertIsNone(out[1]["selected_payment"])
+        # Schemas are trimmed from an answer that cannot be executed; the terms stay.
+        self.assertNotIn("inputSchema", out[1]["target"])
+        self.assertNotIn("outputSchema", out[1]["target"])
+        self.assertEqual(out[1]["target"]["method"], "GET")
+        self.assertNotIn("outputSchema", out[1]["envelope"]["accepts"][0])
+        self.assertEqual(out[1]["envelope"]["accepts"][0]["amount"], "2000")
         self.assertNotIn("_probed", out[1])
         by_url = {row["url"]: row for row in out[1].get("compared") or []}
         self.assertEqual(by_url[first["url"]]["excluded_reason"], "binding_unavailable")

@@ -74,6 +74,7 @@ MISS_REASONS = (
     "unlisted",
     "no_input_schema",
     "constraints_unmet",
+    "binding_unavailable",
     "probe_budget_exhausted",
     "probe_limit_reached",
     "unsafe_to_probe",

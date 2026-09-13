@@ -1333,7 +1333,9 @@ def unmet_constraint_names(result, constraints) -> list[str]:
         return []
     unmet: list[str] = []
     rails = constraints.get("rails")
-    if isinstance(rails, frozenset) and not _complete_options_for_constraints(result, constraints):
+    # The network bound is judged on its own: a price bound that empties the
+    # option set must not read as "no option on the requested networks".
+    if isinstance(rails, frozenset) and not _complete_options_for_constraints(result, {"rails": rails}):
         unmet.append("networks")
     if constraints.get("max_amount_atomic") is not None or constraints.get("max_price_usd") is not None:
         if not _options_for_constraints(result, constraints):
