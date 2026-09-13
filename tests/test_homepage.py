@@ -174,7 +174,7 @@ class HomepageProductTests(unittest.TestCase):
         self.assertEqual(_parse(pricing).h1, ["Pay per check. Pay nothing for a check that finds nothing."])
         self.assertWords(pricing, ("Design partner", "Platform", "Check credits", "Admission key", "GET /keys/usage"))
         self.assertWords(trust, ("Receipt, record, report.", "quote_sha256", "Offer Evidence Record", "verifyReceipt", "verify_route_receipt", "cannot recover a deleted private record", "Falcon-1024"))
-        self.assertIn("docs/evidence-record.md", trust)
+        self.assertIn("/developers/evidence-record", trust)
         for id_ in ("seller-form", "seller-url", "seller-check", "seller-status", "seller-result", "seller-json"):
             self.assertIn(id_, _parse(sample).ids)
         self.assertIn("/try?endpoint=https%3A%2F%2Fagent402.tools%2Fapi%2Fsearch", sample)

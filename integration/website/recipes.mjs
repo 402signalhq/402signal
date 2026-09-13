@@ -6,7 +6,7 @@ import { chromium, webkit } from 'playwright';
 const root=resolve(import.meta.dirname,'../..'),out=resolve(root,'website-evidence');
 const exports=JSON.parse(await readFile(resolve(out,'exports.json'),'utf8'));
 const recipes=Object.keys(exports).filter(p=>p.startsWith('/developers/'));
-assert.equal(recipes.length,13);
+assert.equal(recipes.length,15);
 const staticFiles=new Map([['/','index.html'],['/developers','developers.html'],['/try','try.html'],['/pricing','pricing.html'],['/trust','trust.html'],['/app.js','app.js'],['/styles.css','styles.css'],['/favicon.svg','favicon.svg']]);
 const server=createServer(async(req,res)=>{try{
  const path=new URL(req.url,'http://127.0.0.1').pathname;
@@ -59,7 +59,7 @@ try{for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
  }
  const context=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:900}});
  const page=await context.newPage();for(const path of recipes){await page.goto(origin+path);assert.ok(await page.locator('[data-guide]').isVisible());}
-  await page.goto(origin+'/developers');assert.equal(await page.locator('[data-guide]:visible').count(),13);await context.close();
+  await page.goto(origin+'/developers');assert.equal(await page.locator('[data-guide]:visible').count(),15);await context.close();
  }finally{await browser.close();}
 }}finally{await new Promise(done=>server.close(done));await writeFile(resolve(out,'recipe-results.json'),JSON.stringify(results,null,2));}
 console.log('Permanent recipe browser checks:',results.length,'passed; screenshots retained, no payments or seller probes.');
