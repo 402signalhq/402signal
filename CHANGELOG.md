@@ -11,6 +11,14 @@ server. The format follows Keep a Changelog; dates are UTC.
   outcome and `new_payment_allowed: false` instead of the coarse unknown
   outcome. The private response stays sealed behind the key; pending or
   uncertain identities are unchanged. New miss reason `authorization_used`.
+- MPP challenges are observed on every check (`live402/mpp_offers.py`): each
+  `WWW-Authenticate: Payment` challenge is parsed for its method, intent and
+  request terms. A classified `charge` on Tempo (`eip155:4217`, new rail
+  `tempo`) or an EVM chain becomes a payment option with scheme `mpp-charge`,
+  so an MPP-only seller reports live, payable and a selected payment; session
+  and subscription terms (unit price, suggested deposit, period) are returned
+  as observed terms in `mpp_offers`, never as a fixed price; unknown methods
+  stay visible as unclassified. Signed v4 route binding stays x402 exact.
 - Observed EVM networks beyond Base: seller offers on Polygon, Arbitrum One,
   Monad, World Chain, X Layer, BNB Smart Chain, HyperEVM, Ethereum, OP
   Mainnet and Avalanche are classified by their exact CAIP-2 id, priced in
