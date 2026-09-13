@@ -25,3 +25,7 @@ A check credit is an operator-issued hashed token sent as `X-402Signal-Trial`. I
 - Rows are labeled `traffic_class=sponsored` and never move public reliability data (`last_success_402`, `n_7d`).
 - Once credits are spent, the same request returns the real $0.003 / $0.005 payment challenge. `search_depth=thorough` is rejected on credits.
 - Check your own balance any time: `GET /keys/usage` with the same `X-402Signal-Trial` header returns `credits.remaining`, `used`, `ceiling` and `expires_at`. Send `X-402Signal-Key` on the same request to see whether an admission key is recognized and the ingress and unpaid capacities it carries. The answer covers only the credentials you present; there is no listing.
+
+## Change alerts (admission key)
+
+With an admission key you can subscribe a webhook to the sellers you depend on: `POST /alerts` with your `url`, up to 20 `hosts` and the `events` you want (`price`, `recipient`, `liveness`). Deliveries are signed, at least once, and fire on the same public observations the endpoint pages count. See [Change alerts](alerts.md).

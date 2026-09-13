@@ -1285,7 +1285,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "post": {
                     "operationId": "createAlert",
                     "tags": ["Keys"],
-                    "summary": "Subscribe a webhook to observed price, recipient and liveness changes for up to 20 hosts",
+                    "summary": "Subscribe a webhook to observed seller changes",
                     "description": (
                         "Alerts fire on the same public observations the /endpoints pages count: a change is reported when a "
                         "check observed it, never from a catalog feed alone. The webhook must be public HTTPS with public DNS; "
@@ -1331,7 +1331,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "delete": {
                     "operationId": "deleteAlert",
                     "tags": ["Keys"],
-                    "summary": "Remove a subscription",
+                    "summary": "Remove one alert subscription",
                     "responses": {"204": {"description": "Removed."}, "401": {"description": "key_required."}, "404": {"description": "subscription_not_found."}},
                 },
             },
@@ -1339,7 +1339,8 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "post": {
                     "operationId": "testAlert",
                     "tags": ["Keys"],
-                    "summary": "Deliver a signed 402signal.ping now; a 2xx re-enables a subscription disabled after failures",
+                    "summary": "Send a signed test ping now",
+                    "description": "Delivers a 402signal.ping to the webhook immediately. A 2xx answer re-enables a subscription that was disabled after consecutive failures.",
                     "parameters": [
                         {"in": "path", "name": "id", "required": True, "schema": {"type": "string", "pattern": "^[0-9a-f]{16}$"}},
                         {"$ref": "#/components/parameters/AdmissionKey"},

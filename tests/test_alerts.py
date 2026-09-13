@@ -66,12 +66,12 @@ class AlertsTests(unittest.TestCase):
         history.reset()
         shadow.reset()
         self.sent = []
-        self.fail = False
+        self.post_fails =False
         self.status = 200
 
         def fake_post(url, body, headers, timeout):
             self.sent.append((url, body, dict(headers)))
-            if self.fail:
+            if self.post_fails:
                 raise OSError("connection refused")
             return self.status
 
@@ -236,7 +236,7 @@ class AlertsTests(unittest.TestCase):
         created = self._create()
         t1 = int(time.time()) + 100
         history.record_probe(URL, _snap(True, PAYTO_A, amount="20000", ts=t1))
-        self.fail = True
+        self.post_fails =True
         self.assertEqual(alerts.scan(now=t1 + 5), 1)
         detail = self._call("GET", "/alerts/" + created["id"])[2]
         self.assertEqual((detail["consecutive_failures"], detail["active"]), (1, True))
@@ -250,7 +250,7 @@ class AlertsTests(unittest.TestCase):
         detail = self._call("GET", "/alerts/" + created["id"])[2]
         self.assertEqual((detail["active"], detail["disabled"]["reason"], detail["consecutive_failures"]), (False, "delivery_failed", alerts.MAX_FAILURES))
         self.assertEqual(alerts.scan(now=clock + alerts.BACKOFF_MAX_S + 1), 0)
-        self.fail = False
+        self.post_fails =False
         status, _, out = self._call("POST", "/alerts/%s/test" % created["id"])
         self.assertEqual((status, out["delivered"], out["status"], out["active"]), (200, True, 200, True))
         self.assertEqual(self.sent[-1][2]["X-402Signal-Event"], "402signal.ping")
