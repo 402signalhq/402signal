@@ -53,7 +53,7 @@
         "status": 402,
         "latency_ms": 36,
         "has_402_challenge": true,
-        "payTo": "HCM423cyKYVUoq9GvmqUphZwYVB6M2wez34i9jzSewLy"
+        "payTo": "C8qDYG8NTyvdY85gvGfs1WajwGhiLu6f1vi3JaG1r1iA"
       },
       "accepts": [
         {
@@ -61,7 +61,7 @@
           "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
           "amount": "10000",
-          "payTo": "HCM423cyKYVUoq9GvmqUphZwYVB6M2wez34i9jzSewLy",
+          "payTo": "C8qDYG8NTyvdY85gvGfs1WajwGhiLu6f1vi3JaG1r1iA",
           "maxTimeoutSeconds": 60
         }
       ]

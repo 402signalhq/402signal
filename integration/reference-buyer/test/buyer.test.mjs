@@ -854,7 +854,7 @@ test("POST operator policy refuses unreviewed bodies before journal reservation"
   }
 });
 
-const LIVE_ROUTER_PAYEE = "0xb18fc2275f36dae99eb215caeff03b431f887d16";
+const LIVE_ROUTER_PAYEE = "0xa2604ae688228af8349363770351bfcec66d4fa0";
 test("real SDK preserves lowercase router offer while checksumming signed authorization", async () => {
   const s = setup({ routerPayTo: LIVE_ROUTER_PAYEE });
   try {
