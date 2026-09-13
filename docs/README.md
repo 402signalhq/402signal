@@ -68,6 +68,7 @@ Aggregate, read-only reports generated from the shadow catalog and probe history
 - [Native MPP charge offer selection and full-response binding](../integration/mpp-client/NATIVE_SELECTION.md)
 - [Explicit native Algorand MPP charge adapter](../integration/mpp-algorand/README.md)
 - [Node/TypeScript client and offline guard](../sdk/route-guard/README.md)
+- [Python client helpers and offline receipt verifier](../sdk/python/README.md)
 - [Reference buyer](../integration/reference-buyer/README.md)
 - [x402 mppx gateway adapter](../integration/mpp-client/README.md)
 - [MCP adapter](../integration/mcp/README.md), [Glama release procedure](glama-release.md), and [tool-description contributor guidance](mcp-tool-descriptions.md)
