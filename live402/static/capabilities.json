@@ -6,19 +6,22 @@
     "label": "Check group offer",
     "buyer_fields": ["url", "buyer_limits", "require_route_binding"],
     "hosted_enablement_env": "BATCH_OBSERVATION_PROFILES",
-    "verifier_package": "route-guard-v0.7.2",
+    "verifier_package": "route-guard-v0.7.3",
     "historical_verifier": "route-guard-v0.7.1"
   },
   "source_baseline": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
   "packages": [
     {
       "tag": "route-guard-v0.7.3",
-      "source_revision": "626c1bdd745a6dcebae7469d2b0448efff4a8bc2",
-      "digest_status": "provisional-until-release",
-      "provisional_pack_sha256": "bb5b49e63b37297b4460c37c6337ff80070988f8103c55ac309549d7d1790f76",
-      "provisional_sums_sha256": "e8502e1f3e7c510fa41f579b65dd64168ac85d105e28b2482e8e4c184442d66d",
-      "distribution": "GitHub release archive; not npm registry",
-      "state": "pending",
+      "published_at": "2026-09-13T14:06:05Z",
+      "source_revision": "58241029bf3a7949c388bf3398279fdf446c2893",
+      "archive": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.3/402signal-route-guard-0.7.3.tgz",
+      "sha256": "bb5b49e63b37297b4460c37c6337ff80070988f8103c55ac309549d7d1790f76",
+      "checksum_file": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.3/SHA256SUMS",
+      "checksum_file_sha256": "e8502e1f3e7c510fa41f579b65dd64168ac85d105e28b2482e8e4c184442d66d",
+      "npm": "@402signal/route-guard@0.7.3",
+      "distribution": "GitHub release archive and npm registry (@402signal/route-guard@0.7.3, provenance)",
+      "state": "published",
       "recipe": "/developers/check-group-offer"
     },
     {
