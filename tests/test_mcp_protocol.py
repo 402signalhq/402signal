@@ -15,6 +15,29 @@ class McpProtocolTests(unittest.TestCase):
         self.assertTrue(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "preview"}}))
         self.assertFalse(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "validate"}}))
         self.assertFalse(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "route"}}))
+        self.assertFalse(mcp.uses_discovery_admission({"jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name": "check"}}))
+        self.assertTrue(mcp.is_paid_call({"jsonrpc": "2.0", "id": 8, "method": "tools/call", "params": {"name": "check"}}))
+
+    def test_check_is_a_paid_alias_of_route_with_the_same_contract(self):
+        names = [tool["name"] for tool in mcp.TOOLS]
+        self.assertEqual(names[:2], ["route", "check"])
+        route, check = mcp.TOOLS[0], mcp.TOOLS[1]
+        self.assertEqual(check["inputSchema"], route["inputSchema"])
+        self.assertEqual(check["outputSchema"], route["outputSchema"])
+        self.assertIn("Alias of route", check["description"])
+        self.assertIn("$0.003", check["description"])
+        body = {'live': True, 'billing': {'settled': True}}
+        with patch('live402.mcp.handle_route', return_value=(200, body, None)) as handled:
+            status, result, _ = mcp.handle_mcp({'jsonrpc': '2.0', 'id': 'check-1', 'method': 'tools/call',
+                'params': {'name': 'check', 'arguments': {'url': 'https://seller.example/api'}}},
+                {'MCP-Protocol-Version': mcp.PROTOCOL_VERSION}, 'https://402signal.com/mcp')
+        self.assertEqual((status, result['id']), (200, 'check-1'))
+        self.assertEqual(result['result']['structuredContent'], body)
+        self.assertEqual(handled.call_args.args[0], {'url': 'https://seller.example/api'})
+        with patch('live402.mcp.handle_route', return_value=(402, {'error': 'payment_required'}, {'X-Test': '1'})):
+            status, result, extra = mcp.handle_mcp({'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call',
+                'params': {'name': 'check', 'arguments': {}}}, {}, 'https://402signal.com/mcp')
+        self.assertEqual((status, extra), (402, {'X-Test': '1'}))
 
     def test_tool_envelopes_preserve_ids_and_error_semantics(self):
         for version in mcp.SUPPORTED_PROTOCOLS:

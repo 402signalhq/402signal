@@ -22,6 +22,13 @@ ROUTE_DESCRIPTION = (
     "(the reference wrapExactAuthorize reports state=binding_unavailable with "
     "keep_calling_route true). Guide: https://402signal.com/developers#route-binding"
 )
+CHECK_DESCRIPTION = (
+    "Alias of route: the same hosted pre-flight check with the same arguments, $0.003 USDC "
+    "checking fee, signed evidence and settlement rules. Agents that look for a check tool "
+    "can call this one; route and check are interchangeable."
+)
+# Tool names that carry the routing fee. Everything else is unpaid.
+PAID_TOOLS = frozenset({"route", "check"})
 PROTOCOL_VERSION = "2025-06-18"
 SUPPORTED_PROTOCOLS = ("2025-03-26", PROTOCOL_VERSION)
 
@@ -264,6 +271,12 @@ TOOLS = [
         "outputSchema": OUTPUT_SCHEMA,
     },
     {
+        "name": "check",
+        "description": CHECK_DESCRIPTION,
+        "inputSchema": INPUT_SCHEMA,
+        "outputSchema": OUTPUT_SCHEMA,
+    },
+    {
         "name": "preview",
         "description": PREVIEW_DESCRIPTION,
         "inputSchema": PREVIEW_INPUT_SCHEMA,
@@ -313,7 +326,7 @@ def is_paid_call(payload: dict) -> bool:
     if payload.get("method") != "tools/call":
         return False
     params = payload.get("params") or {}
-    return isinstance(params, dict) and params.get("name") == "route"
+    return isinstance(params, dict) and params.get("name") in PAID_TOOLS
 
 
 def is_preview_call(payload: dict) -> bool:
@@ -396,7 +409,7 @@ def handle_mcp(payload: dict, headers, resource_url: str) -> tuple[int, dict | N
             url = args.get("url")
             code, body = validate.validate_url(url if isinstance(url, str) else "")
             return 200, _tool_result(req_id, body, code, version), None
-        if name != "route":
+        if name not in PAID_TOOLS:
             return 200, jsonrpc_error(req_id, -32602, "Unknown tool"), None
         code, body, extra = handle_route(args, headers, resource_url, bazaar=payment.BAZAAR_MCP)
         if code == 402:
