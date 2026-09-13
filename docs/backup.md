@@ -10,8 +10,8 @@ must also be retained; never merge its leaves into MainNet.
 Production recovery also requires separately preserved PostgreSQL recovery
 material and continuity evidence. Keep paid admission stopped until every
 acknowledged economic identity and pending or unknown settlement is reconciled.
-Follow the [PostgreSQL authority and instance-fence contract](runbooks/managed-postgres-functions.md)
-before any deliberate authority reactivation. Do not promote the fenced SQLite
+Follow the PostgreSQL authority and instance-fence contract (private operations
+repository) before any deliberate authority reactivation. Do not promote the fenced SQLite
 source, clear the instance fence, or treat a stale backup as current authority.
 The separate lab accounting database is not the router's replay authority.
 
