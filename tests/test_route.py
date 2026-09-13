@@ -404,7 +404,7 @@ class PaywallTests(unittest.TestCase):
         self.assertIn("/llms.txt", devs)
         self.assertIn("/rails", devs)
         self.assertIn("GET /rails", devs)
-        self.assertIn("Buyer-side checks for x402 and MPP", html)
+        self.assertIn("For x402 and MPP payments", html)
         self.assertIn("https://402signal.com/route", devs)
         self.assertIn('"need":"web search"', devs)
         self.assertIn("<code>url</code> for an exact endpoint", devs)
