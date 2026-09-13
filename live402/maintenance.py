@@ -16,6 +16,7 @@ JOBS = (
     ("replay_expire", 60.0),
     ("leaf_outbox_drain", 15.0),
     ("leaf_outbox_prune", 3600.0),
+    ("alerts_scan", 120.0),
 )
 
 _thread: threading.Thread | None = None
@@ -76,6 +77,14 @@ def _leaf_outbox_prune() -> None:
         sys.stderr.write("leaf_outbox_pruned count=%d\n" % removed)
 
 
+def _alerts_scan() -> None:
+    from live402 import alerts
+
+    attempted = alerts.scan()
+    if attempted:
+        sys.stderr.write("alerts_scan deliveries=%d\n" % attempted)
+
+
 _JOB_FUNCS = {
     "session_prune": _session_prune,
     "metrics_flush": _metrics_flush,
@@ -83,6 +92,7 @@ _JOB_FUNCS = {
     "replay_expire": _replay_expire,
     "leaf_outbox_drain": _leaf_outbox_drain,
     "leaf_outbox_prune": _leaf_outbox_prune,
+    "alerts_scan": _alerts_scan,
 }
 
 

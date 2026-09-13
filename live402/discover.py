@@ -586,6 +586,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
         "tags": [
             {"name": "Paid", "description": "x402-gated routes"},
             {"name": "Public", "description": "Catalog, preflight, rails, and liveness"},
+            {"name": "Keys", "description": "Admission keys, check credits and change alerts; each call answers only for the credentials presented"},
         ],
         "paths": {
             "/route": {
@@ -1232,9 +1233,141 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "responses": {"200": {"description": "HTML"}},
                 }
             },
+            "/keys/usage": {
+                "get": {
+                    "operationId": "keysUsage",
+                    "tags": ["Keys"],
+                    "summary": "Your own credit balance and admission-key capacity",
+                    "description": (
+                        "Answers only for the credentials on the request. X-402Signal-Trial (check credit): "
+                        "remaining, used, ceiling, active, expires_at. X-402Signal-Key (admission key): recognized "
+                        "and the ingress / unpaid capacity per policy window. Unknown, malformed or expired credentials "
+                        "read as recognized:false or active:false with HTTP 200; the secret is never echoed. No listing, no minting."
+                    ),
+                    "parameters": [
+                        {"in": "header", "name": "X-402Signal-Trial", "required": False, "schema": {"type": "string"}, "description": "Check credit token."},
+                        {"$ref": "#/components/parameters/AdmissionKeyOptional"},
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": "Status of the presented credentials.",
+                            "content": {"application/json": {"schema": {
+                                "type": "object",
+                                "properties": {
+                                    "credits": {"type": "object", "properties": {
+                                        "presented": {"type": "boolean"}, "recognized": {"type": "boolean"}, "active": {"type": "boolean"},
+                                        "remaining": {"type": "integer"}, "used": {"type": "integer"}, "ceiling": {"type": "integer"},
+                                        "expires_at": {"type": ["string", "null"]}}},
+                                    "key": {"type": "object", "properties": {
+                                        "presented": {"type": "boolean"}, "recognized": {"type": "boolean"},
+                                        "capacity": {"type": "object", "properties": {"ingress": {"type": "integer"}, "unpaid": {"type": "integer"}}},
+                                        "window_seconds": {"type": "integer"}}},
+                                },
+                            }}},
+                        }
+                    },
+                }
+            },
+            "/alerts": {
+                "get": {
+                    "operationId": "listAlerts",
+                    "tags": ["Keys"],
+                    "summary": "Your change-alert subscriptions",
+                    "parameters": [{"$ref": "#/components/parameters/AdmissionKey"}],
+                    "responses": {
+                        "200": {"description": "Subscriptions owned by the key (no secrets) and the limits.",
+                                "content": {"application/json": {"schema": {"type": "object", "properties": {
+                                    "subscriptions": {"type": "array", "items": {"$ref": "#/components/schemas/AlertSubscription"}},
+                                    "limits": {"type": "object"}}}}}},
+                        "401": {"description": "key_required: no recognized X-402Signal-Key on the request."},
+                    },
+                },
+                "post": {
+                    "operationId": "createAlert",
+                    "tags": ["Keys"],
+                    "summary": "Subscribe a webhook to observed seller changes",
+                    "description": (
+                        "Alerts fire on the same public observations the /endpoints pages count: a change is reported when a "
+                        "check observed it, never from a catalog feed alone. The webhook must be public HTTPS with public DNS; "
+                        "private, loopback and link-local targets are refused at creation and on every delivery. Deliveries are "
+                        "signed (X-402Signal-Signature: t=<unix>,v1=<hex HMAC-SHA256 of '<t>.<body>'>) with a per-subscription "
+                        "secret returned once, and are at least once. Up to 10 subscriptions per key."
+                    ),
+                    "parameters": [{"$ref": "#/components/parameters/AdmissionKey"}],
+                    "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                        "type": "object", "required": ["url", "hosts"],
+                        "properties": {
+                            "url": {"type": "string", "format": "uri", "maxLength": 512, "example": "https://hooks.example.com/402signal"},
+                            "hosts": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"type": "string"}, "example": ["api.example.com"]},
+                            "events": {"type": "array", "items": {"type": "string", "enum": ["price", "recipient", "liveness"]},
+                                       "description": "Defaults to all three."},
+                        },
+                    }}}},
+                    "responses": {
+                        "201": {"description": "Created. signing_secret is shown once.",
+                                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AlertSubscription"}}}},
+                        "400": {"description": "url_required, url_not_public_https, hosts_required, invalid_host, too_many_hosts or invalid_events."},
+                        "401": {"description": "key_required."},
+                        "409": {"description": "too_many_subscriptions."},
+                    },
+                },
+            },
+            "/alerts/{id}": {
+                "parameters": [
+                    {"in": "path", "name": "id", "required": True, "schema": {"type": "string", "pattern": "^[0-9a-f]{16}$"}},
+                    {"$ref": "#/components/parameters/AdmissionKey"},
+                ],
+                "get": {
+                    "operationId": "getAlert",
+                    "tags": ["Keys"],
+                    "summary": "One subscription with its last 20 deliveries",
+                    "responses": {
+                        "200": {"description": "Subscription plus deliveries (time, kind, HTTP status, event count, error class).",
+                                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AlertSubscription"}}}},
+                        "401": {"description": "key_required."},
+                        "404": {"description": "subscription_not_found, including another key's subscription."},
+                    },
+                },
+                "delete": {
+                    "operationId": "deleteAlert",
+                    "tags": ["Keys"],
+                    "summary": "Remove one alert subscription",
+                    "responses": {"204": {"description": "Removed."}, "401": {"description": "key_required."}, "404": {"description": "subscription_not_found."}},
+                },
+            },
+            "/alerts/{id}/test": {
+                "post": {
+                    "operationId": "testAlert",
+                    "tags": ["Keys"],
+                    "summary": "Send a signed test ping now",
+                    "description": "Delivers a 402signal.ping to the webhook immediately. A 2xx answer re-enables a subscription that was disabled after consecutive failures.",
+                    "parameters": [
+                        {"in": "path", "name": "id", "required": True, "schema": {"type": "string", "pattern": "^[0-9a-f]{16}$"}},
+                        {"$ref": "#/components/parameters/AdmissionKey"},
+                    ],
+                    "responses": {
+                        "200": {"description": "delivered, status, error and active.",
+                                "content": {"application/json": {"schema": {"type": "object", "properties": {
+                                    "delivered": {"type": "boolean"}, "status": {"type": ["integer", "null"]},
+                                    "error": {"type": ["string", "null"]}, "active": {"type": "boolean"}}}}}},
+                        "401": {"description": "key_required."},
+                        "404": {"description": "subscription_not_found."},
+                    },
+                }
+            },
         },
         "components": {
             "parameters": {
+                "AdmissionKey": {
+                    "name": "X-402Signal-Key", "in": "header", "required": True,
+                    "schema": {"type": "string"},
+                    "description": "Admission key issued by the operator. Every Keys call answers only for this key's own rows.",
+                },
+                "AdmissionKeyOptional": {
+                    "name": "X-402Signal-Key", "in": "header", "required": False,
+                    "schema": {"type": "string"},
+                    "description": "Admission key issued by the operator.",
+                },
                 "ReplayKey": {
                     "name": "Replay-Key", "in": "header", "required": False,
                     "schema": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
@@ -1256,6 +1389,27 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 },
             },
             "schemas": {
+                "AlertSubscription": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "url": {"type": "string"},
+                        "hosts": {"type": "array", "items": {"type": "string"}},
+                        "events": {"type": "array", "items": {"type": "string"}},
+                        "created_at": {"type": "string"},
+                        "active": {"type": "boolean"},
+                        "consecutive_failures": {"type": "integer"},
+                        "last_delivery_at": {"type": ["string", "null"]},
+                        "last_status": {"type": ["integer", "null"]},
+                        "next_attempt_at": {"type": "string"},
+                        "disabled": {"type": "object", "properties": {"at": {"type": "string"}, "reason": {"type": "string"}}},
+                        "signing_secret": {"type": "string", "description": "Only in the creation response."},
+                        "hosts_known": {"type": "object", "description": "Only in the creation response: whether each host has catalog listings today."},
+                        "deliveries": {"type": "array", "description": "Only on GET /alerts/{id}.", "items": {"type": "object", "properties": {
+                            "id": {"type": "string"}, "at": {"type": "string"}, "kind": {"type": "string", "enum": ["alerts", "ping"]},
+                            "status": {"type": ["integer", "null"]}, "events": {"type": "integer"}, "error": {"type": ["string", "null"]}}}},
+                    },
+                },
                 "ValidateResult": {
                     "type": "object",
                     "properties": {

@@ -583,6 +583,8 @@ class Handler(SimpleHTTPRequestHandler):
             return "attestation"
         if path == "/keys/usage":
             return "keys"
+        if path == "/alerts" or path.startswith("/alerts/"):
+            return "alerts"
         if path in HUMAN_PAGES or path in STATIC_FILES or path in HUMAN_DYNAMIC_PATHS:
             return "human"
         if path == "/endpoints" or path.startswith("/endpoints/"):
@@ -651,7 +653,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _cors(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, DELETE, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers",
             "Content-Type, Replay-Key, Replay-Only, X-402Signal-Key, MCP-Protocol-Version, PAYMENT-SIGNATURE, PAYMENT-PAYLOAD, X-PAYMENT, PAYMENT-RESPONSE, Algorand-Sender, X-Algorand-Sender",
@@ -844,6 +846,16 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_response(204)
         self._cors()
         self.end_headers()
+
+    def do_DELETE(self) -> None:
+        if self._redirect_www():
+            return
+        if self._deny_private_store():
+            return
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/alerts/"):
+            return self._alerts(parsed.path, "DELETE")
+        return self._close_error(404, "not found")
 
     def _rewrite_static_path(self) -> bool:
         parsed = urlparse(self.path)
@@ -1057,6 +1069,8 @@ class Handler(SimpleHTTPRequestHandler):
 
             code, body, ctype, extra = pq_http.handle(parsed.path)
             return self._bytes(code, body, ctype, extra)
+        if parsed.path == "/alerts" or parsed.path.startswith("/alerts/"):
+            return self._alerts(parsed.path, "GET")
         if parsed.path == "/keys/usage":
             if not self._public_allowed("keys"):
                 return self._json(429, {"error": "rate limit"})
@@ -1169,6 +1183,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._post_mcp()
         if parsed.path == "/validate":
             return self._post_validate()
+        if parsed.path == "/alerts" or parsed.path.startswith("/alerts/"):
+            return self._alerts(parsed.path, "POST")
         if parsed.path != "/route":
             self._close_unread_body()
             return self._close_error(404, "not found")
@@ -1261,6 +1277,42 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(400, {"error": "url must be a string", "miss_reason": "invalid_need"})
         code, body = validate.validate_url(url if isinstance(url, str) else "")
         return self._json(code, body, extra_headers={"Cache-Control": "no-store"})
+
+    def _alerts(self, path: str, method: str) -> None:
+        """Key-scoped change alerts. Every verb answers only for the presented key's own rows."""
+        from live402 import alerts
+
+        def refuse(code: int, payload: dict) -> None:
+            if method == "POST":
+                self._close_unread_body()
+            return self._json(code, payload, alerts.NO_STORE)
+
+        if not self._public_allowed("alerts"):
+            return refuse(429, {"error": "rate limit"})
+        owner = alerts.owner_of(self.headers, client_ip(self))
+        if owner is None:
+            return refuse(401, {"error": "key_required", "hint": alerts.KEY_HINT})
+        parts = [p for p in path.split("/") if p]
+        try:
+            if method == "GET" and len(parts) == 1:
+                return self._json(200, {"subscriptions": alerts.list_for(owner), "limits": alerts.limits()}, alerts.NO_STORE)
+            if method == "GET" and len(parts) == 2:
+                return self._json(200, alerts.get(owner, parts[1]), alerts.NO_STORE)
+            if method == "POST" and len(parts) == 1:
+                payload = self._read_json_body()
+                if payload is None:
+                    return
+                return self._json(201, alerts.create(owner, payload), alerts.NO_STORE)
+            if method == "POST" and len(parts) == 3 and parts[2] == "test":
+                if self.headers.get("Content-Length") and self._read_json_body() is None:
+                    return
+                return self._json(200, alerts.ping(owner, parts[1]), alerts.NO_STORE)
+            if method == "DELETE" and len(parts) == 2:
+                alerts.delete(owner, parts[1])
+                return self._json(204, None, alerts.NO_STORE)
+        except alerts.AlertError as exc:
+            return refuse(exc.status, exc.body())
+        return refuse(404, {"error": "not found"})
 
 
 def paid_ready_gate_enabled() -> bool:

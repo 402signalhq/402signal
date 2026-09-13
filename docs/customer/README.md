@@ -8,6 +8,7 @@ Start with the task, then select its supported transport and payment profile. Do
 | Exercise a trusted customer callback | [Consumer adapter](../../integration/buyer-checks/example-adapter.mjs) | Fake callback only; caller code is trusted, not sandboxed |
 | Find API candidates | [Preview and tools](https://402signal.com/developers#interfaces) | Free; no fresh seller probe |
 | Inspect your listing/readiness | [Seller guide](sellers.md) | Free exact catalog-listed endpoint check; not a settlement test |
+| Get told when a seller you depend on changes | [Change alerts](alerts.md) | Free with an admission key; signed webhooks on observed price, recipient and liveness changes; not uptime monitoring |
 | Guard an exact purchase | [Guard/client](../../sdk/route-guard/README.md), [reference buyer](../../integration/reference-buyer/README.md) | $0.003 per qualifying hosted observation; buyer-owned payment |
 | Open a hosted session | [Hosted session](https://402signal.com/developers/hosted-session), [start guide](start.md) | $0.005 open; hops $0; not the merchant Session Client |
 | Select native MPP charges | [Base](../../integration/mpp-client/NATIVE.md), [Algorand](../../integration/mpp-algorand/README.md), [full-offer selection](../../integration/mpp-client/NATIVE_SELECTION.md) | Named profiles only; native MPP is not x402 through mppx |
