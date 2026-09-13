@@ -708,7 +708,7 @@ def _explicit_outcome_state(result: tuple) -> str | None:
         return None
     if (billing.get("amount_atomic"), billing.get("display_amount")) not in _BILLING_AMOUNTS:
         return None
-    if billing.get("rail") not in payment.SUPPORTED_RAILS:
+    if billing.get("rail") not in payment.FEE_RAILS:
         return None
     attempted = billing.get("settlement_attempted")
     settled = billing.get("settled")

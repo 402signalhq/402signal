@@ -50,21 +50,21 @@ class ExplicitConstraintTests(unittest.TestCase):
         with self.assertRaises(ConstraintError):
             select.validate_explicit_constraints({"objective": "bestest"})
         with self.assertRaises(ConstraintError):
-            select.validate_explicit_constraints({"prefer_network": "ethereum"})
+            select.validate_explicit_constraints({"prefer_network": "tron"})
         select.validate_explicit_constraints({"objective": "cheapest", "prefer_network": "base"})
 
     def test_invalid_networks_never_become_all(self):
         with self.assertRaises(ConstraintError):
             select.validate_explicit_constraints({"networks": []})
         with self.assertRaises(ConstraintError):
-            select.validate_explicit_constraints({"networks": ["ethereum"]})
+            select.validate_explicit_constraints({"networks": ["tron"]})
         with self.assertRaises(ConstraintError):
-            select.validate_explicit_constraints({"networks": ["solana", "ethereum"]})
+            select.validate_explicit_constraints({"networks": ["solana", "tron"]})
         with self.assertRaises(ConstraintError):
-            select.validate_explicit_constraints({"networks": "ethereum"})
+            select.validate_explicit_constraints({"networks": "tron"})
         select.validate_explicit_constraints({"networks": ["solana"]})
         select.validate_explicit_constraints({"networks": "base,solana"})
-        parsed = select.parse_constraints({"networks": ["ethereum"]})
+        parsed = select.parse_constraints({"networks": ["tron"]})
         self.assertEqual(parsed["rails"], frozenset())
         self.assertIsNotNone(parsed["rails"])
 
@@ -128,7 +128,7 @@ class RouteRejectsMalformedConstraints(unittest.TestCase):
     def test_run_probe_400s(self):
         from live402 import route
 
-        code, body = route.run_probe({"url": "https://example.com/x", "networks": ["ethereum"]})
+        code, body = route.run_probe({"url": "https://example.com/x", "networks": ["tron"]})
         self.assertEqual(code, 400)
         self.assertEqual(body.get("miss_reason"), "invalid_need")
         code, body = route.run_probe({"need": "weather", "objective": "nope"})

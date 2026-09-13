@@ -1189,13 +1189,16 @@ def skip_candidate_url(url: str) -> bool:
     return False
 
 
-PREFER_NETWORKS = ("base", "solana", "algorand")
+from live402 import evm_chains as _evm_chains
+
+# Fee rails first, then the observed EVM chains (stable order for ranking).
+PREFER_NETWORKS = ("base", "solana", "algorand") + _evm_chains.RAILS
 
 
 def normalize_prefer_network(raw) -> str | None:
     if not isinstance(raw, str):
         return None
-    val = raw.strip().lower()
+    val = payment.rail_of_network(raw) or raw.strip().lower()
     if val in PREFER_NETWORKS:
         return val
     return None
@@ -2346,6 +2349,11 @@ def _item_rail(item: dict) -> str:
     for acc in accepts:
         if isinstance(acc, dict):
             nets.append(str(acc.get("network") or ""))
+    # Exact ids first (fee rails, then the observed EVM chains).
+    for net in nets:
+        rail = payment.rail_of_network(net)
+        if rail:
+            return rail
     blob = " ".join(nets).lower()
     if "algorand" in blob:
         return "algorand"
