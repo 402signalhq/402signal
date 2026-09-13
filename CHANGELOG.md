@@ -5,6 +5,7 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Production writer lease moves from the volume lock file to the replay authority (`LIVE402_LEADERSHIP_BACKEND = "postgres"`, the `signal_router` lease functions already in `ops/router-leadership-managed.sql`). Renewed every 5 s, held 15 s by the database clock; a machine that stops renewing stops publishing before anyone else can acquire. First step of the second-machine plan; `file` stays the rollback value.
 - Two developer guides served from the site with `.md` twins: `/developers/alerts` (change alerts: subscribe, payload, signature, failures, management) and `/developers/evidence-record` (the Offer Evidence Record v1). `llms.txt`, `/trust`, `/try` and the report point at them instead of the repository.
 - Website and docs, proof-first: the homepage leads with the signed record
   ("Signed proof of what your agent was offered before it paid"), opens three
