@@ -90,6 +90,13 @@ kill_timeout = "75s"
   # writer lease queues public leaf bytes in the replay authority instead of
   # refusing plain paid checks. The owner migration is installed.
   LIVE402_PQ_OUTBOX = "1"
+  # Shared session store (private runbook session-postgres.md): windows, credits,
+  # private counters, payer days and alert subscriptions live in the replay
+  # authority (signal_session, owner functions installed) so a second machine
+  # sees the same ones; the observation cache stays on the volume. The writer
+  # copies the local file in once on its first lease acquisition. Remove this
+  # line to fall back to the SQLite file (recent rows are not copied back).
+  LIVE402_SESSION_BACKEND = "postgres"
   LIVE402_MAX_HANDLERS = "200"
   LIVE402_MAX_PROCESS_PROBES = "32"
   LIVE402_READY_CACHE_S = "5"
