@@ -86,6 +86,10 @@ kill_timeout = "75s"
   LIVE402_PQ_FALCON_NETWORK = "mainnet"
   # Writer lease and capacity tunables (docs/leadership-lease.md, docs/scale-20m.md).
   LIVE402_LEADERSHIP_BACKEND = "file"
+  # Transparency-leaf outbox (docs/runbooks/leaf-outbox.md): a process without the
+  # writer lease queues public leaf bytes in the replay authority instead of
+  # refusing plain paid checks. The owner migration is installed.
+  LIVE402_PQ_OUTBOX = "1"
   LIVE402_MAX_HANDLERS = "200"
   LIVE402_MAX_PROCESS_PROBES = "32"
   LIVE402_READY_CACHE_S = "5"
