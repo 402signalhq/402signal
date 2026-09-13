@@ -9,6 +9,7 @@ Tool descriptions should help an agent choose and call the right tool without op
 | `preview` | Free catalog discovery by capability; no new seller probe | Use `validate` to check a listed URL, or `route` to apply spending rules to a live selection |
 | `validate` | Free readiness check of one exact catalog-listed HTTPS URL | Use `preview` to find candidates, or `route` for constraints and signed routing evidence |
 | `route` | Live selection against explicit rules; seller purchase remains separate | Use the free tools for discovery or basic listed-endpoint readiness; paid completion needs an x402-capable HTTP client |
+| `check` | The same call as `route` under the name agents look for when they want a pre-flight check; identical schema, fee and result | Same as `route` |
 
 These are tool-selection examples, not paid requests:
 

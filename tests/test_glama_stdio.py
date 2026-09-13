@@ -50,7 +50,7 @@ class GlamaStdioTests(unittest.TestCase):
                     return io.BytesIO(json.dumps(response).encode())
 
                 actual = adapter.forward(request, opener)["result"]["tools"]
-                self.assertEqual([tool["name"] for tool in actual], ["route", "preview", "validate"])
+                self.assertEqual([tool["name"] for tool in actual], ["route", "check", "preview", "validate"])
                 for source, forwarded in zip(mcp.TOOLS, actual):
                     self.assertEqual(forwarded["description"], source["description"])
                     self.assertEqual(forwarded["inputSchema"], source["inputSchema"])
