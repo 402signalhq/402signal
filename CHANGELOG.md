@@ -5,6 +5,8 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- MCP: `check` is a paid alias of `route` with the same schema, fee and
+  result, listed right after `route` in `tools/list` and the manifest.
 - Website: new homepage built around the one-minute try and the two client
   hooks, with the returns table, field numbers and a shorter evidence
   section; the September "State of x402 endpoints" report is published at

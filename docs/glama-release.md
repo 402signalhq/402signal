@@ -33,7 +33,8 @@ service version. The adapter's initial release version is `0.1.0`.
 ## Validation
 
 Run `python -m unittest discover -s tests -p test_glama_stdio.py` for the adapter
-regression tests. Live smoke checks should initialize, list the three real tools,
+regression tests. Live smoke checks should initialize, list the four real tools
+(`check` is an alias of `route` with the same schema and fee),
 call free preview and validate, and confirm that a route call without payment
 returns a payment challenge while a subsequent free call still succeeds.
 Do not provide payment credentials for these checks.
