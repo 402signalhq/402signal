@@ -14,7 +14,7 @@
 <main id="main">
 <section class="hero-v2" id="top"><div class="hero-copy-col"><p class="eyebrow">For x402 and MPP payments</p><h1>Signed proof of what your agent was offered before it paid.</h1><p class="lede">Check the deal before your agent pays. 402Signal checks the endpoint, the price and the recipient at the moment of payment, on x402 and MPP, and hands back a third-party record you can verify offline. Your wallet, your signature, your decision.</p><div class="hero-actions"><a class="btn" href="/developers#route-binding">Add it to your buyer</a><a class="btn secondary" href="/try">Try a sample check</a></div><ul class="audience-row" aria-label="Start by role"><li><a href="/developers#route-binding">Buyers and platforms</a></li><li><a href="/endpoints">Sellers</a></li><li><a href="/trust">Auditors and compliance</a></li></ul></div>
 <figure class="try-card" aria-labelledby="try-title"><figcaption id="try-title">Start in a minute<span>Pick the surface you already have. Nothing is charged until your wallet authorizes the $0.003 checking fee.</span></figcaption><pre class="code"><code># Official x402 client: one hook
-npm install @402signal/route-guard@0.7.3
+npm install @402signal/route-guard@0.7.4
 import { signalGuard } from "@402signal/route-guard/x402";
 client.onBeforePaymentCreation(
   signalGuard({ fetchWithPayment, trustedLogVkey }));
