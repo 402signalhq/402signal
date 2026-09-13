@@ -13,10 +13,10 @@
   "packages": [
     {
       "tag": "route-guard-v0.7.3",
-      "source_revision": "10356f1818f72eab6a7d89045d0ab89f1bf484af",
+      "source_revision": "4cd4d8d004becaf59dd793dc7e4a277906a261e7",
       "digest_status": "provisional-until-release",
-      "provisional_pack_sha256": "8b3597db5a7cb4cb90135c24ffc439a627d0189bd29d351c78f2fc32ce59ffc6",
-      "provisional_sums_sha256": "c3eaf9486aea8270f2814965ed68bd4c05c5257ac68d20da699244076e6a595c",
+      "provisional_pack_sha256": "33b3f220f000fd35c02417db39c02cd38efbd6d68e59e4fc53c529311bf06276",
+      "provisional_sums_sha256": "6c64a1226a9e04e3ace58f3251b0b5bdfd99f4477f75e887e8f1028332503d89",
       "distribution": "GitHub release archive; not npm registry",
       "state": "pending",
       "recipe": "/developers/check-group-offer"

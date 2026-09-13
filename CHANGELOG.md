@@ -5,6 +5,10 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- `@402signal/route-guard`: new `./mpp` export with `mppGuard`, an mppx
+  `onChallenge` hook plus `challenge.received` observer that runs the hosted
+  Check group offer observation for Base USDC charges, verifies the receipt
+  locally and aborts when the live challenge's terms differ.
 - `@402signal/route-guard`: new `./x402` export with `signalGuard`, an
   `onBeforePaymentCreation` hook for the official x402 client that runs the
   hosted check, verifies the receipt locally and aborts mismatched payments.
