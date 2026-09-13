@@ -41,13 +41,20 @@ class VerifyFixtureTests(unittest.TestCase):
             mutate(copy_["pq_trust"]["transparency"])
             return copy_
 
+        def other_root(checkpoint):
+            # Line 2 of a C2SP checkpoint is the base64 root hash.
+            lines = checkpoint.split("\n")
+            root = lines[2]
+            lines[2] = ("A" if root[0] != "A" else "B") + root[1:]
+            return "\n".join(lines)
+
         cases = {
             "leaf hash": lambda tr: tr["receipt"].__setitem__("leaf_hash", "00" * 32),
             "index": lambda tr: tr["receipt"].__setitem__("index", 1),
             "signature": lambda tr: tr["receipt"].__setitem__(
                 "checkpoint", tr["receipt"]["checkpoint"].replace("bMKV", "cMKV")),
             "root": lambda tr: tr["receipt"].__setitem__(
-                "checkpoint", tr["receipt"]["checkpoint"].replace("807Y", "907Y")),
+                "checkpoint", other_root(tr["receipt"]["checkpoint"])),
             "salt": lambda tr: tr["reveal"].__setitem__("salt", "11" * 32),
             "evidence": lambda tr: tr["reveal"]["evidence"]["binding"].__setitem__("selected_index", 1),
             "commitment": lambda tr: tr["reveal"].__setitem__("commitment", "ab" * 32),
@@ -78,6 +85,35 @@ class PrimitiveTests(unittest.TestCase):
         self.assertEqual(canonical({"é": "ü"}), '{"é":"ü"}'.encode("utf-8"))
         with self.assertRaises(ReceiptError):
             canonical({"n": float("inf")})
+
+    def test_decimal_values_lay_out_as_javascript_does(self):
+        # Vectors are JSON.stringify output from Node for the same doubles
+        # (RFC 8785 section 3.2.2.3). The server hashes challenges this way.
+        vectors = [
+            (67234.12, "67234.12"),
+            (1.0, "1"),
+            (-0.0, "0"),
+            (-2.5, "-2.5"),
+            (0.1, "0.1"),
+            (0.000001, "0.000001"),
+            (1e-7, "1e-7"),
+            (1.5e-9, "1.5e-9"),
+            (1e21, "1e+21"),
+            (1.5e22, "1.5e+22"),
+            (1e20, "100000000000000000000"),
+            (123456789012345680000.0, "123456789012345680000"),
+            (9007199254740992.0, "9007199254740992"),
+            (5e-324, "5e-324"),
+            (1.7976931348623157e308, "1.7976931348623157e+308"),
+        ]
+        for value, expected in vectors:
+            self.assertEqual(canonical(value).decode(), expected, repr(value))
+        self.assertEqual(
+            canonical({"example": {"price": 67234.12, "supply": 1.0, "tick": 1e-7}}),
+            b'{"example":{"price":67234.12,"supply":1,"tick":1e-7}}',
+        )
+        with self.assertRaises(ReceiptError):
+            canonical({"n": float("nan")})
 
     def test_inclusion_path_folds_to_the_root(self):
         leaves = [leaf_hash(bytes([i])) for i in range(5)]

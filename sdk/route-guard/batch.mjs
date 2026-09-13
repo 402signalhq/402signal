@@ -28,14 +28,18 @@ const fail = (code = "invalid_binding") => {
 
 const parse = (raw, options = {}) => parseJson(raw, { ...options, fail });
 
+// RFC 8785 with the same number profile as index.mjs: any finite double within
+// plus or minus 2^53, laid out by JSON.stringify; a parsed Fraction hashes by
+// its value.
 function canonical(value, ordinaryNumbers = false, depth = 0) {
   if (depth > 24) fail("invalid_json");
   if (value === null || typeof value === "boolean" || typeof value === "string")
     return JSON.stringify(value);
+  if (value instanceof Fraction) value = value.value;
   if (
     typeof value === "number" &&
     Number.isFinite(value) &&
-    (ordinaryNumbers || Number.isSafeInteger(value))
+    Math.abs(value) <= Number.MAX_SAFE_INTEGER
   )
     return JSON.stringify(value);
   if (Array.isArray(value))

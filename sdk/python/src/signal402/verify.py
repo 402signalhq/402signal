@@ -22,6 +22,7 @@ import hashlib
 import json
 import math
 import re
+from decimal import Decimal
 from typing import Any
 
 from cryptography.exceptions import InvalidSignature
@@ -48,6 +49,38 @@ def _has_lone_surrogate(text: str) -> bool:
     return any(0xD800 <= ord(ch) <= 0xDFFF for ch in text)
 
 
+def _serialize_number(n: float) -> str:
+    """ES6 Number::toString for a finite double (RFC 8785 section 3.2.2.3).
+
+    Python's repr yields the same shortest round-trip digits as JavaScript;
+    only the layout differs (``1e-05`` against ``0.00001``, ``5.0`` against
+    ``5``). The digits are laid out here exactly as JavaScript does, so a
+    challenge or evidence record that carries decimal values hashes to the
+    same bytes as on the server and in the Node guard.
+    """
+    if n == 0:
+        return "0"
+    _sign, raw_digits, exponent = Decimal(repr(abs(n))).as_tuple()
+    digits = list(raw_digits)
+    while len(digits) > 1 and digits[-1] == 0:
+        digits.pop()
+        exponent += 1
+    text = "".join(str(d) for d in digits)
+    k = len(text)
+    point = k + int(exponent)  # value = 0.<text> x 10^point
+    if k <= point <= 21:
+        body = text + "0" * (point - k)
+    elif 0 < point <= 21:
+        body = text[:point] + "." + text[point:]
+    elif -6 < point <= 0:
+        body = "0." + "0" * (-point) + text
+    else:
+        exp = point - 1
+        mantissa = text[0] + ("." + text[1:] if k > 1 else "")
+        body = mantissa + "e" + ("+" if exp >= 0 else "-") + str(abs(exp))
+    return ("-" if n < 0 else "") + body
+
+
 def _serialize(obj: Any) -> str:
     if obj is None:
         return "null"
@@ -66,11 +99,7 @@ def _serialize(obj: Any) -> str:
     if isinstance(obj, float):
         if not math.isfinite(obj):
             raise ReceiptError("invalid evidence")
-        if obj == 0:
-            return "0"
-        if obj.is_integer() and abs(obj) < 1e21:
-            return str(int(obj))
-        return json.dumps(obj, ensure_ascii=True)
+        return _serialize_number(obj)
     if isinstance(obj, list):
         return "[" + ",".join(_serialize(x) for x in obj) + "]"
     if isinstance(obj, dict):

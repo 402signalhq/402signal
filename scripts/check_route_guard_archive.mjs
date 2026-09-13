@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /** Verify a packed route-guard archive, not the source tree.
  *
- * 0.7.3 packed bytes are digest-checked against the published pair before
+ * 0.7.4 packed bytes are digest-checked against the reviewed pair before
  * npm install or import. SHA256SUMS is checked the same way: file digest plus
- * contents vs the tarball hash. Mismatch fails closed. 0.7.3 is published
- * (GitHub release archive and npm registry); the tree must still pack to the
- * same bytes.
+ * contents vs the tarball hash. Mismatch fails closed. Until the 0.7.4 tag is
+ * uploaded the capabilities row is pending and carries the same pair as
+ * provisional digests; after release the tree must still pack to those bytes.
  * Default verify: current chk_grp without buyer merchant_profile, historical
  * leaves that still name merchant_profile, and refuse-on-drift.
  * --historical-verifier tests the published 0.7.1 path: historical leaves
@@ -21,12 +21,13 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
-const CANDIDATE_TAG = "route-guard-v0.7.3";
-const CANDIDATE_TGZ = "402signal-route-guard-0.7.3.tgz";
+const CANDIDATE_TAG = "route-guard-v0.7.4";
+const CANDIDATE_TGZ = "402signal-route-guard-0.7.4.tgz";
+// Reproduced twice locally with npm 11.19.0 on the release branch tip.
 const REVIEWED_PACK_SHA256 =
-  "bb5b49e63b37297b4460c37c6337ff80070988f8103c55ac309549d7d1790f76";
+  "164a1328ddcba856b667b74b43573bfb455016144cef84858ae66054be64b5ff";
 const REVIEWED_SUMS_SHA256 =
-  "e8502e1f3e7c510fa41f579b65dd64168ac85d105e28b2482e8e4c184442d66d";
+  "d414db64f83d5f68013451c912c7c6a6c03aa32d95d4007ac5b942b353abeaa9";
 
 const arguments_ = process.argv.slice(2);
 let candidate = CANDIDATE_TGZ;
@@ -128,7 +129,7 @@ try {
   const expected = reviewedCandidateDigests();
   const archive = await materialize(candidate, work, "candidate.tgz");
   const sha256 = sha256File(archive);
-  assert.equal(sha256, expected.pack, "candidate 0.7.3 digest must match the reviewed expected digest before install");
+  assert.equal(sha256, expected.pack, "candidate 0.7.4 digest must match the reviewed expected digest before install");
 
   const sumsSpec = checksumSpec(candidate);
   if (!sumsSpec.startsWith("https://")) {
@@ -146,7 +147,7 @@ try {
   const currentDir = mkdtempSync(join(work, "current-"));
   const { verifyBatchRoute } = await install(archive, currentDir);
   const version = packageVersion(currentDir);
-  assert.equal(version, "0.7.3");
+  assert.equal(version, "0.7.4");
   const codecs = new Set();
   for (const v of chkGrp) {
     assert.equal(Object.hasOwn(v.request, "merchant_profile"), false);

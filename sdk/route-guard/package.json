@@ -1,6 +1,6 @@
 {
   "name": "@402signal/route-guard",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "private": false,
   "type": "module",
   "description": "402Signal buyer-owned routing client, private response recovery and local evidence verifier.",
@@ -50,6 +50,7 @@
     "file-store.d.ts",
     "internal-json.mjs",
     "LICENSE",
+    "NOTICE",
     "examples/search.ts",
     "batch.mjs",
     "batch.d.ts",
@@ -74,5 +75,5 @@
     "url": "https://github.com/402signalhq/402signal.git",
     "directory": "sdk/route-guard"
   },
-  "license": "MIT"
+  "license": "Apache-2.0"
 }
