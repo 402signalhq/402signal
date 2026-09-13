@@ -867,8 +867,14 @@ class StateMachineReplayTests(unittest.TestCase):
                 bazaar=payment.BAZAAR_MCP,
             )
         self.assertEqual(first[0], 200)
-        self.assertEqual(second[0], 503)
-        self.assertEqual(second[1]["billing"]["settlement_state"], "unknown")
+        # The economic identity is final, so the payer learns its state
+        # (keyless recovery, minimal) but never the endpoint-scoped output.
+        self.assertEqual(second[0], 409)
+        self.assertEqual(second[1]["error"], "authorization_already_used")
+        self.assertEqual(second[1]["billing"]["settlement_state"], "settled")
+        self.assertIs(second[1]["new_payment_allowed"], False)
+        self.assertNotIn("target", second[1])
+        self.assertNotIn("url", second[1])
         self.assertEqual(len(verify_calls), 1)
         self.assertEqual(len(settle_calls), 1)
 

@@ -5,6 +5,12 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Keyless recovery, minimal: repeating a payment authorization whose replay
+  identity is already final, without a `Replay-Key`, returns HTTP 409
+  `authorization_already_used` with `replay.state`, the matching `billing`
+  outcome and `new_payment_allowed: false` instead of the coarse unknown
+  outcome. The private response stays sealed behind the key; pending or
+  uncertain identities are unchanged. New miss reason `authorization_used`.
 - Observed EVM networks beyond Base: seller offers on Polygon, Arbitrum One,
   Monad, World Chain, X Layer, BNB Smart Chain, HyperEVM, Ethereum, OP
   Mainnet and Avalanche are classified by their exact CAIP-2 id, priced in
