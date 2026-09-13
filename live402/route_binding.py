@@ -1,8 +1,12 @@
 """Opt-in proof-carrying routes. Evidence of observed terms, never spend authority.
 
-The v1 quote profile hashes the entire observed x402 v2 envelope. It intentionally
-rejects floats, unsafe integers, redirects and ambiguous JSON. Dynamic envelopes
-may fail to match; no field is silently ignored to improve compatibility.
+The v1 quote profile hashes the entire observed x402 v2 envelope. Numbers are
+finite and within plus or minus 2^53, serialized as RFC 8785 requires (the ES6
+number layout, which is what JSON.stringify emits), so a challenge whose
+bazaar example carries decimal prices hashes to the same bytes in Python and
+JavaScript. Unsafe integers, non-finite values, redirects and ambiguous JSON
+are rejected. Dynamic envelopes may fail to match; no field is silently
+ignored to improve compatibility.
 """
 
 from __future__ import annotations
@@ -49,7 +53,7 @@ def strict_json(raw: str | bytes):
         _fail("invalid_json")
 
 
-def _walk(value, depth=0, *, floats=False):
+def _walk(value, depth=0, *, floats=True):
     if depth > MAX_DEPTH:
         _fail("invalid_json")
     if type(value) is str:
@@ -80,9 +84,9 @@ def _walk(value, depth=0, *, floats=False):
 
 
 def canonical(value) -> bytes:
-    """RFC8785 subset with safe integers only; identical in Python and JS."""
+    """RFC8785 with finite numbers within plus or minus 2^53; identical in Python and JS."""
     try:
-        _walk(value)
+        _walk(value, floats=True)
         raw = jcs.canonicalize(value)
         if len(raw) > MAX_JSON_BYTES:
             _fail("invalid_json")

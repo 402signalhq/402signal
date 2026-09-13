@@ -67,9 +67,11 @@ class GetResourceBindingTests(unittest.TestCase):
             with self.assertRaises(rb.BindingError): rb.build(result,FIXTURE["request"],now=1001)
 
     def test_no_extension_float_or_conflicting_channel_expansion(self):
-        for change in ({"extensions":{"new-spending-mode":{}}},{"extra":1},{"error":1.5}):
+        # A finite decimal is a number under RFC 8785; only unsafe magnitudes and non-finite values fail.
+        for change in ({"extensions":{"new-spending-mode":{}}},{"extra":1},{"error":2.0**60},{"error":float("inf")}):
             env={**FIXTURE["challenge"],**change}
             with self.assertRaises(rb.BindingError): rb.validate_envelope(env)
+        rb.validate_envelope({**FIXTURE["challenge"],"error":1.5})
         env=copy.deepcopy(FIXTURE["challenge"])
         env["extensions"]={"bazaar":{},"builder-code":{"info":{"a":"app_one"}},"payment-identifier":{"info":{"required":False}}}
         rb.validate_envelope(env)

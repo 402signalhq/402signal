@@ -124,6 +124,40 @@ class BindingTests(unittest.TestCase):
             self.assertNotIn(result["payTo"], json.dumps(public))
             self.assertNotIn("weather", json.dumps(public))
 
+    def test_decimal_values_in_the_challenge_bind_and_hash_like_javascript(self):
+        # The same envelope canonicalized by Node (sorted keys, JSON.stringify
+        # numbers) hashed to this digest on 2026-09-13; Python must agree.
+        result = bound_winner("base")
+        env = copy.deepcopy(result["envelope"])
+        env["resource"] = {"url": result["url"]}
+        env["extensions"] = {"bazaar": {"info": {"output": {"example": {
+            "coins": {"bitcoin": {"price": 67234.12, "change24hPct": 1.42},
+                      "solana": {"price": 148.2, "change24hPct": -0.65}},
+            "tiny": 2.5e-5, "big": 9007199254740000.0, "whole": 5.0,
+        }}}}}
+        acc = next(a for a in payment.payment_required("https://example.com/api")["accepts"]
+                   if payment.rail_of_accept(a) == "base")
+        acc = {k: v for k, v in acc.items() if k != "extra"}
+        acc["amount"] = "10000"
+        pinned = {"x402Version": 2, "accepts": [acc], "resource": {"url": "https://example.com/api"},
+                  "extensions": env["extensions"]}
+        self.assertEqual(rb.digest(pinned), "b484fde29d3a2f9ee2aed00f5d687544daa9f17f59079e174632531683cdf4fe")
+        self.assertIn(b'"tiny":0.000025', rb.canonical(pinned))
+        self.assertIn(b'"whole":5}', rb.canonical(pinned))
+        result["envelope"] = env
+        result["binding_observation"]["quote_sha256"] = rb.digest(env)
+        result["decision_binding"] = rb.build(result, self.body)
+        self.assertEqual(result["decision_binding"]["quote_sha256"], rb.digest(env))
+        signed = receipt.attach_to_route(result, self.body)
+        self.assertEqual(self.check(signed, envelope=env), env["accepts"][0])
+        drifted = copy.deepcopy(env)
+        drifted["extensions"]["bazaar"]["info"]["output"]["example"]["coins"]["bitcoin"]["price"] = 67234.13
+        with self.assertRaises(rb.BindingError):
+            self.check(signed, envelope=drifted)
+        for bad in (float("inf"), 2.0 ** 53 + 2, 1e300):
+            with self.subTest(bad=bad), self.assertRaises(rb.BindingError):
+                rb.canonical({**env, "extensions": {"bazaar": {"n": bad}}})
+
     def test_every_quote_field_and_resource_mutation_blocks(self):
         result = self.issue()
         for key, value in {
@@ -473,12 +507,11 @@ class BindingTests(unittest.TestCase):
         with self.assertRaises(rb.BindingError):
             self.check(result)
 
-    def test_display_binding_rejects_bool_and_float_integer_coercion(self):
+    def test_display_binding_rejects_bool_coercion_and_reads_integral_floats_as_the_same_number(self):
         result = self.issue()
         for field, value in (
             ("selected_index", False),
-            ("selected_index", 0.0),
-            ("observed_at", float(result["decision_binding"]["observed_at"])),
+            ("observed_at", True),
         ):
             # Real JSON transport removes producer-side object aliasing. Change
             # only the untrusted display field, leaving signed evidence intact.
@@ -489,6 +522,17 @@ class BindingTests(unittest.TestCase):
                 self.assertRaises(rb.BindingError),
             ):
                 self.check(changed)
+        # Under RFC 8785 a JSON number is a number: 0.0 and 0 canonicalize to the
+        # same bytes, exactly as JSON.parse would read them, so the display copy
+        # still equals the signed binding.
+        for field, value in (
+            ("selected_index", 0.0),
+            ("observed_at", float(result["decision_binding"]["observed_at"])),
+        ):
+            changed = json.loads(json.dumps(result))
+            changed["decision_binding"][field] = value
+            with self.subTest(field=field, value=value):
+                self.assertEqual(self.check(changed), result["envelope"]["accepts"][0])
 
     def test_concurrent_unprovable_binding_does_not_duplicate_work(self):
         started, release = threading.Event(), threading.Event()
