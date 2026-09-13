@@ -38,7 +38,9 @@ class CodeBlocks(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         if tag == "code":
-            self.current = []
+            # data-example="other" marks a documented body that is not a /route
+            # request (for example an alerts subscription or a webhook payload).
+            self.current = None if dict(attrs).get("data-example") == "other" else []
 
     def handle_data(self, text):
         if self.current is not None:
