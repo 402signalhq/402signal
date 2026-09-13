@@ -16,6 +16,8 @@ FOOTER = (
     ("/openapi.json", "OpenAPI", False),
     ("/mcp.json", "MCP", False),
     ("/transparency", "Transparency", False),
+    ("/status", "Status", False),
+    ("/security", "Security", False),
     ("/contact", "Contact", False),
     ("/contact#security", "Security reporting", False),
     ("/privacy", "Privacy", False),

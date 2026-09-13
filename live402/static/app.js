@@ -38,6 +38,32 @@
     }
     $("demo-scenario").addEventListener("change", renderDemo); renderDemo();
   }
+  // Status page: read the two public readiness endpoints. Booleans only, no retries.
+  if ($("status-live")) {
+    const label = value => value === true ? "Ready" : value === false ? "Not ready" : "Unknown";
+    async function readiness(path) {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch(path, {credentials: "omit", redirect: "error", cache: "no-store", signal: controller.signal});
+        const text = await response.text();
+        if (text.length > 4096) return null;
+        const parsed = JSON.parse(text);
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+      } catch (_) { return null; }
+      finally { window.clearTimeout(timer); }
+    }
+    (async () => {
+      const [health, ready] = await Promise.all([readiness("/health"), readiness("/ready")]);
+      const checks = ready && ready.checks && typeof ready.checks === "object" ? ready.checks : {};
+      setText("status-health", health ? label(health.ok === true) : "Unreachable");
+      setText("status-ready", ready ? label(ready.ok === true) : "Unreachable");
+      setText("status-replay", ready ? label(checks.replay_ledger === true) : "Unknown");
+      setText("status-pq", ready ? label(checks.pq_log === true) : "Unknown");
+      setText("status-storage", ready ? label(checks.catalog === true && checks.history === true && checks.admission === true && checks.storage === true) : "Unknown");
+      setText("status-at", new Date().toISOString().replace(/\.\d{3}Z$/, "Z") + " (your clock)");
+    })();
+  }
   // All task guides remain readable without JavaScript. This narrows the view.
   const guidePanels = [...document.querySelectorAll('[data-guide]')];
   if (guidePanels.length) {

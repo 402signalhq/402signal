@@ -16,8 +16,9 @@ already fenced.
 - Replay backend is already `LIVE402_REPLAY_BACKEND=postgres` with
   `LIVE402_REPLAY_POSTGRES_API=functions-v1`. DSN and 32-hex authority id are
   already on the writer. `sslmode=verify-full` is required.
-- Authority: Fly Managed Postgres cluster **`402signal-replay-v2`** (`*.flympg.net`),
-  `iad`, 6PN, no public HTTP. Do **not** create a second cluster.
+- Authority: Fly Managed Postgres cluster **`402signal-replay-v3`** (`*.flympg.net`),
+  `iad`, 6PN, no public HTTP. Do **not** create a second cluster. (Basic plan since
+  2026-09-13; the Starter cluster `402signal-replay-v2` served from the cutover until then.)
 - `/health` and `/ready` are 200 when `checks.replay_ledger` is true. The DSN
   **belongs** on this writer now.
 - `/data/live402-replay.sqlite` remains as **fenced source evidence**
