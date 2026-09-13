@@ -14,7 +14,15 @@ server. The format follows Keep a Changelog; dates are UTC.
   1,000 listed-URL checks for up to 30 days.
 - MCP tool descriptions cut to about a third of their length.
 - `scripts/endpoint_report.py` renders the "State of x402 endpoints" report
-  from catalog and probe history copies.
+  from catalog and probe history copies; the September 2026 edition is
+  published under `docs/insights/`.
+- README, homepage and `llms.txt` now open with a one-minute start (unpaid
+  curl, the x402 hook, evaluation credits) and document the `./x402` hook.
+- The provisional route-guard 0.7.3 pack digest is re-pinned because the
+  `x402` adapter joined the package.
+- `ops/loadtest/`: k6 scripts for the free and paid paths and a disposable
+  free-path staging config; `docs/load-test.md` records the procedure and
+  results.
 - Repository hygiene: external uptime probe with incident issues, OpenSSF
   Scorecard, npm publish workflow with provenance, security and contributing
   policies, issue and pull request templates.
