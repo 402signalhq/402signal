@@ -69,11 +69,11 @@
               "type": "402signal.route_decision.v4",
               "ts": "2026-09-05T00:00:00Z",
               "nonce": "0000000000000000000000000000000000000000000000000000000000000001",
-              "commitment": "17b26aba6fa2fc6f728bd602d4666ba03a8cb4340814c758fad57181666aeb5d",
+              "commitment": "50ee6293c74f90649f975c17a7c96ea2425449e7474320c06f9eabe23b41aea7",
               "event_version": "402signal.route_decision.v4",
               "evidence": {
                 "evidence_version": 2,
-                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"499ecdaf05b310ee79634f5d5faff77d77d7d5c84be9f81a7cebd9f64b3ad7f3\",\"model_id\":\"reputation-v1\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"network\":\"eip155:8453\",\"payTo\":\"0xb18fc2275f36dae99eb215caeff03b431f887d16\",\"rail\":\"base\",\"scheme\":null}}",
+                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"cad7b1390b24357ec2974e7d9dd5144f0b5d35408194ed619b4e01ac615106d4\",\"model_id\":\"reputation-v2\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"network\":\"eip155:8453\",\"payTo\":\"0xb18fc2275f36dae99eb215caeff03b431f887d16\",\"rail\":\"base\",\"scheme\":null}}",
                 "request_json": "{\"max_price_usd\":0.02,\"need\":\"weather\",\"require_route_binding\":true}",
                 "binding": {
                   "model": "proof_carrying_route_v1",
@@ -97,8 +97,8 @@
             "receipt": {
               "index": 0,
               "inclusion_path": [],
-              "checkpoint": "402signal.com/pq/log\n1\n807YGwnMFg80xKfBQkHH6nz6WLYL8Pk8ZP+wyJqiteU=\n\n— 402signal.com/pq/log bMKVpNUKqL3Z1GL0wjzFw4xIFe3ZUnowYiZ2GP/S0PXdn2N4ts48kdbACumQZvS5bDoXU0KasK5naxtVnXh5eVOzFw8=\n",
-              "leaf_hash": "f34ed81b09cc160f34c4a7c14241c7ea7cfa58b60bf0f93c64ffb0c89aa2b5e5"
+              "checkpoint": "402signal.com/pq/log\n1\npoM6IoPqqYfwlHGc5EKxNfRifIEPJemPneu3gyIMohA=\n\n— 402signal.com/pq/log bMKVpAjj5HVRfU6c0ucc7nXvhj+I69W/40801Spzx8AxhtC6Su3yHkMOLwi2FYwhVVZHR899O5wBDL3Jo79aqSl8GAc=\n",
+              "leaf_hash": "a6833a2283eaa987f094719ce442b135f4627c810f25e98f9debb783220ca210"
             }
           }
         }
@@ -187,11 +187,11 @@
               "type": "402signal.route_decision.v4",
               "ts": "2026-09-05T00:00:00Z",
               "nonce": "0000000000000000000000000000000000000000000000000000000000000002",
-              "commitment": "7edf2f914f1cf9acec3c165f23a1a089466d9b3f0e8fd3e5a471234b8f8b1d42",
+              "commitment": "6cd95cc8d95d6fa3d713151f2e5569a6ee1ea5011cd9fbd58e7bf85e24cae4d8",
               "event_version": "402signal.route_decision.v4",
               "evidence": {
                 "evidence_version": 2,
-                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"499ecdaf05b310ee79634f5d5faff77d77d7d5c84be9f81a7cebd9f64b3ad7f3\",\"model_id\":\"reputation-v1\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v\",\"network\":\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp\",\"payTo\":\"HCM423cyKYVUoq9GvmqUphZwYVB6M2wez34i9jzSewLy\",\"rail\":\"solana\",\"scheme\":null}}",
+                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"cad7b1390b24357ec2974e7d9dd5144f0b5d35408194ed619b4e01ac615106d4\",\"model_id\":\"reputation-v2\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v\",\"network\":\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp\",\"payTo\":\"HCM423cyKYVUoq9GvmqUphZwYVB6M2wez34i9jzSewLy\",\"rail\":\"solana\",\"scheme\":null}}",
                 "request_json": "{\"max_price_usd\":0.02,\"need\":\"weather\",\"require_route_binding\":true}",
                 "binding": {
                   "model": "proof_carrying_route_v1",
@@ -215,10 +215,10 @@
             "receipt": {
               "index": 1,
               "inclusion_path": [
-                "807YGwnMFg80xKfBQkHH6nz6WLYL8Pk8ZP+wyJqiteU="
+                "poM6IoPqqYfwlHGc5EKxNfRifIEPJemPneu3gyIMohA="
               ],
-              "checkpoint": "402signal.com/pq/log\n2\nfhp7ftEUGpJKGrWA2XlfAgh3B6ckL7gOqtVHj7xSSpE=\n\n— 402signal.com/pq/log bMKVpPMkJeAtuE21ukRKLs1vRKJC74uNEJfDBNaQ4U81uXVF7x0D3LhnpoxMV3OzS5OoGPLKZFIhipMZ22cn34JpTg4=\n",
-              "leaf_hash": "5284a8ca4e8fe252c41271efeb3789535b63e4848a7d878148e6f72552bc2b46"
+              "checkpoint": "402signal.com/pq/log\n2\nN3nl7NXwzLwKkS542xhsJsc88Om04jQ1qga9kdhMybU=\n\n— 402signal.com/pq/log bMKVpHNmw96hs1fmpKNzuVWbyHSbDSyB3oBSVLeECKMZWEWvLPNzp5WQ+zTGEda4C6dAdfDL2Up0rbYQdiKyeoR+2Q8=\n",
+              "leaf_hash": "19ce34766c1346a920326ffcb3228ea4d92ea12cc0f5c4c08b156f0b31e8cfe6"
             }
           }
         }
@@ -307,11 +307,11 @@
               "type": "402signal.route_decision.v4",
               "ts": "2026-09-05T00:00:00Z",
               "nonce": "0000000000000000000000000000000000000000000000000000000000000003",
-              "commitment": "41a6273116da65c405627aa4dd01c72f3425308d144475b48e5d8770e7b094a5",
+              "commitment": "233cfb1b026f639d4de445ac755061499419b0942eb81df555790164770a65db",
               "event_version": "402signal.route_decision.v4",
               "evidence": {
                 "evidence_version": 2,
-                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"499ecdaf05b310ee79634f5d5faff77d77d7d5c84be9f81a7cebd9f64b3ad7f3\",\"model_id\":\"reputation-v1\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"31566704\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"payTo\":\"N2JSJZCSORMYGYO2NSIYRUEMBFRHEOMYODVXV2MXYYHB5H2JVUGG6NJ4NQ\",\"rail\":\"algorand\",\"scheme\":null}}",
+                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"cad7b1390b24357ec2974e7d9dd5144f0b5d35408194ed619b4e01ac615106d4\",\"model_id\":\"reputation-v2\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"31566704\",\"network\":\"algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=\",\"payTo\":\"N2JSJZCSORMYGYO2NSIYRUEMBFRHEOMYODVXV2MXYYHB5H2JVUGG6NJ4NQ\",\"rail\":\"algorand\",\"scheme\":null}}",
                 "request_json": "{\"max_price_usd\":0.02,\"need\":\"weather\",\"require_route_binding\":true}",
                 "binding": {
                   "model": "proof_carrying_route_v1",
@@ -335,10 +335,10 @@
             "receipt": {
               "index": 2,
               "inclusion_path": [
-                "fhp7ftEUGpJKGrWA2XlfAgh3B6ckL7gOqtVHj7xSSpE="
+                "N3nl7NXwzLwKkS542xhsJsc88Om04jQ1qga9kdhMybU="
               ],
-              "checkpoint": "402signal.com/pq/log\n3\n/EDev2GoEf0bh3gS7thSyhb1fX0X3pNkdOsM0bwcwBI=\n\n— 402signal.com/pq/log bMKVpIyl8CJA/tRv87ctmOxtoZSM3L7I5RnbdUpItOXgvcglhSAeKucRqZEw91oUCHda+e2Jk6sc1e25IF59FvfiWwg=\n",
-              "leaf_hash": "7e30fca534693576e66440f7a73e3b48b2200a26e45cf30ffe23920e5c3807c1"
+              "checkpoint": "402signal.com/pq/log\n3\nRJGEMhmDi/plGN/NRSH526Fr2m4oFv6TijHgNJzK2G8=\n\n— 402signal.com/pq/log bMKVpI0boAVs+DVBxDwkg2t9FQJpjMpd2C884rw+Y1khYYXCeyB0UBYWQtPQ1DqDvrF/drqNsW8Xw0vu3reySPusNAE=\n",
+              "leaf_hash": "56c3935d16d0d47b58f42ef6c8ece0221141d60de54c6c4032c4cd60b0446d6a"
             }
           }
         }
@@ -433,11 +433,11 @@
               "type": "402signal.route_decision.v4",
               "ts": "2026-09-05T00:00:00Z",
               "nonce": "0000000000000000000000000000000000000000000000000000000000000004",
-              "commitment": "0b36d5810bbcc9a449f4c82641cffa9a1b1d9410508ee6d5f237bf5eb96b785e",
+              "commitment": "0d173f15222857b1ebb4aac5d2bb48fe346eacd9a6b0118cbafce6a1ac335e28",
               "event_version": "402signal.route_decision.v4",
               "evidence": {
                 "evidence_version": 2,
-                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"499ecdaf05b310ee79634f5d5faff77d77d7d5c84be9f81a7cebd9f64b3ad7f3\",\"model_id\":\"reputation-v1\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"network\":\"eip155:8453\",\"payTo\":\"0xb18fc2275f36dae99eb215caeff03b431f887d16\",\"rail\":\"base\",\"scheme\":null}}",
+                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"cad7b1390b24357ec2974e7d9dd5144f0b5d35408194ed619b4e01ac615106d4\",\"model_id\":\"reputation-v2\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"network\":\"eip155:8453\",\"payTo\":\"0xb18fc2275f36dae99eb215caeff03b431f887d16\",\"rail\":\"base\",\"scheme\":null}}",
                 "request_json": "{\"max_price_usd\":0.02,\"need\":\"weather\",\"require_route_binding\":true}",
                 "binding": {
                   "model": "proof_carrying_route_v1",
@@ -461,11 +461,11 @@
             "receipt": {
               "index": 3,
               "inclusion_path": [
-                "fjD8pTRpNXbmZED3pz47SLIgCibkXPMP/iOSDlw4B8E=",
-                "fhp7ftEUGpJKGrWA2XlfAgh3B6ckL7gOqtVHj7xSSpE="
+                "VsOTXRbQ1HtY9C72yOzgIhFB1g3lTGxAMsTNYLBEbWo=",
+                "N3nl7NXwzLwKkS542xhsJsc88Om04jQ1qga9kdhMybU="
               ],
-              "checkpoint": "402signal.com/pq/log\n4\nphtkaR9cfr3H8bUQY2cjvmKvR7rXPycyvJsCt0C7Sco=\n\n— 402signal.com/pq/log bMKVpIyjPAE4OkqClnXc5TADQekUnnRA9pI+zAs2czzHsabEag8OZZrtAlsUzkBHJYsGNhN6JlwI59L0Cbwg1HjyJwA=\n",
-              "leaf_hash": "45867aa27ae75609952facfc3fbcec969ec12a180b26673902955f491ed8b847"
+              "checkpoint": "402signal.com/pq/log\n4\n41jaVN3ZT0iW9VpFJlLZLBJfzcXxhSrrH4H/4a8AgC8=\n\n— 402signal.com/pq/log bMKVpFmHxBOgqSvXvlT3aCiBqz4KHE2mCfhC9aYEme2jcQfxgp0YE/GTS42AjSk4CN5F1sE+300RZKVnlAwfJmh5OwU=\n",
+              "leaf_hash": "1bcac528e00bd2922c756cf6801176dfa9d14c568a6ccbcdb8f25f775bdc30c3"
             }
           }
         }
@@ -493,6 +493,160 @@
       "now": 1788566402,
       "method": "POST",
       "body": "{}"
+    },
+    {
+      "rail": "base",
+      "request": {
+        "need": "weather",
+        "max_price_usd": 0.02,
+        "require_route_binding": true
+      },
+      "response": {
+        "url": "https://example.com/api",
+        "live": true,
+        "payable": true,
+        "invocable": true,
+        "status": 402,
+        "payTo": "0xb18fc2275f36dae99eb215caeff03b431f887d16",
+        "envelope": {
+          "x402Version": 2,
+          "accepts": [
+            {
+              "scheme": "exact",
+              "network": "eip155:8453",
+              "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "currency": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "amount": "10000",
+              "payTo": "0xb18fc2275f36dae99eb215caeff03b431f887d16",
+              "maxTimeoutSeconds": 60
+            }
+          ],
+          "extensions": {
+            "bazaar": {
+              "info": {
+                "output": {
+                  "example": {
+                    "price": 67234.12,
+                    "change_24h": -0.5,
+                    "supply": 1.0,
+                    "ratio": 1e-06,
+                    "tick": 1e-07,
+                    "weight": 123456789.125,
+                    "count": 42
+                  }
+                }
+              }
+            }
+          }
+        },
+        "selected_payment": {
+          "rail": "base",
+          "network": "eip155:8453",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "amount_atomic": 10000,
+          "display_amount": "$0.01",
+          "normalized_usd": 0.01,
+          "payTo": "0xb18fc2275f36dae99eb215caeff03b431f887d16",
+          "facilitator": null
+        },
+        "probed_at": "2026-09-05T00:00:00Z",
+        "latency_ms": 12,
+        "applied_constraints": {
+          "max_price_usd": 0.02
+        },
+        "decision_binding": {
+          "model": "proof_carrying_route_v1",
+          "observed_at": 1788566400,
+          "expires_at": 1788566460,
+          "request": {
+            "url": "https://example.com/api",
+            "method": "GET",
+            "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "quote_sha256": "2b43e0ca1e60fb028b554e0adca7a41c69f6041fc2a62acde96d2aec10a3a8cf",
+          "selected_index": 0
+        },
+        "payment_authorization": {
+          "pq_native": false
+        },
+        "pq_trust": {
+          "transparency": {
+            "log_origin": "402signal.com/pq/log",
+            "leaf_type": "402signal.route_decision.v4",
+            "reveal": {
+              "type": "402signal.route_decision.v4",
+              "ts": "2026-09-05T00:00:00Z",
+              "nonce": "0000000000000000000000000000000000000000000000000000000000000005",
+              "commitment": "f9f7199b64930abdb72b922e92a4acc982b87f7bf1208d4f2dde4bc7113eeefe",
+              "event_version": "402signal.route_decision.v4",
+              "evidence": {
+                "evidence_version": 2,
+                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"cad7b1390b24357ec2974e7d9dd5144f0b5d35408194ed619b4e01ac615106d4\",\"model_id\":\"reputation-v2\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"network\":\"eip155:8453\",\"payTo\":\"0xb18fc2275f36dae99eb215caeff03b431f887d16\",\"rail\":\"base\",\"scheme\":null}}",
+                "request_json": "{\"max_price_usd\":0.02,\"need\":\"weather\",\"require_route_binding\":true}",
+                "binding": {
+                  "model": "proof_carrying_route_v1",
+                  "observed_at": 1788566400,
+                  "expires_at": 1788566460,
+                  "request": {
+                    "url": "https://example.com/api",
+                    "method": "GET",
+                    "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                  },
+                  "quote_sha256": "2b43e0ca1e60fb028b554e0adca7a41c69f6041fc2a62acde96d2aec10a3a8cf",
+                  "selected_index": 0
+                }
+              },
+              "salt": "0404040404040404040404040404040404040404040404040404040404040404"
+            },
+            "status": "pending",
+            "state": "checkpoint_signed",
+            "index": 4,
+            "checkpoint_size": 5,
+            "receipt": {
+              "index": 4,
+              "inclusion_path": [
+                "41jaVN3ZT0iW9VpFJlLZLBJfzcXxhSrrH4H/4a8AgC8="
+              ],
+              "checkpoint": "402signal.com/pq/log\n5\n0Ut0lAys04dDsCwfexva3vdxtfIskUkKnmOrzfzqhsI=\n\n— 402signal.com/pq/log bMKVpE+1SF5SNKqwGAyWHWseqGMXRTdq7Xwn03lbL+LUevL6O0PCy2fV/v9LrjDUf8aHwAZ0hcWyMjboFodS3YvC+wQ=\n",
+              "leaf_hash": "50da932a98b72e10c1e634c644720ff682a2e48bcd9ba489c3630e8ed3a5bd61"
+            }
+          }
+        }
+      },
+      "challenge": {
+        "x402Version": 2,
+        "accepts": [
+          {
+            "scheme": "exact",
+            "network": "eip155:8453",
+            "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "currency": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "amount": "10000",
+            "payTo": "0xb18fc2275f36dae99eb215caeff03b431f887d16",
+            "maxTimeoutSeconds": 60
+          }
+        ],
+        "extensions": {
+          "bazaar": {
+            "info": {
+              "output": {
+                "example": {
+                  "price": 67234.12,
+                  "change_24h": -0.5,
+                  "supply": 1.0,
+                  "ratio": 1e-06,
+                  "tick": 1e-07,
+                  "weight": 123456789.125,
+                  "count": 42
+                }
+              }
+            }
+          }
+        }
+      },
+      "now": 1788566402,
+      "method": "GET",
+      "body": ""
     }
   ],
   "historical_inclusions": [
@@ -562,11 +716,11 @@
               "type": "402signal.route_decision.v4",
               "ts": "2026-09-05T00:00:00Z",
               "nonce": "0000000000000000000000000000000000000000000000000000000000000001",
-              "commitment": "17b26aba6fa2fc6f728bd602d4666ba03a8cb4340814c758fad57181666aeb5d",
+              "commitment": "50ee6293c74f90649f975c17a7c96ea2425449e7474320c06f9eabe23b41aea7",
               "event_version": "402signal.route_decision.v4",
               "evidence": {
                 "evidence_version": 2,
-                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"499ecdaf05b310ee79634f5d5faff77d77d7d5c84be9f81a7cebd9f64b3ad7f3\",\"model_id\":\"reputation-v1\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"network\":\"eip155:8453\",\"payTo\":\"0xb18fc2275f36dae99eb215caeff03b431f887d16\",\"rail\":\"base\",\"scheme\":null}}",
+                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"cad7b1390b24357ec2974e7d9dd5144f0b5d35408194ed619b4e01ac615106d4\",\"model_id\":\"reputation-v2\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"network\":\"eip155:8453\",\"payTo\":\"0xb18fc2275f36dae99eb215caeff03b431f887d16\",\"rail\":\"base\",\"scheme\":null}}",
                 "request_json": "{\"max_price_usd\":0.02,\"need\":\"weather\",\"require_route_binding\":true}",
                 "binding": {
                   "model": "proof_carrying_route_v1",
@@ -590,11 +744,11 @@
             "receipt": {
               "index": 0,
               "inclusion_path": [
-                "UoSoyk6P4lLEEnHv6zeJU1tj5ISKfYeBSOb3JVK8K0Y=",
-                "fjD8pTRpNXbmZED3pz47SLIgCibkXPMP/iOSDlw4B8E="
+                "Gc40dmwTRqkgMm/8syKOpNkuoSzA9cTAixVvCzHoz+Y=",
+                "VsOTXRbQ1HtY9C72yOzgIhFB1g3lTGxAMsTNYLBEbWo="
               ],
-              "checkpoint": "402signal.com/pq/log\n3\n/EDev2GoEf0bh3gS7thSyhb1fX0X3pNkdOsM0bwcwBI=\n\n— 402signal.com/pq/log bMKVpIyl8CJA/tRv87ctmOxtoZSM3L7I5RnbdUpItOXgvcglhSAeKucRqZEw91oUCHda+e2Jk6sc1e25IF59FvfiWwg=\n",
-              "leaf_hash": "f34ed81b09cc160f34c4a7c14241c7ea7cfa58b60bf0f93c64ffb0c89aa2b5e5"
+              "checkpoint": "402signal.com/pq/log\n3\nRJGEMhmDi/plGN/NRSH526Fr2m4oFv6TijHgNJzK2G8=\n\n— 402signal.com/pq/log bMKVpI0boAVs+DVBxDwkg2t9FQJpjMpd2C884rw+Y1khYYXCeyB0UBYWQtPQ1DqDvrF/drqNsW8Xw0vu3reySPusNAE=\n",
+              "leaf_hash": "a6833a2283eaa987f094719ce442b135f4627c810f25e98f9debb783220ca210"
             }
           }
         }
@@ -683,11 +837,11 @@
               "type": "402signal.route_decision.v4",
               "ts": "2026-09-05T00:00:00Z",
               "nonce": "0000000000000000000000000000000000000000000000000000000000000002",
-              "commitment": "7edf2f914f1cf9acec3c165f23a1a089466d9b3f0e8fd3e5a471234b8f8b1d42",
+              "commitment": "6cd95cc8d95d6fa3d713151f2e5569a6ee1ea5011cd9fbd58e7bf85e24cae4d8",
               "event_version": "402signal.route_decision.v4",
               "evidence": {
                 "evidence_version": 2,
-                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"499ecdaf05b310ee79634f5d5faff77d77d7d5c84be9f81a7cebd9f64b3ad7f3\",\"model_id\":\"reputation-v1\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v\",\"network\":\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp\",\"payTo\":\"HCM423cyKYVUoq9GvmqUphZwYVB6M2wez34i9jzSewLy\",\"rail\":\"solana\",\"scheme\":null}}",
+                "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://example.com/api\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.02},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"weather\",\"url\":\"https://example.com/api\"},\"scoring\":{\"model_hash\":\"cad7b1390b24357ec2974e7d9dd5144f0b5d35408194ed619b4e01ac615106d4\",\"model_id\":\"reputation-v2\"},\"selected_payment\":{\"amount_atomic\":\"10000\",\"asset\":\"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v\",\"network\":\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp\",\"payTo\":\"HCM423cyKYVUoq9GvmqUphZwYVB6M2wez34i9jzSewLy\",\"rail\":\"solana\",\"scheme\":null}}",
                 "request_json": "{\"max_price_usd\":0.02,\"need\":\"weather\",\"require_route_binding\":true}",
                 "binding": {
                   "model": "proof_carrying_route_v1",
@@ -711,11 +865,11 @@
             "receipt": {
               "index": 1,
               "inclusion_path": [
-                "807YGwnMFg80xKfBQkHH6nz6WLYL8Pk8ZP+wyJqiteU=",
-                "fjD8pTRpNXbmZED3pz47SLIgCibkXPMP/iOSDlw4B8E="
+                "poM6IoPqqYfwlHGc5EKxNfRifIEPJemPneu3gyIMohA=",
+                "VsOTXRbQ1HtY9C72yOzgIhFB1g3lTGxAMsTNYLBEbWo="
               ],
-              "checkpoint": "402signal.com/pq/log\n3\n/EDev2GoEf0bh3gS7thSyhb1fX0X3pNkdOsM0bwcwBI=\n\n— 402signal.com/pq/log bMKVpIyl8CJA/tRv87ctmOxtoZSM3L7I5RnbdUpItOXgvcglhSAeKucRqZEw91oUCHda+e2Jk6sc1e25IF59FvfiWwg=\n",
-              "leaf_hash": "5284a8ca4e8fe252c41271efeb3789535b63e4848a7d878148e6f72552bc2b46"
+              "checkpoint": "402signal.com/pq/log\n3\nRJGEMhmDi/plGN/NRSH526Fr2m4oFv6TijHgNJzK2G8=\n\n— 402signal.com/pq/log bMKVpI0boAVs+DVBxDwkg2t9FQJpjMpd2C884rw+Y1khYYXCeyB0UBYWQtPQ1DqDvrF/drqNsW8Xw0vu3reySPusNAE=\n",
+              "leaf_hash": "19ce34766c1346a920326ffcb3228ea4d92ea12cc0f5c4c08b156f0b31e8cfe6"
             }
           }
         }

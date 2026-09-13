@@ -4,17 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "402signal"
-version = "0.1.0"
+version = "0.1.1"
 description = "402Signal client helpers and an offline receipt verifier for x402 and MPP buyers"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 authors = [{ name = "402Signal", email = "ross@402signal.com" }]
 keywords = ["x402", "mpp", "agent payments", "402", "usdc", "transparency log"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
+  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Topic :: Internet :: WWW/HTTP",
@@ -31,3 +31,4 @@ Changelog = "https://github.com/402signalhq/402signal/blob/main/CHANGELOG.md"
 [tool.setuptools]
 package-dir = { "" = "src" }
 packages = ["signal402"]
+license-files = ["LICENSE", "NOTICE"]

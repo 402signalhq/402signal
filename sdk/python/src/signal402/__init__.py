@@ -17,7 +17,7 @@ from .client import (
 )
 from .verify import ReceiptError, verify_checkpoint, verify_receipt, verify_reveal, verify_route_receipt
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = [
     "BINDING_UNAVAILABLE",
     "CHALLENGE",

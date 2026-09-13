@@ -231,7 +231,9 @@ for confirmation levels, limits, outcome fields and the versioned scoring policy
 Use exported isUnsettledRouteMiss({httpStatus, routeResponseJson,
 paymentResponseHeader}) to recognize explicit unpaid outcomes. Pass the raw
 JSON response and headers.get("PAYMENT-RESPONSE") (null when absent).
-It accepts completed normal HTTP 200 misses and legacy HTTP 503 unpaid misses.
+It accepts completed normal HTTP 200 misses and legacy HTTP 503 unpaid misses,
+including the HTTP 503 `binding_unavailable` answer (the seller answered with a
+live challenge, the signed binding could not be built, nothing was billed).
 False means unclassified, never permission to execute or retry. True does not
 release a spend reservation or replace chain reconciliation. Keep
 withVerifiedRoute as the seller-authorization gate; HTTP 200 alone is insufficient.
@@ -241,21 +243,21 @@ See [the response contract](../../docs/route-miss-http-status.md).
 ## Install the client
 
 From the npm registry, then check the provenance attestation that the release
-workflow attaches (it names this repository and the `route-guard-v0.7.3` tag):
+workflow attaches (it names this repository and the `route-guard-v0.7.4` tag):
 
 ```sh
-npm install @402signal/route-guard@0.7.3
+npm install @402signal/route-guard@0.7.4
 npm audit signatures
 ```
 
-Or use the [v0.7.3 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.3) and verify its digest against `SHA256SUMS` and the `packages` row in https://402signal.com/capabilities.json before installing:
+Or use the [v0.7.4 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.4) and verify its digest against `SHA256SUMS` and the `packages` row in https://402signal.com/capabilities.json before installing:
 
 ```sh
 sha256sum --check SHA256SUMS
-npm install --ignore-scripts ./402signal-route-guard-0.7.3.tgz
+npm install --ignore-scripts ./402signal-route-guard-0.7.4.tgz
 ```
 
-From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.3.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
+From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.4.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
 declarations, the local guard and HTTP client. Node 22 or newer is required.
 No install script or wallet dependency is included. Windows callers can supply
 their own durable store; the supplied filesystem adapter runs on POSIX, including WSL.
@@ -387,6 +389,19 @@ const trialHeaders = {
 
 The original v4 exact-payment guard remains separate.
 
+## Decimal challenge values (0.7.4)
+
+A seller challenge may carry decimal numbers, for instance a bazaar output
+example that quotes a price as `67234.12`. The quote digest now covers any
+finite number within plus or minus 2^53, laid out as `JSON.stringify` lays it
+out (RFC 8785, the ES6 number form), which is what the server's Python hashes.
+Numbers bind by value: `1.0` and `1` are the same quote, `67234.13` is a
+different one. Numbers beyond that range, `NaN` and `Infinity` still fail
+closed as `invalid_json`. 0.7.3 and earlier refuse every challenge that carries
+a decimal, so a buyer of such a seller needs this release; there is no
+receipt-format or payment-authority change. The same release recognizes the
+server's HTTP 503 `binding_unavailable` answer in `isUnsettledRouteMiss`.
+
 ## Check group offer request shape (0.7.2)
 
 `verifyBatchRoute` accepts customer chk_grp requests that send only `url`,
@@ -414,3 +429,9 @@ x402, Base channels, Solana sessions, and the larger Algorand manifests added in
 See [native selection and limits](../../integration/mpp-client/NATIVE_SELECTION.md)
 and the [Algorand reference adapter](../../integration/mpp-algorand/README.md).
 No callback receives automatic authority to pay an alternative offer.
+
+## Licence
+
+Releases from 0.7.4 onward are licensed under the Apache License, Version 2.0
+(`LICENSE`, `NOTICE`). Releases 0.7.3 and earlier were published under the MIT
+License and stay that way.

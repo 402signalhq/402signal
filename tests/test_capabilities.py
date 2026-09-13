@@ -20,6 +20,14 @@ REVIEWED_KEYS = (
     "verifier_package",
     "historical_verifier",
 )
+# route-guard-v0.7.4 is the release candidate: pending until the tag is uploaded and the
+# downloaded bytes match this reviewed pair (reproduced twice locally, npm 11.19.0).
+PENDING_PACK_SHA256 = (
+    "164a1328ddcba856b667b74b43573bfb455016144cef84858ae66054be64b5ff"
+)
+PENDING_SUMS_SHA256 = (
+    "d414db64f83d5f68013451c912c7c6a6c03aa32d95d4007ac5b942b353abeaa9"
+)
 # Tag route-guard-v0.7.3 at its merge commit (PR #205). sdk/route-guard bytes are unchanged after 626c1bd.
 PUBLISHED_TIP = "58241029bf3a7949c388bf3398279fdf446c2893"
 PUBLISHED_PACK_SHA256 = (
@@ -87,10 +95,18 @@ class CapabilitiesHonestyTests(unittest.TestCase):
 
     def assert_package_record(self, record):
         self.assertEqual(len(record["packages"]), self.package_count)
-        self.assertEqual(self.package_count, 7)
+        self.assertEqual(self.package_count, 8)
         tags = [package["tag"] for package in record["packages"]]
-        self.assertEqual(tags[:3], ["route-guard-v0.7.3", "route-guard-v0.7.2", "route-guard-v0.7.1"])
-        self.assertEqual([package["tag"] for package in record["packages"] if package.get("state") != "published"], [])
+        self.assertEqual(tags[:4], ["route-guard-v0.7.4", "route-guard-v0.7.3", "route-guard-v0.7.2", "route-guard-v0.7.1"])
+        self.assertEqual([package["tag"] for package in record["packages"] if package.get("state") != "published"], ["route-guard-v0.7.4"])
+        pending = next(package for package in record["packages"] if package["tag"] == "route-guard-v0.7.4")
+        self.assertEqual(pending["state"], "pending")
+        self.assertEqual(pending["digest_status"], "provisional-until-release")
+        self.assertEqual(pending["provisional_pack_sha256"], PENDING_PACK_SHA256)
+        self.assertEqual(pending["provisional_sums_sha256"], PENDING_SUMS_SHA256)
+        for key in ("archive", "sha256", "checksum_file", "checksum_file_sha256", "npm", "published_at"):
+            self.assertNotIn(key, pending)
+        self.assertEqual(pending["recipe"], "/developers/check-group-offer")
         published = next(package for package in record["packages"] if package["tag"] == "route-guard-v0.7.3")
         self.assertEqual(published["state"], "published")
         self.assertNotIn("digest_status", published)
@@ -185,10 +201,12 @@ class CapabilitiesHonestyTests(unittest.TestCase):
         self.assertEqual(static["check_group_offer"]["historical_verifier"], "route-guard-v0.7.1")
         self.assertNotIn("codecs", static["check_group_offer"])
         self.assertNotIn("exact,sess,mpp,atom,inv", json.dumps(static["check_group_offer"]))
-        self.assertEqual(len(static["packages"]), 7)
-        self.assertEqual(static["packages"][0]["tag"], "route-guard-v0.7.3")
-        self.assertEqual(static["packages"][1]["tag"], "route-guard-v0.7.2")
-        self.assertEqual(static["packages"][1]["sha256"], PREVIOUS_PACK_SHA256)
+        self.assertEqual(len(static["packages"]), 8)
+        self.assertEqual(static["packages"][0]["tag"], "route-guard-v0.7.4")
+        self.assertEqual(static["packages"][0]["state"], "pending")
+        self.assertEqual(static["packages"][1]["tag"], "route-guard-v0.7.3")
+        self.assertEqual(static["packages"][2]["tag"], "route-guard-v0.7.2")
+        self.assertEqual(static["packages"][2]["sha256"], PREVIOUS_PACK_SHA256)
         published = next(package for package in static["packages"] if package["tag"] == "route-guard-v0.7.3")
         self.assertEqual(published["state"], "published")
         self.assertNotIn("digest_status", published)

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { RouteGuardError, verifyRoute, withVerifiedRoute } from "../index.mjs";
+import {
+  RouteGuardError,
+  isUnsettledRouteMiss,
+  verifyRoute,
+  withVerifiedRoute,
+} from "../index.mjs";
 
 const fixture = JSON.parse(
   readFileSync(
@@ -201,8 +206,11 @@ test("signatures, pinning, origin, reveal, commitment and inclusion reject tampe
   ]) {
     rejected({ ...options(), trustedLogVkey });
   }
-  const o = options(cases[4]);
+  // A non-last leaf under a later checkpoint has a multi-element path.
+  const o = options(fixture.historical_inclusions[0]);
+  assert.ok(o.routeResponseJson.includes('"inclusion_path"'));
   changeResponse(o, (r) => {
+    assert.ok(r.pq_trust.transparency.receipt.inclusion_path.length >= 2);
     r.pq_trust.transparency.receipt.inclusion_path.reverse();
   });
   rejected(o, "invalid_inclusion");
@@ -256,6 +264,89 @@ test("duplicate keys, unsupported lexical numbers, malformed UTF8 and size/depth
   const utf8 = options();
   utf8.challenge.paymentRequired = Buffer.from([255]).toString("base64");
   rejected(utf8);
+});
+
+test("decimal values in a seller challenge bind by value (0.7.4)", () => {
+  const c = cases.find(
+    (k) => k.challenge.extensions?.bazaar?.info?.output?.example?.price === 67234.12,
+  );
+  assert.ok(c, "the Python-signed fixture carries the decimal case");
+  const verified = verifyRoute(options(c));
+  assert.equal(verified.model, "proof_carrying_route_v1");
+  assert.deepEqual(verified.accepted, c.challenge.accepts[0]);
+  // The lexical form of a number is not part of the quote: 1.0 is 1, 1e-7 is
+  // 0.0000001. The server hashes the same bytes for every spelling.
+  const spelled = options(c);
+  spelled.challenge.bodyText = encode(c.challenge)
+    .replace('"supply":1,', '"supply":1.0,')
+    .replace('"tick":1e-7', '"tick":0.0000001')
+    .replace('"ratio":0.000001', '"ratio":1e-6')
+    .replace('"count":42', '"count":42.0');
+  assert.notEqual(spelled.challenge.bodyText, encode(c.challenge));
+  assert.equal(verifyRoute(spelled).model, "proof_carrying_route_v1");
+  // A different value is a different quote.
+  const drift = options(c);
+  drift.challenge.bodyText = encode(c.challenge).replace(
+    '"price":67234.12',
+    '"price":67234.13',
+  );
+  rejected(drift, "quote_changed");
+  // Beyond the profile still fails closed.
+  for (const raw of [
+    '"price":1e400',
+    '"price":9007199254740993',
+    '"price":9007199254740992.5',
+    '"price":NaN',
+    '"price":-Infinity',
+  ]) {
+    const o = options(c);
+    o.challenge.bodyText = encode(c.challenge).replace('"price":67234.12', raw);
+    rejected(o, "invalid_json");
+  }
+});
+
+test("HTTP 503 binding_unavailable is a completed unpaid miss; HTTP 200 is not", () => {
+  const body = {
+    url: "https://seller.example/x",
+    live: false,
+    payable: false,
+    selected_payment: null,
+    has_402_challenge: true,
+    error: "route_binding_unavailable",
+    binding_error: "route_binding_unavailable",
+    binding_error_reason: "invalid_json",
+    miss_reason: "binding_unavailable",
+    stop_reason: "candidate_set_exhausted",
+    billing: {
+      model: "success_only_v1",
+      condition: "live_eligible_route_found",
+      asset: "USDC",
+      amount_atomic: "3000",
+      display_amount: "$0.003",
+      rail: "base",
+      settlement_attempted: false,
+      settled: false,
+      settlement_state: "not_attempted",
+    },
+  };
+  const routeResponseJson = JSON.stringify(body);
+  assert.equal(
+    isUnsettledRouteMiss({ httpStatus: 503, routeResponseJson, paymentResponseHeader: null }),
+    true,
+  );
+  assert.equal(
+    isUnsettledRouteMiss({ httpStatus: 200, routeResponseJson, paymentResponseHeader: null }),
+    false,
+  );
+  assert.equal(
+    isUnsettledRouteMiss({ httpStatus: 503, routeResponseJson, paymentResponseHeader: "x" }),
+    false,
+  );
+  const settled = JSON.stringify({ ...body, billing: { ...body.billing, settled: true } });
+  assert.equal(
+    isUnsettledRouteMiss({ httpStatus: 503, routeResponseJson: settled, paymentResponseHeader: null }),
+    false,
+  );
 });
 
 test("header/body disagreement and malformed companion channels cannot be hidden", () => {

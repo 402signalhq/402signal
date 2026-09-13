@@ -5,6 +5,27 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- `@402signal/route-guard` 0.7.4 (release candidate; the capabilities row is
+  `pending` with provisional pack digests until the tag is uploaded and the
+  downloaded bytes are verified, then a follow-up flips it to `published` and
+  moves the installer and site pins): the quote digest accepts any finite
+  number within plus or minus 2^53 and lays it out as `JSON.stringify` does,
+  so a seller challenge with decimal values (agent402.tools' bazaar example)
+  verifies against the server's receipt instead of failing `invalid_json`;
+  numbers bind by value (`1.0` is `1`), anything beyond the range, `NaN` and
+  `Infinity` still fail closed. `isUnsettledRouteMiss` recognizes the HTTP 503
+  `binding_unavailable` answer. Licence: Apache-2.0 from this release
+  (`LICENSE`, `NOTICE` in the package); 0.7.3 and earlier stay MIT. The
+  conformance fixture `tests/fixtures/route-binding-v1.json` gains a fifth
+  signed case whose challenge carries decimals in every ES6 layout class; the
+  generator pins the public test recipients so the four existing cases are
+  byte-identical.
+- `402signal` (Python) 0.1.1: `signal402.verify.canonical` lays decimal numbers
+  out as JavaScript does (RFC 8785 section 3.2.2.3; `1e-07` was Python's
+  spelling of `1e-7`, `1e+16` of `10000000000000000`), so a record with
+  decimals verifies offline; new layout vectors from Node. Licence: Apache-2.0
+  from this release (`LICENSE`, `NOTICE` in the sdist and wheel); 0.1.0 stays
+  MIT.
 - Seller challenges that carry decimal values bind. The v1 quote profile accepted safe integers only, so a challenge whose bazaar output example quotes a price such as `67234.12` (agent402.tools does) failed route binding with `invalid_json` and never got a receipt. Finite numbers within plus or minus 2^53 are now accepted and laid out exactly as JavaScript's `JSON.stringify` does (`live402/pq/jcs.py`, RFC 8785), verified against Node on the same bytes. Route-guard 0.7.3 still refuses such a challenge at the buyer's guard (`invalid_json`, fail closed, no payment) until 0.7.4 ships; the Python verifier 0.1.0 accepts it.
 - Lab self-tests see a recipient rotation. Self-test observations never touch the public per-URL state, so a lab seller that changed its pay-to could never trigger the `payTo_pending` refusal a public buyer meets. A self-test observation is now compared with the lab's own previous live observation of that URL (`history._lab_payto_rotation`, probe rows only, nothing public written): the first run after a rotation is refused as a typed miss with `payTo_pending`, `payTo_changed` and `risk: ["payTo_changed"]`, the next run with the same recipient settles again.
 - A paid check whose seller answered with a live challenge but whose signed binding could not be built no longer reads as `no_402_envelope`: the HTTP 503 answer now says `error` and `binding_error` `route_binding_unavailable`, `miss_reason: binding_unavailable` (new public reason), keeps `has_402_challenge` and the challenge's terms, drops `unmet_constraints`, and omits the seller's input and output schemas (kilobytes of JSON Schema that only matter for a route that will be executed). Nothing is billed, as before. Separately, `unmet_constraints` no longer lists `networks` when the requested network was offered and only the price bound failed. Docs: `docs/route-miss-http-status.md`.
@@ -40,9 +61,8 @@ server. The format follows Keep a Changelog; dates are UTC.
   stays public because CI exercises it. `/security` states capacity and reviews
   as commitments (classes fixed, the measured number) instead of linking the
   harness and the lab records. The SDK licence switch to Apache-2.0 lands
-  with the next release of each package (`route-guard` 0.7.4, `402signal`
-  0.1.1), where the pack digests are re-pinned; the published 0.7.3 and 0.1.0
-  stay MIT. The repository root stays MIT.
+  with `route-guard` 0.7.4 and `402signal` 0.1.1 (above); the published 0.7.3
+  and 0.1.0 stay MIT. The repository root stays MIT.
 - North-star metric, private: after every settled qualifying check the
   writer records the SHA-256 of the verified payer per UTC day
   (`payer_days`, never the address) and logs `north_star` hourly: signed
