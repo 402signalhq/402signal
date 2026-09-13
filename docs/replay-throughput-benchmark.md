@@ -72,7 +72,24 @@ other requests.
    presents a Let's Encrypt certificate that verifies with
    `sslrootcert=/etc/ssl/certs/ca-certificates.crt`.
 
-## Proposed changes (not implemented; payment-safety review required)
+## Implemented after the benchmark (2026-09-13)
+
+- **Client:** `PostgresStore` keeps a bounded pool of connections per process
+  (`LIVE402_REPLAY_POOL_SIZE`, default 8, at most 32) instead of one connection
+  behind a lock, and each `reserve`, `finish` and `abandon` is one pipelined
+  round trip: BEGIN, the four `SET LOCAL` settings, the owner function and
+  COMMIT are queued together and synchronized once, and the result is read
+  only after the commit is acknowledged. Reads, readiness and maintenance keep
+  the explicit multi-statement transaction. A request that cannot get a
+  connection within five seconds fails closed instead of queueing.
+- **Database:** `ops/replay-postgres-hotpath.sql` (proposal 1 below) moves the
+  counters to sixteen shard rows with exact per-shard quotas that sum to the
+  authority quotas. Reservations lock one shard row; the authority row is
+  taken `FOR SHARE` only. Installation: `docs/runbooks/replay-hotpath-migration.md`.
+- **Measured:** rerun this benchmark on a disposable cluster after the
+  migration and record the numbers here before enabling a second router.
+
+## Proposed changes (proposals 1 to 3 are implemented above)
 
 1. **Take the global row lock out of the hot path.** Keep identity uniqueness on
    the primary key and the activation, fence and role checks under shared locks.

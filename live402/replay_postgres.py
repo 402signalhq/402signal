@@ -21,6 +21,28 @@ MAX_OUTCOME = 256 * 1024
 # Recycle only before a separate operation, never inside a transaction.
 MAX_CONNECTION_AGE = 600
 MAX_CONNECTION_IDLE = 300
+# Bounded per-process pool. Concurrent paid requests no longer queue behind one
+# connection; a request that cannot get a connection within POOL_WAIT seconds
+# fails closed as an unavailable authority instead of piling up.
+DEFAULT_POOL_SIZE = 8
+MAX_POOL_SIZE = 32
+POOL_WAIT = 5.0
+# Applied inside every transaction. Unnamed statements work with transaction
+# poolers; nothing here survives the transaction.
+SESSION_SETTINGS = (
+    "SET LOCAL statement_timeout = '2000ms'",
+    "SET LOCAL lock_timeout = '1000ms'",
+    "SET LOCAL idle_in_transaction_session_timeout = '3000ms'",
+    "SET LOCAL synchronous_commit = 'on'",
+)
+# Owner migrations installed after the router started are detected by name
+# and re-checked every ten minutes.
+FEATURE_PROBES = {
+    "expiry": ("SELECT to_regprocedure('signal_replay.api_expire_identities(text,integer)') IS NOT NULL "
+               "AND to_regprocedure('signal_replay.api_reserve_v2(text,text,text,double precision,double precision)') "
+               "IS NOT NULL"),
+    "capacity": "SELECT to_regprocedure('signal_replay.api_capacity(text)') IS NOT NULL",
+}
 
 
 def validate_settings(environ, parse_dsn) -> tuple[dict, str]:
@@ -54,96 +76,163 @@ def validate_settings(environ, parse_dsn) -> tuple[dict, str]:
             raise ValueError()
         if environ.get("LIVE402_REPLAY_POSTGRES_API", "direct") not in {"direct", "functions-v1"}:
             raise ValueError()
+        pool = (environ.get("LIVE402_REPLAY_POOL_SIZE") or "").strip()
+        if pool and (not re.fullmatch(r"[0-9]{1,2}", pool) or not 1 <= int(pool) <= MAX_POOL_SIZE):
+            raise ValueError()
         return cfg, authority
     except Exception:
         raise StoreError("invalid PostgreSQL replay configuration") from None
 
 
-class PostgresStore:
-    """One bounded connection per process, protected by a lock.
+class _Slot:
+    """One pooled connection with its lifetime bookkeeping."""
+    __slots__ = ("conn", "connected_at", "last_used")
 
-    The adapter deliberately does not claim high-throughput pooling yet. A lost
-    connection is discarded, and only a subsequent separate operation reconnects.
-    No failed operation is automatically replayed. Connection age/idle limits
-    are checked at the next operation under the same lock, after prior commit.
+    def __init__(self):
+        self.conn = None
+        self.connected_at = 0.0
+        self.last_used = 0.0
+
+
+class PostgresStore:
+    """A bounded pool of connections per process.
+
+    A checked-out connection runs exactly one replay operation. A lost or
+    failed connection is discarded, and only a subsequent separate operation
+    reconnects. No failed operation is automatically replayed. Age and idle
+    limits are checked when a connection is checked out, never inside a
+    transaction.
     """
     def __init__(self, environ=None, driver=None):
+        env = os.environ if environ is None else environ
         try:
             if driver is None:
                 import psycopg as driver
             from psycopg.conninfo import conninfo_to_dict
-            self.config, self.authority = validate_settings(
-                os.environ if environ is None else environ, conninfo_to_dict)
+            self.config, self.authority = validate_settings(env, conninfo_to_dict)
         except StoreError:
             raise
         except Exception:
             raise StoreError("PostgreSQL replay driver unavailable") from None
-        self.functions_api = (os.environ if environ is None else environ).get(
-            "LIVE402_REPLAY_POSTGRES_API", "direct") == "functions-v1"
+        self.pool_size = int((env.get("LIVE402_REPLAY_POOL_SIZE") or "").strip() or DEFAULT_POOL_SIZE)
+        self.functions_api = env.get("LIVE402_REPLAY_POSTGRES_API", "direct") == "functions-v1"
         self.driver = driver
-        self.conn = None
-        self.connected_at = 0.0
-        self.last_used = 0.0
         self.lock = threading.Lock()
+        self.available = threading.Condition(self.lock)
+        self.idle: list[_Slot] = []
+        self.open_count = 0
+        self.last: _Slot | None = None
         self.last_prune = 0.0
-        self.expiry_api: bool | None = None
-        self.expiry_api_at = 0.0
+        self.features: dict[str, tuple[bool, float]] = {}
+
+    @property
+    def conn(self):
+        """The most recently used connection, or None once it was discarded."""
+        slot = self.last
+        return None if slot is None else slot.conn
 
     def close(self):
-        with self.lock:
-            self._discard()
+        with self.available:
+            idle, self.idle = self.idle, []
+            self.open_count -= len(idle)
+            self.available.notify_all()
+        for slot in idle:
+            self._close_slot(slot)
 
-    def _discard(self):
-        conn, self.conn = self.conn, None
-        self.connected_at = self.last_used = 0.0
+    @staticmethod
+    def _close_slot(slot):
+        conn, slot.conn = slot.conn, None
         if conn is not None:
             try:
                 conn.close()
             except Exception:
                 pass
 
+    def _discard(self, slot):
+        """Drop a connection after any failure; the release decrements the pool."""
+        self._close_slot(slot)
+
+    def _acquire(self) -> _Slot:
+        deadline = time.monotonic() + POOL_WAIT
+        with self.available:
+            while True:
+                now = time.monotonic()
+                while self.idle:
+                    slot = self.idle.pop()
+                    if (slot.conn is None or slot.conn.closed
+                            or now - slot.connected_at >= MAX_CONNECTION_AGE
+                            or now - slot.last_used >= MAX_CONNECTION_IDLE):
+                        self.open_count -= 1
+                        self._close_slot(slot)
+                        continue
+                    return slot
+                if self.open_count < self.pool_size:
+                    self.open_count += 1
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not self.available.wait(remaining):
+                    raise StoreError("replay authority unavailable")
+        slot = _Slot()
+        try:
+            slot.conn = self.driver.connect(
+                **self.config, autocommit=True, connect_timeout=2,
+                application_name="402signal-replay", prepare_threshold=None)
+        except Exception:
+            with self.available:
+                self.open_count -= 1
+                self.last = slot
+                self.available.notify()
+            raise StoreError("replay authority unavailable") from None
+        slot.connected_at = slot.last_used = time.monotonic()
+        return slot
+
+    def _release(self, slot):
+        with self.available:
+            self.last = slot
+            if slot.conn is None:
+                self.open_count -= 1
+            else:
+                slot.last_used = time.monotonic()
+                self.idle.append(slot)
+            self.available.notify()
+
+    @contextmanager
+    def _checkout(self):
+        slot = self._acquire()
+        try:
+            yield slot
+        finally:
+            self._release(slot)
+
     @contextmanager
     def _transaction(self, *, capacity=False, write_meta=False, guarded_api=False):
-        with self.lock:
+        """A multi-statement transaction for reads, readiness and maintenance."""
+        with self._checkout() as slot:
             try:
-                now = time.monotonic()
-                if self.conn is not None and (
-                        self.conn.closed
-                        or now - self.connected_at >= MAX_CONNECTION_AGE
-                        or now - self.last_used >= MAX_CONNECTION_IDLE):
-                    self._discard()
-                if self.conn is None:
-                    self.conn = self.driver.connect(
-                        **self.config, autocommit=True, connect_timeout=2,
-                        application_name="402signal-replay", prepare_threshold=None)
-                    self.connected_at = self.last_used = time.monotonic()
-                # Unnamed statements work with transaction poolers. Session
-                # settings are SET LOCAL below; no operation is retried here.
+                conn = slot.conn
                 # Pipeline only this one replay operation. Its COMMIT still
                 # synchronizes and must be acknowledged before returning.
                 # No payment, reservation or other request shares this commit.
-                pipeline = self.conn.pipeline() if self.functions_api else nullcontext()
-                with pipeline, self.conn.transaction():
-                    self.conn.execute("SET LOCAL statement_timeout = '2000ms'")
-                    self.conn.execute("SET LOCAL lock_timeout = '1000ms'")
-                    self.conn.execute("SET LOCAL idle_in_transaction_session_timeout = '3000ms'")
-                    self.conn.execute("SET LOCAL synchronous_commit = 'on'")
+                pipeline = conn.pipeline() if self.functions_api else nullcontext()
+                with pipeline, conn.transaction():
+                    for statement in SESSION_SETTINGS:
+                        conn.execute(statement)
                     # Owner write functions check the same durable primary,
                     # activation, instance fence, role and capacity inside the
                     # mutation. Repeating those queries here adds round trips.
                     # Reads and the direct API retain their explicit checks.
                     if not (self.functions_api and guarded_api):
-                        safe = self.conn.execute("SELECT NOT pg_is_in_recovery(), "
-                                                 "current_setting('fsync'), current_setting('full_page_writes')").fetchone()
+                        safe = conn.execute("SELECT NOT pg_is_in_recovery(), "
+                                            "current_setting('fsync'), current_setting('full_page_writes')").fetchone()
                         if safe != (True, 'on', 'on'):
                             raise StoreError("replay authority is not durable primary")
                         if self.functions_api:
-                            row = self.conn.execute(
+                            row = conn.execute(
                                 "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes,outcome_bytes "
                                 "FROM signal_replay.api_authority(%s,%s,%s)",
                                 (self.authority,capacity,write_meta)).fetchone()
                         else:
-                            row = self.conn.execute(
+                            row = conn.execute(
                                 "SELECT authority_id,schema_version,active,legacy_ready,admitted,max_rows,max_bytes,outcome_bytes "
                                 "FROM signal_replay.authority WHERE singleton = TRUE"
                                 + (" FOR UPDATE" if capacity or write_meta else " FOR SHARE")
@@ -152,11 +241,31 @@ class PostgresStore:
                             raise StoreError("replay authority not activated")
                         if capacity and (row[4] >= row[5] or (row[4]+1)*512+row[7] > row[6]):
                             raise StoreError("replay authority capacity exhausted")
-                    yield self.conn
+                    yield conn
                 # Returning from the context means COMMIT was acknowledged.
-                self.last_used = time.monotonic()
             except Exception:
-                self._discard()
+                self._discard(slot)
+                raise StoreError("replay authority unavailable") from None
+
+    def _call(self, statement, params):
+        """One owner-function call as one pipelined round trip.
+
+        BEGIN, the session settings, the call and COMMIT are queued together and
+        synchronized once; the result is read only after the commit was
+        acknowledged. The function performs the fence, activation, role and
+        capacity checks itself. Any failure discards the connection and is
+        never retried.
+        """
+        with self._checkout() as slot:
+            try:
+                conn = slot.conn
+                with conn.pipeline(), conn.transaction():
+                    for setting in SESSION_SETTINGS:
+                        conn.execute(setting)
+                    cursor = conn.execute(statement, params)
+                return cursor.fetchone()
+            except Exception:
+                self._discard(slot)
                 raise StoreError("replay authority unavailable") from None
 
     def lookup(self, key):
@@ -166,16 +275,23 @@ class PostgresStore:
                 "SELECT state,outcome_json,fingerprint_version,scope_hash,expires_at "
                 "FROM signal_replay.entries WHERE fp_hash = %s", (key,)).fetchone()
 
-    def _expiry_api(self, conn):
-        """True once the owner installed ops/replay-postgres-identity-expiry.sql."""
+    def _feature(self, name, conn=None):
+        """True once the owner installed the migration that defines the named API."""
         now = time.monotonic()
-        if self.expiry_api is None or now - self.expiry_api_at > 600:
-            self.expiry_api = bool(conn.execute(
-                "SELECT to_regprocedure('signal_replay.api_expire_identities(text,integer)') IS NOT NULL "
-                "AND to_regprocedure('signal_replay.api_reserve_v2(text,text,text,double precision,double precision)') "
-                "IS NOT NULL").fetchone()[0])
-            self.expiry_api_at = now
-        return self.expiry_api
+        cached = self.features.get(name)
+        if cached is not None and now - cached[1] <= 600:
+            return cached[0]
+        if conn is None:
+            with self._transaction() as own:
+                present = bool(own.execute(FEATURE_PROBES[name]).fetchone()[0])
+        else:
+            present = bool(conn.execute(FEATURE_PROBES[name]).fetchone()[0])
+        self.features[name] = (present, now)
+        return present
+
+    def _expiry_api(self, conn=None):
+        """True once the owner installed ops/replay-postgres-identity-expiry.sql."""
+        return self._feature("expiry", conn)
 
     def reserve(self, key, scope, expires, authorization_expires=None):
         self._key(key)
@@ -187,12 +303,13 @@ class PostgresStore:
                 or not math.isfinite(authorization_expires) or authorization_expires < 0):
             authorization_expires = None
         if self.functions_api:
-            with self._transaction(capacity=True, guarded_api=True) as conn:
-                if authorization_expires is not None and self._expiry_api(conn):
-                    return conn.execute("SELECT signal_replay.api_reserve_v2(%s,%s,%s,%s,%s)",
-                                        (self.authority,key,scope,expires,authorization_expires)).fetchone()[0]
-                return conn.execute("SELECT signal_replay.api_reserve(%s,%s,%s,%s)",
-                                    (self.authority,key,scope,expires)).fetchone()[0]
+            if authorization_expires is not None and self._expiry_api():
+                row = self._call("SELECT signal_replay.api_reserve_v2(%s,%s,%s,%s,%s)",
+                                 (self.authority,key,scope,expires,authorization_expires))
+            else:
+                row = self._call("SELECT signal_replay.api_reserve(%s,%s,%s,%s)",
+                                 (self.authority,key,scope,expires))
+            return bool(row[0])
         admitted = False
         with self._transaction(capacity=True) as conn:
             # Unique identity is authoritative even if an earlier read saw none.
@@ -217,11 +334,11 @@ class PostgresStore:
             raise StoreError("invalid replay state")
         if outcome is not None and (not isinstance(outcome, str) or len(outcome.encode()) > MAX_OUTCOME):
             raise StoreError("invalid replay outcome")
-        with self._transaction(write_meta=True, guarded_api=True) as conn:
-            if self.functions_api:
-                conn.execute("SELECT signal_replay.api_finish(%s,%s,%s,%s,%s)",
-                             (self.authority,key,state,outcome,keep))
-                return
+        if self.functions_api:
+            self._call("SELECT signal_replay.api_finish(%s,%s,%s,%s,%s)",
+                       (self.authority,key,state,outcome,keep))
+            return
+        with self._transaction(write_meta=True) as conn:
             row = conn.execute(
                 "SELECT e.outcome_json,e.scope_hash,e.expires_at,a.admitted,a.outcome_bytes,a.max_bytes "
                 "FROM signal_replay.entries e CROSS JOIN signal_replay.authority a "
@@ -241,10 +358,10 @@ class PostgresStore:
 
     def abandon(self, key):
         self._key(key)
-        with self._transaction(guarded_api=True) as conn:
-            if self.functions_api:
-                conn.execute("SELECT signal_replay.api_abandon(%s,%s)",(self.authority,key))
-                return
+        if self.functions_api:
+            self._call("SELECT signal_replay.api_abandon(%s,%s)", (self.authority,key))
+            return
+        with self._transaction() as conn:
             conn.execute("UPDATE signal_replay.entries SET state='unknown' WHERE fp_hash=%s "
                          "AND state IN ('settlement_pending','unknown')", (key,))
 
@@ -267,7 +384,11 @@ class PostgresStore:
     def capacity(self):
         """(admitted, max_rows, max_bytes, outcome_bytes) for operator alerts only."""
         with self._transaction() as conn:
-            if self.functions_api:
+            if self.functions_api and self._feature("capacity", conn):
+                row = conn.execute(
+                    "SELECT admitted,max_rows,max_bytes,outcome_bytes "
+                    "FROM signal_replay.api_capacity(%s)", (self.authority,)).fetchone()
+            elif self.functions_api:
                 row = conn.execute(
                     "SELECT admitted,max_rows,max_bytes,outcome_bytes "
                     "FROM signal_replay.api_authority(%s,false,false)", (self.authority,)).fetchone()
