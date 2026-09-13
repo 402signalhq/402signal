@@ -18,6 +18,14 @@ server. The format follows Keep a Changelog; dates are UTC.
   ping. Every call answers only for the presented key's own subscriptions.
   Guide: `docs/customer/alerts.md`; OpenAPI tag `Keys` also documents
   `GET /keys/usage`.
+- `GET /keys/usage` (`live402/keys.py`): a caller-scoped, read-only view of
+  the two customer credentials. With `X-402Signal-Trial` it returns the
+  credit's `remaining`, `used`, `ceiling`, `active` and `expires_at`; with
+  `X-402Signal-Key` it reports whether the admission key is recognized and
+  the `ingress` / `unpaid` capacities it carries per policy window. Unknown,
+  malformed or expired credentials read as `recognized: false` or
+  `active: false` with HTTP 200, never as an error, and the answer never
+  echoes the secret. No listing, no minting. `Cache-Control: no-store`.
 - Keyless recovery, minimal: repeating a payment authorization whose replay
   identity is already final, without a `Replay-Key`, returns HTTP 409
   `authorization_already_used` with `replay.state`, the matching `billing`
