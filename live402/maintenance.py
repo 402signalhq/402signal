@@ -17,6 +17,7 @@ JOBS = (
     ("leaf_outbox_drain", 15.0),
     ("leaf_outbox_prune", 3600.0),
     ("alerts_scan", 120.0),
+    ("north_star", 3600.0),
 )
 
 _thread: threading.Thread | None = None
@@ -85,6 +86,16 @@ def _alerts_scan() -> None:
         sys.stderr.write("alerts_scan deliveries=%d\n" % attempted)
 
 
+def _north_star() -> None:
+    from live402 import session
+
+    snap = session.north_star(7)
+    sys.stderr.write(
+        "north_star days=7 receipts_organic=%d receipts_all=%d distinct_payers_organic=%d distinct_payers_all=%d\n"
+        % (snap["receipts_organic"], snap["receipts_all"], snap["distinct_payers_organic"], snap["distinct_payers_all"])
+    )
+
+
 _JOB_FUNCS = {
     "session_prune": _session_prune,
     "metrics_flush": _metrics_flush,
@@ -93,6 +104,7 @@ _JOB_FUNCS = {
     "leaf_outbox_drain": _leaf_outbox_drain,
     "leaf_outbox_prune": _leaf_outbox_prune,
     "alerts_scan": _alerts_scan,
+    "north_star": _north_star,
 }
 
 

@@ -71,6 +71,14 @@ def session_stats(path, since: int, until: int) -> dict:
                 days,
             ):
                 stats["counters"][str(name)] = int(total)
+        stats["distinct_payers_organic"] = None
+        if _has_table(conn, "payer_days"):
+            days = _days(since, until)
+            marks = ",".join("?" * len(days))
+            stats["distinct_payers_organic"] = int(conn.execute(
+                "SELECT count(DISTINCT payer_hash) FROM payer_days WHERE traffic = ? AND day IN (%s)" % marks,
+                [ORGANIC, *days],
+            ).fetchone()[0])
     return stats
 
 
@@ -150,6 +158,11 @@ def build(session_db, history_db, *, days: int = 7, now: int | None = None) -> d
     cache_hit_rate = _ratio(cache_hits, cache_hits + cache_misses)
     return {
         "window": {"since": since, "until": until, "days": int(days)},
+        # North star: signed receipts issued to distinct non-lab payers in the window.
+        "north_star": {
+            "receipts_organic": qualified,
+            "distinct_payers_organic": stats.get("distinct_payers_organic"),
+        },
         "session_opens_organic": stats["opens"],
         "session_hops_organic": stats["hops"],
         "hops_per_open": stats["hops_per_open"],
@@ -184,6 +197,9 @@ def render_markdown(report: dict) -> str:
         "",
         "| Metric | Value |",
         "|---|---|",
+        "| North star: receipts issued (organic) | %d |" % report["north_star"]["receipts_organic"],
+        "| North star: distinct payers (organic) | %s |" % (
+            "n/a" if report["north_star"]["distinct_payers_organic"] is None else report["north_star"]["distinct_payers_organic"]),
         "| Session opens (organic) | %d |" % report["session_opens_organic"],
         "| Hops (organic) | %d |" % report["session_hops_organic"],
         "| Hops per open | %s |" % ("n/a" if report["hops_per_open"] is None else report["hops_per_open"]),
