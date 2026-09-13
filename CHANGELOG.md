@@ -25,6 +25,11 @@ server. The format follows Keep a Changelog; dates are UTC.
   Record specification (`docs/evidence-record.md`, versioned and protocol
   independent, with a reserved mandate reference) and a draft x402
   `offer-evidence` extension proposal (`docs/proposals/`).
+- North-star metric, private: after every settled qualifying check the
+  writer records the SHA-256 of the verified payer per UTC day
+  (`payer_days`, never the address) and logs `north_star` hourly: signed
+  receipts issued and distinct organic payers over the trailing seven days.
+  `scripts/organic_rollup.py` prints the pair first. Nothing is published.
 - Change alerts for admission-key holders (`live402/alerts.py`, `POST /alerts`,
   `GET /alerts`, `GET /alerts/{id}`, `POST /alerts/{id}/test`,
   `DELETE /alerts/{id}`): a subscription names up to 20 seller hosts and one
