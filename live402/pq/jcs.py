@@ -10,6 +10,7 @@ import json
 import math
 import re
 from datetime import datetime, timezone
+from decimal import Decimal
 
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 AMOUNT_KEYS = frozenset(
@@ -116,10 +117,36 @@ def _utf16_key(key: str) -> tuple:
 
 
 def _serialize_number(n: float) -> str:
-    # I-JSON / ES6 number serialization (RFC 8785 §3.2.2.3).
+    """ES6 Number::toString for a finite double (RFC 8785 section 3.2.2.3).
+
+    Python's repr yields the same shortest round-trip digits as JavaScript;
+    only the layout differs (`1e-05` against `0.00001`, `5.0` against `5`).
+    The digits are laid out here exactly as JavaScript does, so both sides
+    hash the same bytes for a challenge that carries decimal values.
+    """
     if n == 0:
         return "0"
-    return json.dumps(n, ensure_ascii=True)
+    # No integer shortcut: 1.2345678901234568e+20 prints as its shortest digits
+    # padded with zeros (123456789012345680000), not the exact binary value.
+    _sign, raw_digits, exponent = Decimal(repr(abs(n))).as_tuple()
+    digits = list(raw_digits)
+    while len(digits) > 1 and digits[-1] == 0:
+        digits.pop()
+        exponent += 1
+    text = "".join(str(d) for d in digits)
+    k = len(text)
+    point = k + int(exponent)  # value = 0.<text> x 10^point
+    if k <= point <= 21:
+        body = text + "0" * (point - k)
+    elif 0 < point <= 21:
+        body = text[:point] + "." + text[point:]
+    elif -6 < point <= 0:
+        body = "0." + "0" * (-point) + text
+    else:
+        exp = point - 1
+        mantissa = text[0] + ("." + text[1:] if k > 1 else "")
+        body = mantissa + "e" + ("+" if exp >= 0 else "-") + str(abs(exp))
+    return ("-" if n < 0 else "") + body
 
 
 def require_timestamp(value: str) -> str:

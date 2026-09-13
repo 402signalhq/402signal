@@ -31,7 +31,7 @@ leaf_commitment = SHA256("402signal.route_decision.v4" || 0x00 || canonical(evid
 evidence = { evidence_version, binding, request_json, routing_evidence_json }
 ```
 
-`canonical` is the RFC 8785 subset the verifiers implement: null, booleans, Unicode strings, arrays, objects and safe integers only; floats, duplicate keys, lone surrogates and unsafe integers are rejected. `request_json` and `routing_evidence_json` are JSON strings whose bytes must be preserved exactly. The public leaf carries only the leaf type, a minute-rounded timestamp, a nonce and the commitment. The reveal (evidence plus salt) stays with the buyer.
+`canonical` is the RFC 8785 profile the verifiers implement: null, booleans, Unicode strings, arrays, objects and finite numbers within plus or minus 2^53 in the ES6 layout; non-finite numbers, duplicate keys, lone surrogates and unsafe integers are rejected. `request_json` and `routing_evidence_json` are JSON strings whose bytes must be preserved exactly. The public leaf carries only the leaf type, a minute-rounded timestamp, a nonce and the commitment. The reveal (evidence plus salt) stays with the buyer.
 
 ### What is private and what is public
 
