@@ -45,6 +45,7 @@ COUNT_SQL = (
 COUNT_KEYS = ("resources", "max_resource_id", "resource_sources", "accept_claims", "source_state", "claim_events")
 DRAIN_LIMIT = 200
 BACKFILL_CHUNK = 300
+EVENTS_CHUNK = 1000
 
 _lock = threading.Lock()
 _replica = None
@@ -216,13 +217,14 @@ def _meta_set(conn, key: str, value: str) -> None:
     )
 
 
-def backfill_step(chunk: int = BACKFILL_CHUNK) -> dict | None:
-    """Copy the file into the replica once, oldest listing first, one chunk per call.
+def backfill_step(chunk: int = BACKFILL_CHUNK, events_chunk: int = EVENTS_CHUNK) -> dict | None:
+    """Copy the file into the replica once, one chunk per call.
 
-    The cursor (last resource id shipped) lives in the SQLite file. The source
-    sweep state and every claim event (capped at a few thousand rows) go with
-    the first chunk. Rows the outbox ships meanwhile are upserts of the same
-    ids, so live refreshes and the backfill never disagree.
+    Two phases, each with its own cursor in the SQLite file: first the source
+    sweep state and the claim events (oldest first, `events_chunk` a call),
+    then the listings with their sources and claims (`chunk` a call). Rows
+    the outbox ships meanwhile are upserts of the same ids, so live refreshes
+    and the backfill never disagree.
     """
     if not dual():
         return None
@@ -232,30 +234,47 @@ def backfill_step(chunk: int = BACKFILL_CHUNK) -> dict | None:
         conn = shadow._connect()
         if _meta_get(conn, "backfill_done_at"):
             return None
+        events_cursor = _meta_get(conn, "backfill_events_cursor")
         cursor = int(_meta_get(conn, "backfill_cursor") or 0)
         cur = conn.cursor()
         payload: dict = {}
-        if cursor == 0:
-            cur.execute("SELECT %s FROM source_state" % ", ".join(STATE_COLS))
-            payload["source_state"] = [_lower(r, STATE_COLS) for r in cur.fetchall()]
-            cur.execute("SELECT %s FROM claim_events ORDER BY id" % ", ".join(EVENT_COLS))
-            payload["claim_events"] = [_lower(r, EVENT_COLS) for r in cur.fetchall()]
-        cur.execute("SELECT id FROM resources WHERE id > ? ORDER BY id ASC LIMIT ?", (cursor, int(chunk)))
-        ids = [int(r[0]) for r in cur.fetchall()]
-        if ids:
-            payload.update({k: v for k, v in _rows_for_resources(cur, ids).items() if v})
-            payload["claims_for"] = ids
-            next_cursor = ids[-1]
+        phase = "events"
+        next_cursor = cursor
+        next_events_cursor = events_cursor
+        if events_cursor != "done":
+            start = int(events_cursor or 0)
+            if start == 0:
+                cur.execute("SELECT %s FROM source_state" % ", ".join(STATE_COLS))
+                payload["source_state"] = [_lower(r, STATE_COLS) for r in cur.fetchall()]
+            cur.execute(
+                "SELECT %s FROM claim_events WHERE id > ? ORDER BY id ASC LIMIT ?" % ", ".join(EVENT_COLS),
+                (start, int(events_chunk)),
+            )
+            events = [_lower(r, EVENT_COLS) for r in cur.fetchall()]
+            if events:
+                payload["claim_events"] = events
+            cur.execute("SELECT coalesce(max(id), 0) FROM claim_events")
+            max_event = int(cur.fetchone()[0] or 0)
+            last = int(events[-1]["id"]) if events else start
+            next_events_cursor = "done" if last >= max_event else str(last)
         else:
-            next_cursor = cursor
+            phase = "resources"
+            cur.execute("SELECT id FROM resources WHERE id > ? ORDER BY id ASC LIMIT ?", (cursor, int(chunk)))
+            ids = [int(r[0]) for r in cur.fetchall()]
+            if ids:
+                payload.update({k: v for k, v in _rows_for_resources(cur, ids).items() if v})
+                payload["claims_for"] = ids
+                next_cursor = ids[-1]
         cur.execute("SELECT coalesce(max(id), 0) FROM resources")
         max_id = int(cur.fetchone()[0] or 0)
     payload = {k: v for k, v in payload.items() if v}
     target = replica()
     counts = target.apply(payload) if payload else {}
-    done = next_cursor >= max_id
+    done = phase == "resources" and next_cursor >= max_id
     with shadow._lock:
         conn = shadow._connect()
+        if next_events_cursor is not None:
+            _meta_set(conn, "backfill_events_cursor", str(next_events_cursor))
         _meta_set(conn, "backfill_cursor", str(next_cursor))
         if done:
             _meta_set(conn, "backfill_done_at", str(int(time.time())))
@@ -265,7 +284,7 @@ def backfill_step(chunk: int = BACKFILL_CHUNK) -> dict | None:
             target.meta_set("backfill_done_at", str(int(time.time())))
         except ReplicaUnavailable:
             pass
-    return {"cursor": next_cursor, "max_id": max_id, "done": done, **counts}
+    return {"phase": phase, "cursor": next_cursor, "max_id": max_id, "done": done, **counts}
 
 
 def parity() -> dict:
