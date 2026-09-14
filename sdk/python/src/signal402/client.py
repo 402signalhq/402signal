@@ -3,11 +3,18 @@
 The buyer authorizes the $0.003 checking fee with its own x402 client and
 passes the resulting ``PAYMENT-SIGNATURE`` header here; this module only moves
 bytes and classifies the answer. See https://402signal.com/developers.
+
+Transport rules: the router URL must be https (plain http only to a loopback
+address, for fixtures) with no credentials, query or fragment; redirects are
+refused (the router never redirects, and following one would hand the payment
+header to whoever answered); every answer is read to at most
+``MAX_RESPONSE_BYTES``.
 """
 from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any
@@ -16,6 +23,38 @@ DEFAULT_ROUTER = "https://402signal.com/route"
 PAYMENT_HEADER = "PAYMENT-SIGNATURE"
 REPLAY_KEY_HEADER = "Replay-Key"
 _TIMEOUT_S = 75.0
+MAX_RESPONSE_BYTES = 256 * 1024
+
+
+class RedirectRefused(ValueError):
+    """The router never redirects. A redirect means another host answered, and
+    following it would send the payment header to that host."""
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise RedirectRefused("redirect refused: %s answered %d" % (req.full_url, code))
+
+
+_opener = urllib.request.build_opener(_NoRedirect())
+
+
+def _router_url(router: str) -> str:
+    """https, or plain http to a loopback address for fixtures; never credentials, a query or a fragment."""
+    parts = urllib.parse.urlsplit(str(router or ""))
+    loopback = parts.scheme == "http" and parts.hostname in ("127.0.0.1", "localhost", "::1")
+    if parts.scheme != "https" and not loopback:
+        raise ValueError("router must be an https URL")
+    if not parts.hostname or parts.username or parts.password or parts.query or parts.fragment:
+        raise ValueError("router must be a plain URL: no credentials, query or fragment")
+    return str(router)
+
+
+def _read_bounded(res) -> bytes:
+    raw = res.read(MAX_RESPONSE_BYTES + 1)
+    if len(raw) > MAX_RESPONSE_BYTES:
+        raise ValueError("response larger than %d bytes" % MAX_RESPONSE_BYTES)
+    return raw
 
 # Outcome names. Read ``live``, ``payable``, ``selected_payment`` and ``billing``
 # together; the name is a summary, not a substitute.
@@ -77,8 +116,7 @@ def classify(status: int, body: Any) -> str:
 
 
 def _post(router: str, request: dict, headers: dict[str, str], timeout: float) -> CheckResult:
-    if not router.startswith("https://") and not router.startswith("http://127.0.0.1") and not router.startswith("http://localhost"):
-        raise ValueError("router must be an https URL")
+    router = _router_url(router)
     data = json.dumps(request, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(router, data=data, method="POST")
     req.add_header("Content-Type", "application/json")
@@ -86,10 +124,10 @@ def _post(router: str, request: dict, headers: dict[str, str], timeout: float) -
     for name, value in headers.items():
         req.add_header(name, value)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as res:  # noqa: S310 (https enforced above)
-            status, raw = res.status, res.read()
+        with _opener.open(req, timeout=timeout) as res:  # noqa: S310 (https or loopback enforced above; redirects refused)
+            status, raw = res.status, _read_bounded(res)
     except urllib.error.HTTPError as exc:
-        status, raw = exc.code, exc.read()
+        status, raw = exc.code, _read_bounded(exc)
     text = raw.decode("utf-8", errors="replace")
     try:
         body = json.loads(text)

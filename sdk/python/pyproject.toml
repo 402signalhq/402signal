@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "402signal"
-version = "0.1.1"
+version = "0.1.2"
 description = "402Signal client helpers and an offline receipt verifier for x402 and MPP buyers"
 readme = "README.md"
 license = { text = "Apache-2.0" }

@@ -5,6 +5,11 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- `402signal` (Python) 0.1.2 candidate: the client does not follow redirects
+  (`signal402.RedirectRefused`), validates the router URL (https or loopback
+  http, no credentials, query or fragment) and reads every answer to at most
+  256 KiB (`MAX_RESPONSE_BYTES`), matching the Node client's transport rules.
+  Published from tag `python-v0.1.2` after the train.
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
   PR #250 merge commit (5ea0df9), GitHub release 2026-09-14T15:52:55Z with the
   reviewed pair (`8fbf694f…` tarball, `00572428…` SHA256SUMS; the downloaded
