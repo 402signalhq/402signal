@@ -319,6 +319,55 @@ def _payto(snap: dict) -> str | None:
     return _text(snap.get("payTo"))
 
 
+def _claimed_rail(claimed: dict | None) -> str | None:
+    """The claim's own rail: the catalog accept whose recipient is the claimed payTo.
+
+    A claim row must not inherit the observed option's rail; a listing can name a
+    Base recipient while the live challenge answered on Solana.
+    """
+    if not isinstance(claimed, dict):
+        return None
+    rail = _text(claimed.get("rail"))
+    if rail:
+        return rail
+    pay = _text(claimed.get("payTo"))
+    accepts = claimed.get("accepts")
+    if not pay or not isinstance(accepts, list):
+        return None
+    for acc in accepts:
+        if not isinstance(acc, dict):
+            continue
+        listed = _text(acc.get("payTo"))
+        if not listed:
+            continue
+        acc_rail = payment.rail_of_network(acc.get("network") or "")
+        if acc_rail and payment.payto_equal(listed, pay, acc_rail):
+            return acc_rail
+    return None
+
+
+def _observed_rail(snap: dict) -> str | None:
+    """Rail of the option this row records: the first accept with a payTo, the same one
+    that supplies the recorded recipient and amount.
+
+    snap["rail"] is used only when the envelope cannot say (fixtures, MPP charges, a
+    thin 402). Before 2026-09-14 the routed path wrote the catalog listing's rail here,
+    so a seller listed on Algorand and answering with Solana terms was filed under
+    Algorand; repair_probe_rails() corrects those rows.
+    """
+    accepts = _envelope(snap).get("accepts")
+    if isinstance(accepts, list):
+        for acc in accepts:
+            if not isinstance(acc, dict) or _text(acc.get("payTo")) is None:
+                continue
+            opt = payment.payment_option_from_accept(acc)
+            rail = (opt or {}).get("rail") or payment.rail_of_network(acc.get("network") or "")
+            if rail:
+                return _text(rail)
+            break
+    return _text(snap.get("rail"))
+
+
 def _envelope(snap: dict) -> dict:
     env = snap.get("envelope")
     return env if isinstance(env, dict) else {}
@@ -945,11 +994,15 @@ def _write_probe_row(dest: str, snap: dict, meta: dict) -> None:
         invocable_known = False
     latency = _as_int(snap.get("latency_ms"), None)
     miss = _text(snap.get("miss_reason"))
-    rail = _text(snap.get("rail"))
+    rail = _observed_rail(snap)
     http_status = _as_int(snap.get("status"), None)
     batch_id = _text(snap.get("batch_id"))
     obs_source = _text(snap.get("source")) or "402signal"
     claimed = _claimed_blob(snap)
+    if claimed and not _text(claimed.get("rail")):
+        claim_rail = _claimed_rail(claimed)
+        if claim_rail:
+            claimed = dict(claimed, rail=claim_rail)
     trust_class = classify_trust_class(snap)
     trusted = is_trusted_class(trust_class)
     settled = 1 if trusted else 0
@@ -1076,6 +1129,132 @@ def record_probe(url: str, snap: dict | None = None) -> dict:
         return meta
     except Exception:
         return meta
+
+
+RAIL_REPAIR_KEY = "rail_repair_v1"
+
+
+def _rail_from_recipient_shape(pay_to: str | None) -> str | None:
+    """What an address can only be: algorand (58-char base32 with checksum), solana
+    (32-byte base58) or 'evm' (0x + 40 hex); None when ambiguous."""
+    text = _text(pay_to)
+    if not text:
+        return None
+    if payment.valid_payto_for_rail(text, "base"):
+        return "evm"
+    if payment.valid_payto_for_rail(text, "algorand"):
+        return "algorand"
+    if payment.valid_payto_for_rail(text, "solana"):
+        return "solana"
+    return None
+
+
+def repaired_rail(url: str, pay_to: str | None, recorded: str | None, claims: list | None = None) -> str | None:
+    """The rail a stored probe row should carry, from its own recipient and the catalog.
+
+    1. The catalog lists this recipient for this URL on exactly one rail: that rail.
+    2. It lists it on several and the recorded rail is one of them: keep.
+    3. Otherwise the recipient's shape decides: an Algorand or Solana address names
+       its rail; a 0x address keeps an EVM rail already recorded, else takes the
+       catalog's single EVM rail for the recipient, else base (the only EVM rail the
+       parser produced before 2026-09-13).
+    4. No recipient, or nothing decisive: keep the recorded rail.
+    """
+    text = _text(pay_to)
+    recorded = _text(recorded)
+    if not text:
+        return recorded
+    rails: set[str] = set()
+    for claim in claims or []:
+        if not isinstance(claim, dict):
+            continue
+        rail = _text(claim.get("rail"))
+        listed = _text(claim.get("payTo"))
+        if rail and listed and payment.payto_equal(listed, text, rail):
+            rails.add(rail)
+    if len(rails) == 1:
+        return next(iter(rails))
+    if rails and recorded in rails:
+        return recorded
+    from live402 import evm_chains
+
+    shape = _rail_from_recipient_shape(text)
+    if shape in ("algorand", "solana"):
+        return shape
+    if shape == "evm":
+        if evm_chains.is_evm_rail(recorded):
+            return recorded
+        evm = {r for r in rails if evm_chains.is_evm_rail(r)}
+        if len(evm) == 1:
+            return next(iter(evm))
+        return "base"
+    return recorded
+
+
+def repair_probe_rails(limit: int = 500) -> dict:
+    """One-time, idempotent relabel of probes.rail (and the observed rows under each
+    probe) where the routed path stored the catalog listing's rail instead of the
+    observed option's. Chunked by id; each chunk is one locked transaction that ships
+    to the replica like any other write. Returns progress; never raises.
+    """
+    out = {"cursor": 0, "max_id": 0, "scanned": 0, "changed": 0, "done": False}
+    try:
+        from live402 import shadow
+
+        with _lock:
+            conn = _connect()
+            cur = conn.cursor()
+            cur.execute("SELECT value FROM replica_meta WHERE key = ?", (RAIL_REPAIR_KEY + "_done_at",))
+            if cur.fetchone():
+                out["done"] = True
+                return out
+            cur.execute("SELECT value FROM replica_meta WHERE key = ?", (RAIL_REPAIR_KEY + "_cursor",))
+            row = cur.fetchone()
+            cursor = int(row[0]) if row else 0
+            cur.execute("SELECT coalesce(max(id), 0) FROM probes")
+            max_id = int(cur.fetchone()[0] or 0)
+            cur.execute(
+                "SELECT id, url, payTo, rail FROM probes WHERE id > ? AND payTo IS NOT NULL ORDER BY id ASC LIMIT ?",
+                (cursor, int(limit)),
+            )
+            rows = cur.fetchall()
+            _begin_effects()
+            claims_cache: dict[str, list] = {}
+            last_id = cursor
+            for pid, url, pay_to, recorded in rows:
+                last_id = int(pid)
+                out["scanned"] += 1
+                if url not in claims_cache:
+                    claims_cache[url] = shadow.accept_claims(url)
+                wanted = repaired_rail(url, pay_to, recorded, claims_cache[url])
+                if not wanted or wanted == _text(recorded):
+                    continue
+                cur.execute("UPDATE probes SET rail = ? WHERE id = ?", (wanted, pid))
+                cur.execute(
+                    "UPDATE observations SET rail = ? WHERE probe_id = ? AND source_type = ?",
+                    (wanted, pid, SOURCE_OBSERVED),
+                )
+                if _effects is not None:
+                    _effects.probe_ids.add(int(pid))
+                out["changed"] += 1
+            if len(rows) < int(limit):
+                # Every row with a recipient up to max_id has been considered.
+                last_id = max(last_id, max_id)
+                cur.execute(
+                    "INSERT INTO replica_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (RAIL_REPAIR_KEY + "_done_at", str(int(time.time()))),
+                )
+                out["done"] = True
+            cur.execute(
+                "INSERT INTO replica_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (RAIL_REPAIR_KEY + "_cursor", str(last_id)),
+            )
+            _commit_with_effects(conn)
+            out["cursor"] = last_id
+            out["max_id"] = max_id
+        return out
+    except Exception:
+        return out
 
 
 def touch_validate_clocks(url: str, snap: dict | None = None) -> dict:

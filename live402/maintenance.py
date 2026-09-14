@@ -21,6 +21,7 @@ JOBS = (
     ("history_replica_drain", 15.0),
     ("history_replica_backfill", 30.0),
     ("history_replica_parity", 3600.0),
+    ("history_rail_repair", 30.0),
     ("catalog_replica_drain", 15.0),
     ("catalog_replica_backfill", 30.0),
     ("catalog_replica_parity", 3600.0),
@@ -152,6 +153,18 @@ def _history_replica_parity() -> None:
     )
 
 
+def _history_rail_repair() -> None:
+    """Relabel probe rows that carry a listing's rail instead of the observed option's. Runs to completion once."""
+    from live402 import history
+
+    step = history.repair_probe_rails()
+    if step.get("scanned") or step.get("changed") or (step.get("done") and step.get("max_id")):
+        sys.stderr.write(
+            "history_rail_repair cursor=%d max_id=%d scanned=%d changed=%d done=%s\n"
+            % (step["cursor"], step["max_id"], step["scanned"], step["changed"], "yes" if step["done"] else "no")
+        )
+
+
 def _catalog_replica_drain() -> None:
     from live402 import catalog_replica
 
@@ -214,6 +227,7 @@ _JOB_FUNCS = {
     "history_replica_drain": _history_replica_drain,
     "history_replica_backfill": _history_replica_backfill,
     "history_replica_parity": _history_replica_parity,
+    "history_rail_repair": _history_rail_repair,
     "catalog_replica_drain": _catalog_replica_drain,
     "catalog_replica_backfill": _catalog_replica_backfill,
     "catalog_replica_parity": _catalog_replica_parity,
