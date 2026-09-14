@@ -64,6 +64,12 @@ outcome name is a summary. A settled fee is not reversed if the seller's offer
 later changes, and a qualifying check is not a guarantee of delivery or output
 quality.
 
+The client refuses redirects (`signal402.RedirectRefused`): the router never
+redirects, and following one would hand your payment header to whoever
+answered. The router URL must be https (plain http only to a loopback address,
+for fixtures) with no credentials, query or fragment, and every answer is read
+to at most 256 KiB (`signal402.MAX_RESPONSE_BYTES`).
+
 ## Development
 
 ```sh
