@@ -323,12 +323,12 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "with untested ranked candidates remaining and the 55s budget still open."
                 ),
             },
-            "payTo": {"type": ["string", "null"]},
-            "payTo_changed": {"type": "boolean"},
-            "verified_at": {"type": ["string", "null"]},
+            "payTo": {"type": ["string", "null"], "description": "Recipient of the selected offer as observed in the live challenge."},
+            **schema_fields.recipient_flag_properties(),
+            "observed": schema_fields.observed_output_schema(),
+            "verified_at": {"type": ["string", "null"], "description": "When the observed live challenge was taken."},
             "verified_seconds_ago": {"type": ["integer", "null"]},
             "readiness": {"type": "string", "enum": ["discovered", "payable", "invocable", "recently_verified"]},
-            "risk": {"type": "array", "items": {"type": "string"}},
             "history": {
                 "type": "object",
                 "properties": {
@@ -389,15 +389,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "status": {"type": ["integer", "null"]},
                 },
             },
-            "reputation": {
-                "type": "object",
-                "description": (
-                    "Transparent components first (observed, usage, tenure, stability, "
-                    "source_count), then V2 reputation_score, reputation_confidence, "
-                    "and scoring_model_id/hash. Score is never returned without components. "
-                    "No public 0-100 catalog badge. Unique payer addresses are never listed."
-                ),
-            },
+            "reputation": schema_fields.reputation_output_schema(),
             "payment_authorization": {
                 "type": "object",
                 "properties": {
@@ -1419,8 +1411,8 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                         "live": {"type": "boolean"},
                         "payable": {"type": "boolean"},
                         "invocable": {"type": "boolean"},
-                        "claimed": {"type": "object"},
-                        "observed": {"type": "object"},
+                        "claimed": schema_fields.claimed_output_schema(),
+                        "observed": schema_fields.observed_output_schema(),
                         "flags": {"type": "array", "items": {"type": "string"}},
                         "n_7d": {"type": "integer"},
                         "miss_reason": {"type": "string"},
