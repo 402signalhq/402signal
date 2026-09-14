@@ -420,6 +420,15 @@ From the review's 2026-09-14 refresh against the 0.7.6 source:
   `mandate_mismatch` and `unsupported_hop_field` count as unsettled misses.
   `routeOutcome` is new on the classification and echoes the server's
   `route_outcome.code`.
+- Which verifier covers which answer: `verifyReceipt` and `verifyRoute` cover
+  ordinary check answers (v4 route receipts). A Check group offer answer
+  carries a v5 batch-observation leaf and is verified end to end, signed
+  receipt and inclusion path included, by `verifyBatchRoute` against the
+  challenge the server observed, which the answer embeds in
+  `batch_binding.challenge`; MPP challenge ids and expiries rotate on every
+  read, so a buyer's own earlier reread is compared on its economic terms,
+  never byte for byte. `verifyReceipt` answers `unsupported_receipt` for a
+  v5 leaf on purpose (found by the 2026-09-14 hosted-MPP proof run).
 
 ## Guard hardening (0.7.6)
 

@@ -20,8 +20,8 @@
       "state": "pending",
       "digest_status": "provisional-until-release",
       "source_revision": "452fa278853eb2758dc7b19101f5f13113501be4",
-      "provisional_pack_sha256": "f3685802077129ee323cd8e06734cf0188d83a314c8bbcde327c6747820ee944",
-      "provisional_sums_sha256": "4f95a780cb01205fc200a61a798780afca9fc218724ebf68654973b7a1c3c464",
+      "provisional_pack_sha256": "383f204105225bc845123a5a4d17fd14208c69466c0a382664636070590a5acd",
+      "provisional_sums_sha256": "37f73ef37b9bb1037453ca57d7f0429d68381546040bf2da803ef7ec18a856a6",
       "distribution": "Release candidate: GitHub release archive and npm registry (@402signal/route-guard@0.7.7, provenance) once tagged and published; not an install URL yet",
       "recipe": "/developers/check-group-offer",
       "note": "Security review refresh 2026-09-14: fee terms pinned (S1), unmetered transports refused (S2), typed declarations complete (F5); classification knows every fee shape and the hosted-session answers (paid captures 2026-09-14). The installer, llms.txt and the site keep the published 0.7.6 pin until this row is published."

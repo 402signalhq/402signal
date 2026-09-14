@@ -9,9 +9,9 @@ import test from "node:test";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const checker = join(root, "scripts/check_route_guard_archive.mjs");
 const REVIEWED_PACK =
-  "f3685802077129ee323cd8e06734cf0188d83a314c8bbcde327c6747820ee944";
+  "383f204105225bc845123a5a4d17fd14208c69466c0a382664636070590a5acd";
 const REVIEWED_SUMS =
-  "4f95a780cb01205fc200a61a798780afca9fc218724ebf68654973b7a1c3c464";
+  "37f73ef37b9bb1037453ca57d7f0429d68381546040bf2da803ef7ec18a856a6";
 
 function runChecker(tgz, sums) {
   return spawnSync(process.execPath, [checker, tgz, "--checksum-file", sums], {

@@ -19,7 +19,7 @@ server. The format follows Keep a Changelog; dates are UTC.
   classification gains `routeOutcome`, and the hosted-session miss reasons
   count as unsettled misses (found by the 2026-09-14 paid captures: a session
   open and a hop both classified `unclassified`). Pending `capabilities.json`
-  row with the provisional pair (`f3685802…` tarball, `4f95a780…`
+  row with the provisional pair (`383f2041…` tarball, `37f73ef3…`
   SHA256SUMS); the installer, llms.txt and the site keep the published 0.7.6
   pin until the release.
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
