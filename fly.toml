@@ -108,6 +108,11 @@ kill_timeout = "75s"
   # probes and change clocks. The file stays the reader. Remove this line to stop
   # shipping; nothing reads from PostgreSQL in this step.
   LIVE402_HISTORY_BACKEND = "dual"
+  # Shadow catalog replica (private runbook catalog-postgres.md): every committed
+  # change to the SQLite catalog file is shipped to signal_catalog on the replay
+  # authority (owner functions installed). The file stays the reader. Remove this
+  # line to stop shipping; nothing reads from PostgreSQL in this step.
+  LIVE402_CATALOG_BACKEND = "dual"
   LIVE402_MAX_HANDLERS = "200"
   LIVE402_MAX_PROCESS_PROBES = "32"
   LIVE402_READY_CACHE_S = "5"

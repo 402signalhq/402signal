@@ -5,6 +5,7 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Production shadow catalog ships to the replay authority (`LIVE402_CATALOG_BACKEND = "dual"` in `fly.toml`; the owner functions in `ops/catalog-postgres-managed.sql` are installed). The SQLite file stays the reader; the writer backfills it once and logs parity hourly. Fourth step of the second-machine plan.
 - Production probe history ships to the replay authority (`LIVE402_HISTORY_BACKEND = "dual"` in `fly.toml`; the owner functions in `ops/history-postgres-managed.sql` are installed). The SQLite file stays the reader; the writer backfills it once and logs parity hourly. Third step of the second-machine plan.
 - Probe history replica on the replay PostgreSQL (`live402/history_replica.py`,
   `LIVE402_HISTORY_BACKEND=sqlite|dual`, owner migration
