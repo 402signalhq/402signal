@@ -832,7 +832,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "operationId": "mcpManifest",
                     "tags": ["Public"],
                     "summary": "List MCP tools without a payment",
-                    "description": "Tools: route (and its alias check), preview, validate. Route and check calls require a payment authorization (HTTP 402 without one); preview and validate are unpaid.",
+                    "description": "Tools: check (paid; route is its former name and still accepted by tools/call), preview, validate. check calls require a payment authorization (HTTP 402 without one); preview and validate are unpaid.",
                     "responses": {"200": {"description": "MCP manifest"}},
                 }
             },
