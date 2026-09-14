@@ -41,10 +41,15 @@ def slug(text) -> str:
 
 
 def traffic_label(value: str | None = None) -> str:
+    """The counter label for the current request: its server-assigned traffic
+    class, or "self" when the verified payer is one of the operator's own
+    wallets (the observations stay organic; only the demand accounting moves)."""
     if value is None:
         try:
             from live402 import reqctx
 
+            if reqctx.self_payer.get():
+                return "self"
             value = reqctx.traffic_class.get()
         except Exception:
             value = ""

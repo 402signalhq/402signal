@@ -10,7 +10,7 @@ import sys
 import time
 
 from live402 import deadline as deadline_mod
-from live402 import facilitator, fixtures, metrics, payment, probe, replay, reqctx, select
+from live402 import facilitator, fixtures, metrics, payment, probe, replay, reqctx, select, self_payers
 from live402 import policy as policy_mod
 from live402.route_outcomes import is_normal_miss
 
@@ -759,11 +759,13 @@ def _paid_execute(
     except Exception:
         assigned = "unclassified"
     token = reqctx.traffic_class.set(assigned)
+    self_token = reqctx.self_payer.set(False)
     try:
         return _paid_execute_inner(
             body, parsed, accept, resource_url, bazaar, paid_deadline, fp
         )
     finally:
+        reqctx.self_payer.reset(self_token)
         reqctx.traffic_class.reset(token)
 
 
@@ -817,6 +819,10 @@ def _paid_execute_inner(
     # identity is admitted. Settled attempts are refunded in _handle_route.
     verify_body = getattr(verify, "body", None)
     verified_payer = verify_body.get("payer") if isinstance(verify_body, dict) else None
+    if self_payers.is_self(verified_payer):
+        # The operator's own wallet: the check runs and the seller facts stay
+        # organic, but every counter and the payer day from here on say "self".
+        reqctx.self_payer.set(True)
     try:
         payer_quota.hold(payer_quota.reserve(payment.rail_of_accept(accept), verified_payer))
     except payer_quota.Exhausted:

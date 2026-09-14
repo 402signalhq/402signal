@@ -808,9 +808,13 @@ def save_checkpoint(tree_size: int, note: str) -> None:
             "INSERT OR REPLACE INTO checkpoints(size, note) VALUES (?, ?)",
             (int(tree_size), note),
         )
+        # The "latest" pointer never moves backwards: when two saves interleave
+        # and the smaller tree size finishes last, the largest size stays latest.
+        row = conn.execute("SELECT note FROM checkpoints ORDER BY size DESC LIMIT 1").fetchone()
+        latest = str(row[0]) if row and row[0] else note
         conn.execute(
             "INSERT INTO meta(k, v) VALUES ('checkpoint', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v",
-            (note,),
+            (latest,),
         )
         conn.commit()
         _chmod_db_files(_conn_path or db_path())

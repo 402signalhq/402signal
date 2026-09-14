@@ -54,6 +54,7 @@ class NorthStarTests(unittest.TestCase):
         self.assertEqual(snap, {
             "days": 7, "receipts_organic": 3, "receipts_all": 5, "settled_organic": 4, "settled_all": 6,
             "distinct_payers_organic": 1, "distinct_payers_all": 2,
+            "receipts_self": 0, "settled_self": 0, "distinct_payers_self": 0,
         })
         self.assertEqual(session.north_star(30, now=now)["receipts_organic"], 53)
 

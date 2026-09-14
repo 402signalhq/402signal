@@ -46,6 +46,10 @@ COUNT_KEYS = ("resources", "max_resource_id", "resource_sources", "accept_claims
 DRAIN_LIMIT = 200
 BACKFILL_CHUNK = 300
 EVENTS_CHUNK = 1000
+# Bound on queued change sets during a replica outage; past it the outbox stops
+# growing and the backfill restarts once the replica is back (see enqueue()).
+MAX_OUTBOX_ROWS = 20_000
+OVERFLOW_KEY = "outbox_overflow_at"
 
 _lock = threading.Lock()
 _replica = None
@@ -140,6 +144,13 @@ def enqueue(cur, effects: Effects) -> bool:
         payload = capture(cur, effects)
         if not payload:
             return False
+        depth = cur.execute("SELECT count(*) FROM replica_outbox").fetchone()
+        if int((depth[0] if depth else 0) or 0) >= MAX_OUTBOX_ROWS:
+            cur.execute(
+                "INSERT INTO replica_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (OVERFLOW_KEY, str(int(time.time()))),
+            )
+            return False
         cur.execute(
             "INSERT INTO replica_outbox (payload, created_at) VALUES (?, ?)",
             (json.dumps(payload, separators=(",", ":"), default=str), int(time.time())),
@@ -181,11 +192,13 @@ def drain(limit: int = DRAIN_LIMIT) -> int:
 
     shipped = 0
     target = replica()
+    empty = False
     while shipped < limit:
         with shadow._lock:
             conn = shadow._connect()
             row = conn.execute("SELECT id, payload FROM replica_outbox ORDER BY id ASC LIMIT 1").fetchone()
         if not row:
+            empty = True
             break
         payload = clean_payload(json.loads(row["payload"]))
         target.apply(payload)
@@ -194,7 +207,23 @@ def drain(limit: int = DRAIN_LIMIT) -> int:
             conn.execute("DELETE FROM replica_outbox WHERE id = ?", (int(row["id"]),))
             conn.commit()
         shipped += 1
+    if empty:
+        _recover_overflow(shadow)
     return shipped
+
+
+def _recover_overflow(shadow_mod) -> bool:
+    """After an overflow, once the outbox is empty again: restart the backfill so the
+    change sets dropped during the outage reach the replica (upserts of the same ids)."""
+    with shadow_mod._lock:
+        conn = shadow_mod._connect()
+        if _meta_get(conn, OVERFLOW_KEY) is None:
+            return False
+        conn.execute("DELETE FROM replica_meta WHERE key IN (?, 'backfill_done_at', 'backfill_events_cursor')", (OVERFLOW_KEY,))
+        _meta_set(conn, "backfill_cursor", "0")
+        conn.commit()
+    sys.stderr.write("catalog_replica_outbox_overflow_recovered backfill=restarted\n")
+    return True
 
 
 def outbox_depth() -> int:

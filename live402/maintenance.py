@@ -85,12 +85,44 @@ def _leaf_outbox_prune() -> None:
         sys.stderr.write("leaf_outbox_pruned count=%d\n" % removed)
 
 
-def _alerts_scan() -> None:
-    from live402 import alerts
+ALERTS_SCAN_SLOW_MS = 30_000
 
+
+def _alerts_scan() -> None:
+    from live402 import alerts, metrics
+
+    started = time.monotonic()
     attempted = alerts.scan()
+    elapsed_ms = int((time.monotonic() - started) * 1000)
+    # R2: the scan runs inside the housekeeping loop; its duration and delivery
+    # count are counters, so a growing backlog shows up before it hurts.
+    metrics.inc("alerts.scans")
+    metrics.inc("alerts.scan_ms", elapsed_ms)
     if attempted:
-        sys.stderr.write("alerts_scan deliveries=%d\n" % attempted)
+        metrics.inc("alerts.deliveries", attempted)
+        sys.stderr.write("alerts_scan deliveries=%d ms=%d\n" % (attempted, elapsed_ms))
+    if elapsed_ms >= ALERTS_SCAN_SLOW_MS:
+        metrics.inc("alerts.scan_slow")
+        sys.stderr.write("alerts_scan_slow ms=%d deliveries=%d\n" % (elapsed_ms, attempted))
+
+
+# Replica outages log once when they start, at most every ten minutes while they
+# last, and once when they end, instead of every fifteen-second tick.
+UNAVAILABLE_LOG_EVERY_S = 600.0
+_unavailable_logged: dict[str, float] = {}
+
+
+def _log_unavailable(name: str, pending: int, detail: str) -> None:
+    now = time.monotonic()
+    last = _unavailable_logged.get(name)
+    if last is None or now - last >= UNAVAILABLE_LOG_EVERY_S:
+        _unavailable_logged[name] = now
+        sys.stderr.write("%s_unavailable pending=%d detail=%r\n" % (name, pending, detail))
+
+
+def _log_recovered(name: str) -> None:
+    if _unavailable_logged.pop(name, None) is not None:
+        sys.stderr.write("%s_recovered\n" % name)
 
 
 def _north_star() -> None:
@@ -113,8 +145,9 @@ def _history_replica_drain() -> None:
     try:
         shipped = history_replica.drain()
     except history_replica.ReplicaUnavailable as exc:
-        sys.stderr.write("history_replica_unavailable pending=%d detail=%r\n" % (history_replica.outbox_depth(), exc.detail))
+        _log_unavailable("history_replica", history_replica.outbox_depth(), exc.detail)
         return
+    _log_recovered("history_replica")
     if shipped:
         sys.stderr.write("history_replica_drained count=%d\n" % shipped)
 
@@ -175,8 +208,9 @@ def _catalog_replica_drain() -> None:
     try:
         shipped = catalog_replica.drain()
     except catalog_replica.ReplicaUnavailable as exc:
-        sys.stderr.write("catalog_replica_unavailable pending=%d detail=%r\n" % (catalog_replica.outbox_depth(), exc.detail))
+        _log_unavailable("catalog_replica", catalog_replica.outbox_depth(), exc.detail)
         return
+    _log_recovered("catalog_replica")
     if shipped:
         sys.stderr.write("catalog_replica_drained count=%d\n" % shipped)
 
