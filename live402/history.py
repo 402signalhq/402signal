@@ -310,7 +310,8 @@ def _as_int(val, default=None):
 def _text(val) -> str | None:
     if val is None:
         return None
-    text = str(val).strip()
+    # Observed and claimed strings never carry NUL into the history file (PostgreSQL text refuses it).
+    text = str(val).replace("\x00", "").strip()
     return text or None
 
 

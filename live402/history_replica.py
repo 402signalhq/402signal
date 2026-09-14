@@ -105,8 +105,26 @@ class Effects:
                     or self.deleted_observations or self.sealed or self.models)
 
 
+def clean_text(value):
+    """PostgreSQL text cannot hold NUL; a seller-written string may (seen in a listing description)."""
+    if isinstance(value, str) and "\x00" in value:
+        return value.replace("\x00", "")
+    return value
+
+
+def clean_payload(obj):
+    """Strip NUL from every string in a payload, including rows queued before this rule existed."""
+    if isinstance(obj, str):
+        return clean_text(obj)
+    if isinstance(obj, list):
+        return [clean_payload(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: clean_payload(v) for k, v in obj.items()}
+    return obj
+
+
 def _lower(row: tuple, cols: tuple) -> dict:
-    return {col.lower(): row[i] for i, col in enumerate(cols)}
+    return {col.lower(): clean_text(row[i]) for i, col in enumerate(cols)}
 
 
 def _chunks(values, size=500):
@@ -318,7 +336,7 @@ def drain(limit: int = DRAIN_LIMIT) -> int:
             row = conn.execute("SELECT id, payload FROM replica_outbox ORDER BY id ASC LIMIT 1").fetchone()
         if not row:
             break
-        payload = json.loads(row[1])
+        payload = clean_payload(json.loads(row[1]))
         target.apply(payload)
         with history._lock:
             conn = history._connect()

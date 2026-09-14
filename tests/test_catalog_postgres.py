@@ -188,6 +188,31 @@ class CatalogReplicaPostgres(unittest.TestCase):
         self._same("claim_events", "id, resource_id, event, ts")
         self.assertEqual(self._pg("SELECT count(*) FROM signal_catalog.claim_events"), [(2,)])
 
+    def test_nul_in_seller_text_ships_without_it(self):
+        # A production listing carried "\x00" in its description; PostgreSQL text refuses NUL.
+        shadow.upsert_item(_item("https://wx.example/nul", description="detected via magic bytes (\x00\x00) here"), source="cdp", ts=100)
+        self.assertEqual(catalog_replica.drain(), 1)
+        # The boundary strips it first (the SQLite file never holds it), the copy cleans again.
+        self.assertEqual(self._local("SELECT description FROM resources"), [("detected via magic bytes () here",)])
+        self.assertEqual(self._pg("SELECT description FROM signal_catalog.resources"), [("detected via magic bytes () here",)])
+        # A row queued before the rule (raw NUL in the stored payload) still ships.
+        with shadow._lock:
+            conn = shadow._connect()
+            conn.execute("INSERT INTO replica_outbox (payload, created_at) VALUES (?, ?)",
+                         (json.dumps({"claim_events": [{"id": 999, "resource_id": 1, "canonical_url": "https://wx.example/nul",
+                                                        "event": "schema_changed", "source": "cdp", "detail": "x\x00y", "ts": 5}]}), 5))
+            conn.commit()
+        self.assertEqual(catalog_replica.drain(), 1)
+        self.assertEqual(self._pg("SELECT detail FROM signal_catalog.claim_events WHERE id = 999"), [("xy",)])
+        # The backfill path cleans the same way.
+        with patch.dict(os.environ, {"LIVE402_CATALOG_BACKEND": ""}):
+            shadow.upsert_item(_item("https://wx.example/nul2", description="a\x00b"), source="cdp", ts=200)
+        while True:
+            step = catalog_replica.backfill_step(chunk=10)
+            if step is None or step["done"]:
+                break
+        self.assertEqual(self._pg("SELECT description FROM signal_catalog.resources WHERE canonical_url = 'https://wx.example/nul2'"), [("ab",)])
+
     def test_replica_outage_keeps_the_outbox_and_the_next_drain_catches_up(self):
         from psycopg.conninfo import conninfo_to_dict, make_conninfo
 

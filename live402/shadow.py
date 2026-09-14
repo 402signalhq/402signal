@@ -235,7 +235,9 @@ def _now() -> int:
 def _text(val) -> str | None:
     if val is None:
         return None
-    text = str(val).strip()
+    # Seller-written text never carries NUL into the catalog: SQLite would store it,
+    # PostgreSQL text refuses it, and nothing downstream needs it.
+    text = str(val).replace("\x00", "").strip()
     return text or None
 
 

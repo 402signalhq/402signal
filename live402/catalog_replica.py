@@ -23,7 +23,7 @@ import sys
 import threading
 import time
 
-from live402.history_replica import PostgresReplica, ReplicaUnavailable
+from live402.history_replica import PostgresReplica, ReplicaUnavailable, clean_payload, clean_text
 
 BACKENDS = frozenset({"sqlite", "dual"})
 RESOURCE_COLS = (
@@ -83,7 +83,8 @@ class Effects:
 
 
 def _lower(row, cols: tuple) -> dict:
-    return {col.lower(): row[i] for i, col in enumerate(cols)}
+    # NUL cannot be stored in PostgreSQL text; a seller-written description carried one.
+    return {col.lower(): clean_text(row[i]) for i, col in enumerate(cols)}
 
 
 def _chunks(values, size=500):
@@ -186,7 +187,7 @@ def drain(limit: int = DRAIN_LIMIT) -> int:
             row = conn.execute("SELECT id, payload FROM replica_outbox ORDER BY id ASC LIMIT 1").fetchone()
         if not row:
             break
-        payload = json.loads(row["payload"])
+        payload = clean_payload(json.loads(row["payload"]))
         target.apply(payload)
         with shadow._lock:
             conn = shadow._connect()
