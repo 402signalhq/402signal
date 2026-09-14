@@ -20,7 +20,7 @@ const origin='http://127.0.0.1:'+server.address().port;
 const results=[];
 try{for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
  const browser=await launcher.launch({headless:true});
- try{for(const width of [390,1440]){
+ try{for(const width of [320,390,768,1280,1440]){
   const context=await browser.newContext({viewport:{width,height:900}});
   await context.addInitScript(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.copied=text;}}}));
   const page=await context.newPage(),errors=[],requests=[];
@@ -44,8 +44,12 @@ try{for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
    await page.screenshot({path:resolve(out,`recipe-${engine}-${width}-${path.split('/').pop()}.png`),fullPage:true});
    results.push({engine,width,path,status:'passed'});
   }
-  await page.goto(origin+'/');assert.ok(await page.getByRole('link',{name:'Run the free offline checks'}).isVisible());
-  assert.ok(await page.getByRole('link',{name:'Try a sample check without a wallet'}).isVisible());
+  await page.goto(origin+'/');assert.ok(await page.getByRole('link',{name:'Test the guard',exact:true}).isVisible());
+  assert.ok(await page.getByRole('link',{name:'Try a sample check',exact:true}).first().isVisible());
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  const hook=page.locator('.home-hook'); assert.ok(await hook.evaluate(node=>node.scrollWidth<=node.clientWidth+1));
+  await page.getByRole('link',{name:'Add the guard',exact:true}).click();
+  assert.ok(await page.locator('#client-hook').isVisible());
   await page.goto(origin+'/try');assert.equal(await page.locator('h1').count(),1);assert.ok(await page.locator('#seller-form').isVisible());assert.ok(await page.locator('#seller-check').isDisabled());
   await page.goto(origin+'/pricing');assert.equal(await page.locator('h1').count(),1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.goto(origin+'/trust');assert.equal(await page.locator('h1').count(),1);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
