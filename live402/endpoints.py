@@ -190,8 +190,13 @@ def host_facts(host: str) -> dict | None:
             "p95_ms": _percentile(latencies, 0.95),
             "last_live_ts": max((int(p[1]) for p in live), default=None),
             "top_miss": misses.most_common(1)[0][0] if misses else None,
-            "price_changes": price_changes + int(events.get("price_changed", 0)),
-            "recipient_changes": recipient_changes + int(events.get("payTo_changed", 0)),
+            # Observed: a live challenge differed from 402Signal's previous trusted observation
+            # of the same URL (the url_state change clocks). Listed: a discovery feed's claim for
+            # a URL changed (catalog claim events). Never summed; they are different facts.
+            "price_changes": price_changes,
+            "recipient_changes": recipient_changes,
+            "price_changes_listed": int(events.get("price_changed", 0)),
+            "recipient_changes_listed": int(events.get("payTo_changed", 0)),
             "generated_at": int(time.time()),
         }
 
@@ -279,6 +284,9 @@ METHOD_NOTE = (
     "<p class=\"note\">Listings come from the public discovery feeds (CDP, PayAI, GoPlausible). Observations are unpaid GET "
     "probes 402Signal made on behalf of buyers in the last 30 days, from Ashburn, with redirects refused; live means the seller "
     "answered with a valid x402 challenge. Lab and sponsored traffic is excluded. Nothing a seller pays for changes these numbers. "
+    "A price change or recipient change is <em>observed</em> when the amount or payTo in a live challenge differs from "
+    "402Signal's previous trusted observation of the same URL within the 30-day window; a <em>listed</em> change is a "
+    "discovery feed's claim for a URL changing, counted separately and never as an observation. "
     "<a href=\"/insights/state-of-x402-endpoints-2026-09#method\">Method</a> · <a href=\"/developers/check-api-listing\">Check a listing yourself, unpaid</a></p>"
 )
 
@@ -317,7 +325,12 @@ def render_host_html(host: str) -> str | None:
         )
     else:
         observed = "<p>No public probes in the last 30 days. Numbers appear here once buyers' checks reach this host; nothing is inferred from the catalog alone.</p>"
-    changes = "<p>Price changes observed in 30 days: %d. Recipient changes: %d.</p>" % (facts["price_changes"], facts["recipient_changes"])
+    changes = (
+        "<p>Observed changes in 30 days, where a live challenge differed from 402Signal's previous trusted observation "
+        "of the same URL: price %d, recipient %d. Listed changes in the same window, where a discovery feed's claim for a "
+        "URL changed (a catalog claim, not an observation): price %d, recipient %d.</p>"
+        % (facts["price_changes"], facts["recipient_changes"], facts["price_changes_listed"], facts["recipient_changes_listed"])
+    )
     body = (
         '<section class="hero compact"><p class="eyebrow">Endpoint readiness</p><h1>%s</h1>'
         '<p class="lede">How this seller looks from the buyer\'s side: what it lists, and what 402Signal observed when buyers asked.</p></section>' % esc(host)

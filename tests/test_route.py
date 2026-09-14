@@ -2016,6 +2016,20 @@ class ProductBriefTests(unittest.TestCase):
         self.assertIn("payTo_changed", compared_props)
         self.assertIn("risk", compared_props)
         self.assertIn("excluded_reason", compared_props)
+        # Every recipient-comparison field a real /route answer carries is in the contract, with semantics.
+        for key in ("claimed_payTo_match", "payTo_changed", "payTo_pending", "risk", "observed", "claimed", "payTo_age_s", "observed_age_s"):
+            self.assertIn(key, live_props, key)
+        self.assertIn("catalog claim", live_props["payTo_changed"]["description"])
+        self.assertIn("own previous trusted observation", live_props["payTo_pending"]["description"])
+        self.assertIn("observed.payTo equals claimed.payTo", live_props["claimed_payTo_match"]["description"])
+        self.assertIn("claimed_at", live_props["claimed"]["properties"])
+        self.assertIn("observed_at", live_props["observed"]["properties"])
+        stability = live_props["reputation"]["properties"]["stability"]["properties"]
+        self.assertEqual(set(stability["payTo_changes"]["properties"]), {"count", "changed_at"})
+        from live402 import mcp as mcp_mod
+        mcp_props = next(t for t in mcp_mod.TOOLS if t["name"] == "check")["outputSchema"]["properties"]
+        for key in ("claimed_payTo_match", "payTo_changed", "payTo_pending", "observed"):
+            self.assertIn(key, mcp_props, key)
         self.assertEqual(
             set((compared_props.get("excluded_reason") or {}).get("enum") or []) - {None},
             {
