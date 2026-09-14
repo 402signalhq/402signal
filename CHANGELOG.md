@@ -5,10 +5,16 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
-- `@402signal/route-guard` 0.7.5 release candidate (security review
+- `@402signal/route-guard` 0.7.6 release candidate (security review
   2026-09-14, SDK side; the pending `capabilities.json` row carries the
   provisional pair, the installer and site pins stay on the published 0.7.4
-  until the release):
+  until the release). 0.7.5 was tagged on 2026-09-14 but never reached npm:
+  its publish run's package test hung because the new challenge-timeout timer
+  was `unref`'d and the runner's event loop drained around a stalled mock
+  fetch; 0.7.6 keeps the timer strong (the deadline must fire even when the
+  stalled seller response is the only pending work) and is otherwise the same
+  code. The 0.7.5 GitHub release is withdrawn; nothing consumed it.
+  The changes:
   - S1: the x402 hook's recursion exemption is granted only while the hook's
     own check request is in flight, for the exact check URL, to one of
     402Signal's fee recipients (`DEFAULT_FEE_RECIPIENTS`, from `GET /rails`;

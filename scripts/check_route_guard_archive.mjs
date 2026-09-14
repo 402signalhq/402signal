@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /** Verify a packed route-guard archive, not the source tree.
  *
- * 0.7.5 packed bytes are digest-checked against the reviewed pair before
+ * 0.7.6 packed bytes are digest-checked against the reviewed pair before
  * npm install or import. SHA256SUMS is checked the same way: file digest plus
- * contents vs the tarball hash. Mismatch fails closed. 0.7.5 is the release
+ * contents vs the tarball hash. Mismatch fails closed. 0.7.6 is the release
  * candidate (pending capabilities row, provisional pair); 0.7.4 stays the
  * published installer pin until the release. The tree must pack to the
  * reviewed bytes.
@@ -22,13 +22,13 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
-const CANDIDATE_TAG = "route-guard-v0.7.5";
-const CANDIDATE_TGZ = "402signal-route-guard-0.7.5.tgz";
+const CANDIDATE_TAG = "route-guard-v0.7.6";
+const CANDIDATE_TGZ = "402signal-route-guard-0.7.6.tgz";
 // Reproduced twice locally with npm 11.19.0 (Node 24) on the release branch tip.
 const REVIEWED_PACK_SHA256 =
-  "4c325c41db1ca4f744539b3daf00d9651ce2d1a0e236009cdd9a6b9d29724c69";
+  "8fbf694fd2f703e9fc4427906ac5e699174c96c8a01460e586ee5d48235ac693";
 const REVIEWED_SUMS_SHA256 =
-  "56fdac051d9531f3d8dca5d4c0b9814b3a7492bc8fe6a1e8e0d918e93cbda4fb";
+  "005724281f546902c8d59844023078e5a3d2e6355ff2381331811bf05f9d4c82";
 
 const arguments_ = process.argv.slice(2);
 let candidate = CANDIDATE_TGZ;
@@ -148,7 +148,7 @@ try {
   const currentDir = mkdtempSync(join(work, "current-"));
   const { verifyBatchRoute } = await install(archive, currentDir);
   const version = packageVersion(currentDir);
-  assert.equal(version, "0.7.5");
+  assert.equal(version, "0.7.6");
   const codecs = new Set();
   for (const v of chkGrp) {
     assert.equal(Object.hasOwn(v.request, "merchant_profile"), false);

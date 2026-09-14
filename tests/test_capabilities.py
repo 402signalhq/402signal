@@ -52,14 +52,16 @@ PREVIOUS_DISTRIBUTION = "GitHub release archive and npm registry (@402signal/rou
 OLDER_PACK_SHA256 = (
     "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a"
 )
-# 0.7.5 release candidate (security review 2026-09-14): provisional pair reproduced twice with
-# npm 11.19.0 on the release branch; not an install URL until the release flips the row.
-PENDING_TAG = "route-guard-v0.7.5"
+# 0.7.6 release candidate (security review 2026-09-14; 0.7.5 was tagged but its publish run's
+# package test hung on an unref'd timeout timer, so it was never published): provisional pair
+# reproduced twice with npm 11.19.0 on the release branch; not an install URL until the release
+# flips the row.
+PENDING_TAG = "route-guard-v0.7.6"
 PENDING_PACK_SHA256 = (
-    "4c325c41db1ca4f744539b3daf00d9651ce2d1a0e236009cdd9a6b9d29724c69"
+    "8fbf694fd2f703e9fc4427906ac5e699174c96c8a01460e586ee5d48235ac693"
 )
 PENDING_SUMS_SHA256 = (
-    "56fdac051d9531f3d8dca5d4c0b9814b3a7492bc8fe6a1e8e0d918e93cbda4fb"
+    "005724281f546902c8d59844023078e5a3d2e6355ff2381331811bf05f9d4c82"
 )
 
 

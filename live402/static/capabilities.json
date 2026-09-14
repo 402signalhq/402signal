@@ -16,15 +16,14 @@
   "source_baseline": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
   "packages": [
     {
-      "tag": "route-guard-v0.7.5",
+      "tag": "route-guard-v0.7.6",
       "state": "pending",
       "digest_status": "provisional-until-release",
-      "source_revision": "24d72b74f961c27cbacbbae2e085dd249b4c7918",
-      "provisional_pack_sha256": "4c325c41db1ca4f744539b3daf00d9651ce2d1a0e236009cdd9a6b9d29724c69",
-      "provisional_sums_sha256": "56fdac051d9531f3d8dca5d4c0b9814b3a7492bc8fe6a1e8e0d918e93cbda4fb",
-      "distribution": "Release candidate: GitHub release archive and npm registry (@402signal/route-guard@0.7.5, provenance) once tagged and published; not an install URL yet",
+      "provisional_pack_sha256": "8fbf694fd2f703e9fc4427906ac5e699174c96c8a01460e586ee5d48235ac693",
+      "provisional_sums_sha256": "005724281f546902c8d59844023078e5a3d2e6355ff2381331811bf05f9d4c82",
+      "distribution": "Release candidate: GitHub release archive and npm registry (@402signal/route-guard@0.7.6, provenance) once tagged and published; not an install URL yet",
       "recipe": "/developers/check-group-offer",
-      "note": "Security review 2026-09-14, SDK findings S1 S2 S3 F4 F5. The installer, llms.txt and the site keep the published 0.7.4 pin until this row is published."
+      "note": "Security review 2026-09-14, SDK findings S1 S2 S3 F4 F5; replaces the withdrawn 0.7.5 tag (its publish run's package test hung on an unref'd timer; never on npm). The installer, llms.txt and the site keep the published 0.7.4 pin until this row is published."
     },
     {
       "tag": "route-guard-v0.7.4",

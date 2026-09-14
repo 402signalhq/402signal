@@ -148,8 +148,10 @@ export async function fetchChallenge(rawFetch, url, method = "GET", options = {}
     controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true });
   });
   aborted.catch(() => {});
+  // A strong timer on purpose: when a stalled seller response is the only thing
+  // pending, the deadline must still fire (an unref'd timer let the loop drain and
+  // left the read hanging, which is how the 0.7.5 publish test failed).
   const timer = setTimeout(() => controller.abort(new RouteGuardError("challenge_timeout")), timeoutMs);
-  if (typeof timer.unref === "function") timer.unref();
   const forward = () => controller.abort(signal.reason);
   if (signal) {
     if (signal.aborted) forward();
