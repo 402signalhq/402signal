@@ -5,6 +5,22 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Probe history replica on the replay PostgreSQL (`live402/history_replica.py`,
+  `LIVE402_HISTORY_BACKEND=sqlite|dual`, owner migration
+  `ops/history-postgres-managed.sql`, schema `signal_history`): third step of
+  the second-machine plan. The SQLite history file on the writer's volume
+  stays the source of truth and the reader; with `dual`, every committed
+  change to it (probe, observations, per-URL change clocks, cap deletes,
+  sealed batches, scoring models) is captured inside the same SQLite
+  transaction as an outbox row and shipped in order by the writer's
+  maintenance loop through one owner function (`api_apply`, SECURITY
+  DEFINER, gated on the pinned runtime login like the replay, lease and
+  session functions). A backfill copies the existing file once, oldest probe
+  first, in chunks; an hourly parity line compares counts on both sides and
+  is the gate for moving the endpoint pages to the copy. Nothing in the
+  request path waits on PostgreSQL; a replica outage leaves the outbox row
+  for the next drain. Default unchanged: the SQLite file only. Loopback
+  contract tests in the `replay-postgres` workflow.
 - `@402signal/route-guard` 0.7.4 published: tag `route-guard-v0.7.4` on the
   PR #232 merge commit (5bc1e65), GitHub release 2026-09-13T23:35:35Z with
   the reviewed pair (`164a1328…` tarball, `d414db64…` SHA256SUMS; the
