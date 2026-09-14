@@ -336,16 +336,18 @@ def render(report: dict) -> str:
         sum(f["claims"] for f in c["facilitators_declared"] if f["facilitator"] != "(none declared)"),
         sum(f["claims"] for f in c["facilitators_declared"])))
     lines.append("")
-    lines.append("### Networks by resource-network membership share (%d identifiers seen)" % c["network_count"])
+    lines.append("### Listings by network (%d identifiers seen)" % c["network_count"])
     lines.append("")
-    lines.append("| Network identifier | Distinct listings in this network | Membership share |")
+    lines.append("| Network identifier | Listings | Share of network entries |")
     lines.append("|---|---:|---:|")
     for n in c["networks"][:12]:
         lines.append("| %s | %s | %s |" % (n["name"], f"{n['listings']:,}", ("%.1f%%" % n["share"]) if n["share"] is not None else "n/a"))
     lines.append("")
-    lines.append("Membership shares use the sum of distinct resource-network pairs across all identifiers, "
-                 "not the number of unique resources. A multi-network resource appears in several rows; "
-                 "aliases remain separate. These are not unique-listing reach percentages.")
+    lines.append("Each listing is counted once for every network identifier it supports. "
+                 "The percentages use the combined total across all identifiers, not unique listings. "
+                 "A listing can appear in several rows, and alternate identifiers for the same network "
+                 "remain separate. Adding two percentages does not give the share of unique listings "
+                 "supporting either network.")
     lines.append("")
     lines.append("### Capabilities (top 10)")
     lines.append("")

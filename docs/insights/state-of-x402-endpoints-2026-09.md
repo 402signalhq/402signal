@@ -28,9 +28,9 @@ The discovery feeds' own change events are kept only briefly in the catalog copy
 - By discovery source: CDP 15,977, PayAI 7,722, GoPlausible 927.
 - Declared facilitators: 0.2% of listings name one. Almost every listing leaves the facilitator implicit, which is why a buyer cannot tell from the catalog alone who will settle a payment.
 
-### Networks by resource-network membership share (50 identifiers seen)
+### Listings by network (50 identifiers seen)
 
-| Network identifier | Distinct listings in this network | Membership share |
+| Network identifier | Listings | Share of network entries |
 |---|---:|---:|
 | Base | 19,893 | 44.8% |
 | Solana | 6,846 | 15.4% |
@@ -45,7 +45,7 @@ The discovery feeds' own change events are kept only briefly in the catalog copy
 | XRP Ledger | 864 | 1.9% |
 | HyperEVM | 859 | 1.9% |
 
-Network shares divide each distinct resource-network membership count by the sum across all 50 network identifiers, not by 22,124 unique listings. Multi-network resources contribute to several rows; aliases remain separate in this edition. These percentages do not measure unique-listing reach, and adding Base and Solana does not compute their union.
+Each listing is counted once for every network identifier it supports. The percentages use the combined total across all 50 identifiers, not the 22,124 unique listings. A listing can appear in several rows, and alternate identifiers for the same network remain separate in this edition. Adding Base and Solana therefore does not give the share of unique listings supporting either network.
 
 ### Capabilities (top 10)
 
