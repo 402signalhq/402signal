@@ -17,7 +17,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from live402 import payment, probe
+from live402 import catalog_replica, payment, probe
 
 DEFAULT_DB = "/tmp/live402-catalog.sqlite"
 VOLUME_DB = "/data/catalog.sqlite"
@@ -66,6 +66,8 @@ _lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
 _conn_path: str | None = None
 _fts_ok: bool | None = None
+# What the current locked write touched, for the replica outbox (dual backend only).
+_effects: catalog_replica.Effects | None = None
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS resources (
@@ -154,6 +156,16 @@ CREATE TABLE IF NOT EXISTS finalist_contracts (
     expires_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS finalist_contracts_exp ON finalist_contracts(expires_at);
+
+CREATE TABLE IF NOT EXISTS replica_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payload TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS replica_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 _FTS_SCHEMA = """
@@ -315,9 +327,36 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def _begin_effects() -> None:
+    """Start collecting what this locked write touches. Caller holds _lock."""
+    global _effects
+    _effects = catalog_replica.Effects() if catalog_replica.dual() else None
+
+
+def _commit_with_effects(conn: sqlite3.Connection) -> None:
+    """Queue the change set for the replica in this transaction, then commit. Caller holds _lock."""
+    global _effects
+    effects, _effects = _effects, None
+    if effects is not None:
+        catalog_replica.enqueue(conn.cursor(), effects)
+    conn.commit()
+
+
+def _touch_resource_urls(cur, urls) -> None:
+    """Record the listings a by-URL update touched (only rows that exist)."""
+    if _effects is None:
+        return
+    dests = [u for u in urls if u]
+    for i in range(0, len(dests), 500):
+        chunk = dests[i:i + 500]
+        cur.execute("SELECT id FROM resources WHERE canonical_url IN (%s)" % ",".join("?" * len(chunk)), tuple(chunk))
+        _effects.resource_ids.update(int(r[0]) for r in cur.fetchall())
+
+
 def reset() -> None:
     """Delete the catalog DB (tests). Never the observation DB."""
-    global _conn, _conn_path, _fts_ok
+    global _conn, _conn_path, _fts_ok, _effects
+    _effects = None
     with _lock:
         path = _conn_path or db_path()
         if _conn is not None:
@@ -464,6 +503,8 @@ def _insert_event(cur, *, resource_id, url, event, source, detail, ts) -> None:
         """,
         (resource_id, url, event, source, payload, ts),
     )
+    if _effects is not None and cur.lastrowid:
+        _effects.event_ids.add(int(cur.lastrowid))
 
 
 def _cap_events(cur) -> None:
@@ -472,10 +513,11 @@ def _cap_events(cur) -> None:
     if n <= EVENT_CAP:
         return
     drop = n - EVENT_CAP
-    cur.execute(
-        "DELETE FROM claim_events WHERE id IN (SELECT id FROM claim_events ORDER BY ts ASC, id ASC LIMIT ?)",
-        (drop,),
-    )
+    cur.execute("SELECT id FROM claim_events ORDER BY ts ASC, id ASC LIMIT ?", (drop,))
+    ids = [int(r[0]) for r in cur.fetchall()]
+    cur.executemany("DELETE FROM claim_events WHERE id = ?", [(i,) for i in ids])
+    if _effects is not None:
+        _effects.deleted_events.update(ids)
 
 
 def _sync_fts(cur, resource_id: int, fields: dict) -> None:
@@ -754,6 +796,8 @@ def _upsert_one(cur, item: dict, source: str, generation: int | None, ts: int) -
     events.extend(_replace_claims(cur, resource_id, source, claims, url, ts))
     _upsert_source(cur, resource_id, source, fields.get("source_resource_id"), generation, ts)
     _sync_fts(cur, resource_id, fields)
+    if _effects is not None:
+        _effects.resource_ids.add(int(resource_id))
     return {"id": resource_id, "events": events, "created": created, "url": url}
 
 
@@ -765,11 +809,12 @@ def upsert_item(item: dict | None, *, source: str, generation: int | None = None
     when = _as_int(ts, None) or _now()
     try:
         with _lock:
+            _begin_effects()
             conn = _connect()
             cur = conn.cursor()
             out = _upsert_one(cur, item, src, generation, when)
             _cap_events(cur)
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         return out
     except Exception:
@@ -785,6 +830,7 @@ def upsert_items(items, *, source: str, generation: int | None = None, ts: int |
     events: list[str] = []
     try:
         with _lock:
+            _begin_effects()
             conn = _connect()
             cur = conn.cursor()
             for item in rows:
@@ -793,7 +839,7 @@ def upsert_items(items, *, source: str, generation: int | None = None, ts: int |
                     n += 1
                     events.extend(out.get("events") or [])
             _cap_events(cur)
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         return {"upserted": n, "events": events}
     except Exception:
@@ -827,8 +873,11 @@ def ingest_page(
         adv = n_items
     try:
         with _lock:
+            _begin_effects()
             conn = _connect()
             cur = conn.cursor()
+            if _effects is not None:
+                _effects.sources.add(src)
             state = _source_state_unlocked(cur, src)
             gen = int(state.get("generation") or 0)
             if gen < 1:
@@ -879,7 +928,7 @@ def ingest_page(
                 )
                 complete = True
             _cap_events(cur)
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         return {
             "upserted": upserted,
@@ -946,6 +995,7 @@ def begin_sweep(source: str, ts: int | None = None) -> int:
     when = _as_int(ts, None) or _now()
     try:
         with _lock:
+            _begin_effects()
             conn = _connect()
             cur = conn.cursor()
             state = _source_state_unlocked(cur, src)
@@ -961,7 +1011,9 @@ def begin_sweep(source: str, ts: int | None = None) -> int:
                 """,
                 (src, gen, when),
             )
-            conn.commit()
+            if _effects is not None:
+                _effects.sources.add(src)
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         return gen
     except Exception:
@@ -1015,6 +1067,8 @@ def _retire_unseen_unlocked(cur, source: str, generation: int, ts: int) -> int:
                 ts=ts,
             )
             retired += 1
+            if _effects is not None:
+                _effects.resource_ids.add(rid)
     return retired
 
 
@@ -1026,6 +1080,7 @@ def complete_sweep(source: str, ts: int | None = None) -> dict:
     when = _as_int(ts, None) or _now()
     try:
         with _lock:
+            _begin_effects()
             conn = _connect()
             cur = conn.cursor()
             state = _source_state_unlocked(cur, src)
@@ -1043,8 +1098,10 @@ def complete_sweep(source: str, ts: int | None = None) -> dict:
                 """,
                 (when, src),
             )
+            if _effects is not None:
+                _effects.sources.add(src)
             _cap_events(cur)
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         return {"retired": retired, "generation": gen}
     except Exception:
@@ -1168,6 +1225,7 @@ def reclassify_capabilities(limit: int = CAPABILITY_BATCH) -> int:
     from live402 import catalog
     cap = min(max(int(limit), 1), CAPABILITY_BATCH)
     with _lock:
+        _begin_effects()
         conn = _connect()
         with conn:
             cur = conn.cursor()
@@ -1193,6 +1251,13 @@ def reclassify_capabilities(limit: int = CAPABILITY_BATCH) -> int:
                     (capability, catalog.CAPABILITY_VERSION, digest, row["id"]),
                 )
                 _sync_fts(cur, row["id"], fields)
+                if _effects is not None:
+                    _effects.resource_ids.add(int(row["id"]))
+            # The context manager commits on exit; queue the change set first.
+            effects, _effects_done = _effects, None
+            globals()["_effects"] = None
+            if effects is not None:
+                catalog_replica.enqueue(cur, effects)
         return len(rows)
 
 
@@ -1423,6 +1488,7 @@ def mark_verified(url: str, ts: int | None = None, ok: bool | None = None) -> No
     when = _as_int(ts, None) or _now()
     try:
         with _lock:
+            _begin_effects()
             conn = _connect()
             if ok is None:
                 conn.execute(
@@ -1434,7 +1500,8 @@ def mark_verified(url: str, ts: int | None = None, ok: bool | None = None) -> No
                     "UPDATE resources SET last_verified = ?, last_probe_ok = ? WHERE canonical_url = ?",
                     (when, 1 if ok else 0, dest),
                 )
-            conn.commit()
+            _touch_resource_urls(conn.cursor(), [dest])
+            _commit_with_effects(conn)
     except Exception:
         return
 
@@ -1455,12 +1522,14 @@ def _touch_urls(urls, column: str, ts: int | None) -> None:
     when = _as_int(ts, None) or _now()
     try:
         with _lock:
+            _begin_effects()
             conn = _connect()
             conn.executemany(
                 f"UPDATE resources SET {column} = ? WHERE canonical_url = ?",
                 [(when, u) for u in dests],
             )
-            conn.commit()
+            _touch_resource_urls(conn.cursor(), dests)
+            _commit_with_effects(conn)
     except Exception:
         return
 
