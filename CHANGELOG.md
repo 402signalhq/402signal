@@ -7,6 +7,33 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 - Production shadow catalog ships to the replay authority (`LIVE402_CATALOG_BACKEND = "dual"` in `fly.toml`; the owner functions in `ops/catalog-postgres-managed.sql` are installed). The SQLite file stays the reader; the writer backfills it once and logs parity hourly. Fourth step of the second-machine plan.
 - Production probe history ships to the replay authority (`LIVE402_HISTORY_BACKEND = "dual"` in `fly.toml`; the owner functions in `ops/history-postgres-managed.sql` are installed). The SQLite file stays the reader; the writer backfills it once and logs parity hourly. Third step of the second-machine plan.
+- Accuracy: the recipient-change statistic says the same thing everywhere.
+  The one recipient change in the September period was a discovery feed's
+  claim changing (a listed change), verified against the off-host history
+  copy: no `url_state` change clock and no successive observed `payTo`
+  values differ in the window. The homepage stat now reads "one listed
+  recipient change (a catalog claim, not observed in a live challenge)"; the
+  report's method section and its Markdown twin define observed changes (a
+  live challenge differs from 402Signal's previous trusted observation of the
+  same URL within the period) and listed changes (a feed claim changed,
+  never counted as observed); `/endpoints` "Method and neutrality" carries the
+  same definition, and each host page reports observed and listed counts
+  separately instead of one summed number.
+- OpenAPI and the MCP output schema now name every recipient-comparison
+  field a real `/route` answer carries: `claimed_payTo_match`,
+  `payTo_pending`, `payTo_changed`, `risk`, `payTo_age_s`, `observed_age_s`,
+  the `observed` block (`payTo`, `amount`, `observed_at`, ...),
+  `claimed.claimed_at`/`facilitator`, and
+  `reputation.stability.{payTo,price,schema,rail}_changes {count, changed_at}`,
+  each with the comparison semantics (claimed = catalog listing at
+  `claimed_at`; observed = live challenge at `verified_at`; `payTo_changed` =
+  observed differs from the catalog claim or the last trusted observed
+  destination). `/validate` reuses the `claimed` and `observed` schemas. The
+  developer page and `docs/proof-carrying-route-v1.md` state the two
+  outcomes: a `payTo_pending` exclusion is judged against 402Signal's own
+  observation history and an updated catalog claim does not clear it; the
+  guard's binding digest covers the whole raw challenge, so a recipient change
+  fails closed like a price change.
 - Shadow catalog replica on the replay PostgreSQL (`live402/catalog_replica.py`,
   `LIVE402_CATALOG_BACKEND=sqlite|dual`, owner migration
   `ops/catalog-postgres-managed.sql`, schema `signal_catalog`): fourth step of

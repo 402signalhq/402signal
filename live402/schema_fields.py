@@ -146,9 +146,17 @@ def claimed_output_schema() -> dict:
             "origin": {"type": "string", "enum": [ORIGIN_CLAIMED]},
             "untrusted": {"type": "boolean"},
             "client_warning": {"type": "string"},
-            "payTo": {"type": ["string", "null"]},
-            "amount": {"type": ["string", "null"]},
+            "payTo": {
+                "type": ["string", "null"],
+                "description": "The recipient the catalog listing claimed, as of claimed_at. Compare with observed.payTo.",
+            },
+            "amount": {"type": ["string", "null"], "description": "The price the catalog listing claimed, as of claimed_at."},
             "schema_present": {"type": ["boolean", "null"]},
+            "facilitator": {"type": ["string", "null"]},
+            "claimed_at": {
+                "type": ["string", "integer", "null"],
+                "description": "When the discovery feed last presented these claimed values for this URL.",
+            },
             "contract": {
                 "type": "object",
                 "properties": {
@@ -167,6 +175,99 @@ def claimed_output_schema() -> dict:
                     "type": {"type": ["string", "null"]},
                     "schema_bytes": {"type": ["integer", "null"]},
                     "truncated": {"type": "boolean"},
+                },
+            },
+        },
+    }
+
+
+PAYTO_CHANGED_DESC = (
+    "True when the observed payTo (the live challenge at verified_at) differs from the catalog claim "
+    "(claimed.payTo at claimed_at) or from the last trusted destination 402Signal itself observed for this URL. "
+    "Compare claimed.payTo with observed.payTo; the observed side is the one a buyer would pay."
+)
+PAYTO_PENDING_DESC = (
+    "First unexpected rotation of the observed payTo against 402Signal's own previous trusted observation of this "
+    "URL, judged on that history alone (an updated catalog claim does not clear it). Not selectable unless "
+    "accept_payTo_change is true; a second independent observation of the same destination establishes it."
+)
+CLAIMED_PAYTO_MATCH_DESC = (
+    "Whether observed.payTo equals claimed.payTo, compared per rail (case-insensitive on EVM). False on a "
+    "mismatch; null when either side is unknown. Independent of payTo_pending, which judges against "
+    "402Signal's own observation history."
+)
+
+
+def observed_output_schema() -> dict:
+    """Route/validate observed blob: 402Signal's latest trusted live observation of the URL."""
+    return {
+        "type": "object",
+        "description": (
+            "What 402Signal itself observed in the seller's live 402 challenge at verified_at "
+            "(402signal_observed rows, trusted classes only). This side, not the catalog claim, is what a buyer pays."
+        ),
+        "properties": {
+            "http_status": {"type": ["integer", "null"]},
+            "payTo": {"type": ["string", "null"], "description": "Recipient in the observed challenge at verified_at."},
+            "amount": {"type": ["string", "null"], "description": "Price in the observed challenge at verified_at."},
+            "latency_ms": {"type": ["integer", "null"]},
+            "schema_present": {"type": ["boolean", "integer", "null"]},
+            "payable": {"type": ["boolean", "integer", "null"]},
+            "invocable": {"type": ["boolean", "integer", "null"]},
+            "observed_at": {"type": ["string", "integer", "null"], "description": "When that observation was made."},
+        },
+    }
+
+
+def recipient_flag_properties() -> dict:
+    """Top-level payTo comparison fields returned by /route and /validate."""
+    return {
+        "payTo_changed": {"type": "boolean", "description": PAYTO_CHANGED_DESC},
+        "payTo_pending": {"type": "boolean", "description": PAYTO_PENDING_DESC},
+        "claimed_payTo_match": {"type": ["boolean", "null"], "description": CLAIMED_PAYTO_MATCH_DESC},
+        "risk": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Omitted or empty when none. [\"payTo_changed\"] whenever payTo_changed is true.",
+        },
+        "payTo_age_s": {
+            "type": ["integer", "null"],
+            "description": "Seconds since the last observed recipient change for this URL, when one is recorded.",
+        },
+        "observed_age_s": {"type": ["integer", "null"], "description": "Seconds since observed.observed_at."},
+    }
+
+
+def reputation_output_schema() -> dict:
+    """Route reputation block: transparent components, then the V2 score."""
+    change = {
+        "type": "object",
+        "properties": {
+            "count": {"type": ["integer", "null"], "description": "Observed changes in the window; null when unknown."},
+            "changed_at": {"type": ["string", "null"], "description": "RFC3339 time of the last observed change, or null."},
+        },
+    }
+    return {
+        "type": "object",
+        "description": (
+            "Transparent components first (observed, usage, tenure, stability, "
+            "source_count), then V2 reputation_score, reputation_confidence, "
+            "and scoring_model_id/hash. Score is never returned without components. "
+            "No public 0-100 catalog badge. Unique payer addresses are never listed."
+        ),
+        "properties": {
+            "stability": {
+                "type": "object",
+                "description": (
+                    "Observed changes to this URL's terms (402signal_observed, not catalog claims): a change is a "
+                    "live challenge whose recipient, price, schema or rail differed from the previous trusted "
+                    "observation of the same URL."
+                ),
+                "properties": {
+                    "payTo_changes": change,
+                    "price_changes": change,
+                    "schema_changes": change,
+                    "rail_changes": change,
                 },
             },
         },

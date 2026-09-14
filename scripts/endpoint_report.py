@@ -401,9 +401,13 @@ def render(report: dict) -> str:
                  "(with a narrowly justified empty POST fallback) from 402Signal to the listed URL; live means the "
                  "seller answered with an x402 402 challenge; payable means the challenge carried a complete supported "
                  "offer; invocable adds an input schema. Latency is round trip to the challenge from Fly.io iad. "
-                 "Recipient and price changes compare successive observations of the same URL. Sponsored and lab "
-                 "traffic classes are 402Signal's own tests and are shown separately; public reliability data on "
-                 "402signal.com excludes them.")
+                 "A price change or recipient change is observed when the amount or payTo in a live challenge "
+                 "differs from 402Signal's previous trusted observation of the same URL within the period; the "
+                 "before and after values come from the observation rows on either side of the change clock. A "
+                 "listed change is a discovery feed's claim for a URL changing (the catalog listing, at its claimed "
+                 "time); listed changes are reported separately and never counted as observed changes. Sponsored "
+                 "and lab traffic classes are 402Signal's own tests and are shown separately; public reliability "
+                 "data on 402signal.com excludes them.")
     return "\n".join(lines) + "\n"
 
 
