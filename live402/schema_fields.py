@@ -54,7 +54,8 @@ PREFER_NETWORK_DESC = (
     "searches and selects across all supported networks. Not a filter. "
     "Use networks for a hard policy lock. Observed networks: base, solana, algorand "
     "and the EVM chains polygon, arbitrum, monad, worldchain, xlayer, bnb, hyperevm, "
-    "ethereum, optimism, avalanche (CAIP-2 ids such as eip155:137 are accepted); "
+    "ethereum, optimism, avalanche, tempo, sei, celo, robinhood "
+    "(CAIP-2 ids such as eip155:137 are accepted); "
     "the checking fee itself is paid on base, solana or algorand."
 )
 ACCEPT_PAYTO_CHANGE_DESC = (

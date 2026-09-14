@@ -9,9 +9,13 @@ Every entry shares Base's payment shape (EIP-3009 USDC, 0x recipients), so
 the existing Base code paths apply through `is_evm_rail`.
 
 Native Circle USDC addresses come from Circle's contract-address list
-(developers.circle.com, read 2026-09-13). A chain without a Circle USDC
-(BNB Smart Chain) is still classified, but its prices stay unnormalized:
-never a dollar figure for an asset we do not know.
+(developers.circle.com, read 2026-09-13 and 2026-09-14). A chain without a
+Circle USDC (BNB Smart Chain, Tempo, Robinhood Chain) is still classified,
+but its prices stay unnormalized: never a dollar figure for an asset we do
+not know.
+
+Chains are added in shadow-catalog listing-share order (strategy review
+2026-09-12, item 9), never all at once.
 """
 from __future__ import annotations
 
@@ -31,6 +35,14 @@ CHAINS: tuple[tuple[str, str, str, str | None], ...] = (
     # home of MPP "tempo" challenges. TIP-20 tokens are ERC-20 shaped with six
     # decimals; no Circle USDC address is confirmed, so prices stay unnormalized.
     ("tempo", "eip155:4217", "Tempo", None),
+    # Next three EVM chains by catalog listing share on 2026-09-13 (about 765,
+    # 549 and 545 claims). Sei and Celo carry Circle's native USDC, which the
+    # catalog claims themselves use. Robinhood Chain's stablecoin is Paxos
+    # Global Dollar (USDG, 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168, six
+    # decimals), not Circle USDC, so its prices stay unnormalized.
+    ("sei", "eip155:1329", "Sei", "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392"),
+    ("celo", "eip155:42220", "Celo", "0xcebA9300f2b948710d2653dD7B07f33A8B32118C"),
+    ("robinhood", "eip155:4663", "Robinhood Chain", None),
 )
 
 RAILS: tuple[str, ...] = tuple(chain[0] for chain in CHAINS)
@@ -48,6 +60,10 @@ _ALIASES = {
     "ethereum": "ethereum", "eth": "ethereum", "mainnet": "ethereum",
     "optimism": "optimism", "op-mainnet": "optimism", "op": "optimism",
     "avalanche": "avalanche", "avax": "avalanche", "avalanche-c-chain": "avalanche",
+    "tempo": "tempo",
+    "sei": "sei", "sei-evm": "sei", "sei_evm": "sei",
+    "celo": "celo",
+    "robinhood": "robinhood", "robinhood-chain": "robinhood", "robinhood_chain": "robinhood",
 }
 
 

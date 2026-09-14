@@ -5,6 +5,18 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Observed EVM networks, next three by shadow-catalog listing share (about
+  765, 549 and 545 claims on 2026-09-13): Sei (`eip155:1329`, rail `sei`) and
+  Celo (`eip155:42220`, rail `celo`) are classified and priced in dollars for
+  their native Circle USDC, which is the asset their catalog claims use;
+  Robinhood Chain (`eip155:4663`, rail `robinhood`) is classified and
+  selectable but stays unpriced because its stablecoin is Paxos Global Dollar
+  (USDG), not Circle USDC. `tempo`, `sei`, `celo` and `robinhood` are accepted
+  as `networks` / `prefer_network` names next to their CAIP-2 ids; host pages
+  and the endpoint report name Tempo, Celo and Robinhood Chain instead of a
+  bare id. The checking fee is still paid on Base, Solana or Algorand only.
+  Non-EVM families seen in the catalog (XRP Ledger, Stellar, Hedera) are not
+  observed yet.
 - Website: buyer-first homepage with a labeled synthetic offer example and profile limits; official-client hook first in its guide; explicit customer-owned evidence storage and scoped evaluation terms; no new subscription prices or hosted-retention promises. The unpaid sample displays observed atomic amount and supplied asset/network fields with explicit unknowns. September report corrects network-membership labels, price-change arithmetic, traffic cohorts and an unresolved seller-network attribution. Payment behavior and pricing are unchanged.
 
 - Production shadow catalog ships to the replay authority (`LIVE402_CATALOG_BACKEND = "dual"` in `fly.toml`; the owner functions in `ops/catalog-postgres-managed.sql` are installed). The SQLite file stays the reader; the writer backfills it once and logs parity hourly. Fourth step of the second-machine plan.
