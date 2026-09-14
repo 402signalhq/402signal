@@ -13,6 +13,9 @@ from live402.select import ConstraintError
 
 POLYGON_USDC = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
 ARBITRUM_USDC = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+SEI_USDC = "0xe15fC38F6D8c56aF07bbCBe3BAf5708A2Bf42392"
+CELO_USDC = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C"
+ROBINHOOD_USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
 PAYTO = "0xabcabcabcabcabcabcabcabcabcabcabcabcabca"
 
 
@@ -53,6 +56,17 @@ class ChainTableTests(unittest.TestCase):
         self.assertIsNone(evm_chains.rail_of_caip2("monad"))
         self.assertEqual(evm_chains.network_of_rail("hyperevm"), "eip155:999")
         self.assertIsNone(evm_chains.usdc_of_rail("bnb"))
+        self.assertEqual(evm_chains.rail_of_network("eip155:1329"), "sei")
+        self.assertEqual(evm_chains.rail_of_network("sei-evm"), "sei")
+        self.assertEqual(evm_chains.rail_of_network("celo"), "celo")
+        self.assertEqual(evm_chains.rail_of_network("robinhood-chain"), "robinhood")
+        self.assertEqual(evm_chains.rail_of_network("tempo"), "tempo")
+        self.assertEqual(evm_chains.rail_of_caip2("eip155:42220"), "celo")
+        self.assertEqual(evm_chains.rail_of_caip2("eip155:4663"), "robinhood")
+        self.assertEqual(evm_chains.usdc_of_rail("sei"), SEI_USDC)
+        self.assertEqual(evm_chains.usdc_of_rail("celo"), CELO_USDC)
+        self.assertIsNone(evm_chains.usdc_of_rail("robinhood"))
+        self.assertEqual(evm_chains.display_name("robinhood"), "Robinhood Chain")
         self.assertTrue(evm_chains.is_evm_rail("base"))
         self.assertTrue(evm_chains.is_evm_rail("xlayer"))
         self.assertFalse(evm_chains.is_evm_rail("solana"))
@@ -116,6 +130,28 @@ class PaymentOptionTests(unittest.TestCase):
         self.assertTrue(payment.payto_equal(PAYTO, PAYTO.upper().replace("0X", "0x"), "monad"))
         self.assertEqual(payment.payto_canonical(PAYTO.upper().replace("0X", "0x"), "monad"), PAYTO)
 
+    def test_sei_and_celo_usdc_are_priced_and_robinhood_usdg_is_not(self):
+        for network, rail, usdc in (("eip155:1329", "sei", SEI_USDC), ("eip155:42220", "celo", CELO_USDC)):
+            opt = payment.payment_option_from_accept(accept(network, usdc))
+            self.assertEqual((opt["rail"], opt["network"], opt["decimals"]), (rail, network, 6))
+            self.assertEqual((opt["display_amount"], opt["normalized_usd"]), ("$0.01", 0.01))
+            self.assertTrue(payment.is_complete_payment_option(opt))
+            self.assertEqual(payment.asset_identity(opt), "usdc:" + usdc.lower())
+            self.assertTrue(payment.known_usdc_asset(usdc, network))
+            self.assertEqual(payment.usdc_asset_for_rail(rail), usdc)
+        # Robinhood Chain pays in Paxos USDG: classified and selectable, never priced.
+        usdg = payment.payment_option_from_accept(accept("eip155:4663", ROBINHOOD_USDG))
+        self.assertEqual((usdg["rail"], usdg["network"]), ("robinhood", "eip155:4663"))
+        self.assertIsNone(usdg["normalized_usd"])
+        self.assertEqual(usdg["display_amount"], "10000 " + ROBINHOOD_USDG)
+        self.assertTrue(payment.is_complete_payment_option(usdg))
+        self.assertEqual(payment.asset_identity(usdg), "robinhood:" + ROBINHOOD_USDG.lower())
+        self.assertFalse(payment.known_usdc_asset(ROBINHOOD_USDG, "eip155:4663"))
+        self.assertIsNone(payment.usdc_asset_for_rail("robinhood"))
+        self.assertTrue(payment.valid_payto_for_rail(PAYTO, "robinhood"))
+        cons = select.parse_constraints({"need": "weather", "networks": ["sei", "eip155:42220", "robinhood"]})
+        self.assertEqual(cons["rails"], frozenset({"sei", "celo", "robinhood"}))
+
     def test_unlisted_evm_chain_stays_unclassified(self):
         opt = payment.payment_option_from_accept(accept("eip155:31337", POLYGON_USDC))
         self.assertIsNone(opt["rail"])
@@ -158,6 +194,9 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(enum[:3], ["base", "solana", "algorand"])
         self.assertIn("polygon", enum)
         self.assertIn("hyperevm", enum)
+        for rail in ("tempo", "sei", "celo", "robinhood"):
+            self.assertIn(rail, enum)
+            self.assertIn(rail, schema_fields.PREFER_NETWORK_DESC)
         self.assertIn("eip155:137", json.dumps(mcp.INPUT_SCHEMA))
 
 
