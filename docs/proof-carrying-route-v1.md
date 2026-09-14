@@ -229,6 +229,29 @@ Do not follow a redirect or change the body after this check. The verifier itsel
 performs no network requests. A comparison-only `verify_challenge` helper is also
 available; it does not authenticate a receipt and is not the public trust boundary.
 
+## Recipient changes
+
+Two outcomes, stated for buyers (mechanisms are in `live402/history.py`,
+`live402/select.py` and the guard):
+
+- A candidate is excluded from selection (`compared[].excluded_reason`
+  `payTo_pending`, `payTo_changed` true) when the live challenge's `payTo`
+  differs from 402Signal's own previous trusted observation of that URL, even
+  if the catalog listing has since been updated to the new wallet. A catalog
+  claim never clears it; a second independent observation of the same
+  destination does, and a request may opt in with `accept_payTo_change`.
+- The guard's binding check fails closed on a recipient change, not only on
+  a price change: `decision_binding.quote_sha256` is the RFC 8785 digest of
+  the seller's whole raw 402 challenge, so a different `payTo` (like a
+  different `amount`, `network` or `asset`) is a `quote_changed` refusal and
+  the buyer's callback never runs.
+
+Definitions used by every surface: *claimed* is the catalog listing at
+`claimed.claimed_at`; *observed* is the live challenge at `verified_at`;
+`payTo_changed` means the observed recipient differs from the catalog claim
+or from the last trusted observed destination; `claimed_payTo_match` compares
+the two sides directly (per rail).
+
 ## Limits of the claim
 
 This proves that the current supplied challenge and request match terms that
