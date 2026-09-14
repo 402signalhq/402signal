@@ -785,9 +785,13 @@ def _day_list(days: int, now: float | None = None) -> list[str]:
 def north_star(days: int = 7, now: float | None = None) -> dict:
     """Signed receipts issued and distinct payers over the trailing window.
 
-    Receipts are the settled qualifying checks counted by `route.qualified.<traffic>`;
-    payers are distinct hashed verified payers from `payer_days`. Organic excludes
-    sponsored credits, lab and self-test traffic. Private operator numbers only.
+    Receipts are settled checks that returned a durable signed receipt, counted by
+    `route.qualified.<traffic>` only after the leaf came back; settled checks with
+    or without a receipt are `route.settled.<traffic>`, so a fee that settled and
+    then failed its required receipt is never counted as a receipt. Payers are
+    distinct hashed verified payers from `payer_days`. Organic excludes sponsored
+    credits, lab and self-test traffic. Private operator numbers only. Counters are
+    telemetry flushed every five minutes, not a billing ledger.
     """
     day_list = _day_list(days, now)
     st = store()
@@ -795,6 +799,8 @@ def north_star(days: int = 7, now: float | None = None) -> dict:
         "days": len(day_list),
         "receipts_organic": st.counters_sum(day_list, name="route.qualified.organic"),
         "receipts_all": st.counters_sum(day_list, prefix="route.qualified."),
+        "settled_organic": st.counters_sum(day_list, name="route.settled.organic"),
+        "settled_all": st.counters_sum(day_list, prefix="route.settled."),
         "distinct_payers_organic": st.payers_distinct(day_list, "organic"),
         "distinct_payers_all": st.payers_distinct(day_list),
     }

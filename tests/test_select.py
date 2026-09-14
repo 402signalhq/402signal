@@ -96,6 +96,23 @@ def _hit(
     return attach_v2(row)
 
 
+class ConstrainedRankingTests(unittest.TestCase):
+    def test_cheapest_ignores_options_on_excluded_networks(self):
+        """Security review F7: an excluded network's price must not rank the locked one."""
+        dear_on_base = _hit(url="https://a.example/x", accepts=[
+            v2_accept(_network_for_rail("base"), _usdc_for_rail("base"), 100_000_000, _payto_for_rail("base")),
+            v2_accept(_network_for_rail("solana"), _usdc_for_rail("solana"), 10_000, _payto_for_rail("solana")),
+        ])
+        fair_on_base = _hit(url="https://b.example/x", amount=1_000_000)
+        base_only = select.parse_constraints({"networks": ["base"]})
+        self.assertIs(select.pick_winner([dear_on_base, fair_on_base], "cheapest", base_only), fair_on_base)
+        self.assertIs(select.pick_winner([fair_on_base, dear_on_base], "cheapest", base_only), fair_on_base)
+        # Without a lock the Solana cent is the cheapest offer on the table.
+        self.assertIs(select.pick_winner([fair_on_base, dear_on_base], "cheapest", None), dear_on_base)
+        self.assertEqual(select._best_usd(dear_on_base, base_only), 100.0)
+        self.assertEqual(select._best_usd(dear_on_base, None), 0.01)
+
+
 class ParseTests(unittest.TestCase):
     def test_default_objective_is_best(self):
         self.assertEqual(select.parse_objective(None), "best")

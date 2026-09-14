@@ -923,7 +923,9 @@ def _paid_execute_inner(
         return _unknown_outcome(rail, attempted=True)
     extra["PAYMENT-RESPONSE"] = payment.payment_response_header(safe_receipt)
     _log_settle(True, rail)
-    metrics.inc("route.qualified." + metrics.traffic_label())
+    # A settled fee is counted here; a receipt is counted only once a durable signed
+    # leaf actually came back with the answer (below), so the two never conflate.
+    metrics.inc("route.settled." + metrics.traffic_label())
     _remember_payer(verified_payer)
     result["billing"] = _billing(
         rail,
@@ -958,6 +960,8 @@ def _paid_execute_inner(
             "billing": attached.get("billing") if isinstance(attached, dict) else None,
             "pq_trust": attached.get("pq_trust") if isinstance(attached, dict) else None,
         }, extra or None
+    if code == 200 and _transparency_ok(attached):
+        metrics.inc("route.qualified." + metrics.traffic_label())
     return code, attached, extra or None
 
 

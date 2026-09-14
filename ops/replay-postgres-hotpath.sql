@@ -174,8 +174,13 @@ BEGIN
 END;
 $$;
 
+-- Internal helper, called only from the guarded reserve functions below. SECURITY
+-- INVOKER: inside a SECURITY DEFINER caller it runs as the owner and can update
+-- the shard row; called directly by the runtime login or any other reader it runs
+-- as that login, which has no UPDATE on authority_shard, so a direct call cannot
+-- move the counters and desynchronise them from the entries table.
 CREATE OR REPLACE FUNCTION signal_replay.api_admit_shard(fingerprint TEXT)
-RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog AS $$
+RETURNS VOID LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog AS $$
 BEGIN
     -- Exact per-shard enforcement under the shard's own row lock.
     UPDATE signal_replay.authority_shard s SET admitted = s.admitted + 1

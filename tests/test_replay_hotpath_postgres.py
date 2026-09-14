@@ -19,6 +19,7 @@ FUNCTIONS_SQL = ROOT / "ops" / "replay-postgres-functions.sql"
 EXPIRY_SQL = ROOT / "ops" / "replay-postgres-identity-expiry.sql"
 FENCE_SQL = ROOT / "ops" / "replay-postgres-fence.sql"
 HOTPATH_SQL = ROOT / "ops" / "replay-postgres-hotpath.sql"
+ADMIT_SQL = ROOT / "ops" / "replay-postgres-admit-shard-invoker.sql"
 PASSWORD = "isolated-fixture-only"
 
 
@@ -299,6 +300,26 @@ class ReplayHotpathPostgres(unittest.TestCase):
         with self.assertRaises(StoreError):
             self.store.reserve(KEY, SCOPE, time.time() + 120)
         self.assertEqual(self._entries()[0], 0)
+
+    def test_reader_cannot_move_shard_counters_through_the_admit_helper(self):
+        """Security review 2026-09-14, finding 2: the internal helper must not be a side door."""
+        self._install()
+        self.assertTrue(self.store.reserve(KEY, SCOPE, time.time() + 120))
+        before = self._totals()
+        with self.assertRaises(self.psycopg.errors.InsufficientPrivilege):
+            self.runtime.execute("SELECT signal_replay.api_admit_shard(%s)", ("ab" * 32,))
+        self.assertEqual(self._totals(), before)
+        self.assertEqual(self.admin.execute(
+            "SELECT prosecdef FROM pg_proc WHERE oid = 'signal_replay.api_admit_shard(text)'::regprocedure"
+        ).fetchone()[0], False)
+        # The standalone re-apply file is idempotent and leaves the guarded path working.
+        self.admin.execute(ADMIT_SQL.read_text(encoding="utf-8"))
+        with self.assertRaises(self.psycopg.errors.InsufficientPrivilege):
+            self.runtime.execute("SELECT signal_replay.api_admit_shard(%s)", ("cd" * 32,))
+        self.assertTrue(self.store.reserve("e" * 64, SCOPE, time.time() + 120))
+        self.assertEqual(self._totals()[0], before[0] + 1)
+        self.assertEqual(self._entries()[0], 2)
+        self.assertTrue(self._fence()["counters_consistent"])
 
     def test_fence_still_serializes_with_admission_and_repins_a_restart(self):
         self._install()

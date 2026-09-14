@@ -786,14 +786,25 @@ def _readiness_tier(result) -> int:
     return -1
 
 
-def _best_usd(result, cons=None) -> float | None:
+def _priced_options(result, cons=None) -> list[dict]:
+    """The options a price comparison may look at under these constraints.
+
+    With a network lock, only options on the locked rails count; an option on an
+    excluded network never influences ranking (security review F7). Without a
+    lock, every observed option counts.
+    """
     cons = cons if isinstance(cons, dict) else {}
     opts = _options_for_constraints(result, cons)
-    if not opts:
-        # Do not fall back to another rail when networks locked this candidate.
-        if isinstance(cons.get("rails"), frozenset):
-            return None
-        opts = payment_options(result)
+    if opts:
+        return opts
+    # Do not fall back to another rail when networks locked this candidate.
+    if isinstance(cons.get("rails"), frozenset):
+        return []
+    return payment_options(result)
+
+
+def _best_usd(result, cons=None) -> float | None:
+    opts = _priced_options(result, cons)
     vals = [o.get("normalized_usd") for o in opts if o.get("normalized_usd") is not None]
     if not vals:
         return None
@@ -801,12 +812,7 @@ def _best_usd(result, cons=None) -> float | None:
 
 
 def _best_atomic_for_asset(result, asset_key: str, cons=None) -> int | None:
-    cons = cons if isinstance(cons, dict) else {}
-    opts = _options_for_constraints(result, cons)
-    if not opts:
-        if isinstance(cons.get("rails"), frozenset):
-            return None
-        opts = payment_options(result)
+    opts = _priced_options(result, cons)
     vals = []
     for opt in opts:
         if payment.asset_identity(opt) != asset_key:
@@ -819,23 +825,26 @@ def _best_atomic_for_asset(result, asset_key: str, cons=None) -> int | None:
     return min(vals)
 
 
-def _cmp_amount_asc(a, b) -> int:
-    """Compare prices only when both sides are USD-known or the same known asset."""
-    ua, ub = _best_usd(a), _best_usd(b)
+def _cmp_amount_asc(a, b, cons=None) -> int:
+    """Compare prices only when both sides are USD-known or the same known asset.
+
+    Only options that survive the caller's network lock take part (F7).
+    """
+    ua, ub = _best_usd(a, cons), _best_usd(b, cons)
     if ua is not None and ub is not None:
         if ua < ub:
             return -1
         if ua > ub:
             return 1
         return 0
-    keys_a = {payment.asset_identity(o) for o in payment_options(a)}
-    keys_b = {payment.asset_identity(o) for o in payment_options(b)}
+    keys_a = {payment.asset_identity(o) for o in _priced_options(a, cons)}
+    keys_b = {payment.asset_identity(o) for o in _priced_options(b, cons)}
     keys_a.discard(None)
     keys_b.discard(None)
     shared = keys_a & keys_b
     if len(shared) == 1:
         key = next(iter(shared))
-        aa, ab = _best_atomic_for_asset(a, key), _best_atomic_for_asset(b, key)
+        aa, ab = _best_atomic_for_asset(a, key, cons), _best_atomic_for_asset(b, key, cons)
         if aa is not None and ab is not None:
             if aa < ab:
                 return -1
@@ -855,11 +864,9 @@ def _cheapest_comparable_subset(results, cons) -> list[dict]:
     """
     priced: list[tuple] = []
     for result in results:
-        opts = _options_for_constraints(result, cons)
+        opts = _priced_options(result, cons)
         if not opts:
-            if isinstance(cons.get("rails"), frozenset):
-                continue
-            opts = payment_options(result)
+            continue
         usd = [o for o in opts if o.get("normalized_usd") is not None]
         if usd:
             priced.append((result, "usd", min(float(o["normalized_usd"]) for o in usd), None))
@@ -920,22 +927,22 @@ def _cmp_weak_reliability_desc(a, b) -> int:
     return _cmp_rate_desc(weak_reliability(a), weak_reliability(b))
 
 
-def _cmp_cheapest(a, b) -> int:
-    c = _cmp_amount_asc(a, b)
+def _cmp_cheapest(a, b, cons=None) -> int:
+    c = _cmp_amount_asc(a, b, cons)
     if c:
         return c
     # Tie: lower latency only if both known; else keep first.
     return _cmp_latency_asc(a, b, unknown_last=False)
 
 
-def _cmp_fastest(a, b) -> int:
+def _cmp_fastest(a, b, cons=None) -> int:
     c = _cmp_latency_asc(a, b, unknown_last=True)
     if c:
         return c
-    return _cmp_amount_asc(a, b)
+    return _cmp_amount_asc(a, b, cons)
 
 
-def _cmp_most_reliable(a, b) -> int:
+def _cmp_most_reliable(a, b, cons=None) -> int:
     c = _cmp_mature_reliability_desc(a, b)
     if c:
         return c
@@ -945,7 +952,7 @@ def _cmp_most_reliable(a, b) -> int:
     c = _cmp_latency_asc(a, b, unknown_last=True)
     if c:
         return c
-    return _cmp_amount_asc(a, b)
+    return _cmp_amount_asc(a, b, cons)
 
 
 def _total_cost(result) -> float | None:
@@ -956,7 +963,7 @@ def _settlement_ms(result) -> int | None:
     return economics.settlement_or_finality_ms(result)
 
 
-def _cmp_lowest_total_cost(a, b) -> int:
+def _cmp_lowest_total_cost(a, b, cons=None) -> int:
     ca, cb = _total_cost(a), _total_cost(b)
     if ca is not None and cb is not None:
         if ca < cb:
@@ -971,14 +978,14 @@ def _cmp_lowest_total_cost(a, b) -> int:
     return 0
 
 
-def _cmp_fastest_settlement(a, b) -> int:
+def _cmp_fastest_settlement(a, b, cons=None) -> int:
     sa, sb = _settlement_ms(a), _settlement_ms(b)
     if sa is not None and sb is not None:
         if sa < sb:
             return -1
         if sa > sb:
             return 1
-        return _cmp_amount_asc(a, b)
+        return _cmp_amount_asc(a, b, cons)
     if sa is not None:
         return -1
     if sb is not None:
@@ -986,7 +993,7 @@ def _cmp_fastest_settlement(a, b) -> int:
     return 0
 
 
-def _cmp_best(a, b) -> int:
+def _cmp_best(a, b, cons=None) -> int:
     ta, tb = _readiness_tier(a), _readiness_tier(b)
     if ta != tb:
         return -1 if ta > tb else 1
@@ -996,7 +1003,7 @@ def _cmp_best(a, b) -> int:
     la, lb = latency_ms(a), latency_ms(b)
     if la is not None and lb is not None and la != lb:
         return -1 if la < lb else 1
-    c = _cmp_amount_asc(a, b)
+    c = _cmp_amount_asc(a, b, cons)
     if c:
         return c
     return _cmp_weak_reliability_desc(a, b)
@@ -1124,8 +1131,9 @@ def pick_winner(results: list[dict], objective: str, constraints: dict | None = 
         if not remaining:
             return None
     cmp_fn = _CMP.get(obj, _cmp_best)
-    # Stable: original remaining order is the last tie-break (first wins).
-    ranked = sorted(remaining, key=cmp_to_key(cmp_fn))
+    # Stable: original remaining order is the last tie-break (first wins). The
+    # constraints ride along so price comparisons see only options on the locked rails.
+    ranked = sorted(remaining, key=cmp_to_key(lambda x, y: cmp_fn(x, y, cons)))
     for candidate in ranked:
         if pick_selected_payment(candidate, obj, cons) is not None:
             return candidate

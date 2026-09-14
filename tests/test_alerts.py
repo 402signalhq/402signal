@@ -215,6 +215,60 @@ class AlertsTests(unittest.TestCase):
         self.assertEqual(alerts.scan(now=t1 + 40), 1)
         self.assertEqual([e["event"] for e in json.loads(self.sent[1][1])["events"]], ["liveness_changed"])
 
+    def test_more_changes_than_one_batch_are_all_delivered_across_scans(self):
+        """Security review F1: the 201st change used to be skipped for good."""
+        t0 = int(time.time()) - 3600
+        urls = ["https://%s/api/q%03d" % (HOST, i) for i in range(alerts.MAX_EVENTS_PER_DELIVERY + 1)]
+        for i, url in enumerate(urls):
+            history.record_probe(url, _snap(True, PAYTO_A, ts=t0 + i))
+        self._create(events=["price"])
+        self.assertEqual(alerts.scan(now=t0 + 400), 0)
+        for i, url in enumerate(urls):
+            history.record_probe(url, _snap(True, PAYTO_A, amount="20000", ts=t0 + 1000 + i))
+        self.assertEqual(alerts.scan(now=t0 + 2000), 1)
+        first = json.loads(self.sent[-1][1])["events"]
+        self.assertEqual(len(first), alerts.MAX_EVENTS_PER_DELIVERY)
+        self.assertEqual(alerts.scan(now=t0 + 2010), 1)
+        second = json.loads(self.sent[-1][1])["events"]
+        delivered = {e["url"] for e in first} | {e["url"] for e in second}
+        self.assertEqual(delivered, set(urls))
+        self.assertIn(urls[-1], {e["url"] for e in second})
+        self.assertNotIn("_ts", first[0])
+        self.assertEqual(alerts.scan(now=t0 + 2020), 0)
+
+    def test_a_cut_liveness_transition_is_kept_for_the_next_batch(self):
+        t0 = int(time.time()) - 3600
+        price_urls = ["https://%s/api/p%03d" % (HOST, i) for i in range(alerts.MAX_EVENTS_PER_DELIVERY)]
+        down = "https://%s/api/goes-down" % HOST
+        for i, url in enumerate(price_urls):
+            history.record_probe(url, _snap(True, PAYTO_A, ts=t0 + i))
+        history.record_probe(down, _snap(True, PAYTO_A, ts=t0))
+        self._create(events=["price", "liveness"])
+        self.assertEqual(alerts.scan(now=t0 + 400), 0)
+        for i, url in enumerate(price_urls):
+            history.record_probe(url, _snap(True, PAYTO_A, amount="20000", ts=t0 + 1000 + i))
+        history.record_probe(down, _snap(False, ts=t0 + 1500))
+        self.assertEqual(alerts.scan(now=t0 + 2000), 1)
+        first = json.loads(self.sent[-1][1])["events"]
+        self.assertEqual({e["event"] for e in first}, {"price_changed"})
+        self.assertEqual(alerts.scan(now=t0 + 2010), 1)
+        second = json.loads(self.sent[-1][1])["events"]
+        self.assertIn(("liveness_changed", down, False), {(e["event"], e["url"], e.get("live")) for e in second})
+        self.assertEqual(alerts.scan(now=t0 + 2020), 0)
+
+    def test_each_scan_delivers_to_a_bounded_number_of_subscriptions(self):
+        t0 = int(time.time()) - 3600
+        history.record_probe(URL, _snap(True, PAYTO_A, ts=t0))
+        self._create(events=["price"])
+        self._create(events=["price"], url=HOOK + "/second")
+        self.assertEqual(alerts.scan(now=t0 + 5), 0)
+        history.record_probe(URL, _snap(True, PAYTO_A, amount="20000", ts=t0 + 10))
+        with patch.object(alerts, "MAX_DELIVERIES_PER_SCAN", 1):
+            self.assertEqual(alerts.scan(now=t0 + 20), 1)
+            self.assertEqual(alerts.scan(now=t0 + 30), 1)
+            self.assertEqual(alerts.scan(now=t0 + 40), 0)
+        self.assertEqual({u for u, _b, _h in self.sent}, {HOOK, HOOK + "/second"})
+
     def test_events_filter_and_unrelated_hosts_stay_silent(self):
         t0 = int(time.time()) - 500
         other = "https://other-seller.example/api/x"

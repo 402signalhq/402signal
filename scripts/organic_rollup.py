@@ -178,12 +178,16 @@ def build(session_db, history_db, *, days: int = 7, now: int | None = None, sess
 
     cache_hits, cache_misses = n("obs_cache.hit.organic"), n("obs_cache.miss.organic")
     qualified, misses = n("route.qualified.organic"), n("route.miss.organic")
+    settled = n("route.settled.organic")
     cache_hit_rate = _ratio(cache_hits, cache_hits + cache_misses)
     return {
         "window": {"since": since, "until": until, "days": int(days)},
         # North star: signed receipts issued to distinct non-lab payers in the window.
+        # settled_organic counts every settled fee, receipt or not; the gap is checks
+        # whose required receipt could not be produced after settlement.
         "north_star": {
             "receipts_organic": qualified,
+            "settled_organic": settled,
             "distinct_payers_organic": stats.get("distinct_payers_organic"),
         },
         "session_opens_organic": stats["opens"],
