@@ -251,7 +251,9 @@ def mode(body) -> str | None:
         return None
     if "session" in body:
         raw = body.get("session")
-        if raw is not None and not isinstance(raw, str):
+        # An explicit session key must carry "open" or "hop": null, an empty or
+        # blank string, or any other type is a shape error at $0, never a check.
+        if not isinstance(raw, str) or not raw.strip():
             return "invalid"
     else:
         raw = None
@@ -357,7 +359,7 @@ def _hop_bound_miss(body: dict, bound: dict) -> str | None:
     """Refuse a live hop offer that breaks the window bound. Never settles."""
     extra = set(body) - HOP_KEYS if isinstance(body, dict) else set()
     if extra:
-        return "scheme_mismatch"
+        return "unsupported_hop_field"
     req_scheme = None
     if isinstance(body.get("scheme"), str):
         req_scheme = body.get("scheme").strip().lower()
@@ -538,7 +540,7 @@ def handle_hop(body: dict, headers) -> tuple[int, dict, dict | None]:
                 return _miss("network_mismatch")
         hop_mandate = _mandate(body)
         if mandate_hash and hop_mandate and hop_mandate != mandate_hash:
-            return _miss("scheme_mismatch")
+            return _miss("mandate_mismatch")
         if offer_fingerprint(offer) != fingerprint:
             return _miss("fingerprint_miss")
         # The store decides the count: two hops racing on the last slot get one success.

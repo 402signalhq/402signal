@@ -5,6 +5,31 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Discovery and sessions, from the paid captures of 2026-09-14:
+  - A network lock on a seller whose first accept is on another rail is
+    billable: the answer's recipient, rail and amount now follow the selected
+    option (a Solana-locked check of a Base-first seller kept the Base
+    recipient at top level, failed the billable-winner gate and was answered
+    as an unbilled `no_402_envelope` 503). The probe row keeps the
+    first-accept observation.
+  - A weak `prefer_network` no longer spends the probe budget on sellers a
+    price bound already excludes: listings whose claimed price exceeds
+    `max_price_usd`, `max_amount_atomic` or `max_total_cost_usd` rank after
+    every listing that fits or has no known price (`prefer_network=algorand`
+    with `max_price_usd=0.003` missed as `probe_limit_reached` with 94 cheaper
+    candidates unprobed; it now reaches the $0.002 Base seller).
+  - The checker's own hosts are never discovery candidates.
+  - `session: ""`, `null` or blank is `invalid_session_shape` at $0 instead of
+    an ordinary $0.003 check; values stay trimmed and case-folded.
+  - Hop misses are named: `unsupported_hop_field` for a key the hop API does
+    not know, `mandate_mismatch` for a different mandate hash (both were
+    `scheme_mismatch`); route-guard 0.7.7 lists both as unsettled misses.
+  - A refused Check group offer request carries `detail`, `hosted_codecs` and
+    `hosted_profiles`, and the developer guide's hosted line names the
+    profiles.
+  - Docs: hop `amount_atomic` is the amount about to be authorized (at most
+    the bound ceiling; less is not refused) and the hop miss reasons are
+    listed.
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
   PR #250 merge commit (5ea0df9), GitHub release 2026-09-14T15:52:55Z with the
   reviewed pair (`8fbf694f…` tarball, `00572428…` SHA256SUMS; the downloaded

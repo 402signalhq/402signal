@@ -298,13 +298,26 @@ def _bad_request(body: dict) -> tuple[int, dict] | None:
     if "lab_test" in body and (body.get("lab_test") != lab_traffic.PROTOCOL
                                   or not lab_traffic.is_lab_url(body.get("url"))):
         return 400, {"error": "lab target is not configured", "live": False}
-    from live402 import batch_binding
+    from live402 import batch_binding, batch_codec
     if batch_binding.requested(body):
         try:
             batch_binding.parse_request(body, enabled=True)
             return None
         except (ValueError, TypeError, KeyError):
-            return _invalid_need("unsupported batch observation request")
+            # Name what the hosted job can observe, so a buyer whose challenge is
+            # another wire (a Tempo charge, an x402 URL with only mpp enabled)
+            # learns why without guessing.
+            enabled = batch_codec.allowlist()
+            code, out = _invalid_need("unsupported batch observation request")
+            out["detail"] = (
+                "the target's challenge or buyer_limits do not match a hosted profile; "
+                "an ordinary check (need or url without buyer_limits) observes anything"
+            )
+            out["hosted_codecs"] = [c for c in batch_codec.CODECS if c in enabled]
+            out["hosted_profiles"] = sorted(
+                p for p, c in batch_codec.PROFILE_CODEC.items() if c in enabled
+            )
+            return code, out
     try:
         probe_profile.parse(body)
     except probe_profile.ProfileError as exc:

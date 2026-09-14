@@ -399,29 +399,46 @@ class HostedSessionTests(unittest.TestCase):
             self.assertEqual(body.get("miss_reason"), "fingerprint_miss")
             settle.assert_not_called()
 
-    def test_unsupported_hop_voucher_is_scheme_mismatch(self):
+    def test_unsupported_hop_field_is_its_own_miss(self):
+        """A key the hop API does not know (a voucher, buyer_limits) is named as such, not as a scheme mismatch."""
         token = session.issue_trial()
         code, body, _ = self._open(token)
         self.assertEqual(code, 200)
         sid = body["session"]["id"]
-        with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
-            hop_code, hop, _ = route.handle_route(
-                {"session": "hop", "session_id": sid, "voucher": {"kind": "channel"}},
-                {},
-                "https://402signal.com/route",
-            )
-            self.assertEqual(hop_code, 200)
-            self.assertFalse(hop.get("live"))
-            self.assertEqual(hop.get("miss_reason"), "scheme_mismatch")
-            verify.assert_not_called()
-            settle.assert_not_called()
+        for extra in ({"voucher": {"kind": "channel"}}, {"buyer_limits": {"max_amount_atomic": "1"}}):
+            with patch.object(facilitator, "verify") as verify, patch.object(facilitator, "settle") as settle:
+                hop_code, hop, _ = route.handle_route(
+                    {"session": "hop", "session_id": sid, **extra},
+                    {},
+                    "https://402signal.com/route",
+                )
+                self.assertEqual(hop_code, 200)
+                self.assertFalse(hop.get("live"))
+                self.assertEqual(hop.get("miss_reason"), "unsupported_hop_field")
+                self.assertEqual(hop["billing"]["display_amount"], "$0.000")
+                verify.assert_not_called()
+                settle.assert_not_called()
 
-    def test_hop_mandate_hash_mismatch_is_scheme_mismatch(self):
+    def test_hop_mandate_hash_mismatch_is_mandate_mismatch(self):
         offer = self._upto_offer(1000)
         sid = self._open_bound(offer, mandate_hash="ab" * 32)
         with patch.object(facilitator, "settle") as settle:
             code, body, _ = route.handle_route(
                 {"session": "hop", "session_id": sid, "mandate_hash": "cd" * 32},
+                {},
+                "https://402signal.com/route",
+            )
+            self.assertEqual(code, 200)
+            self.assertFalse(body.get("live"))
+            self.assertEqual(body.get("miss_reason"), "mandate_mismatch")
+            settle.assert_not_called()
+
+    def test_hop_scheme_other_than_bound_is_scheme_mismatch(self):
+        offer = self._upto_offer(1000)
+        sid = self._open_bound(offer)
+        with patch.object(facilitator, "settle") as settle:
+            code, body, _ = route.handle_route(
+                {"session": "hop", "session_id": sid, "scheme": "exact"},
                 {},
                 "https://402signal.com/route",
             )
@@ -484,6 +501,16 @@ class HostedSessionTests(unittest.TestCase):
         self.assertEqual(body.get("miss_reason"), "invalid_session_shape")
         body = self._assert_shape_refuse({"session": {"id": "ab" * 32}, "url": WEATHER})
         self.assertEqual(body.get("miss_reason"), "invalid_session_shape")
+
+    def test_empty_or_null_session_is_invalid_shape_not_a_check(self):
+        """Paid captures 2026-09-14: session "" and null fell through to an ordinary $0.003 check."""
+        for value in ("", "   ", None):
+            body = self._assert_shape_refuse({"session": value, "url": WEATHER})
+            self.assertEqual(body.get("miss_reason"), "invalid_session_shape", repr(value))
+            self.assertEqual(body["billing"]["display_amount"], "$0.000")
+        self.assertEqual(session.mode({"session": None, "session_id": "ab" * 32}), "invalid")
+        self.assertEqual(session.mode({"session_id": "ab" * 32}), "hop")
+        self.assertEqual(session.mode({"session": " Open "}), "open")
 
     def test_successful_hop_route_outcome_is_session_hop(self):
         token = session.issue_trial()
