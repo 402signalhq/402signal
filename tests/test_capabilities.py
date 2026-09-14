@@ -52,6 +52,15 @@ PREVIOUS_DISTRIBUTION = "GitHub release archive and npm registry (@402signal/rou
 OLDER_PACK_SHA256 = (
     "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a"
 )
+# 0.7.5 release candidate (security review 2026-09-14): provisional pair reproduced twice with
+# npm 11.19.0 on the release branch; not an install URL until the release flips the row.
+PENDING_TAG = "route-guard-v0.7.5"
+PENDING_PACK_SHA256 = (
+    "4c325c41db1ca4f744539b3daf00d9651ce2d1a0e236009cdd9a6b9d29724c69"
+)
+PENDING_SUMS_SHA256 = (
+    "56fdac051d9531f3d8dca5d4c0b9814b3a7492bc8fe6a1e8e0d918e93cbda4fb"
+)
 
 
 def _static():
@@ -93,10 +102,19 @@ class CapabilitiesHonestyTests(unittest.TestCase):
 
     def assert_package_record(self, record):
         self.assertEqual(len(record["packages"]), self.package_count)
-        self.assertEqual(self.package_count, 8)
+        self.assertEqual(self.package_count, 9)
         tags = [package["tag"] for package in record["packages"]]
-        self.assertEqual(tags[:4], ["route-guard-v0.7.4", "route-guard-v0.7.3", "route-guard-v0.7.2", "route-guard-v0.7.1"])
-        self.assertEqual([package["tag"] for package in record["packages"] if package.get("state") != "published"], [])
+        self.assertEqual(tags[:5], [PENDING_TAG, "route-guard-v0.7.4", "route-guard-v0.7.3", "route-guard-v0.7.2", "route-guard-v0.7.1"])
+        self.assertEqual([package["tag"] for package in record["packages"] if package.get("state") != "published"], [PENDING_TAG])
+        pending = next(package for package in record["packages"] if package["tag"] == PENDING_TAG)
+        self.assertEqual(pending["state"], "pending")
+        self.assertEqual(pending["digest_status"], "provisional-until-release")
+        self.assertEqual(pending["provisional_pack_sha256"], PENDING_PACK_SHA256)
+        self.assertEqual(pending["provisional_sums_sha256"], PENDING_SUMS_SHA256)
+        self.assertRegex(pending["source_revision"], r"^[0-9a-f]{40}$")
+        for key in ("archive", "sha256", "checksum_file", "checksum_file_sha256", "npm", "published_at"):
+            self.assertNotIn(key, pending, key)
+        self.assertIn("not an install URL", pending["distribution"])
         published = next(package for package in record["packages"] if package["tag"] == "route-guard-v0.7.4")
         self.assertEqual(published["state"], "published")
         self.assertNotIn("digest_status", published)
@@ -196,7 +214,7 @@ class CapabilitiesHonestyTests(unittest.TestCase):
         self.assertEqual(static["check_group_offer"]["historical_verifier"], "route-guard-v0.7.1")
         self.assertNotIn("codecs", static["check_group_offer"])
         self.assertNotIn("exact,sess,mpp,atom,inv", json.dumps(static["check_group_offer"]))
-        self.assertEqual(len(static["packages"]), 8)
+        self.assertEqual(len(static["packages"]), 9)
         self.assertEqual(static["packages"][0]["tag"], "route-guard-v0.7.4")
         self.assertEqual(static["packages"][0]["state"], "published")
         self.assertEqual(static["packages"][1]["tag"], "route-guard-v0.7.3")

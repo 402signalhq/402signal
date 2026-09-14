@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { defaultRequest, fetchChallenge, sameTerms, signalGuard } from "../x402.mjs";
+import { DEFAULT_FEE_RECIPIENTS, defaultRequest, fetchChallenge, sameTerms, signalGuard } from "../x402.mjs";
 
 const fixture = JSON.parse(
   readFileSync(new URL("../../../tests/fixtures/route-binding-v1.json", import.meta.url)),
@@ -101,13 +101,101 @@ test("fetchChallenge captures both header channels and the body", async () => {
   assert.equal(challenge.xPaymentRequired, "def");
 });
 
-test("402Signal's own fee challenge is allowed through without a check", async () => {
+test("a seller challenge that claims the checker's own url is refused, never exempted (S1)", async () => {
   const { calls, fetchWithPayment } = fakeFetch(jsonResponse(200, c.response));
   const hook = guard(fetchWithPayment);
   const ctx = context();
   ctx.paymentRequired.resource = { url: ROUTER };
-  assert.equal(await hook(ctx), undefined);
+  const decision = await hook(ctx);
+  assert.equal(decision.abort, true);
+  assert.match(decision.reason, /checker's own url/);
   assert.equal(calls.length, 0);
+  const elsewhere = context();
+  elsewhere.paymentRequired.resource = { url: "https://402signal.com/anything" };
+  assert.equal((await hook(elsewhere)).abort, true);
+  // onMiss "allow" does not soften it.
+  assert.equal((await guard(fetchWithPayment, { onMiss: "allow" })(ctx)).abort, true);
+});
+
+test("the hook's own fee is exempt only while its check is in flight, to a 402Signal recipient, at most the fee (S1)", async () => {
+  let hook;
+  const seen = [];
+  const feeContext = (patch) => {
+    const fee = context();
+    fee.paymentRequired.resource = { url: ROUTER };
+    fee.selectedRequirements = { ...fee.selectedRequirements, ...patch };
+    return fee;
+  };
+  const fetchWithPayment = async () => {
+    // The x402 client now sees the router's own 402 and consults the hook again.
+    seen.push(await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0], amount: "3000" })));
+    seen.push(await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0].toUpperCase().replace("0X", "0x"), amount: "5000" })));
+    seen.push(await hook(feeContext({ amount: "3000" }))); // the seller's own recipient
+    seen.push(await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0], amount: "5001" })));
+    return jsonResponse(200, c.response);
+  };
+  hook = guard(fetchWithPayment);
+  assert.equal(await hook(context()), undefined);
+  assert.equal(seen[0], undefined);
+  assert.equal(seen[1], undefined);
+  assert.equal(seen[2].abort, true);
+  assert.equal(seen[3].abort, true);
+  // Outside a fee call the same fee-shaped challenge is refused.
+  assert.equal((await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0], amount: "3000" }))).abort, true);
+  // Trusted configuration can name the recipients.
+  const pinned = guard(fetchWithPayment, { feeRecipients: ["0x000000000000000000000000000000000000beef"] });
+  seen.length = 0;
+  assert.equal(await pinned(context()), undefined);
+  assert.equal(seen[0].abort, true);
+});
+
+test("fetchChallenge refuses an oversized body and a stalled read before parsing (S2)", async () => {
+  const big = "x".repeat(64 * 1024 + 1);
+  await assert.rejects(() => fetchChallenge(async () => jsonResponse(402, big), "https://seller.example/x402"), /challenge_too_large/);
+  const streamed = async (_url, init) => ({
+    status: 402,
+    headers: { get: () => null },
+    body: new ReadableStream({
+      start(controller) {
+        for (let i = 0; i < 65; i++) controller.enqueue(new Uint8Array(1024));
+        controller.close();
+      },
+    }),
+    text: async () => big,
+    signal: init.signal,
+  });
+  await assert.rejects(() => fetchChallenge(streamed, "https://seller.example/x402"), /challenge_too_large/);
+  const stalled = () => new Promise(() => {});
+  await assert.rejects(() => fetchChallenge(stalled, "https://seller.example/x402", "GET", { timeoutMs: 20 }), /challenge_timeout/);
+  const trickle = async () => ({
+    status: 402,
+    headers: { get: () => null },
+    body: new ReadableStream({ pull: () => new Promise(() => {}) }),
+  });
+  await assert.rejects(() => fetchChallenge(trickle, "https://seller.example/x402", "GET", { timeoutMs: 20 }), /challenge_timeout/);
+  const seen = [];
+  const ok = await fetchChallenge(async (_url, init) => { seen.push(init.signal); return jsonResponse(402, c.challenge); }, "https://seller.example/x402");
+  assert.equal(ok.bodyText, JSON.stringify(c.challenge));
+  assert.ok(seen[0] instanceof AbortSignal);
+  // The hook's built-in reread is the bounded one.
+  const { fetchWithPayment } = fakeFetch(jsonResponse(200, c.response));
+  const decision = await signalGuard({
+    fetchWithPayment, rawFetch: async () => jsonResponse(402, big), trustedLogVkey: fixture.trusted_vkey, router: ROUTER,
+    requestFor: () => c.request, now: c.now,
+  })(context());
+  assert.equal(decision.abort, true);
+  assert.match(decision.reason, /challenge_too_large/);
+});
+
+test("POST needs the exact body supplied by the buyer (F5)", () => {
+  assert.throws(
+    () => signalGuard({ fetchWithPayment: async () => null, trustedLogVkey: "k", method: "POST" }),
+    /POST needs challengeFor, requestFor and bodyFor/,
+  );
+  assert.doesNotThrow(() => signalGuard({
+    fetchWithPayment: async () => null, trustedLogVkey: "k", method: "POST",
+    challengeFor: async () => ({ status: 402, bodyText: "{}" }), requestFor: () => ({}), bodyFor: () => new Uint8Array(),
+  }));
 });
 
 test("a completed miss aborts the payment by default and can be allowed explicitly", async () => {
