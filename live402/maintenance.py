@@ -21,6 +21,9 @@ JOBS = (
     ("history_replica_drain", 15.0),
     ("history_replica_backfill", 30.0),
     ("history_replica_parity", 3600.0),
+    ("catalog_replica_drain", 15.0),
+    ("catalog_replica_backfill", 30.0),
+    ("catalog_replica_parity", 3600.0),
 )
 
 _thread: threading.Thread | None = None
@@ -149,6 +152,56 @@ def _history_replica_parity() -> None:
     )
 
 
+def _catalog_replica_drain() -> None:
+    from live402 import catalog_replica
+
+    if not catalog_replica.dual():
+        return
+    try:
+        shipped = catalog_replica.drain()
+    except catalog_replica.ReplicaUnavailable:
+        sys.stderr.write("catalog_replica_unavailable pending=%d\n" % catalog_replica.outbox_depth())
+        return
+    if shipped:
+        sys.stderr.write("catalog_replica_drained count=%d\n" % shipped)
+
+
+def _catalog_replica_backfill() -> None:
+    from live402 import catalog_replica
+
+    if not catalog_replica.dual():
+        return
+    try:
+        step = catalog_replica.backfill_step()
+    except catalog_replica.ReplicaUnavailable:
+        sys.stderr.write("catalog_replica_backfill_unavailable\n")
+        return
+    if step:
+        sys.stderr.write(
+            "catalog_replica_backfill cursor=%d max_id=%d done=%s resources=%d claim_events=%d\n"
+            % (step["cursor"], step["max_id"], "yes" if step["done"] else "no",
+               step.get("resources", 0), step.get("claim_events", 0))
+        )
+
+
+def _catalog_replica_parity() -> None:
+    from live402 import catalog_replica
+
+    if not catalog_replica.dual():
+        return
+    try:
+        result = catalog_replica.parity()
+    except catalog_replica.ReplicaUnavailable:
+        sys.stderr.write("catalog_replica_parity_unavailable\n")
+        return
+    sys.stderr.write(
+        "catalog_replica_parity ok=%s backfill_done=%s outbox_pending=%d %s\n"
+        % ("yes" if result["ok"] else "no", "yes" if result["backfill_done"] else "no",
+           result["outbox_pending"],
+           " ".join("%s=%d/%d" % (k, v[0], v[1]) for k, v in sorted(result["diffs"].items())) or "counts_match")
+    )
+
+
 _JOB_FUNCS = {
     "session_prune": _session_prune,
     "metrics_flush": _metrics_flush,
@@ -161,6 +214,9 @@ _JOB_FUNCS = {
     "history_replica_drain": _history_replica_drain,
     "history_replica_backfill": _history_replica_backfill,
     "history_replica_parity": _history_replica_parity,
+    "catalog_replica_drain": _catalog_replica_drain,
+    "catalog_replica_backfill": _catalog_replica_backfill,
+    "catalog_replica_parity": _catalog_replica_parity,
 }
 
 

@@ -60,6 +60,7 @@ jobs:
           python -m unittest discover -s tests -p test_replay_leaf_outbox_postgres.py -v
           python -m unittest discover -s tests -p test_session_postgres.py -v
           python -m unittest discover -s tests -p test_history_postgres.py -v
+          python -m unittest discover -s tests -p test_catalog_postgres.py -v
       - name: Default-backend compatibility and budget gates
         env:
           LIVE402_FIXTURE: "1"

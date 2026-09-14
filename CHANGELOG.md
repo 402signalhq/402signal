@@ -7,6 +7,18 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 - Production shadow catalog ships to the replay authority (`LIVE402_CATALOG_BACKEND = "dual"` in `fly.toml`; the owner functions in `ops/catalog-postgres-managed.sql` are installed). The SQLite file stays the reader; the writer backfills it once and logs parity hourly. Fourth step of the second-machine plan.
 - Production probe history ships to the replay authority (`LIVE402_HISTORY_BACKEND = "dual"` in `fly.toml`; the owner functions in `ops/history-postgres-managed.sql` are installed). The SQLite file stays the reader; the writer backfills it once and logs parity hourly. Third step of the second-machine plan.
+- Shadow catalog replica on the replay PostgreSQL (`live402/catalog_replica.py`,
+  `LIVE402_CATALOG_BACKEND=sqlite|dual`, owner migration
+  `ops/catalog-postgres-managed.sql`, schema `signal_catalog`): fourth step of
+  the second-machine plan, the same outbox pattern as the history replica.
+  Listings, their sources and payment claims, source sweeps and claim events
+  (and the event cap's deletions) are captured inside each SQLite transaction
+  and shipped in order by the writer's maintenance loop through `api_apply`;
+  a backfill copies the file once in chunks and an hourly parity line compares
+  counts. The full-text index and the short-lived finalist schema cache are
+  derived and not copied. Default unchanged (SQLite only). `PostgresReplica`
+  in `history_replica.py` now takes its schema and columns as parameters and
+  serves both copies.
 - Probe history replica on the replay PostgreSQL (`live402/history_replica.py`,
   `LIVE402_HISTORY_BACKEND=sqlite|dual`, owner migration
   `ops/history-postgres-managed.sql`, schema `signal_history`): third step of
