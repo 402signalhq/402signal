@@ -170,13 +170,13 @@ def payment_presented(headers) -> bool:
     return False
 
 
-# MCP bazaar so CDP indexes the route tool, not only HTTP POST /route.
-# Live MCP: https://402signal.com/mcp and /mcp.json
+# MCP bazaar so CDP indexes the check tool (former name route), not only HTTP
+# POST /route. Live MCP: https://402signal.com/mcp and /mcp.json
 BAZAAR_MCP = {
     "info": {
         "input": {
             "type": "mcp",
-            "toolName": "route",
+            "toolName": "check",
             "description": CATALOG_DESCRIPTION,
             "transport": "streamable-http",
             "inputSchema": {

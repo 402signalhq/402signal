@@ -6,10 +6,11 @@ Tool descriptions should help an agent choose and call the right tool without op
 
 | Tool | Choose it for | Choose another tool when |
 | --- | --- | --- |
-| `preview` | Free catalog discovery by capability; no new seller probe | Use `validate` to check a listed URL, or `route` to apply spending rules to a live selection |
-| `validate` | Free readiness check of one exact catalog-listed HTTPS URL | Use `preview` to find candidates, or `route` for constraints and signed routing evidence |
-| `route` | Live selection against explicit rules; seller purchase remains separate | Use the free tools for discovery or basic listed-endpoint readiness; paid completion needs an x402-capable HTTP client |
-| `check` | The same call as `route` under the name agents look for when they want a pre-flight check; identical schema, fee and result | Same as `route` |
+| `preview` | Free catalog discovery by capability; no new seller probe | Use `validate` to check a listed URL, or `check` to apply spending rules to a live selection |
+| `validate` | Free readiness check of one exact catalog-listed HTTPS URL | Use `preview` to find candidates, or `check` for constraints and signed evidence |
+| `check` | The paid pre-flight check: live selection against explicit rules with signed evidence; seller purchase remains separate. `route` is its former name, accepted by `tools/call` for existing clients but not listed | Use the free tools for discovery or basic listed-endpoint readiness; paid completion needs an x402-capable HTTP client |
+
+The listed surface is exactly these three tools. Two listed names for one call confused agents and tool graders, so the former name stays callable without being advertised.
 
 These are tool-selection examples, not paid requests:
 
@@ -17,7 +18,9 @@ These are tool-selection examples, not paid requests:
 {"name":"preview","arguments":{"need":"weather","networks":["base"]}}
 ```
 
-For `validate`, copy a concrete URL from a catalog result. For `route`, start with `need` or `url` plus the constraints the buyer actually requires. A request without payment returns the routing challenge; the Glama stdio adapter cannot sign or submit payment.
+For `validate`, copy a concrete URL from a catalog result. For `check`, start with `need` or `url` plus the constraints the buyer actually requires. A request without payment returns the checking-fee challenge; the Glama stdio adapter cannot sign or submit payment.
+
+Each listed tool carries MCP annotations (`title`, `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`). They state what the handler does: `check` spends the checking fee and probes sellers, `preview` queries catalogs, `validate` probes one seller without paying. Never set a hint the handler does not honour.
 
 ## Before changing or adding a tool
 

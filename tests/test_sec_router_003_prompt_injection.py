@@ -135,7 +135,7 @@ class SecRouter003PreviewMcpTests(unittest.TestCase):
             self.assertIn("system prompts", desc, key)
         self.assertEqual((hit_props.get("origin") or {}).get("enum"), [schema_fields.ORIGIN_CLAIMED])
 
-        route_props = (tools["route"].get("outputSchema") or {}).get("properties") or {}
+        route_props = (tools["check"].get("outputSchema") or {}).get("properties") or {}
         target = (route_props.get("target") or {}).get("properties") or {}
         for key in ("inputSchema", "outputSchema"):
             desc = str((target.get(key) or {}).get("description") or "")
