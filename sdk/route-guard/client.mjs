@@ -1,7 +1,7 @@
 /** Buyer-owned routing lifecycle. No signer, wallet or merchant executor. */
 import {randomBytes} from 'node:crypto';
 import {parse} from './internal-json.mjs';
-import {isUnsettledRouteMiss} from './index.mjs';
+import {isKnownFeeShape, isUnsettledRouteMiss} from './index.mjs';
 
 const LIMIT = 262144;
 const PROFILE = 'http-route-v1';
@@ -29,18 +29,23 @@ function responseRecord(status,bodyText,paymentResponse,retryAfter,paymentRequir
   check(paymentRequired===null || typeof paymentRequired==='string'&&paymentRequired.length>0&&paymentRequired.length<=16384&&/^[\x21-\x7e]+$/.test(paymentRequired),'invalid_payment_challenge');
   return {status,bodyText,paymentResponse,paymentRequired,retryAfter:typeof retryAfter==='string'&&retryAfter.length<=128?retryAfter:null};
 }
-/** Server billing claims are not independent chain confirmation or spending authority. */
+/** Server billing claims are not independent chain confirmation or spending authority.
+ * The billing block may carry any published fee shape: the $0.003 check, the $0.005
+ * hosted session open, or $0.000 for a hop or a typed session miss. routeOutcome echoes
+ * the server's route_outcome.code (for example session_hop or free_miss) so a $0 hop is
+ * not mistaken for a miss. */
 export function classifyRouteResponse(response) {
-  let settlement='unclassified';
+  let settlement='unclassified',outcome=null;
   try {
     const v=json(response.bodyText),b=v.billing;
-    if([200,503].includes(response.status)&&object(b)&&b.model==='success_only_v1'&&b.condition==='live_eligible_route_found'&&b.asset==='USDC'&&b.amount_atomic==='3000'&&b.display_amount==='$0.003'&&['base','solana','algorand'].includes(b.rail)) {
+    if(object(v.route_outcome)&&typeof v.route_outcome.code==='string'&&/^[a-z_]{1,40}$/.test(v.route_outcome.code)) outcome=v.route_outcome.code;
+    if([200,503].includes(response.status)&&object(b)&&b.model==='success_only_v1'&&b.condition==='live_eligible_route_found'&&b.asset==='USDC'&&isKnownFeeShape(b)) {
       if(b.settlement_state==='settled'&&b.settlement_attempted===true&&b.settled===true) settlement='settled';
       if(b.settlement_state==='not_attempted'&&b.settlement_attempted===false&&b.settled===false&&response.paymentResponse===null) settlement='not_attempted';
       if(b.settlement_state==='unknown') settlement='unknown';
     }
   } catch {}
-  return Object.freeze({settlementReport:settlement,
+  return Object.freeze({settlementReport:settlement,routeOutcome:outcome,
     normalMiss:isUnsettledRouteMiss({httpStatus:response.status,routeResponseJson:response.bodyText,paymentResponseHeader:response.paymentResponse}),
     chainConfirmation:'not_checked',newPaymentAllowed:false,sellerExecutionAllowed:false});
 }

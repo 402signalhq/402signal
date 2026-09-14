@@ -26,9 +26,9 @@ const CANDIDATE_TAG = "route-guard-v0.7.7";
 const CANDIDATE_TGZ = "402signal-route-guard-0.7.7.tgz";
 // Reproduced twice locally with npm 11.19.0 (Node 24) on the release branch tip.
 const REVIEWED_PACK_SHA256 =
-  "ceb4edd247534d37942ea4c09484d2d71e1b3894401e585690845de8a190b953";
+  "f3685802077129ee323cd8e06734cf0188d83a314c8bbcde327c6747820ee944";
 const REVIEWED_SUMS_SHA256 =
-  "9919b11ad9b9ab4de3b491051ec91ef57d0b32e917bfc85f300c01bc44ecd472";
+  "4f95a780cb01205fc200a61a798780afca9fc218724ebf68654973b7a1c3c464";
 
 const arguments_ = process.argv.slice(2);
 let candidate = CANDIDATE_TGZ;

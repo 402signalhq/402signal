@@ -125,6 +125,18 @@ test('capability throttling retains retry guidance and sends no payment',async()
  await assert.rejects(f.submit('one'),e=>e.code==='recovery_rate_limited'&&e.retryAfter==='60');assert.equal(await store.get('one','submission'),undefined);
  await store.putOnce('one','submission',{at:Date.now()});const r=await f.recover('one');assert.equal(r.reason,'recovery_rate_limited');assert.equal(r.retryAfter,'60');assert.equal(r.newPaymentAllowed,false);
 });
+test('hosted session answers classify: a $0.005 open settles, a $0 hop is not a miss, a $0 session miss is',()=>{
+ const shape=(over)=>({model:'success_only_v1',condition:'live_eligible_route_found',asset:'USDC',rail:'base',...over});
+ const open=classifyRouteResponse({status:200,bodyText:JSON.stringify({live:true,payable:true,selected_payment:{rail:'base'},route_outcome:{code:'route_settled'},billing:shape({amount_atomic:'5000',display_amount:'$0.005',settlement_attempted:true,settled:true,settlement_state:'settled'})}),paymentResponse:'receipt',retryAfter:null});
+ assert.equal(open.settlementReport,'settled');assert.equal(open.routeOutcome,'route_settled');assert.equal(open.normalMiss,false);
+ const hop=classifyRouteResponse({status:200,bodyText:JSON.stringify({live:true,payable:true,selected_payment:{rail:'base'},session:{hop_count:1},route_outcome:{code:'session_hop',next_action:'none'},billing:shape({amount_atomic:'0',display_amount:'$0.000',settlement_attempted:false,settled:false,settlement_state:'not_attempted'})}),paymentResponse:null,retryAfter:null});
+ assert.equal(hop.settlementReport,'not_attempted');assert.equal(hop.routeOutcome,'session_hop');assert.equal(hop.normalMiss,false);
+ const miss=classifyRouteResponse({status:200,bodyText:JSON.stringify({live:false,payable:false,invocable:false,selected_payment:null,miss_reason:'invalid_session_shape',stop_reason:'invalid_session_shape',route_outcome:{code:'free_miss'},billing:shape({rail:'unknown',amount_atomic:'0',display_amount:'$0.000',settlement_attempted:false,settled:false,settlement_state:'not_attempted'})}),paymentResponse:null,retryAfter:null});
+ assert.equal(miss.settlementReport,'not_attempted');assert.equal(miss.routeOutcome,'free_miss');assert.equal(miss.normalMiss,true);
+ // A shape the server never emits stays unclassified; a made-up outcome code is dropped.
+ const odd=classifyRouteResponse({status:200,bodyText:JSON.stringify({route_outcome:{code:'Nope!'},billing:shape({amount_atomic:'4000',display_amount:'$0.004',settlement_attempted:true,settled:true,settlement_state:'settled'})}),paymentResponse:'receipt',retryAfter:null});
+ assert.equal(odd.settlementReport,'unclassified');assert.equal(odd.routeOutcome,null);
+});
 test('contradictory or incomplete settled claims remain unclassified',()=>{
  for(const [status,b]of[[402,billing],[200,{...billing,condition:'other'}],[200,{...billing,display_amount:'$1'}]]) {
   assert.equal(classifyRouteResponse({status,bodyText:JSON.stringify({billing:b}),paymentResponse:'receipt',retryAfter:null}).settlementReport,'unclassified');

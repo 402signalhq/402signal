@@ -411,6 +411,15 @@ From the review's 2026-09-14 refresh against the 0.7.6 source:
   `challengeTimeoutMs`), the exported defaults and `fetchChallenge`'s options
   parameter, so a typed POST consumer compiles without a cast; the packaged
   type check exercises it.
+- `classifyRouteResponse` and `isUnsettledRouteMiss` know every published fee
+  shape (`FEE_SHAPES`: the $0.003 check, the $0.005 hosted session open, $0.000
+  for hops and typed session misses) instead of the check alone, so a session
+  open classifies as `settled`, a hop as `not_attempted` with
+  `routeOutcome: "session_hop"`, and `invalid_session_shape`, `window_spent`,
+  `scheme_mismatch`, `fingerprint_miss`, `network_mismatch`,
+  `mandate_mismatch` and `unsupported_hop_field` count as unsettled misses.
+  `routeOutcome` is new on the classification and echoes the server's
+  `route_outcome.code`.
 
 ## Guard hardening (0.7.6)
 

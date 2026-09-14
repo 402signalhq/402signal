@@ -24,10 +24,10 @@ REVIEWED_KEYS = (
 # with npm 11.19.0 on the release branch; not an install URL until the release flips the row.
 PENDING_TAG = "route-guard-v0.7.7"
 PENDING_PACK_SHA256 = (
-    "ceb4edd247534d37942ea4c09484d2d71e1b3894401e585690845de8a190b953"
+    "f3685802077129ee323cd8e06734cf0188d83a314c8bbcde327c6747820ee944"
 )
 PENDING_SUMS_SHA256 = (
-    "9919b11ad9b9ab4de3b491051ec91ef57d0b32e917bfc85f300c01bc44ecd472"
+    "4f95a780cb01205fc200a61a798780afca9fc218724ebf68654973b7a1c3c464"
 )
 # Tag route-guard-v0.7.6 at the merge commit of PR #250 (main 5ea0df9). The downloaded GitHub
 # bytes matched this pair (reproduced twice, npm 11.19.0); on npm with provenance. 0.7.5 was tagged

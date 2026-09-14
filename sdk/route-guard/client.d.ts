@@ -7,6 +7,8 @@ export interface AttemptStore {
 export interface RouteResponse {status:number; bodyText:string; paymentResponse:string|null; paymentRequired?:string|null; retryAfter:string|null}
 export interface RouteClassification {
   readonly settlementReport:'settled'|'not_attempted'|'unknown'|'unclassified';
+  /** The server's route_outcome.code (session_hop, free_miss, ...), or null when absent. */
+  readonly routeOutcome:string|null;
   readonly normalMiss:boolean; readonly chainConfirmation:'not_checked';
   readonly newPaymentAllowed:false; readonly sellerExecutionAllowed:false;
 }

@@ -13,8 +13,13 @@ server. The format follows Keep a Changelog; dates are UTC.
   `Content-Length` within the bound (`challenge_unbounded_transport`, S2);
   the TypeScript declarations carry every hook option, the exported defaults
   and `fetchChallenge`'s options, and the packaged type check compiles a POST
-  consumer against the installed tarball (F5). Pending `capabilities.json`
-  row with the provisional pair (`ceb4edd2…` tarball, `9919b11a…`
+  consumer against the installed tarball (F5); `classifyRouteResponse` and
+  `isUnsettledRouteMiss` accept every published fee shape (`FEE_SHAPES`: the
+  check, the $0.005 session open, $0.000 hops and typed session misses), the
+  classification gains `routeOutcome`, and the hosted-session miss reasons
+  count as unsettled misses (found by the 2026-09-14 paid captures: a session
+  open and a hop both classified `unclassified`). Pending `capabilities.json`
+  row with the provisional pair (`f3685802…` tarball, `4f95a780…`
   SHA256SUMS); the installer, llms.txt and the site keep the published 0.7.6
   pin until the release.
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
