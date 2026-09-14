@@ -6,6 +6,14 @@ server. The format follows Keep a Changelog; dates are UTC.
 ## Unreleased
 
 - Production session store switches to the replay authority (`LIVE402_SESSION_BACKEND = "postgres"` in `fly.toml`; the owner functions in `ops/session-postgres-managed.sql` are installed). The writer copies the machine's SQLite session state in once on its first lease acquisition; the SQLite file stays as the observation cache only. Second step of the second-machine plan.
+- `@402signal/route-guard` 0.7.4 published: tag `route-guard-v0.7.4` on the
+  PR #232 merge commit (5bc1e65), GitHub release 2026-09-13T23:35:35Z with
+  the reviewed pair (`164a1328…` tarball, `d414db64…` SHA256SUMS; the
+  downloaded bytes were verified against it) and `@402signal/route-guard@0.7.4`
+  on the npm registry with provenance. `capabilities.json` flips the row to
+  `published`, `verifier_package` moves to 0.7.4, and the installer script,
+  its tests, `llms.txt`, the developer guide, the README and the docs point
+  at 0.7.4. `402signal` 0.1.1 is on PyPI (tag `python-v0.1.1`, same commit).
 - `@402signal/route-guard` 0.7.4 (release candidate; the capabilities row is
   `pending` with provisional pack digests until the tag is uploaded and the
   downloaded bytes are verified, then a follow-up flips it to `published` and
