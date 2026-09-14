@@ -5,6 +5,7 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- CI: the pinned GitHub Actions move to their Node 24 releases (`actions/checkout` v5.0.1, `actions/setup-python` v6.3.0, `actions/upload-artifact` v6.0.0, `github/codeql-action` v4.38.0, each pinned by commit), which clears the "Node.js 20 is deprecated" annotation on every workflow run. The composite actions (attestation, pip-audit, PyPI publish) have no Node runtime of their own and are unchanged.
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
   PR #250 merge commit (5ea0df9), GitHub release 2026-09-14T15:52:55Z with the
   reviewed pair (`8fbf694f…` tarball, `00572428…` SHA256SUMS; the downloaded
