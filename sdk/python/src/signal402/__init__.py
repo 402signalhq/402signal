@@ -5,11 +5,13 @@ from .client import (
     DEFAULT_ROUTER,
     ERROR,
     LIVE,
+    MAX_RESPONSE_BYTES,
     MISS,
     REFUSED,
     SETTLED_EVIDENCE_FAILED,
     UNKNOWN_SETTLEMENT,
     CheckResult,
+    RedirectRefused,
     challenge,
     check,
     classify,
@@ -17,19 +19,21 @@ from .client import (
 )
 from .verify import ReceiptError, verify_checkpoint, verify_receipt, verify_reveal, verify_route_receipt
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __all__ = [
     "BINDING_UNAVAILABLE",
     "CHALLENGE",
     "DEFAULT_ROUTER",
     "ERROR",
     "LIVE",
+    "MAX_RESPONSE_BYTES",
     "MISS",
     "REFUSED",
     "SETTLED_EVIDENCE_FAILED",
     "UNKNOWN_SETTLEMENT",
     "CheckResult",
     "ReceiptError",
+    "RedirectRefused",
     "challenge",
     "check",
     "classify",

@@ -13,8 +13,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(length) or b"{}")
-        self.server.seen.append({"headers": dict(self.headers), "body": body})
-        if self.headers.get("PAYMENT-SIGNATURE"):
+        self.server.seen.append({"path": self.path, "headers": dict(self.headers), "body": body})
+        if self.path == "/redirect":
+            self.send_response(302)
+            self.send_header("Location", "/route")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if self.path == "/big":
+            status, payload = 200, {"live": True, "pad": "x" * (300 * 1024)}
+        elif self.headers.get("PAYMENT-SIGNATURE"):
             status, payload = 200, {"live": True, "payable": True, "billing": {"settled": True}}
             if self.headers.get("Replay-Only") == "1":
                 payload["replayed"] = True
@@ -63,6 +71,35 @@ class ClientTests(unittest.TestCase):
             signal402.check({}, "sig", router=self.router, replay_key="not-hex")
         with self.assertRaises(ValueError):
             signal402.challenge({}, router="http://example.com/route")
+
+    def test_redirects_are_refused_before_any_header_travels(self):
+        redirect = self.router.replace("/route", "/redirect")
+        before = len(self.server.seen)
+        with self.assertRaises(signal402.RedirectRefused):
+            signal402.check({"url": "https://seller.example/x402"}, "sig", router=redirect, replay_key="cd" * 32)
+        seen = self.server.seen[before:]
+        self.assertEqual([s["path"] for s in seen], ["/redirect"])
+        self.assertTrue(issubclass(signal402.RedirectRefused, ValueError))
+
+    def test_oversized_answers_are_refused(self):
+        with self.assertRaises(ValueError):
+            signal402.check({"url": "https://seller.example/x402"}, "sig", router=self.router.replace("/route", "/big"))
+        self.assertEqual(signal402.MAX_RESPONSE_BYTES, 256 * 1024)
+
+    def test_router_url_must_be_plain(self):
+        for bad in (
+            "https://u:p@402signal.com/route",
+            "https://402signal.com/route?x=1",
+            "https://402signal.com/route#frag",
+            "http://example.com/route",
+            "ftp://402signal.com/route",
+            "https:///route",
+            "",
+        ):
+            with self.subTest(router=bad), self.assertRaises(ValueError):
+                signal402.challenge({}, router=bad)
+        # Plain http to a loopback address stays allowed for fixtures like this one.
+        self.assertEqual(signal402.challenge({}, router=self.router).status, 402)
 
 
 class ClassifyTests(unittest.TestCase):
