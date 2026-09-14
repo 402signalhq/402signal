@@ -42,8 +42,9 @@ GUIDANCE = (
     "that is not a guarantee the seller call succeeds; "
     "no_input_schema is only the top-level miss when invocation schema is required and unmet. "
     "constraints_unmet includes the named unmet bounds in unresolved_constraints. "
-    "GET /mcp.json lists the MCP route and check tools (type mcp, toolName route or check); "
-    "POST /mcp initialize and tools/list need no payment; tools/call route is the paid probe. "
+    "GET /mcp.json lists the MCP tools: check (the paid pre-flight check; type mcp, toolName check; "
+    "route is its former name and is still accepted by tools/call), preview and validate (free); "
+    "POST /mcp initialize and tools/list need no payment; tools/call check is the paid probe. "
     "GET /preview?need= is a free request-time catalog search (not_probed:true). Optional prefer_network=base|solana|algorand is a weak ranking preference (still searches all rails). Optional networks= is a hard policy lock. GET /rails lists pay-in rails. "
     "GET /pulse and GET /dashboard are sample lookups. Pulse discovery copy is hybrid: "
     "current upstream catalogs plus a local shadow catalog. index_status is "
@@ -831,7 +832,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "operationId": "mcpManifest",
                     "tags": ["Public"],
                     "summary": "List MCP tools without a payment",
-                    "description": "Tools: route (and its alias check), preview, validate. Route and check calls require a payment authorization (HTTP 402 without one); preview and validate are unpaid.",
+                    "description": "Tools: check (paid; route is its former name and still accepted by tools/call), preview, validate. check calls require a payment authorization (HTTP 402 without one); preview and validate are unpaid.",
                     "responses": {"200": {"description": "MCP manifest"}},
                 }
             },
@@ -854,7 +855,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "operationId": "mcpJsonRpc",
                     "tags": ["Paid"],
                     "parameters": [{"$ref": "#/components/parameters/ReplayKey"}],
-                    "summary": "Post MCP JSON-RPC; tools/call route is x402-gated",
+                    "summary": "Post MCP JSON-RPC; tools/call check is x402-gated",
                     "description": DESC,
                     "x-payment-info": {
                         "price": {"mode": "fixed", "currency": "USD", "amount": ROUTING_PRICE_USDC},
@@ -866,7 +867,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                     "responses": {
                         "200": {"description": "Correlated JSON-RPC result; tool content is in result.content and, for protocol 2025-06-18, result.structuredContent. Tool failures set result.isError."},
                         "202": {"description": "Accepted notification; empty body"},
-                        "402": {"description": "Payment required for tools/call route"},
+                        "402": {"description": "Payment required for tools/call check (or its former name route)"},
                     },
                 }
             },
@@ -1492,7 +1493,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
             "mcp": (
                 "POST https://402signal.com/mcp\n"
                 '{"jsonrpc":"2.0","id":1,"method":"tools/call",'
-                '"params":{"name":"route","arguments":{"need":"YOUR_NEED"}}}\n'
+                '"params":{"name":"check","arguments":{"need":"YOUR_NEED"}}}\n'
                 "# unpaid HTTP 402. Sign, retry the same tools/call with PAYMENT-SIGNATURE. "
                 "MCP result.isError is false for a winner or completed unpaid miss; operational failures are tool errors. Inspect the route body and billing before seller execution."
             ),
@@ -1628,12 +1629,12 @@ Public evidence: https://402signal.com/transparency and GET /pq/log/checkpoint, 
 - GET /pulse: historical operational snapshot; not a live guarantee or listing-total claim.
 - GET /health: liveness only. GET /ready: readiness booleans for configured storage and authority; no paths or secrets.
 - GET /openapi.json: full HTTP contract. GET /mcp.json and /.well-known/mcp.json: MCP manifest.
-- POST /mcp: JSON-RPC initialize, tools/list and tools/call. preview and validate are unpaid; route and its alias check use the paid authorization flow.
+- POST /mcp: JSON-RPC initialize, tools/list and tools/call. preview and validate are unpaid; check uses the paid authorization flow (route is its former name and still accepted).
 - GET /route: text/html yields the human guide; application/json or no Accept yields the unpaid HTTP 402 challenge. Use POST for authorization.
 - GET /llms.txt: this guide. Website: https://402signal.com/ . Docs index: https://github.com/402signalhq/402signal/blob/main/docs/README.md
 
 MCP example:
-{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"route","arguments":{"need":"web search","require_route_binding":true}}}
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"check","arguments":{"need":"web search","require_route_binding":true}}}
 
 ## Public listings and discovery
 

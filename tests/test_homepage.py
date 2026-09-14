@@ -344,7 +344,7 @@ class HomepageProductTests(unittest.TestCase):
         transparency = response["pq_trust"]["properties"]["transparency"]
         self.assertIn("reveal", transparency["properties"])
         self.assertIn("Not published in the public log", transparency["properties"]["reveal"]["description"])
-        tool = next(t for t in mcp.manifest()["tools"] if t["name"] == "route")
+        tool = next(t for t in mcp.manifest()["tools"] if t["name"] == "check")
         self.assertEqual(tool["inputSchema"]["properties"]["require_transparency"]["description"], schema_fields.REQUIRE_TRANSPARENCY_DESC)
         self.assertIn("reveal", tool["outputSchema"]["properties"]["pq_trust"]["properties"]["transparency"]["properties"])
         self.assertIn("Private replay outcomes support bounded recovery", discover.GUIDANCE)
@@ -439,9 +439,9 @@ class HomepageProductTests(unittest.TestCase):
         self.assertTrue(preview["not_probed"])
         self.assertIn("hits", preview)
         manifest = json.loads(_get_full(self.port, "/mcp.json")[1])
-        self.assertTrue({"route", "preview", "validate"}.issubset({t["name"] for t in manifest["tools"]}))
+        self.assertEqual({t["name"] for t in manifest["tools"]}, {"check", "preview", "validate"})
         by_name = {t["name"]: t.get("description") or "" for t in manifest["tools"]}
-        self.assertTrue(by_name["route"].startswith("Selects a live paid API endpoint"))
+        self.assertTrue(by_name["check"].startswith("Runs the paid pre-flight check"))
         self.assertTrue(by_name["preview"].startswith("Discovers catalog-listed paid API endpoints"))
         self.assertTrue(by_name["validate"].startswith(
             "Checks unpaid readiness for one concrete HTTPS seller URL"
