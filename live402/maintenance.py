@@ -109,8 +109,8 @@ def _history_replica_drain() -> None:
         return
     try:
         shipped = history_replica.drain()
-    except history_replica.ReplicaUnavailable:
-        sys.stderr.write("history_replica_unavailable pending=%d\n" % history_replica.outbox_depth())
+    except history_replica.ReplicaUnavailable as exc:
+        sys.stderr.write("history_replica_unavailable pending=%d detail=%r\n" % (history_replica.outbox_depth(), exc.detail))
         return
     if shipped:
         sys.stderr.write("history_replica_drained count=%d\n" % shipped)
@@ -123,8 +123,8 @@ def _history_replica_backfill() -> None:
         return
     try:
         step = history_replica.backfill_step()
-    except history_replica.ReplicaUnavailable:
-        sys.stderr.write("history_replica_backfill_unavailable\n")
+    except history_replica.ReplicaUnavailable as exc:
+        sys.stderr.write("history_replica_backfill_unavailable detail=%r\n" % exc.detail)
         return
     if step:
         sys.stderr.write(
@@ -141,8 +141,8 @@ def _history_replica_parity() -> None:
         return
     try:
         result = history_replica.parity()
-    except history_replica.ReplicaUnavailable:
-        sys.stderr.write("history_replica_parity_unavailable\n")
+    except history_replica.ReplicaUnavailable as exc:
+        sys.stderr.write("history_replica_parity_unavailable detail=%r\n" % exc.detail)
         return
     sys.stderr.write(
         "history_replica_parity ok=%s backfill_done=%s outbox_pending=%d %s\n"
@@ -159,8 +159,8 @@ def _catalog_replica_drain() -> None:
         return
     try:
         shipped = catalog_replica.drain()
-    except catalog_replica.ReplicaUnavailable:
-        sys.stderr.write("catalog_replica_unavailable pending=%d\n" % catalog_replica.outbox_depth())
+    except catalog_replica.ReplicaUnavailable as exc:
+        sys.stderr.write("catalog_replica_unavailable pending=%d detail=%r\n" % (catalog_replica.outbox_depth(), exc.detail))
         return
     if shipped:
         sys.stderr.write("catalog_replica_drained count=%d\n" % shipped)
@@ -173,13 +173,13 @@ def _catalog_replica_backfill() -> None:
         return
     try:
         step = catalog_replica.backfill_step()
-    except catalog_replica.ReplicaUnavailable:
-        sys.stderr.write("catalog_replica_backfill_unavailable\n")
+    except catalog_replica.ReplicaUnavailable as exc:
+        sys.stderr.write("catalog_replica_backfill_unavailable detail=%r\n" % exc.detail)
         return
     if step:
         sys.stderr.write(
-            "catalog_replica_backfill cursor=%d max_id=%d done=%s resources=%d claim_events=%d\n"
-            % (step["cursor"], step["max_id"], "yes" if step["done"] else "no",
+            "catalog_replica_backfill phase=%s cursor=%d max_id=%d done=%s resources=%d claim_events=%d\n"
+            % (step.get("phase", "resources"), step["cursor"], step["max_id"], "yes" if step["done"] else "no",
                step.get("resources", 0), step.get("claim_events", 0))
         )
 
@@ -191,8 +191,8 @@ def _catalog_replica_parity() -> None:
         return
     try:
         result = catalog_replica.parity()
-    except catalog_replica.ReplicaUnavailable:
-        sys.stderr.write("catalog_replica_parity_unavailable\n")
+    except catalog_replica.ReplicaUnavailable as exc:
+        sys.stderr.write("catalog_replica_parity_unavailable detail=%r\n" % exc.detail)
         return
     sys.stderr.write(
         "catalog_replica_parity ok=%s backfill_done=%s outbox_pending=%d %s\n"

@@ -53,7 +53,20 @@ _replica = None
 
 
 class ReplicaUnavailable(Exception):
-    """The replica cannot be reached or refused the operation. The outbox keeps the row."""
+    """The replica cannot be reached or refused the operation. The outbox keeps the row.
+
+    `detail` carries the error class and a trimmed message for the log line
+    (never a connection string; psycopg does not echo one).
+    """
+
+    def __init__(self, message="replica unavailable", detail=""):
+        super().__init__(message)
+        self.detail = detail
+
+
+def _detail(exc: BaseException) -> str:
+    text = " ".join(str(exc).split())[:200]
+    return "%s: %s" % (type(exc).__name__, text) if text else type(exc).__name__
 
 
 def backend_name() -> str:
@@ -249,9 +262,9 @@ class PostgresReplica:
                     for statement in SETTINGS:
                         conn.execute(statement)
                     return fn(conn)
-            except Exception:
+            except Exception as exc:
                 self._discard()
-                raise ReplicaUnavailable("history replica unavailable") from None
+                raise ReplicaUnavailable("replica unavailable", _detail(exc)) from None
 
     def apply(self, payload: dict) -> dict:
         body = json.dumps(payload, separators=(",", ":"), default=str)

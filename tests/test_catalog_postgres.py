@@ -198,8 +198,11 @@ class CatalogReplicaPostgres(unittest.TestCase):
         from live402.history_replica import PostgresReplica
 
         with patch.object(catalog_replica, "_replica", PostgresReplica(environ=broken, schema="signal_catalog")):
-            with self.assertRaises(ReplicaUnavailable):
+            with self.assertRaises(ReplicaUnavailable) as caught:
                 catalog_replica.drain()
+        # The log line names the error class and a trimmed message, never a connection string.
+        self.assertIn("OperationalError", caught.exception.detail)
+        self.assertNotIn("password", caught.exception.detail)
         self.assertEqual(len(self._outbox()), 1)
         catalog_replica.forget_replica()
         self.assertEqual(catalog_replica.drain(), 1)
@@ -219,9 +222,11 @@ class CatalogReplicaPostgres(unittest.TestCase):
             steps.append(step)
             if step["done"]:
                 break
-        self.assertEqual([s["cursor"] for s in steps], [2, 4, 5])
+        # Phase one ships the sweep state and the claim events (chunked); phase two the listings.
+        self.assertEqual([(s["phase"], s["cursor"]) for s in steps], [("events", 0), ("resources", 2), ("resources", 4), ("resources", 5)])
         self.assertEqual(steps[0]["source_state"], 1)
         self.assertEqual(steps[0]["claim_events"], 10)  # resource_added and rail_added per listing
+        self.assertEqual(steps[1].get("claim_events", 0), 0)
         self.assertIsNone(catalog_replica.backfill_step(chunk=2))
         self._same("resources", "id, canonical_url, status, last_verified, last_probe_ok")
         self._same("accept_claims", "id, resource_id, source, network, amount_atomic, payTo")
