@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /** Verify a packed route-guard archive, not the source tree.
  *
- * 0.7.6 packed bytes are digest-checked against the reviewed pair before
+ * 0.7.6 packed bytes are digest-checked against the published pair before
  * npm install or import. SHA256SUMS is checked the same way: file digest plus
- * contents vs the tarball hash. Mismatch fails closed. 0.7.6 is the release
- * candidate (pending capabilities row, provisional pair); 0.7.4 stays the
- * published installer pin until the release. The tree must pack to the
- * reviewed bytes.
+ * contents vs the tarball hash. Mismatch fails closed. 0.7.6 is published
+ * (GitHub release archive; npm registry); the tree must still pack to the
+ * same bytes.
  * Default verify: current chk_grp without buyer merchant_profile, historical
  * leaves that still name merchant_profile, and refuse-on-drift.
  * --historical-verifier tests the published 0.7.1 path: historical leaves
@@ -130,7 +129,7 @@ try {
   const expected = reviewedCandidateDigests();
   const archive = await materialize(candidate, work, "candidate.tgz");
   const sha256 = sha256File(archive);
-  assert.equal(sha256, expected.pack, "candidate 0.7.4 digest must match the reviewed expected digest before install");
+  assert.equal(sha256, expected.pack, "candidate 0.7.6 digest must match the reviewed expected digest before install");
 
   const sumsSpec = checksumSpec(candidate);
   if (!sumsSpec.startsWith("https://")) {

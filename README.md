@@ -21,7 +21,7 @@ The service is also listed in third-party catalogues such as PayAPI Market (http
 **Official x402 client.** One hook adds the check to your configured seller-payment path. It pays the fee with your own wallet, re-reads the seller's challenge, verifies the signed receipt with your pinned log key, and aborts a payment whose terms differ from what was verified:
 
 ```sh
-npm install @402signal/route-guard@0.7.4 && npm audit signatures
+npm install @402signal/route-guard@0.7.6 && npm audit signatures
 ```
 
 ```js

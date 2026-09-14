@@ -17,9 +17,9 @@ import {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const installer = join(root, "scripts/install_route_guard.mjs");
 const REVIEWED_PACK =
-  "164a1328ddcba856b667b74b43573bfb455016144cef84858ae66054be64b5ff";
+  "8fbf694fd2f703e9fc4427906ac5e699174c96c8a01460e586ee5d48235ac693";
 const REVIEWED_SUMS =
-  "d414db64f83d5f68013451c912c7c6a6c03aa32d95d4007ac5b942b353abeaa9";
+  "005724281f546902c8d59844023078e5a3d2e6355ff2381331811bf05f9d4c82";
 const capabilitiesPath = join(root, "live402/static/capabilities.json");
 
 function runInstaller(args, extra = {}) {
@@ -33,10 +33,10 @@ function runInstaller(args, extra = {}) {
 test("candidate digest mismatch fails closed before npm install", () => {
   const dir = mkdtempSync(join(tmpdir(), "route-guard-install-mismatch-"));
   try {
-    const tgz = join(dir, "402signal-route-guard-0.7.4.tgz");
+    const tgz = join(dir, "402signal-route-guard-0.7.6.tgz");
     const sums = join(dir, "SHA256SUMS");
-    writeFileSync(tgz, "not-the-reviewed-0.7.4-bytes");
-    writeFileSync(sums, `${"00".repeat(32)}  402signal-route-guard-0.7.4.tgz\n`);
+    writeFileSync(tgz, "not-the-reviewed-0.7.6-bytes");
+    writeFileSync(sums, `${"00".repeat(32)}  402signal-route-guard-0.7.6.tgz\n`);
     const result = runInstaller([
       "--verify-only",
       "--archive",
@@ -61,7 +61,7 @@ test("unpublished capabilities row is not an install URL", () => {
   const dir = mkdtempSync(join(tmpdir(), "route-guard-install-pending-"));
   try {
     const pending = JSON.parse(readFileSync(capabilitiesPath, "utf8"));
-    const publishedIdx = pending.packages.findIndex((row) => row.tag === "route-guard-v0.7.4");
+    const publishedIdx = pending.packages.findIndex((row) => row.tag === "route-guard-v0.7.6");
     pending.packages[publishedIdx] = {
       ...pending.packages[publishedIdx],
       state: "pending",
@@ -71,12 +71,12 @@ test("unpublished capabilities row is not an install URL", () => {
     delete pending.packages[publishedIdx].sha256;
     const capabilities = join(dir, "capabilities.json");
     writeFileSync(capabilities, JSON.stringify(pending));
-    writeFileSync(join(dir, "402signal-route-guard-0.7.4.tgz"), "x");
-    writeFileSync(join(dir, "SHA256SUMS"), `${"00".repeat(32)}  402signal-route-guard-0.7.4.tgz\n`);
+    writeFileSync(join(dir, "402signal-route-guard-0.7.6.tgz"), "x");
+    writeFileSync(join(dir, "SHA256SUMS"), `${"00".repeat(32)}  402signal-route-guard-0.7.6.tgz\n`);
     const result = runInstaller([
       "--verify-only",
       "--archive",
-      join(dir, "402signal-route-guard-0.7.4.tgz"),
+      join(dir, "402signal-route-guard-0.7.6.tgz"),
       "--checksum-file",
       join(dir, "SHA256SUMS"),
       "--capabilities",
@@ -95,9 +95,9 @@ test("reviewed local archive verifies and installs into a fresh buyer directory"
     t.skip("PACK_DIR not set");
     return;
   }
-  const tgz = join(packDir, "402signal-route-guard-0.7.4.tgz");
+  const tgz = join(packDir, "402signal-route-guard-0.7.6.tgz");
   if (!existsSync(tgz)) {
-    t.skip("PACK_DIR does not hold the published 0.7.4 installer pin");
+    t.skip("PACK_DIR does not hold the published 0.7.6 installer pin");
     return;
   }
   const dest = mkdtempSync(join(tmpdir(), "route-guard-install-ok-"));
@@ -136,7 +136,7 @@ test("reviewed local archive verifies and installs into a fresh buyer directory"
     assert.equal(installed.installed, true);
     assert.equal(
       JSON.parse(readFileSync(join(dest, "node_modules/@402signal/route-guard/package.json"), "utf8")).version,
-      "0.7.4",
+      "0.7.6",
     );
     copyFileSync(join(dest, "node_modules/@402signal/route-guard/examples/search.ts"), join(dest, "search.ts"));
     assert.ok(readFileSync(join(dest, "search.ts"), "utf8").includes("withVerifiedRoute"));
@@ -220,7 +220,7 @@ test("install falls back after mocked idealTree and records the tool", () => {
     }
   };
   const result = installVerifiedArchive({
-    archive: "/tmp/402signal-route-guard-0.7.4.tgz",
+    archive: "/tmp/402signal-route-guard-0.7.6.tgz",
     destination: "/tmp/dest",
     execFile,
     env: {
@@ -239,7 +239,7 @@ test("install falls back after mocked idealTree and records the tool", () => {
 test("known-bad npm skips npm when bun is present", () => {
   const calls = [];
   const result = installVerifiedArchive({
-    archive: "/tmp/402signal-route-guard-0.7.4.tgz",
+    archive: "/tmp/402signal-route-guard-0.7.6.tgz",
     destination: "/tmp/dest",
     execFile: (tool) => {
       calls.push(tool);
@@ -261,7 +261,7 @@ test("idealTree without fallback explains the Node/npm floor", () => {
   let thrown;
   try {
     installVerifiedArchive({
-      archive: "/tmp/402signal-route-guard-0.7.4.tgz",
+      archive: "/tmp/402signal-route-guard-0.7.6.tgz",
       destination: "/tmp/dest",
       execFile: () => {
         throw Object.assign(new Error("Command failed: npm"), {
@@ -299,7 +299,7 @@ test("non-idealTree npm failures do not silently switch installers", () => {
   let thrown;
   try {
     installVerifiedArchive({
-      archive: "/tmp/402signal-route-guard-0.7.4.tgz",
+      archive: "/tmp/402signal-route-guard-0.7.6.tgz",
       destination: "/tmp/dest",
       execFile: () => {
         throw Object.assign(new Error("Command failed: npm"), {
