@@ -31,6 +31,10 @@ export class RouteGuardError extends Error {
   readonly code: string;
 }
 export function verifyRoute(options: GuardOptions): VerifiedAction;
+/** Published checking-fee shapes by atomic amount: "3000" the check, "5000" a hosted session open, "0" hops and typed session misses. */
+export const FEE_SHAPES: Readonly<Record<"3000" | "5000" | "0", string>>;
+/** True when a success_only_v1 billing block names one of FEE_SHAPES on a fee rail (or $0.000 with rail "unknown"). */
+export function isKnownFeeShape(billing: unknown): boolean;
 /** Explicit unpaid outcome only. Does not authorize a retry or release budget. */
 export function isUnsettledRouteMiss(options: {
   httpStatus: number;

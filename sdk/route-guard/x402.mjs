@@ -17,10 +17,11 @@
 // verified offer matches the requirements the client selected. The hook's own
 // checking-fee payment is let through without a check so it never recurses,
 // but only while that check request is in flight, only for the exact check
-// URL, and only for a payment to one of 402Signal's fee recipients at most the
-// fee amount: a seller cannot earn the exemption by naming the router in its
-// challenge, and a challenge that claims the router's origin outside those
-// bounds is refused outright.
+// URL, only on 402Signal's published fee terms (exact scheme, USDC on a fee
+// rail) to one of its fee recipients, and at most the fee amount: a seller
+// cannot earn the exemption by naming the router in its challenge, and a
+// challenge that claims the router's origin outside those bounds is refused
+// outright.
 //
 // Zero dependencies. Never holds keys, never signs, never retries.
 
@@ -41,6 +42,17 @@ export const DEFAULT_FEE_RECIPIENTS = Object.freeze([
 ]);
 /** $0.005 USDC: a hosted session open. A check is 3000. */
 export const DEFAULT_MAX_FEE_ATOMIC = "5000";
+/**
+ * 402Signal's checking-fee terms (GET /rails) by CAIP-2 network: the exact
+ * scheme and the USDC asset of each fee rail. The recursion exemption is
+ * granted only to a payment on these terms; pass feeTerms from trusted
+ * configuration to override.
+ */
+export const DEFAULT_FEE_TERMS = Object.freeze({
+  "eip155:8453": Object.freeze({ scheme: "exact", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" }), // base USDC
+  "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": Object.freeze({ scheme: "exact", asset: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" }), // solana USDC
+  "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=": Object.freeze({ scheme: "exact", asset: "31566704" }), // algorand USDC
+});
 /** The raw seller challenge the verifier accepts is at most 64 KiB; reading stops there. */
 export const MAX_CHALLENGE_BYTES = 64 * 1024;
 export const DEFAULT_CHALLENGE_TIMEOUT_MS = 10000;
@@ -96,6 +108,16 @@ export function defaultRequest(resourceUrl, selected, extra = {}) {
   return { ...request, ...extra };
 }
 
+function decodeJoined(chunks, total) {
+  const joined = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    joined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder("utf-8").decode(joined);
+}
+
 async function readBounded(response, maxBytes, controller) {
   const body = response && response.body;
   if (body && typeof body.getReader === "function") {
@@ -118,14 +140,35 @@ async function readBounded(response, maxBytes, controller) {
       }
       chunks.push(value);
     }
-    const joined = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      joined.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    return new TextDecoder("utf-8").decode(joined);
+    return decodeJoined(chunks, total);
   }
+  if (body && typeof body[Symbol.asyncIterator] === "function") {
+    // A Node readable (node-fetch style adapters): the same metered loop.
+    const chunks = [];
+    let total = 0;
+    for await (const piece of body) {
+      const chunk = typeof piece === "string"
+        ? new TextEncoder().encode(piece)
+        : piece instanceof Uint8Array ? piece : new Uint8Array(piece);
+      total += chunk.byteLength;
+      if (total > maxBytes) {
+        const error = new RouteGuardError("challenge_too_large");
+        if (typeof body.destroy === "function") body.destroy(error);
+        controller.abort(error);
+        throw error;
+      }
+      chunks.push(chunk);
+    }
+    return decodeJoined(chunks, total);
+  }
+  // Nothing to meter: an adapter that only offers text() is read when the
+  // transport declares a length within the bound; otherwise it could hand back
+  // an unbounded string and the guard fails closed instead.
+  const declared = headerValue(response, "content-length");
+  if (declared === undefined || !/^[0-9]{1,15}$/.test(declared)) {
+    throw new RouteGuardError("challenge_unbounded_transport");
+  }
+  if (Number(declared) > maxBytes) throw new RouteGuardError("challenge_too_large");
   const text = await response.text();
   if (new TextEncoder().encode(text).byteLength > maxBytes) throw new RouteGuardError("challenge_too_large");
   return text;
@@ -139,7 +182,10 @@ async function readBounded(response, maxBytes, controller) {
  * parsed: at most maxBytes (default 64 KiB, the verifier's own cap) and at most
  * timeoutMs (default 10 s) end to end, with the caller's AbortSignal forwarded.
  * Over either bound the read fails closed with RouteGuardError
- * challenge_too_large or challenge_timeout, and the stream is cancelled.
+ * challenge_too_large or challenge_timeout, and the stream is cancelled. Web
+ * streams and Node readables are metered as they arrive; a response that
+ * offers neither is read only when it declares a Content-Length within the
+ * bound, else challenge_unbounded_transport.
  */
 export async function fetchChallenge(rawFetch, url, method = "GET", options = {}) {
   const { maxBytes = MAX_CHALLENGE_BYTES, timeoutMs = DEFAULT_CHALLENGE_TIMEOUT_MS, signal } = options;
@@ -212,6 +258,9 @@ export async function fetchChallenge(rawFetch, url, method = "GET", options = {}
  *                           (default DEFAULT_FEE_RECIPIENTS; see GET /rails).
  * options.maxFeeAtomic      Largest atomic amount the exemption may pay (default
  *                           DEFAULT_MAX_FEE_ATOMIC, a session open).
+ * options.feeTerms          Fee terms by CAIP-2 network, { scheme, asset } each
+ *                           (default DEFAULT_FEE_TERMS; see GET /rails). The
+ *                           exemption never pays another scheme, network or asset.
  * options.maxChallengeBytes, options.challengeTimeoutMs
  *                           Bounds for the built-in seller reread (64 KiB, 10 s).
  * options.onMiss            "abort" (default) or "allow" when 402Signal reports no
@@ -238,6 +287,7 @@ export function signalGuard(options = {}) {
     now,
     feeRecipients = DEFAULT_FEE_RECIPIENTS,
     maxFeeAtomic = DEFAULT_MAX_FEE_ATOMIC,
+    feeTerms = DEFAULT_FEE_TERMS,
     maxChallengeBytes = MAX_CHALLENGE_BYTES,
     challengeTimeoutMs = DEFAULT_CHALLENGE_TIMEOUT_MS,
   } = options;
@@ -267,6 +317,14 @@ export function signalGuard(options = {}) {
   if (!/^[0-9]{1,30}$/.test(String(maxFeeAtomic))) {
     throw new TypeError("signalGuard: maxFeeAtomic must be an atomic amount string");
   }
+  const feeTermEntries = feeTerms && typeof feeTerms === "object" ? Object.entries(feeTerms) : [];
+  if (
+    feeTermEntries.length === 0
+    || !feeTermEntries.every(([network, terms]) => network.length > 0 && terms && typeof terms === "object"
+      && typeof terms.scheme === "string" && terms.scheme.length > 0 && typeof terms.asset === "string" && terms.asset.length > 0)
+  ) {
+    throw new TypeError("signalGuard: feeTerms must map each fee network to { scheme, asset }");
+  }
   const routerUrl = new URL(router);
   if (routerUrl.protocol !== "https:" && routerUrl.hostname !== "127.0.0.1" && routerUrl.hostname !== "localhost") {
     throw new TypeError("signalGuard: router must be an https URL");
@@ -279,7 +337,10 @@ export function signalGuard(options = {}) {
 
   function ownFeeChallenge(target, selected) {
     if (feeCallsInFlight === 0 || target.href !== routerUrl.href) return false;
-    if (!selected || typeof selected !== "object") return false;
+    if (!selected || typeof selected !== "object" || typeof selected.network !== "string") return false;
+    const terms = Object.prototype.hasOwnProperty.call(feeTerms, selected.network) ? feeTerms[selected.network] : undefined;
+    if (!terms || String(selected.scheme ?? "") !== terms.scheme) return false;
+    if (normalizeAddress(selected.asset, selected.network) !== normalizeAddress(terms.asset, selected.network)) return false;
     if (!feeRecipientSet.has(normalizeAddress(selected.payTo, selected.network))) return false;
     const amount = String(selected.amount ?? "");
     return /^[0-9]{1,30}$/.test(amount) && BigInt(amount) <= feeCap;

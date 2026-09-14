@@ -37,6 +37,18 @@ test('ambiguous, malformed, failed and paid outcomes never classify as normal HT
   for (const raw of ['{', 'null', JSON.stringify(body()).replace('"live":false','"live":true,"live":false')])
     assert.equal(isUnsettledRouteMiss({httpStatus:200,routeResponseJson:raw,paymentResponseHeader:null}),false);
 });
+test('typed session misses billed at $0.000 are unsettled misses; $0.000 with a fee-shaped amount is not', () => {
+  for (const reason of ['invalid_session_shape','window_spent','scheme_mismatch','fingerprint_miss','network_mismatch','mandate_mismatch','unsupported_hop_field']) {
+    const b=body(); b.miss_reason=reason; Object.assign(b.billing,{amount_atomic:'0', display_amount:'$0.000', rail:'unknown'});
+    assert.equal(classify(b,200),true, reason);
+    b.billing.rail='base'; assert.equal(classify(b,200),true, reason);
+  }
+  const open=body(); Object.assign(open.billing,{amount_atomic:'5000', display_amount:'$0.005'});
+  assert.equal(classify(open,200),true);
+  for (const change of [{amount_atomic:'0', display_amount:'$0.003'},{amount_atomic:'3000', display_amount:'$0.000'},{amount_atomic:'5000', display_amount:'$0.005', rail:'unknown'},{amount_atomic:0, display_amount:'$0.000'}]) {
+    const b=body(); Object.assign(b.billing,change); assert.equal(classify(b,200),false);
+  }
+});
 test('a live payable winner without miss_reason is not an unsettled miss', () => {
   const winner = {live:true, payable:true, invocable:false, selected_payment:{rail:'solana'},
     billing:{model:'success_only_v1', condition:'live_eligible_route_found',

@@ -16,6 +16,17 @@
   "source_baseline": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
   "packages": [
     {
+      "tag": "route-guard-v0.7.7",
+      "state": "pending",
+      "digest_status": "provisional-until-release",
+      "source_revision": "cf48b75f3f2899299a861b2a2b9c5cd91c561667",
+      "provisional_pack_sha256": "383f204105225bc845123a5a4d17fd14208c69466c0a382664636070590a5acd",
+      "provisional_sums_sha256": "37f73ef37b9bb1037453ca57d7f0429d68381546040bf2da803ef7ec18a856a6",
+      "distribution": "Release candidate: GitHub release archive and npm registry (@402signal/route-guard@0.7.7, provenance) once tagged and published; not an install URL yet",
+      "recipe": "/developers/check-group-offer",
+      "note": "Security review refresh 2026-09-14: fee terms pinned (S1), unmetered transports refused (S2), typed declarations complete (F5); classification knows every fee shape and the hosted-session answers (paid captures 2026-09-14). The installer, llms.txt and the site keep the published 0.7.6 pin until this row is published."
+    },
+    {
       "tag": "route-guard-v0.7.6",
       "published_at": "2026-09-14T15:52:55Z",
       "source_revision": "5ea0df9deb0e4b6141082f0dbbfa5e0bcb7534d3",

@@ -13,12 +13,30 @@ const LIMIT = 64 * 1024;
 const NORMAL_MISSES = new Set([
   "no_candidates", "no_402_envelope", "no_payto", "reachable_200",
   "quote_expired", "no_input_schema", "constraints_unmet", "unsafe_to_probe",
+  // Hosted-session answers (HTTP 200, $0.000 billing): the window or the bound
+  // refused the hop; nothing was probed or settled.
+  "invalid_session_shape", "window_spent", "scheme_mismatch", "fingerprint_miss",
+  "network_mismatch", "mandate_mismatch", "unsupported_hop_field",
 ]);
 // 503 only: the seller answered with a live challenge but the signed binding
 // could not be built. Nothing was billed; the buyer may retry the same request.
 const LEGACY_MISSES = new Set([...NORMAL_MISSES, "probe_timeout", "upstream_5xx",
   "ssrf", "probe_budget_exhausted", "probe_limit_reached", "invalid_need",
   "binding_unavailable"]);
+const FEE_RAILS = new Set(["base", "solana", "algorand"]);
+/**
+ * The checking-fee shapes a success_only_v1 billing block may carry: the $0.003
+ * check, the $0.005 hosted session open, and $0.000 for hops and typed session
+ * misses (whose rail may be "unknown" because nothing was selected).
+ */
+export const FEE_SHAPES = Object.freeze({"3000": "$0.003", "5000": "$0.005", "0": "$0.000"});
+/** True when a billing block names one of the published fee shapes on a fee rail. */
+export function isKnownFeeShape(billing) {
+  if (!billing || typeof billing !== "object") return false;
+  const atomic = billing.amount_atomic;
+  if (typeof atomic !== "string" || !Object.hasOwn(FEE_SHAPES, atomic) || FEE_SHAPES[atomic] !== billing.display_amount) return false;
+  return FEE_RAILS.has(billing.rail) || (atomic === "0" && billing.rail === "unknown");
+}
 
 /** Classifies an explicit unpaid outcome; never grants spending/retry authority. */
 export function isUnsettledRouteMiss(options) {
@@ -29,8 +47,7 @@ export function isUnsettledRouteMiss(options) {
     const b = body.billing;
     if (body.live !== false || body.payable !== false || body.selected_payment !== null ||
         !b || b.model !== "success_only_v1" || b.condition !== "live_eligible_route_found" ||
-        b.asset !== "USDC" || b.amount_atomic !== "3000" || b.display_amount !== "$0.003" ||
-        !["base", "solana", "algorand"].includes(b.rail) ||
+        b.asset !== "USDC" || !isKnownFeeShape(b) ||
         b.settlement_attempted !== false || b.settled !== false || b.settlement_state !== "not_attempted") return false;
     if (httpStatus === 503) return LEGACY_MISSES.has(body.miss_reason);
     return NORMAL_MISSES.has(body.miss_reason) &&

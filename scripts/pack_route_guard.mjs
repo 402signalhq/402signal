@@ -37,7 +37,7 @@ mkdirSync(destination, { recursive: true });
 
 const metadata = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
 assert.equal(metadata.name, "@402signal/route-guard");
-assert.equal(metadata.version, "0.7.6");
+assert.equal(metadata.version, "0.7.7");
 
 const packed = JSON.parse(
   execFileSync(

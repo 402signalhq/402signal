@@ -1,4 +1,4 @@
-import type { VerifiedAction } from "./index";
+import type { VerifiedAction } from "./index.d.ts";
 
 /** Minimal shape of @x402/core's PaymentRequirements. */
 export interface X402PaymentRequirements {
@@ -46,6 +46,22 @@ export interface RawChallenge {
   xPaymentRequired?: string;
 }
 
+/** 402Signal's checking-fee terms on one CAIP-2 network (GET /rails). */
+export interface FeeTerms {
+  scheme: string;
+  asset: string;
+}
+
+/** Bounds for fetchChallenge, the built-in seller reread. */
+export interface ChallengeReadOptions {
+  /** Largest body accepted, in bytes. Default MAX_CHALLENGE_BYTES (64 KiB). */
+  maxBytes?: number;
+  /** End-to-end deadline. Default DEFAULT_CHALLENGE_TIMEOUT_MS (10 s). */
+  timeoutMs?: number;
+  /** Caller's signal, forwarded to the fetch and the read. */
+  signal?: AbortSignal;
+}
+
 export interface SignalGuardOptions {
   /** The buyer's payment-capable fetch; it pays the $0.003 checking fee. */
   fetchWithPayment: (input: string, init: RequestInit) => Promise<Response>;
@@ -61,6 +77,8 @@ export interface SignalGuardOptions {
   requestFor?: (context: X402PaymentCreationContext) => Record<string, unknown>;
   /** Method the buyer uses for the seller request. The hosted check observes GET. */
   method?: "GET" | "POST";
+  /** The exact body the buyer sends; bound into the verification. Required with method "POST". */
+  bodyFor?: (context: X402PaymentCreationContext) => Uint8Array | string;
   /** Behaviour when 402Signal reports no qualifying live offer. Default "abort". */
   onMiss?: "abort" | "allow";
   /** Optional private Replay-Key (64 lowercase hex) for lost-response recovery. */
@@ -69,9 +87,24 @@ export interface SignalGuardOptions {
   onResult?: (result: SignalGuardResult) => void;
   /** Unix-seconds clock override for deterministic tests. */
   now?: number | (() => number);
+  /** 402Signal fee recipients the recursion exemption may pay. Default DEFAULT_FEE_RECIPIENTS (GET /rails). */
+  feeRecipients?: readonly string[];
+  /** Largest atomic amount the exemption may pay. Default DEFAULT_MAX_FEE_ATOMIC (a session open). */
+  maxFeeAtomic?: string;
+  /** Fee terms by CAIP-2 network the exemption may pay on. Default DEFAULT_FEE_TERMS (GET /rails). */
+  feeTerms?: Readonly<Record<string, FeeTerms>>;
+  /** Largest seller challenge the built-in reread accepts, in bytes. Default MAX_CHALLENGE_BYTES. */
+  maxChallengeBytes?: number;
+  /** End-to-end deadline of the built-in reread. Default DEFAULT_CHALLENGE_TIMEOUT_MS. */
+  challengeTimeoutMs?: number;
 }
 
 export const DEFAULT_ROUTER: string;
+export const DEFAULT_FEE_RECIPIENTS: readonly string[];
+export const DEFAULT_MAX_FEE_ATOMIC: string;
+export const DEFAULT_FEE_TERMS: Readonly<Record<string, FeeTerms>>;
+export const MAX_CHALLENGE_BYTES: number;
+export const DEFAULT_CHALLENGE_TIMEOUT_MS: number;
 export function sameTerms(accepted: unknown, selected: unknown): boolean;
 export function defaultRequest(
   resourceUrl: string,
@@ -82,5 +115,6 @@ export function fetchChallenge(
   rawFetch: (input: string, init: RequestInit) => Promise<Response>,
   url: string,
   method?: "GET" | "POST",
+  options?: ChallengeReadOptions,
 ): Promise<RawChallenge>;
 export function signalGuard(options: SignalGuardOptions): X402BeforePaymentCreationHook;

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { Readable } from "node:stream";
 import test from "node:test";
-import { DEFAULT_FEE_RECIPIENTS, defaultRequest, fetchChallenge, sameTerms, signalGuard } from "../x402.mjs";
+import { DEFAULT_FEE_RECIPIENTS, DEFAULT_FEE_TERMS, defaultRequest, fetchChallenge, sameTerms, signalGuard } from "../x402.mjs";
 
 const fixture = JSON.parse(
   readFileSync(new URL("../../../tests/fixtures/route-binding-v1.json", import.meta.url)),
@@ -9,11 +10,15 @@ const fixture = JSON.parse(
 const c = fixture.cases[0];
 const ROUTER = "https://402signal.com/route";
 
+// A response double without a body stream, the way a minimal adapter answers:
+// it declares its length, as real transports do, so the bounded reader accepts it.
 function jsonResponse(status, body, headers = {}) {
+  const text = typeof body === "string" ? body : JSON.stringify(body);
+  const all = { "content-length": String(new TextEncoder().encode(text).byteLength), ...headers };
   return {
     status,
-    headers: { get: (name) => headers[name.toLowerCase()] ?? null },
-    text: async () => (typeof body === "string" ? body : JSON.stringify(body)),
+    headers: { get: (name) => all[name.toLowerCase()] ?? null },
+    text: async () => text,
   };
 }
 
@@ -132,6 +137,10 @@ test("the hook's own fee is exempt only while its check is in flight, to a 402Si
     seen.push(await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0].toUpperCase().replace("0X", "0x"), amount: "5000" })));
     seen.push(await hook(feeContext({ amount: "3000" }))); // the seller's own recipient
     seen.push(await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0], amount: "5001" })));
+    // The published fee terms are part of the bound: another asset, network or scheme is a seller's.
+    seen.push(await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0], amount: "3000", asset: "0x000000000000000000000000000000000000dead" })));
+    seen.push(await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0], amount: "3000", network: "eip155:137" })));
+    seen.push(await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0], amount: "3000", scheme: "upto" })));
     return jsonResponse(200, c.response);
   };
   hook = guard(fetchWithPayment);
@@ -140,6 +149,9 @@ test("the hook's own fee is exempt only while its check is in flight, to a 402Si
   assert.equal(seen[1], undefined);
   assert.equal(seen[2].abort, true);
   assert.equal(seen[3].abort, true);
+  assert.equal(seen[4].abort, true);
+  assert.equal(seen[5].abort, true);
+  assert.equal(seen[6].abort, true);
   // Outside a fee call the same fee-shaped challenge is refused.
   assert.equal((await hook(feeContext({ payTo: DEFAULT_FEE_RECIPIENTS[0], amount: "3000" }))).abort, true);
   // Trusted configuration can name the recipients.
@@ -147,6 +159,14 @@ test("the hook's own fee is exempt only while its check is in flight, to a 402Si
   seen.length = 0;
   assert.equal(await pinned(context()), undefined);
   assert.equal(seen[0].abort, true);
+  // Trusted configuration can name the fee terms too: the default asset is then a seller's.
+  assert.equal(DEFAULT_FEE_TERMS["eip155:8453"].asset, c.challenge.accepts[0].asset);
+  const rotated = guard(fetchWithPayment, { feeTerms: { "eip155:8453": { scheme: "exact", asset: "0x000000000000000000000000000000000000cafe" } } });
+  seen.length = 0;
+  assert.equal(await rotated(context()), undefined);
+  assert.equal(seen[0].abort, true);
+  assert.throws(() => guard(fetchWithPayment, { feeTerms: {} }), /feeTerms/);
+  assert.throws(() => guard(fetchWithPayment, { feeTerms: { "eip155:8453": { scheme: "exact" } } }), /feeTerms/);
 });
 
 test("fetchChallenge refuses an oversized body and a stalled read before parsing (S2)", async () => {
@@ -185,6 +205,33 @@ test("fetchChallenge refuses an oversized body and a stalled read before parsing
   })(context());
   assert.equal(decision.abort, true);
   assert.match(decision.reason, /challenge_too_large/);
+});
+
+test("fetchChallenge meters Node readable bodies and refuses an unmetered transport (S2 refresh)", async () => {
+  const body = JSON.stringify(c.challenge);
+  const nodeStream = (chunks) => async () => ({ status: 402, headers: { get: () => null }, body: Readable.from(chunks) });
+  const streamed = await fetchChallenge(nodeStream([Buffer.from(body.slice(0, 10)), Buffer.from(body.slice(10))]), "https://seller.example/x402");
+  assert.equal(streamed.bodyText, body);
+  const chunks = Array.from({ length: 65 }, () => Buffer.alloc(1024, 120));
+  await assert.rejects(() => fetchChallenge(nodeStream(chunks), "https://seller.example/x402"), /challenge_too_large/);
+  // No stream and no declared length: nothing bounds text(), so the read is refused before it starts.
+  let read = 0;
+  const unmetered = async () => ({ status: 402, headers: { get: () => null }, text: async () => { read += 1; return body; } });
+  await assert.rejects(() => fetchChallenge(unmetered, "https://seller.example/x402"), /challenge_unbounded_transport/);
+  assert.equal(read, 0);
+  // A declared length over the bound is refused without reading; a length that lies is caught after.
+  const declares = (length, text) => async () => ({ status: 402, headers: { get: (n) => (n === "content-length" ? String(length) : null) }, text: async () => { read += 1; return text; } });
+  await assert.rejects(() => fetchChallenge(declares(64 * 1024 + 1, body), "https://seller.example/x402"), /challenge_too_large/);
+  assert.equal(read, 0);
+  await assert.rejects(() => fetchChallenge(declares(10, "x".repeat(64 * 1024 + 1)), "https://seller.example/x402"), /challenge_too_large/);
+  assert.equal((await fetchChallenge(declares(body.length, body), "https://seller.example/x402")).bodyText, body);
+  // Through the hook the refusal is a completed abort, whatever onMiss says.
+  const { fetchWithPayment } = fakeFetch(jsonResponse(200, c.response));
+  const decision = await signalGuard({
+    fetchWithPayment, rawFetch: unmetered, trustedLogVkey: fixture.trusted_vkey, router: ROUTER, requestFor: () => c.request, now: c.now, onMiss: "allow",
+  })(context());
+  assert.equal(decision.abort, true);
+  assert.match(decision.reason, /challenge_unbounded_transport/);
 });
 
 test("POST needs the exact body supplied by the buyer (F5)", () => {

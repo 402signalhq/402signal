@@ -1,4 +1,4 @@
-import type { BatchObservation, RouteGuardError } from "./batch";
+import type { BatchObservation, RouteGuardError } from "./batch.d.ts";
 
 /** Minimal shape of an mppx Challenge (parsed from WWW-Authenticate: Payment). */
 export interface MppChallenge {
