@@ -179,9 +179,23 @@ def enqueue(cur, effects: Effects) -> bool:
 
 
 class PostgresReplica:
-    """The replica on the replay database: api_apply for writes, plain reads for parity."""
+    """A replica schema on the replay database: api_apply for writes, plain reads for parity.
 
-    def __init__(self, environ=None):
+    Shared by the history copy (schema signal_history) and the catalog copy
+    (signal_catalog, live402.catalog_replica); each names its schema and the
+    columns its api_apply returns.
+    """
+
+    APPLY_COLUMNS = ("probes", "observations", "url_state", "deleted_probes", "deleted_observations", "sealed", "scoring_models")
+    COUNT_SQL = (
+        "SELECT (SELECT count(*) FROM {s}.probes), (SELECT coalesce(max(id), 0) FROM {s}.probes), "
+        "(SELECT count(*) FROM {s}.observations), (SELECT count(*) FROM {s}.url_state), "
+        "(SELECT count(*) FROM {s}.sealed_batches), (SELECT count(*) FROM {s}.scoring_models)"
+    )
+    COUNT_KEYS = ("probes", "max_probe_id", "observations", "url_state", "sealed", "scoring_models")
+
+    def __init__(self, environ=None, *, schema="signal_history", app="402signal-history",
+                 apply_columns=None, count_sql=None, count_keys=None):
         env = os.environ if environ is None else environ
         try:
             import psycopg
@@ -192,6 +206,11 @@ class PostgresReplica:
             self.config, _authority = validate_settings(env, conninfo_to_dict)
         except Exception:
             raise ReplicaUnavailable("history replica unavailable") from None
+        self.schema = schema
+        self.app = app
+        self.apply_columns = tuple(apply_columns or self.APPLY_COLUMNS)
+        self.count_sql = (count_sql or self.COUNT_SQL).format(s=schema)
+        self.count_keys = tuple(count_keys or self.COUNT_KEYS)
         self._psycopg = psycopg
         self._lock = threading.Lock()
         self._conn = None
@@ -217,7 +236,7 @@ class PostgresReplica:
         if conn is None:
             conn = self._psycopg.connect(
                 **self.config, autocommit=True, connect_timeout=2,
-                application_name="402signal-history", prepare_threshold=None,
+                application_name=self.app, prepare_threshold=None,
             )
             self._conn, self._connected_at = conn, time.monotonic()
         return conn
@@ -236,28 +255,22 @@ class PostgresReplica:
 
     def apply(self, payload: dict) -> dict:
         body = json.dumps(payload, separators=(",", ":"), default=str)
+        cols = ", ".join(self.apply_columns)
         row = self._run(lambda conn: conn.execute(
-            "SELECT probes, observations, url_state, deleted_probes, deleted_observations, sealed, scoring_models "
-            "FROM signal_history.api_apply(%s::jsonb)", (body,)).fetchone())
-        keys = ("probes", "observations", "url_state", "deleted_probes", "deleted_observations", "sealed", "scoring_models")
-        return {key: int(value or 0) for key, value in zip(keys, row or (0,) * 7)}
+            "SELECT %s FROM %s.api_apply(%%s::jsonb)" % (cols, self.schema), (body,)).fetchone())
+        return {key: int(value or 0) for key, value in zip(self.apply_columns, row or (0,) * len(self.apply_columns))}
 
     def meta_set(self, key: str, value: str) -> None:
-        self._run(lambda conn: conn.execute("SELECT signal_history.api_meta_set(%s,%s)", (key, value)).fetchone())
+        self._run(lambda conn: conn.execute("SELECT %s.api_meta_set(%%s,%%s)" % self.schema, (key, value)).fetchone())
 
     def meta_get(self, key: str):
         row = self._run(lambda conn: conn.execute(
-            "SELECT value FROM signal_history.replica_meta WHERE key = %s", (key,)).fetchone())
+            "SELECT value FROM %s.replica_meta WHERE key = %%s" % self.schema, (key,)).fetchone())
         return row[0] if row else None
 
     def counts(self) -> dict:
-        row = self._run(lambda conn: conn.execute(
-            "SELECT (SELECT count(*) FROM signal_history.probes), (SELECT coalesce(max(id), 0) FROM signal_history.probes), "
-            "(SELECT count(*) FROM signal_history.observations), (SELECT count(*) FROM signal_history.url_state), "
-            "(SELECT count(*) FROM signal_history.sealed_batches), (SELECT count(*) FROM signal_history.scoring_models)"
-        ).fetchone())
-        keys = ("probes", "max_probe_id", "observations", "url_state", "sealed", "scoring_models")
-        return {key: int(value or 0) for key, value in zip(keys, row or (0,) * 6)}
+        row = self._run(lambda conn: conn.execute(self.count_sql).fetchone())
+        return {key: int(value or 0) for key, value in zip(self.count_keys, row or (0,) * len(self.count_keys))}
 
 
 def replica() -> PostgresReplica:
