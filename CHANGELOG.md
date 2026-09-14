@@ -5,6 +5,22 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Alerts: a batch cut inside one second no longer repeats the same changes for
+  good. The subscription state remembers which changes stamped in the second
+  just after the cursor were acknowledged (`~sent`), so more changes in one
+  second than a delivery holds (201, 401, ...) go out over successive scans
+  without duplicates, across writer restarts; a delivery whose 2xx was lost is
+  still repeated (security review refresh, F1).
+- Counters: `route.qualified.<traffic>` changed meaning at 2026-09-14 15:21 UTC
+  (release run 34861357090, PR #248). Before it the counter incremented on
+  every settled checking fee; from then on only when the paid answer is HTTP
+  200 with a durable transparency leaf, and `route.settled.<traffic>` carries
+  the old meaning. Compare windows across that boundary with the settled
+  counter and read receipts before it as settlements (F2 cutover note).
+- Docs: `proof-carrying-route-v1.md` states that MPP offers observed on an
+  ordinary check are observation only (`mpp_offers`): the paid-route gate and
+  the signed binding qualify x402 `exact` offers, and an MPP-only seller is
+  answered as an unbilled miss with the observed offers preserved (F3).
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
   PR #250 merge commit (5ea0df9), GitHub release 2026-09-14T15:52:55Z with the
   reviewed pair (`8fbf694f…` tarball, `00572428…` SHA256SUMS; the downloaded
