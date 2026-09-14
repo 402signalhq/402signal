@@ -1496,6 +1496,30 @@ def _payto_from_envelope(env: dict | None) -> str | None:
     return None
 
 
+def _observed_rail_from_envelope(env: dict | None) -> str | None:
+    """Rail of the accept option the probe records: the first with a payTo, the same
+    option that supplies the recorded recipient and amount.
+
+    Never the listing's rail. A seller listed by an Algorand feed can answer with
+    Solana terms first; the row must say what was observed, or nothing.
+    """
+    if not env or not isinstance(env, dict):
+        return None
+    accepts = env.get("accepts") or []
+    if not isinstance(accepts, list):
+        return None
+    for acc in accepts:
+        if not isinstance(acc, dict):
+            continue
+        val = acc.get("payTo")
+        if val is None or not str(val).strip():
+            continue
+        opt = payment.payment_option_from_accept(acc)
+        rail = (opt or {}).get("rail") or payment.rail_of_network(acc.get("network") or "")
+        return str(rail) if rail else None
+    return None
+
+
 def parse_envelope(status: int | None, headers: dict[str, str], body: bytes) -> tuple[dict | None, str | None]:
     """Parse a payment envelope. Live only on HTTP 402 with parseable accepts/x402Version."""
     headers = headers or {}
@@ -1625,18 +1649,35 @@ def _post_empty_justified(get_snap: dict | None, catalog_item: dict | None = Non
     return True
 
 
-def _catalog_payto(item: dict | None) -> str | None:
+def _catalog_accept(item: dict | None, prefer_rail: str | None = None) -> dict | None:
+    """The catalog accept a claim is read from: the first with a payTo on `prefer_rail`
+    (the observed option's rail, so claimed and observed compare like for like), else
+    the first with a payTo at all."""
     if not item or not isinstance(item, dict):
         return None
     accepts = item.get("accepts") or []
     if not isinstance(accepts, list):
         return None
+    first = None
+    want = str(prefer_rail or "").strip().lower() or None
     for acc in accepts:
-        if isinstance(acc, dict):
-            val = acc.get("payTo")
-            if val and str(val).strip():
-                return str(val).strip()
-    return None
+        if not isinstance(acc, dict):
+            continue
+        val = acc.get("payTo")
+        if not val or not str(val).strip():
+            continue
+        if first is None:
+            first = acc
+        if want and (payment.rail_of_network(acc.get("network") or "") or "") == want:
+            return acc
+    return first
+
+
+def _catalog_payto(item: dict | None, prefer_rail: str | None = None) -> str | None:
+    acc = _catalog_accept(item, prefer_rail)
+    if acc is None:
+        return None
+    return str(acc.get("payTo")).strip()
 
 
 def _payto_matches_catalog(probed, item: dict | None, rail=None) -> bool:
@@ -1747,10 +1788,10 @@ def _catalog_facilitator(item: dict | None) -> str | None:
 def attach_catalog_fields(result: dict, item: dict | None = None) -> dict:
     result["traction"] = _traction(item)
     result.setdefault("payTo", None)
-    catalog_pay = _catalog_payto(item)
+    rail = result.get("rail") or (_item_rail(item) if isinstance(item, dict) else None)
+    catalog_pay = _catalog_payto(item, prefer_rail=rail)
     probed = result.get("payTo")
     if catalog_pay:
-        rail = result.get("rail") or _item_rail(item)
         mismatched = bool(probed and not _payto_matches_catalog(probed, item, rail))
         if mismatched:
             result["payTo_changed"] = True
@@ -1758,6 +1799,7 @@ def attach_catalog_fields(result: dict, item: dict | None = None) -> dict:
             result.setdefault("payTo_changed", False)
     claimed = {}
     if catalog_pay:
+        # The claim's own rail is derived at write time from claimed.accepts (history._claimed_rail).
         claimed["payTo"] = catalog_pay
     amt = _catalog_amount(item)
     if amt is not None:
@@ -1884,6 +1926,9 @@ def health_from_probe(url: str, snap: dict) -> dict:
             "status": snap.get("status"),
         },
     }
+    if snap.get("rail"):
+        # The observed option's rail (probe_url); a listing rail is attached later only when nothing was observed.
+        out["rail"] = str(snap["rail"])
     if snap.get("binding_observation") is not None:
         out["binding_observation"] = snap["binding_observation"]
     from live402 import route_observability
@@ -2056,8 +2101,12 @@ def _one_request(
             from live402 import route_observability
             binding_error_reason = route_observability.binding_reason(exc)
     pay_to = _payto_from_envelope(envelope) if (live and envelope is not None) else None
+    observed_rail = _observed_rail_from_envelope(envelope) if (live and envelope is not None) else None
     if live and pay_to is None and mpp:
-        pay_to = next((o.get("payTo") for o in mpp if o.get("intent") == "charge" and o.get("classified") and o.get("payTo")), None)
+        charge = next((o for o in mpp if o.get("intent") == "charge" and o.get("classified") and o.get("payTo")), None)
+        if charge is not None:
+            pay_to = charge.get("payTo")
+            observed_rail = charge.get("rail") or observed_rail
     out = {
         "binding_observation": binding_observation,
         "binding_error_reason": binding_error_reason,
@@ -2065,6 +2114,7 @@ def _one_request(
         "status": status,
         "has_402_challenge": _has_402_challenge(status, hdrs),
         "payTo": pay_to,
+        "rail": observed_rail if live else None,
         "miss_reason": None if live else (miss or _miss_from_status(status)),
         "envelope": envelope if live else None,
     }
@@ -2316,6 +2366,7 @@ def _probe_url_unbudgeted(url: str, catalog_item: dict | None = None, deadline: 
         "latency_ms": latency_ms,
         "has_402_challenge": bool((winner or {}).get("has_402_challenge")),
         "payTo": (winner or {}).get("payTo") if live else (winner or {}).get("payTo"),
+        "rail": (winner or {}).get("rail") if live else None,
         "probes": probes,
         "probed_at": now_iso(),
     }
@@ -2862,7 +2913,8 @@ def _finalize_routed_probe(result: dict, item: dict, need: str) -> dict:
         if result.get("payTo_changed"):
             result["risk"] = ["payTo_changed"]
     result["need"] = need
-    result["rail"] = _item_rail(item)
+    # The rail the probe observed wins; the listing's rail only labels a result with no observed option.
+    result["rail"] = result.get("rail") or _item_rail(item)
     result["source"] = "fixture" if fixtures.fixture_mode() else "discovery"
     return result
 

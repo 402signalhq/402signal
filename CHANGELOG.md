@@ -39,6 +39,27 @@ server. The format follows Keep a Changelog; dates are UTC.
   S3 native Base signing after evidence expiry, F4 error class, F5 POST body)
   ship with route-guard 0.7.5 in a separate change. The website findings (F6)
   landed with the buyer-journey change above.
+- Observation rail correctness. A probe row now carries the rail of the option
+  it observed (the first accept with a recipient, the same option that supplies
+  the recorded recipient and amount) instead of the catalog listing's rail.
+  Since the shadow catalog began, the routed path had stamped every row with
+  the listing's rail, so a seller listed by an Algorand feed but answering with
+  Solana terms was filed under Algorand. On the 2026-09-13 copy, 750 of 2,145
+  rows with a recipient disagreed with the catalog's rail for that recipient
+  (465 rows labelled Solana carrying 0x recipients, 138 labelled Algorand
+  carrying Solana recipients), which skewed the by-rail rates on host pages
+  and in the report, and made recipient comparisons on those rows
+  case-sensitive. A one-time writer job (`history_rail_repair`) relabels the
+  stored rows from their own recipient and the catalog (rules in
+  `history.repaired_rail`: the catalog's single rail for that recipient, else
+  the recipient's shape; a 0x recipient keeps an EVM rail or falls back to
+  Base) and ships the corrections to the replica. A claim is now read from the
+  catalog accept on the observed rail, so claimed and observed compare like
+  for like, and its stored row carries the claim's own rail (from the accept
+  that names the claimed recipient) instead of inheriting the observed one;
+  the public `claimed` block is unchanged. api.syraa.fun/news, printed with rail
+  Algorand in the September report, was observed on Solana: its recipient is
+  the seller's Solana address on all three discovery feeds.
 - Observed EVM networks, next three by shadow-catalog listing share (about
   765, 549 and 545 claims on 2026-09-13): Sei (`eip155:1329`, rail `sei`) and
   Celo (`eip155:42220`, rail `celo`) are classified and priced in dollars for
