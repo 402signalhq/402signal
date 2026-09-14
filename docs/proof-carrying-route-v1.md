@@ -92,7 +92,7 @@ laid out per RFC 8785 (the ES6 number form, which `JSON.stringify` emits), so
 Python and JavaScript hash the same bytes. Deploy a compatible server and guard
 together; older guards reject these newly accepted descriptions (route-guard
 0.7.3 and earlier refuse a challenge with decimal values as `invalid_json`,
-fail closed; 0.7.4 accepts them). There is no receipt-format or
+fail closed; 0.7.6 accepts them). There is no receipt-format or
 payment-authority change.
 
 The default freshness window is 60 seconds. `LIVE402_ROUTE_BINDING_TTL_S` accepts
@@ -205,7 +205,7 @@ v1-v3 historical leaves and their original verification paths remain unchanged.
 For Node/TypeScript, see the [local route guard](../sdk/route-guard/README.md).
 It uses the same signed fixtures and a caller-owned authorization callback, with
 no runtime dependencies or network operations. The current installable client and offline guard is
-`@402signal/route-guard@0.7.4` on the npm registry (provenance attested) and the [v0.7.4 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.4);
+`@402signal/route-guard@0.7.6` on the npm registry (provenance attested) and the [v0.7.6 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.6);
 verify the archive digest before installation, or run `node scripts/install_route_guard.mjs` from a reviewed checkout. v0.7.1 remains the historical verifier.
 Source is also available in this repository. See the
 [developer walkthrough](https://402signal.com/developers#route-binding) for the

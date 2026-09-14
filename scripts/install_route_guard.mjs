@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Verified install of the published GitHub route-guard archive.
  *
- * The same bytes are on the npm registry as @402signal/route-guard@0.7.4
+ * The same bytes are on the npm registry as @402signal/route-guard@0.7.6
  * with a provenance attestation; this path is for buyers who pin the
  * digest themselves. No BATCH enablement. No spend. No wallet.
  *
@@ -34,13 +34,13 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CANDIDATE_TAG = "route-guard-v0.7.4";
-const CANDIDATE_TGZ = "402signal-route-guard-0.7.4.tgz";
-const CANDIDATE_VERSION = "0.7.4";
+const CANDIDATE_TAG = "route-guard-v0.7.6";
+const CANDIDATE_TGZ = "402signal-route-guard-0.7.6.tgz";
+const CANDIDATE_VERSION = "0.7.6";
 const REVIEWED_PACK_SHA256 =
-  "164a1328ddcba856b667b74b43573bfb455016144cef84858ae66054be64b5ff";
+  "8fbf694fd2f703e9fc4427906ac5e699174c96c8a01460e586ee5d48235ac693";
 const REVIEWED_SUMS_SHA256 =
-  "d414db64f83d5f68013451c912c7c6a6c03aa32d95d4007ac5b942b353abeaa9";
+  "005724281f546902c8d59844023078e5a3d2e6355ff2381331811bf05f9d4c82";
 const PUBLIC_CAPABILITIES = "https://402signal.com/capabilities.json";
 const ALLOWED_ARCHIVE_HOST = "https://github.com/402signalhq/402signal/releases/download/";
 const ALLOWED_CAPABILITIES = new Set([
@@ -87,14 +87,14 @@ export function formatIdealTreeError({ nodeVersion, npmVersion, available = {} }
   if (fallbacks.length) {
     return (
       `npm failed with Tracker "idealTree" already exists (${detected}). ` +
-      "Digest verify already passed; the published 0.7.4 archive is intact. " +
+      "Digest verify already passed; the published 0.7.6 archive is intact. " +
       `Fallback installer(s) also failed: ${fallbacks.join(", ")}. ${floor}`
     );
   }
   return (
     `npm failed with Tracker "idealTree" already exists ` +
     `(known Debian npm 9 / Node 20 arborist bug; ${detected}). ` +
-    "Digest verify already passed; the published 0.7.4 archive is intact. " +
+    "Digest verify already passed; the published 0.7.6 archive is intact. " +
     `No bun or pnpm fallback is on PATH. ${floor}`
   );
 }

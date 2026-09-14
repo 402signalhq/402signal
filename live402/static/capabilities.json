@@ -10,21 +10,23 @@
       "require_route_binding"
     ],
     "hosted_enablement_env": "BATCH_OBSERVATION_PROFILES",
-    "verifier_package": "route-guard-v0.7.4",
+    "verifier_package": "route-guard-v0.7.6",
     "historical_verifier": "route-guard-v0.7.1"
   },
   "source_baseline": "1a9da77f61b37333ccb20b42995b0c6ed6592c6c",
   "packages": [
     {
       "tag": "route-guard-v0.7.6",
-      "state": "pending",
-      "digest_status": "provisional-until-release",
-      "source_revision": "bde481b3349554f309f57fe40fb0fa7427680b8a",
-      "provisional_pack_sha256": "8fbf694fd2f703e9fc4427906ac5e699174c96c8a01460e586ee5d48235ac693",
-      "provisional_sums_sha256": "005724281f546902c8d59844023078e5a3d2e6355ff2381331811bf05f9d4c82",
-      "distribution": "Release candidate: GitHub release archive and npm registry (@402signal/route-guard@0.7.6, provenance) once tagged and published; not an install URL yet",
-      "recipe": "/developers/check-group-offer",
-      "note": "Security review 2026-09-14, SDK findings S1 S2 S3 F4 F5; replaces the withdrawn 0.7.5 tag (its publish run's package test hung on an unref'd timer; never on npm). The installer, llms.txt and the site keep the published 0.7.4 pin until this row is published."
+      "published_at": "2026-09-14T15:52:55Z",
+      "source_revision": "5ea0df9deb0e4b6141082f0dbbfa5e0bcb7534d3",
+      "archive": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.6/402signal-route-guard-0.7.6.tgz",
+      "sha256": "8fbf694fd2f703e9fc4427906ac5e699174c96c8a01460e586ee5d48235ac693",
+      "checksum_file": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.6/SHA256SUMS",
+      "checksum_file_sha256": "005724281f546902c8d59844023078e5a3d2e6355ff2381331811bf05f9d4c82",
+      "npm": "@402signal/route-guard@0.7.6",
+      "distribution": "GitHub release archive and npm registry (@402signal/route-guard@0.7.6, provenance)",
+      "state": "published",
+      "recipe": "/developers/check-group-offer"
     },
     {
       "tag": "route-guard-v0.7.4",

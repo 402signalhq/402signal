@@ -71,8 +71,8 @@ class DeveloperRecipes(unittest.TestCase):
                 continue
             self.assertRegex(package['sha256'], r'^[0-9a-f]{64}$')
             self.assertIn(package['tag'], package['archive'])
-        self.assertIn('route-guard-v0.7.4', LLMS_TXT); self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
-        self.assertIn('@402signal/route-guard@0.7.4', LLMS_TXT); self.assertIn('npm audit signatures', LLMS_TXT)
+        self.assertIn('route-guard-v0.7.6', LLMS_TXT); self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
+        self.assertIn('@402signal/route-guard@0.7.6', LLMS_TXT); self.assertIn('npm audit signatures', LLMS_TXT)
         self.assertIn('install_route_guard.mjs', LLMS_TXT)
         self.assertIn('not a service crash', LLMS_TXT)
         self.assertIn('wrapExactAuthorize', LLMS_TXT)

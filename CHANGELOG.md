@@ -5,6 +5,14 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
+  PR #250 merge commit (5ea0df9), GitHub release 2026-09-14T15:52:55Z with the
+  reviewed pair (`8fbf694f…` tarball, `00572428…` SHA256SUMS; the downloaded
+  bytes were verified against it) and `@402signal/route-guard@0.7.6` on the
+  npm registry with provenance. `capabilities.json` flips the row to
+  `published`, `verifier_package` moves to 0.7.6, and the installer script,
+  its tests, `llms.txt`, the developer guide, the README and the docs point at
+  0.7.6. 0.7.4 stays published and unchanged.
 - `@402signal/route-guard` 0.7.6 release candidate (security review
   2026-09-14, SDK side; the pending `capabilities.json` row carries the
   provisional pair, the installer and site pins stay on the published 0.7.4
