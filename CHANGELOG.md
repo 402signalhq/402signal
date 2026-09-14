@@ -28,6 +28,40 @@ server. The format follows Keep a Changelog; dates are UTC.
     `verification_failed` when the batch verifier refuses.
   - F5: `method: "POST"` requires `challengeFor`, `requestFor` and `bodyFor`;
     the exact body is bound into verification. GET is unchanged.
+- Security review 2026-09-14 (independent assessment of `d824de2`), server side:
+  - F1 alerts: a scan with more changes than one delivery holds (200) now
+    sends the oldest batch and moves the subscription's cursor only past what
+    it sent, keeping cut liveness transitions in their previous state, so the
+    rest goes out on the next scan instead of being skipped for good; each
+    scan delivers to at most 25 subscriptions (`MAX_DELIVERIES_PER_SCAN`) so
+    slow webhooks cannot hold the writer's housekeeping loop (R2).
+  - F2 accounting: `route.settled.<traffic>` counts every settled checking
+    fee; `route.qualified.<traffic>` (the north-star "receipts") is counted
+    only after a durable signed receipt came back with a 200, so a fee that
+    settled and then failed its required receipt is no longer a receipt.
+    `north_star` and the rollup report both numbers.
+  - F3 probing: observed MPP challenges now ride from the winning attempt into
+    the probe result; an MPP-only seller reported live with no offers, not
+    payable and not invocable on the ordinary path.
+  - F7 selection: with a network lock, price ranking looks only at options on
+    the locked rails; a seller's cheap offer on an excluded network no longer
+    ranks its expensive offer on the locked one first.
+  - F8 reputation: ISO 8601 change clocks are parsed, so a recipient, rail,
+    price or schema change in the last seven days lowers the stability score
+    the way an epoch clock always did.
+  - S4 replay authority: `signal_replay.api_admit_shard` becomes SECURITY
+    INVOKER (`ops/replay-postgres-hotpath.sql`; standalone re-apply
+    `ops/replay-postgres-admit-shard-invoker.sql`, owner sheet section L), so
+    a reader login can no longer move a shard's admitted counter without an
+    entry and trip the fence's consistency check. Loopback contract test added.
+  - S5 installer: `scripts/install_route_guard.mjs` stages the archive and
+    SHA256SUMS in a fresh private `mkdtemp` directory with exclusive creates,
+    verifies and installs the same staged bytes, and removes the directory on
+    exit; a predictable, precreated PID-named directory is never used.
+  The SDK findings (S1 fee-exemption bypass, S2 unbounded challenge reread,
+  S3 native Base signing after evidence expiry, F4 error class, F5 POST body)
+  ship with route-guard 0.7.5 in a separate change. The website findings (F6)
+  landed with the buyer-journey change above.
 - Observation rail correctness. A probe row now carries the rail of the option
   it observed (the first accept with a recipient, the same option that supplies
   the recorded recipient and amount) instead of the catalog listing's rail.

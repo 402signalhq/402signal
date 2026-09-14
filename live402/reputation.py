@@ -381,13 +381,33 @@ def evidence_from_result(result: dict | None) -> dict:
     return ev
 
 
-def _recent(ts, now: int, window: int = 86400 * 7) -> bool:
+def _epoch(ts):
+    """Unix seconds from an epoch (int or digit string) or an ISO 8601 timestamp; None when unreadable.
+
+    Change clocks reach the scorer in both layouts: url_state rows carry epochs, the
+    stability components built by attach_to_result carry ISO strings. Both must count.
+    """
     n = _as_int(ts)
+    if n is not None:
+        return n
+    if isinstance(ts, str) and ts.strip():
+        text = ts.strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return int(parsed.timestamp())
+    return None
+
+
+def _recent(ts, now: int, window: int = 86400 * 7) -> bool:
+    n = _epoch(ts)
     if n is None:
         return False
-    # ISO strings from attach_to_result changes{} are not unix; treat as present/recent unknown
-    if isinstance(ts, str) and not str(ts).isdigit():
-        return True
     return (now - n) <= window
 
 

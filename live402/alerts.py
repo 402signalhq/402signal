@@ -17,8 +17,13 @@ shown once at creation:
 
     X-402Signal-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<body>">
 
-Delivery is at least once. A receiver that sees the same `event`, `url` and
-`changed_at` twice has seen the same change twice.
+Delivery is at least once and every transition is delivered: a scan that finds
+more changes than one batch holds sends the oldest batch and moves the
+subscription's cursor only past what it sent, so the rest goes out on the next
+scan (changes in the cut-off second may repeat). A receiver that sees the same
+`event`, `url` and `changed_at` twice has seen the same change twice. Each scan
+delivers to a bounded number of subscriptions so webhook latency cannot hold
+the writer's housekeeping loop; the rest stay due for the next tick.
 """
 from __future__ import annotations
 
@@ -43,6 +48,9 @@ MAX_SUBSCRIPTIONS = 10
 MAX_HOSTS = 20
 MAX_URL_LEN = 512
 MAX_EVENTS_PER_DELIVERY = 200
+# Deliveries per scan: at DELIVERY_TIMEOUT_S each, one scan holds the housekeeping
+# loop for at most about two minutes even when every webhook is slow.
+MAX_DELIVERIES_PER_SCAN = 25
 DELIVERY_TIMEOUT_S = 5.0
 MAX_FAILURES = 20
 DELIVERIES_KEPT = 50
@@ -305,13 +313,14 @@ def _events_for(sub: _Sub, observations: dict) -> tuple[list[dict], dict]:
                 events.append({
                     "event": "price_changed", "host": host, "url": url,
                     "amount_atomic": clock["amount"], "changed_at": _iso(price_at), "endpoint_page": page,
+                    "_ts": int(price_at),
                 })
             pay_at = clock["payTo_changed_at"]
             if "recipient" in sub.events and pay_at is not None and int(pay_at) > cursor:
                 events.append({
                     "event": "recipient_changed", "host": host, "url": url,
                     "payTo": clock["payTo"], "observed_payTo": clock["pending_payTo"] or clock["payTo"],
-                    "changed_at": _iso(pay_at), "endpoint_page": page,
+                    "changed_at": _iso(pay_at), "endpoint_page": page, "_ts": int(pay_at),
                 })
         for url, latest in sorted(obs["latest"].items()):
             state[url] = latest["live"]
@@ -325,9 +334,29 @@ def _events_for(sub: _Sub, observations: dict) -> tuple[list[dict], dict]:
                 events.append({
                     "event": "liveness_changed", "host": host, "url": url, "live": latest["live"],
                     "miss_reason": latest["miss_reason"], "observed_at": _iso(latest["ts"]), "endpoint_page": page,
+                    "_ts": int(latest["ts"]),
                 })
-    events.sort(key=lambda e: (e.get("changed_at") or e.get("observed_at") or "", e["url"], e["event"]))
-    return events[:MAX_EVENTS_PER_DELIVERY], state
+    events.sort(key=lambda e: (e["_ts"], e["url"], e["event"]))
+    return events, state
+
+
+def _batch(sub: _Sub, events: list[dict], state: dict, cursor: int) -> tuple[list[dict], dict, int]:
+    """The oldest batch, the state to store and the cursor to advance to.
+
+    When more than one batch is pending, the cursor moves only past what is sent and
+    liveness transitions that were cut keep their previous state, so nothing is
+    skipped; a change in the cut-off second is sent again next scan (at least once).
+    """
+    if len(events) <= MAX_EVENTS_PER_DELIVERY:
+        return [{k: v for k, v in e.items() if k != "_ts"} for e in events], state, cursor
+    batch = events[:MAX_EVENTS_PER_DELIVERY]
+    cutoff = int(batch[-1]["_ts"])
+    deferred = {e["url"] for e in events[MAX_EVENTS_PER_DELIVERY:] if e["event"] == "liveness_changed"}
+    kept = {url: live for url, live in state.items() if url not in deferred}
+    for url in deferred:
+        if url in sub.state:
+            kept[url] = sub.state[url]
+    return [{k: v for k, v in e.items() if k != "_ts"} for e in batch], kept, min(cursor, cutoff - 1)
 
 
 # --- signing and delivery -----------------------------------------------------
@@ -504,6 +533,9 @@ def scan(now: int | None = None) -> int:
         attempted = 0
         observations: dict[str, dict] = {}
         for row in rows:
+            if attempted >= MAX_DELIVERIES_PER_SCAN:
+                # The rest stay due (their cursors are untouched) for the next tick.
+                break
             sub = _Sub(row)
             for host in sub.hosts:
                 if host not in observations:
@@ -514,6 +546,7 @@ def scan(now: int | None = None) -> int:
             if not events:
                 st.alert_sub_cursor(sub.id, cursor, json.dumps(state, sort_keys=True))
                 continue
+            events, state, cursor = _batch(sub, events, state, cursor)
             delivery_id = secrets.token_hex(8)
             payload = {
                 "type": "402signal.alerts", "delivery_id": delivery_id, "subscription_id": sub.id,

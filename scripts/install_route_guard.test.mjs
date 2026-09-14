@@ -50,6 +50,8 @@ test("candidate digest mismatch fails closed before npm install", () => {
     assert.match(result.stderr, /digest must match the published capabilities pin before install|archive digest/);
     assert.doesNotMatch(result.stderr, /npm ERR|TAR_BAD_ARCHIVE/);
     assert.equal(result.stdout.includes("{"), false);
+    // Staging is a private mkdtemp directory removed on exit, never a predictable PID path (S5).
+    assert.equal(existsSync(join(tmpdir(), `route-guard-install-${result.pid}`)), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
