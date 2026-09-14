@@ -245,21 +245,21 @@ See [the response contract](../../docs/route-miss-http-status.md).
 ## Install the client
 
 From the npm registry, then check the provenance attestation that the release
-workflow attaches (it names this repository and the `route-guard-v0.7.5` tag; 0.7.4 is the last published version until the 0.7.5 release lands):
+workflow attaches (it names this repository and the `route-guard-v0.7.6` tag; 0.7.4 is the last published version until the 0.7.6 release lands):
 
 ```sh
-npm install @402signal/route-guard@0.7.5
+npm install @402signal/route-guard@0.7.6
 npm audit signatures
 ```
 
-Or use the [v0.7.5 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.5) and verify its digest against `SHA256SUMS` and the `packages` row in https://402signal.com/capabilities.json before installing:
+Or use the [v0.7.6 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.6) and verify its digest against `SHA256SUMS` and the `packages` row in https://402signal.com/capabilities.json before installing:
 
 ```sh
 sha256sum --check SHA256SUMS
-npm install --ignore-scripts ./402signal-route-guard-0.7.5.tgz
+npm install --ignore-scripts ./402signal-route-guard-0.7.6.tgz
 ```
 
-From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.5.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
+From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.6.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
 declarations, the local guard and HTTP client. Node 22 or newer is required.
 No install script or wallet dependency is included. Windows callers can supply
 their own durable store; the supplied filesystem adapter runs on POSIX, including WSL.
@@ -391,7 +391,7 @@ const trialHeaders = {
 
 The original v4 exact-payment guard remains separate.
 
-## Guard hardening (0.7.5)
+## Guard hardening (0.7.6)
 
 From the independent security review of 2026-09-14:
 
