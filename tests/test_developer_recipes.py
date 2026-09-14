@@ -71,8 +71,8 @@ class DeveloperRecipes(unittest.TestCase):
                 continue
             self.assertRegex(package['sha256'], r'^[0-9a-f]{64}$')
             self.assertIn(package['tag'], package['archive'])
-        self.assertIn('route-guard-v0.7.3', LLMS_TXT); self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
-        self.assertIn('@402signal/route-guard@0.7.3', LLMS_TXT); self.assertIn('npm audit signatures', LLMS_TXT)
+        self.assertIn('route-guard-v0.7.4', LLMS_TXT); self.assertNotIn('route-guard-v0.5.0', LLMS_TXT)
+        self.assertIn('@402signal/route-guard@0.7.4', LLMS_TXT); self.assertIn('npm audit signatures', LLMS_TXT)
         self.assertIn('install_route_guard.mjs', LLMS_TXT)
         self.assertIn('not a service crash', LLMS_TXT)
         self.assertIn('wrapExactAuthorize', LLMS_TXT)
@@ -120,5 +120,10 @@ class DeveloperRecipes(unittest.TestCase):
                 self.assertIn('binding_unavailable', text)
                 self.assertIn('wrapExactAuthorize', text)
                 self.assertIn('keep_calling_route', text)
-        self.assertNotIn('route-guard-v0.7.4', discover.LLMS_TXT)
+        # llms.txt may only advertise route-guard tags whose capabilities row is published.
+        import re
+        from live402 import capabilities as caps
+        published = {p['tag'] for p in json.loads(caps.STATIC.read_text(encoding='utf-8'))['packages'] if p.get('state') == 'published'}
+        for tag in set(re.findall(r'route-guard-v\d+\.\d+\.\d+', discover.LLMS_TXT)):
+            self.assertIn(tag, published, tag)
         self.assertNotIn('not an npm registry publication', discover.LLMS_TXT + spec)
