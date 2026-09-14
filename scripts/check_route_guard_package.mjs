@@ -61,6 +61,7 @@ const exports = {
   '@402signal/route-guard/client': ['RouteClient', 'RouteClientError', 'classifyRouteResponse'],
   '@402signal/route-guard/file-store': ['FileAttemptStore'],
   '@402signal/route-guard/batch': ['verifyBatchRoute', 'withVerifiedBatchRoute'],
+  '@402signal/route-guard/x402': ['signalGuard', 'fetchChallenge', 'sameTerms', 'defaultRequest'],
 };
 for (const [specifier, names] of Object.entries(exports)) {
   const imported = await import(specifier);
@@ -74,6 +75,7 @@ import {FileAttemptStore} from '@402signal/route-guard/file-store';
 import {verifyReceipt, withVerifiedRoute} from '@402signal/route-guard';
 import {reconcilePayment} from '@402signal/route-guard/recovery';
 import {type BatchObservation} from '@402signal/route-guard/batch';
+import {DEFAULT_FEE_RECIPIENTS, DEFAULT_FEE_TERMS, DEFAULT_MAX_FEE_ATOMIC, MAX_CHALLENGE_BYTES, fetchChallenge, signalGuard, type RawChallenge, type SignalGuardOptions, type X402BeforePaymentCreationHook} from '@402signal/route-guard/x402';
 const nativeLimits:BatchObservation['buyer_limits']={fee_payer:null};
 const nativeProfile:BatchObservation['profile']='algorand-mpp-charge-v1';
 const invoiceProfile:BatchObservation['profile']='algorand-aggregate-invoice-v1';
@@ -84,6 +86,20 @@ const challenge: Promise<RouteResponse> = client.challenge('typecheck-only');
 const outcome: Promise<RouteResult> = client.recover('typecheck-only');
 const rawChallenge: Promise<string|null|undefined> = challenge.then(r => r.paymentRequired);
 void rawChallenge; void challenge; void outcome; void verifyReceipt; void withVerifiedRoute; void reconcilePayment;
+// The x402 hook as a typed POST consumer: every documented option, no cast (security review F5).
+const guardOptions: SignalGuardOptions = {
+  fetchWithPayment: async (input, init) => globalThis.fetch(input, init),
+  trustedLogVkey: 'configured-pin',
+  method: 'POST',
+  challengeFor: async () => ({status: 402, bodyText: '{}'}),
+  requestFor: () => ({url: 'https://example.com/api', require_route_binding: true}),
+  bodyFor: () => new TextEncoder().encode('{"q":"x"}'),
+  feeRecipients: DEFAULT_FEE_RECIPIENTS, maxFeeAtomic: DEFAULT_MAX_FEE_ATOMIC, feeTerms: DEFAULT_FEE_TERMS,
+  maxChallengeBytes: MAX_CHALLENGE_BYTES, challengeTimeoutMs: 1000,
+};
+const hook: X402BeforePaymentCreationHook = signalGuard(guardOptions);
+const bounded: Promise<RawChallenge> = fetchChallenge(globalThis.fetch, 'https://example.com/api', 'POST', {maxBytes: 4096, timeoutMs: 1000});
+void hook; void bounded;
 `);
   // Read the example from the installed tarball, never from the source tree.
   // This catches omitted package files as well as missing public declarations.

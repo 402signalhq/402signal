@@ -245,21 +245,21 @@ See [the response contract](../../docs/route-miss-http-status.md).
 ## Install the client
 
 From the npm registry, then check the provenance attestation that the release
-workflow attaches (it names this repository and the `route-guard-v0.7.6` tag; 0.7.4 is the last published version until the 0.7.6 release lands):
+workflow attaches (it names this repository and the `route-guard-v0.7.7` tag; 0.7.6 is the last published version until the 0.7.7 release lands):
 
 ```sh
-npm install @402signal/route-guard@0.7.6
+npm install @402signal/route-guard@0.7.7
 npm audit signatures
 ```
 
-Or use the [v0.7.6 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.6) and verify its digest against `SHA256SUMS` and the `packages` row in https://402signal.com/capabilities.json before installing:
+Or use the [v0.7.7 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.7) and verify its digest against `SHA256SUMS` and the `packages` row in https://402signal.com/capabilities.json before installing:
 
 ```sh
 sha256sum --check SHA256SUMS
-npm install --ignore-scripts ./402signal-route-guard-0.7.6.tgz
+npm install --ignore-scripts ./402signal-route-guard-0.7.7.tgz
 ```
 
-From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.6.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
+From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.7.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
 declarations, the local guard and HTTP client. Node 22 or newer is required.
 No install script or wallet dependency is included. Windows callers can supply
 their own durable store; the supplied filesystem adapter runs on POSIX, including WSL.
@@ -390,6 +390,27 @@ const trialHeaders = {
 ```
 
 The original v4 exact-payment guard remains separate.
+
+## Guard hardening follow-up (0.7.7)
+
+From the review's 2026-09-14 refresh against the 0.7.6 source:
+
+- The recursion exemption is pinned to 402Signal's published fee terms as
+  well: the `exact` scheme and the USDC asset of the fee rail
+  (`DEFAULT_FEE_TERMS`, by CAIP-2 network, from `GET /rails`; override with
+  `feeTerms` from trusted configuration), on top of the in-flight check, the
+  exact check URL, the fee recipients and the fee cap. The in-flight counter
+  belongs to the hook instance: build one guard per concurrent buyer flow when
+  request-level isolation matters.
+- `fetchChallenge` meters Node readable bodies (node-fetch style adapters)
+  with the same 64 KiB loop as Web streams, and reads a body it cannot meter
+  only when the transport declares a `Content-Length` within the bound;
+  otherwise it fails closed with `challenge_unbounded_transport`.
+- The TypeScript declarations carry every option the hook accepts (`bodyFor`,
+  `feeRecipients`, `maxFeeAtomic`, `feeTerms`, `maxChallengeBytes`,
+  `challengeTimeoutMs`), the exported defaults and `fetchChallenge`'s options
+  parameter, so a typed POST consumer compiles without a cast; the packaged
+  type check exercises it.
 
 ## Guard hardening (0.7.6)
 

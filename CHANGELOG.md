@@ -5,6 +5,18 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- `@402signal/route-guard` 0.7.7 release candidate (security review refresh,
+  SDK side): the x402 hook's fee exemption is pinned to the published fee
+  terms (`DEFAULT_FEE_TERMS`: `exact` and USDC per fee rail, `feeTerms`
+  override) on top of the 0.7.6 bounds (S1); `fetchChallenge` meters Node
+  readable bodies and refuses an unmetered transport that declares no
+  `Content-Length` within the bound (`challenge_unbounded_transport`, S2);
+  the TypeScript declarations carry every hook option, the exported defaults
+  and `fetchChallenge`'s options, and the packaged type check compiles a POST
+  consumer against the installed tarball (F5). Pending `capabilities.json`
+  row with the provisional pair (`ceb4edd2…` tarball, `9919b11a…`
+  SHA256SUMS); the installer, llms.txt and the site keep the published 0.7.6
+  pin until the release.
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
   PR #250 merge commit (5ea0df9), GitHub release 2026-09-14T15:52:55Z with the
   reviewed pair (`8fbf694f…` tarball, `00572428…` SHA256SUMS; the downloaded
