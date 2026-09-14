@@ -1,6 +1,6 @@
 # 402Signal
 
-**Signed proof of what your agent was offered before it paid.** 402Signal checks the endpoint, the price and the recipient at the moment of payment, on x402 and MPP, and gives you a third-party record you can verify offline. Your application keeps its wallet, signing authority and final payment decision.
+**Signed proof of what your agent was offered before it paid.** 402Signal checks supported seller offers against buyer rules. On supported bound profiles, the local guard verifies signed evidence before your wallet signs; generic MPP offer observation does not itself provide a signed execution binding. Your application keeps its wallet, signing authority and final payment decision.
 
 A qualifying check costs **$0.003 USDC**, paid over x402 with the same wallet. Completed normal misses are not settled: a check that finds no qualifying offer is free. Opening a hosted session costs $0.005 and lets you reuse one observation for 20 hops or 10 minutes. Seller payment, channel funding and network costs are separate, and a check is not a guarantee of delivery or output quality. Platform evaluations have individually agreed scope, capacity and support. Private evidence stays in customer-owned storage; hosted retention is not included by default. See [pricing](https://402signal.com/pricing).
 
@@ -18,7 +18,7 @@ The service is also listed in third-party catalogues such as PayAPI Market (http
 
 ## Start in a minute
 
-**Official x402 client.** One hook adds the check before every seller payment. It pays the fee with your own wallet, re-reads the seller's challenge, verifies the signed receipt with your pinned log key, and aborts a payment whose terms differ from what was verified:
+**Official x402 client.** One hook adds the check to your configured seller-payment path. It pays the fee with your own wallet, re-reads the seller's challenge, verifies the signed receipt with your pinned log key, and aborts a payment whose terms differ from what was verified:
 
 ```sh
 npm install @402signal/route-guard@0.7.4 && npm audit signatures
