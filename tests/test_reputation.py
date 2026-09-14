@@ -6,7 +6,9 @@ import hashlib
 import json
 import os
 import tempfile
+import time
 import unittest
+from datetime import datetime, timezone
 
 os.environ.setdefault("LIVE402_FIXTURE", "1")
 
@@ -341,6 +343,30 @@ class HistoryEvidenceTests(unittest.TestCase):
 
 
 class ComparisonPrivacyTests(unittest.TestCase):
+    def test_recent_changes_penalize_stability_in_either_timestamp_layout(self):
+        """Security review F8: ISO change clocks from attach_to_result were never 'recent'."""
+        now = int(time.time())
+        iso = lambda ts: datetime.fromtimestamp(ts, timezone.utc).isoformat().replace("+00:00", "Z")
+        evidence = {"n_7d": 12, "has_probe_history": True, "success_7d": 1.0, "probe_count_7d": 12}
+        keys = ("payTo_changes", "rail_changes", "price_changes", "schema_changes")
+
+        def stability(changed_at):
+            comps = {"stability": {k: {"count": 1, "changed_at": changed_at} for k in keys}}
+            return reputation._component_scores(comps, evidence)["stability"]
+
+        self.assertAlmostEqual(stability(now - 60), 0.0)
+        self.assertAlmostEqual(stability(iso(now - 60)), 0.0)
+        self.assertAlmostEqual(stability(str(now - 60)), 0.0)
+        self.assertAlmostEqual(stability(now - 30 * 86400), 1.0)
+        self.assertAlmostEqual(stability(iso(now - 30 * 86400)), 1.0)
+        self.assertAlmostEqual(stability("not a timestamp"), 1.0)
+        # A counted change with no clock at all stays a recent penalty (unknown timing is not clean history).
+        self.assertAlmostEqual(stability(None), 0.0)
+        self.assertTrue(reputation._recent(iso(now - 10), now))
+        self.assertFalse(reputation._recent(iso(now - 8 * 86400), now))
+        self.assertFalse(reputation._recent("2026-13-45T99:00:00Z", now))
+        self.assertIsNone(reputation._epoch(""))
+
     def test_compared_has_reputation_and_no_payer_list(self):
         a = _hit(url="https://a.example/x", history=_hist(0.9, 12))
         b = _hit(url="https://b.example/x", history=_hist(0.5, 12), rail="solana")

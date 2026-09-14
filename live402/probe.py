@@ -2324,6 +2324,10 @@ def _probe_url_unbudgeted(url: str, catalog_item: dict | None = None, deadline: 
         snap["payTo"] = None if not live else snap.get("payTo")
     if winner and winner.get("envelope"):
         snap["envelope"] = winner.get("envelope")
+    if winner and isinstance(winner.get("mpp_offers"), list) and winner["mpp_offers"]:
+        # Observed MPP challenges ride with the winning attempt. Dropping them here
+        # made an MPP-only seller report live with no offers, not payable, not invocable.
+        snap["mpp_offers"] = winner["mpp_offers"]
     result = health_from_probe(safe, snap)
     if snap.get("envelope"):
         result["envelope"] = snap["envelope"]

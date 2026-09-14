@@ -21,10 +21,13 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  constants as fsConstants,
   copyFileSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -279,15 +282,28 @@ function assertHttpsAllowlisted(url, allowedPrefix) {
   assert.ok(url.startsWith(allowedPrefix), `refusing download host ${url}`);
 }
 
+/**
+ * Stage an input inside the private working directory: a download is written with an
+ * exclusive create, a local file is copied with an exclusive create. Every later
+ * step (digest, SHA256SUMS comparison, the package manager) reads the staged copy,
+ * so the bytes that were verified are the bytes that get installed; nobody else can
+ * replace a directory entry the installer is about to open (security review S5).
+ */
 async function materialize(spec, dir, name) {
+  const dest = join(dir, name);
   if (typeof spec === "string" && spec.startsWith("https://")) {
     const response = await fetch(spec, { redirect: "follow" });
     assert.equal(response.ok, true, `download ${spec} ${response.status}`);
-    const dest = join(dir, name);
-    writeFileSync(dest, Buffer.from(await response.arrayBuffer()));
+    writeFileSync(dest, Buffer.from(await response.arrayBuffer()), { flag: "wx", mode: 0o600 });
     return dest;
   }
-  return resolve(spec);
+  copyFileSync(resolve(spec), dest, fsConstants.COPYFILE_EXCL);
+  return dest;
+}
+
+/** A fresh private (0700) staging directory; a precreated or predictable path is never accepted. */
+function privateStaging() {
+  return mkdtempSync(join(tmpdir(), "route-guard-install-"));
 }
 
 async function loadCapabilities(capabilitiesSpec) {
@@ -334,9 +350,15 @@ export async function runInstallRouteGuard(argv = process.argv.slice(2)) {
   const { archiveSpec, checksumFile, capabilitiesSpec, destination, verifyOnly } =
     parseInstallArgs(argv);
 
-  const work = join(tmpdir(), `route-guard-install-${process.pid}`);
-  mkdirSync(work, { recursive: true });
+  const work = privateStaging();
+  try {
+    return await installFromStaging({ archiveSpec, checksumFile, capabilitiesSpec, destination, verifyOnly }, work);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
 
+async function installFromStaging({ archiveSpec, checksumFile, capabilitiesSpec, destination, verifyOnly }, work) {
   const capabilities = await loadCapabilities(capabilitiesSpec);
   const published = publishedGuard(capabilities);
   const archive = await materialize(archiveSpec || published.archive, work, CANDIDATE_TGZ);

@@ -97,8 +97,10 @@ def _north_star() -> None:
 
     snap = session.north_star(7)
     sys.stderr.write(
-        "north_star days=7 receipts_organic=%d receipts_all=%d distinct_payers_organic=%d distinct_payers_all=%d\n"
-        % (snap["receipts_organic"], snap["receipts_all"], snap["distinct_payers_organic"], snap["distinct_payers_all"])
+        "north_star days=7 receipts_organic=%d receipts_all=%d settled_organic=%d settled_all=%d "
+        "distinct_payers_organic=%d distinct_payers_all=%d\n"
+        % (snap["receipts_organic"], snap["receipts_all"], snap.get("settled_organic", 0), snap.get("settled_all", 0),
+           snap["distinct_payers_organic"], snap["distinct_payers_all"])
     )
 
 

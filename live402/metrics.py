@@ -11,7 +11,8 @@ Names in use:
   session.hop.<traffic>         hops served from a window
   obs_cache.<hit|miss>.<traffic> 20 s observation cache on /route probes
   discovery_cache.<hit|miss>    shared upstream discovery search cache
-  route.qualified.<traffic>     settled qualifying paid routes
+  route.settled.<traffic>       settled checking fees, with or without a receipt
+  route.qualified.<traffic>     settled checks that returned a durable signed receipt
   route.miss.<traffic>          completed normal misses (not settled)
   route.unqualified.<traffic>   other unbilled outcomes
   route.probe_capacity.<traffic> shed for probe capacity

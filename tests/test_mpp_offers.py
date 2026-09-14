@@ -37,6 +37,27 @@ TEMPO_SUB = {"amount": "9990000", "currency": TEMPO_USD, "recipient": RECIPIENT,
              "subscriptionExpires": "2030-12-31T00:00:00Z", "methodDetails": {"chainId": 4217}}
 
 
+class OrdinaryProbeTests(unittest.TestCase):
+    def test_ordinary_probe_keeps_mpp_offers_through_winner_assembly(self):
+        """Security review F3: the winning attempt's MPP offers were dropped before the snap."""
+        from unittest.mock import patch
+
+        offers = mpp_offers.from_headers({"www-authenticate": challenge("evm", "charge", BASE_CHARGE)})
+        self.assertTrue(offers and offers[0]["classified"])
+        attempt = {"live": True, "status": 402, "has_402_challenge": False, "payTo": PAYTO, "rail": "base",
+                   "miss_reason": None, "envelope": None, "mpp_offers": offers,
+                   "binding_observation": None, "binding_error_reason": None}
+        with patch.object(probe.fixtures, "fixture_mode", return_value=False), \
+                patch.object(probe, "_pin_https_target", return_value=("https://seller.example/mpp", [("203.0.113.9", 443)])), \
+                patch.object(probe, "_one_request", side_effect=lambda *a, **k: dict(attempt)):
+            result = probe._probe_url_unbudgeted("https://seller.example/mpp", None, record=False)
+        self.assertTrue(result["live"])
+        self.assertEqual([o["method"] for o in result.get("mpp_offers") or []], ["evm"])
+        self.assertTrue(result.get("payable"), result)
+        options = payment.payment_options_from_result(result)
+        self.assertEqual([(o["scheme"], o["rail"]) for o in options], [("mpp-charge", "base")])
+
+
 class ParseTests(unittest.TestCase):
     def test_parses_one_and_many_challenges_in_wire_order(self):
         raw = challenge("tempo", "charge", TEMPO_CHARGE) + ", " + challenge("stripe", "charge", {"amount": 100, "currency": "usd"}, cid="def", expires="")

@@ -43,14 +43,16 @@ class NorthStarTests(unittest.TestCase):
         now = time.time()
         today = time.strftime("%Y-%m-%d", time.gmtime(now))
         old = time.strftime("%Y-%m-%d", time.gmtime(now - 10 * 86400))
-        session.add_counters(today, {"route.qualified.organic": 3, "route.qualified.lab": 2, "route.miss.organic": 9})
+        session.add_counters(today, {"route.qualified.organic": 3, "route.qualified.lab": 2, "route.miss.organic": 9,
+                                     "route.settled.organic": 4, "route.settled.lab": 2})
         session.add_counters(old, {"route.qualified.organic": 50})
         session.record_payer(HASH_A, "organic", now=now)
         session.record_payer(HASH_A, "organic", now=now - 86400)
         session.record_payer(HASH_B, "lab", now=now)
         snap = session.north_star(7, now=now)
+        # One organic check settled its fee but returned no durable receipt: settled 4, receipts 3.
         self.assertEqual(snap, {
-            "days": 7, "receipts_organic": 3, "receipts_all": 5,
+            "days": 7, "receipts_organic": 3, "receipts_all": 5, "settled_organic": 4, "settled_all": 6,
             "distinct_payers_organic": 1, "distinct_payers_all": 2,
         })
         self.assertEqual(session.north_star(30, now=now)["receipts_organic"], 53)
