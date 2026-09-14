@@ -14,3 +14,9 @@ peer_ip: contextvars.ContextVar[str] = contextvars.ContextVar("peer_ip", default
 traffic_class: contextvars.ContextVar[str] = contextvars.ContextVar(
     "traffic_class", default=""
 )
+
+# Set by the paid path once the facilitator has verified the payer and it is one
+# of the operator's own wallets (LIVE402_SELF_PAYERS). Metrics and the payer day
+# are then labelled "self"; the probe rows keep traffic_class, so the seller
+# facts stay public. Never copied from a caller body or header.
+self_payer: contextvars.ContextVar[bool] = contextvars.ContextVar("self_payer", default=False)

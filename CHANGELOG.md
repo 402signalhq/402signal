@@ -5,6 +5,24 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Operations, batched for the train:
+  - Self payers: `LIVE402_SELF_PAYERS` (a Fly secret; comma-separated payer
+    addresses on any fee rail) names the operator's own wallets. A settled
+    check they pay for keeps its probe rows organic (the seller facts are real
+    and stay public) but its settled and qualified counters and its payer day
+    carry the traffic label `self`, so the north star, the organic rollup and
+    the monthly report never count the operator as a customer; `north_star`
+    reports `receipts_self`, `settled_self` and `distinct_payers_self`.
+  - The transparency checkpoint's "latest" pointer follows the largest saved
+    tree size instead of the last save to finish, so interleaved saves can no
+    longer move it backwards.
+  - The history and catalog replica outboxes are bounded (20,000 change sets):
+    past that a change set is dropped and noted, and once the replica is back
+    and the outbox has drained the backfill restarts so the replica converges.
+  - Replica outages log once when they start, at most every ten minutes while
+    they last, and once when they end, instead of every fifteen-second tick.
+  - The alert scan reports `alerts.scans`, `alerts.scan_ms`,
+    `alerts.deliveries` and `alerts.scan_slow` counters (review item R2).
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
   PR #250 merge commit (5ea0df9), GitHub release 2026-09-14T15:52:55Z with the
   reviewed pair (`8fbf694f…` tarball, `00572428…` SHA256SUMS; the downloaded

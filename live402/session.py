@@ -803,6 +803,11 @@ def north_star(days: int = 7, now: float | None = None) -> dict:
         "settled_all": st.counters_sum(day_list, prefix="route.settled."),
         "distinct_payers_organic": st.payers_distinct(day_list, "organic"),
         "distinct_payers_all": st.payers_distinct(day_list),
+        # The operator's own wallets (LIVE402_SELF_PAYERS): real observations,
+        # never demand. Shown so the organic numbers can be read against them.
+        "receipts_self": st.counters_sum(day_list, name="route.qualified.self"),
+        "settled_self": st.counters_sum(day_list, name="route.settled.self"),
+        "distinct_payers_self": st.payers_distinct(day_list, "self"),
     }
 
 
