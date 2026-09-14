@@ -108,6 +108,20 @@ class EmptyAllowlistRefuseTests(unittest.TestCase):
                     self.assertEqual(
                         result["error"], "unsupported batch observation request"
                     )
+                    # The refusal names what the hosted job can observe (nothing here).
+                    self.assertEqual(result["hosted_codecs"], [])
+                    self.assertEqual(result["hosted_profiles"], [])
+                    self.assertIn("hosted profile", result["detail"])
+
+    def test_refusal_names_the_hosted_profiles_when_some_are_on(self):
+        """Paid captures 2026-09-14: an x402 URL and a Tempo charge were both refused as
+        'unsupported' with mpp on, and the buyer could not tell why."""
+        with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": "mpp"}):
+            req, _challenge = exact_case()
+            code, result = refuse(req)
+            self.assertEqual(code, 400)
+            self.assertEqual(result["hosted_codecs"], ["mpp"])
+            self.assertEqual(result["hosted_profiles"], ["algorand-mpp-charge-v1", "base-mpp-charge-v1"])
 
     def test_empty_allowlist_run_probe_refuses_before_seller_network(self):
         with patch.dict(os.environ, {"BATCH_OBSERVATION_PROFILES": ""}):

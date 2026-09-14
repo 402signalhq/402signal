@@ -86,6 +86,8 @@ MISS_REASONS = (
     "scheme_mismatch",
     "network_mismatch",
     "invalid_session_shape",
+    "mandate_mismatch",
+    "unsupported_hop_field",
 )
 STOP_REASONS = (
     "probe_capacity",
@@ -128,7 +130,12 @@ _MISS_MAP = {
     "scheme_mismatch": "scheme_mismatch",
     "network_mismatch": "network_mismatch",
     "invalid_session_shape": "invalid_session_shape",
+    "mandate_mismatch": "mandate_mismatch",
+    "unsupported_hop_field": "unsupported_hop_field",
 }
+# The checker's own hosts: never a discovery candidate (the router does not check
+# itself, so listing it only spends the probe budget on a refusal).
+OWN_HOSTS = frozenset({"402signal.com", "www.402signal.com"})
 BLOCKED_HOSTS = {
     "localhost",
     "localhost.localdomain",
@@ -1180,6 +1187,8 @@ def skip_candidate_url(url: str) -> bool:
     if host in {"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}:
         return True
     if host in {"127.0.0.1", "::1", "0.0.0.0"} or host.startswith("127."):
+        return True
+    if host in OWN_HOSTS:
         return True
     for part in (parsed.path or "").split("/"):
         if not part:
@@ -2489,7 +2498,70 @@ def score_need(need: str, item: dict) -> int:
     return score
 
 
-def rank_resources(need: str, items: list[dict], prefer_network: str | None = None) -> list[dict]:
+def price_bound_usd(cons: dict | None) -> float | None:
+    """The tightest USD price bound among the request's constraints, or None."""
+    if not isinstance(cons, dict):
+        return None
+    bounds: list[float] = []
+    for key in ("max_price_usd", "max_total_cost_usd"):
+        value = cons.get(key)
+        if value is None or isinstance(value, bool):
+            continue
+        try:
+            bounds.append(float(value))
+        except (TypeError, ValueError):
+            continue
+    atomic = cons.get("max_amount_atomic")
+    if atomic is not None and not isinstance(atomic, bool):
+        try:
+            bounds.append(int(atomic) / 1_000_000.0)
+        except (TypeError, ValueError):
+            pass
+    bounds = [b for b in bounds if b >= 0]
+    return min(bounds) if bounds else None
+
+
+def claimed_min_usd(item: dict, rails=None) -> float | None:
+    """The cheapest claimed USD price among a listing's accepts (on `rails` when locked), else None."""
+    accepts = item.get("accepts") if isinstance(item, dict) else None
+    best = None
+    for opt in payment.payment_options_from_accepts(accepts if isinstance(accepts, list) else []):
+        if rails and opt.get("rail") not in rails:
+            continue
+        usd = opt.get("normalized_usd")
+        if isinstance(usd, bool) or not isinstance(usd, (int, float)):
+            continue
+        best = float(usd) if best is None else min(best, float(usd))
+    return best
+
+
+def priced_out_last(items: list[dict], bound: float | None, rails=None) -> list[dict]:
+    """Stable partition: listings whose claimed price is known to exceed the bound go last.
+
+    A weak network preference must not spend the probe budget on sellers the
+    price ceiling already excludes (a tight ceiling with prefer_network once
+    missed with 94 cheaper candidates unprobed). Unknown prices keep their place;
+    the probe, not the claim, decides.
+    """
+    if bound is None:
+        return list(items)
+    fits, over = [], []
+    for item in items:
+        usd = claimed_min_usd(item, rails)
+        (over if usd is not None and usd > bound else fits).append(item)
+    return fits + over
+
+
+def rank_resources(
+    need: str,
+    items: list[dict],
+    prefer_network: str | None = None,
+    price_bound: float | None = None,
+    rails=None,
+) -> list[dict]:
+    """Rank listings for probing: need score, then settlement history; a weak
+    network preference groups first; with a price bound, listings whose claimed
+    price exceeds it rank after every listing that fits or has no known price."""
     prefer = normalize_prefer_network(prefer_network)
     ranked = []
     for item in items:
@@ -2507,7 +2579,7 @@ def rank_resources(need: str, items: list[dict], prefer_network: str | None = No
         prefer_hit = 1 if prefer and rail == prefer else 0
         ranked.append((prefer_hit, s, _settlement_score(item), item))
     ranked.sort(key=lambda pair: (pair[0], pair[1], pair[2]), reverse=True)
-    return [item for _, _, _, item in ranked]
+    return priced_out_last([item for _, _, _, item in ranked], price_bound, rails)
 
 
 class _CatalogRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -2648,9 +2720,23 @@ def _discovery_unavailable_miss(objective: str) -> dict:
 
 
 def _align_target_with_selected(result: dict, selected: dict | None) -> None:
-    """Handoff amount/facilitator must be the same observed option as selected_payment."""
+    """The answer's recipient, rail, amount and handoff must be the same observed
+    option as selected_payment.
+
+    The probe row records the first accept that names a recipient (the
+    observation); a network lock or an objective may select another accept of
+    the same envelope. Without this alignment a Solana-locked check of a seller
+    whose first accept is Base carried the Base recipient at top level, failed
+    the billable-winner gate and was answered as an unbilled miss.
+    """
     if not isinstance(result, dict) or not isinstance(selected, dict):
         return
+    if selected.get("payTo"):
+        result["payTo"] = selected["payTo"]
+    if selected.get("rail"):
+        result["rail"] = selected["rail"]
+    if selected.get("amount_atomic") is not None:
+        result["amount"] = str(selected["amount_atomic"])
     target = result.get("target") if isinstance(result.get("target"), dict) else None
     if target is None:
         return
@@ -2676,6 +2762,7 @@ def _attach_selection(body: dict, probed: list, winner, objective: str, constrai
             winner["selected_payment"] = selected
             body["selected_payment"] = selected
             _align_target_with_selected(winner, selected)
+            _align_target_with_selected(body, selected)
             select.clear_informational_schema_miss(winner)
             select.clear_informational_schema_miss(body)
         else:
@@ -3090,8 +3177,10 @@ def route_need(
         miss["probe_ceiling"] = ceiling
         return miss
     discovered = len(items)
-    ranked = rank_resources(need, items, prefer_network=prefer)
+    bound = price_bound_usd(cons)
+    ranked = rank_resources(need, items, prefer_network=prefer, price_bound=bound, rails=rails)
     ranked = _history_boost_shortlist(ranked, need=need, prefer_network=prefer)
+    ranked = priced_out_last(ranked, bound, rails)
     try:
         from live402 import hydrate as hydrate_mod
         with route_observability.phase("hydration"):

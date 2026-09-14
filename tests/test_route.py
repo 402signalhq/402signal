@@ -1908,8 +1908,12 @@ class ProductBriefTests(unittest.TestCase):
             "scheme_mismatch",
             "network_mismatch",
             "invalid_session_shape",
+            "mandate_mismatch",
+            "unsupported_hop_field",
         }
         self.assertEqual(set(MISS_REASONS), expected)
+        self.assertEqual(public_miss_reason("mandate_mismatch"), "mandate_mismatch")
+        self.assertEqual(public_miss_reason("unsupported_hop_field"), "unsupported_hop_field")
         self.assertEqual(public_miss_reason("probe_budget_exhausted"), "probe_budget_exhausted")
         self.assertEqual(public_miss_reason("probe_limit_reached"), "probe_limit_reached")
         self.assertEqual(public_miss_reason("empty_402"), "no_402_envelope")

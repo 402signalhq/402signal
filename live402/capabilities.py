@@ -74,7 +74,9 @@ def hosted_status_html():
     if not codecs:
         return "Hosted Check group offer is not enabled."
     names = ", ".join("<code>%s</code>" % codec for codec in codecs)
-    return "Currently enabled hosted codecs: %s." % names
+    profiles = sorted(p for p, c in batch_codec.PROFILE_CODEC.items() if c in codecs)
+    tail = " Hosted profiles: %s." % ", ".join("<code>%s</code>" % p for p in profiles) if profiles else ""
+    return "Currently enabled hosted codecs: %s.%s" % (names, tail)
 
 
 def apply_developers_copy(html):
