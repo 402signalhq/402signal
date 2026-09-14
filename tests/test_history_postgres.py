@@ -179,6 +179,19 @@ class HistoryReplicaPostgres(unittest.TestCase):
         self.assertEqual(self._pg("SELECT model_id FROM signal_history.scoring_models"), [("reputation-v2",)])
         self.assertEqual(self._pg("SELECT last_success_402, last_checked FROM signal_history.url_state"), [(60, 60)])
 
+    def test_nul_in_seller_text_ships_without_it(self):
+        history.record_claim(URL, {"payTo": "0xabc", "amount": "1000", "source": "cat\x00alog"}, ts=70)
+        self.assertEqual(self._local("SELECT DISTINCT source FROM observations"), [("catalog",)])
+        self.assertEqual(history_replica.drain(), 1)
+        self.assertEqual(self._pg("SELECT DISTINCT source FROM signal_history.observations"), [("catalog",)])
+        with history._lock:
+            conn = history._connect()
+            conn.execute("INSERT INTO replica_outbox (payload, created_at) VALUES (?, ?)",
+                         (json.dumps({"sealed": [{"batch_id": "b\x00atch", "sealed_at": 1}]}), 1))
+            conn.commit()
+        self.assertEqual(history_replica.drain(), 1)
+        self.assertEqual(self._pg("SELECT batch_id FROM signal_history.sealed_batches"), [("batch",)])
+
     def test_replica_outage_keeps_the_outbox_and_the_next_drain_catches_up(self):
         from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
