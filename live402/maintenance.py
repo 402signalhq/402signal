@@ -18,6 +18,9 @@ JOBS = (
     ("leaf_outbox_prune", 3600.0),
     ("alerts_scan", 120.0),
     ("north_star", 3600.0),
+    ("history_replica_drain", 15.0),
+    ("history_replica_backfill", 30.0),
+    ("history_replica_parity", 3600.0),
 )
 
 _thread: threading.Thread | None = None
@@ -96,6 +99,56 @@ def _north_star() -> None:
     )
 
 
+def _history_replica_drain() -> None:
+    from live402 import history_replica
+
+    if not history_replica.dual():
+        return
+    try:
+        shipped = history_replica.drain()
+    except history_replica.ReplicaUnavailable:
+        sys.stderr.write("history_replica_unavailable pending=%d\n" % history_replica.outbox_depth())
+        return
+    if shipped:
+        sys.stderr.write("history_replica_drained count=%d\n" % shipped)
+
+
+def _history_replica_backfill() -> None:
+    from live402 import history_replica
+
+    if not history_replica.dual():
+        return
+    try:
+        step = history_replica.backfill_step()
+    except history_replica.ReplicaUnavailable:
+        sys.stderr.write("history_replica_backfill_unavailable\n")
+        return
+    if step:
+        sys.stderr.write(
+            "history_replica_backfill cursor=%d max_id=%d done=%s probes=%d observations=%d\n"
+            % (step["cursor"], step["max_id"], "yes" if step["done"] else "no",
+               step.get("probes", 0), step.get("observations", 0))
+        )
+
+
+def _history_replica_parity() -> None:
+    from live402 import history_replica
+
+    if not history_replica.dual():
+        return
+    try:
+        result = history_replica.parity()
+    except history_replica.ReplicaUnavailable:
+        sys.stderr.write("history_replica_parity_unavailable\n")
+        return
+    sys.stderr.write(
+        "history_replica_parity ok=%s backfill_done=%s outbox_pending=%d %s\n"
+        % ("yes" if result["ok"] else "no", "yes" if result["backfill_done"] else "no",
+           result["outbox_pending"],
+           " ".join("%s=%d/%d" % (k, v[0], v[1]) for k, v in sorted(result["diffs"].items())) or "counts_match")
+    )
+
+
 _JOB_FUNCS = {
     "session_prune": _session_prune,
     "metrics_flush": _metrics_flush,
@@ -105,6 +158,9 @@ _JOB_FUNCS = {
     "leaf_outbox_prune": _leaf_outbox_prune,
     "alerts_scan": _alerts_scan,
     "north_star": _north_star,
+    "history_replica_drain": _history_replica_drain,
+    "history_replica_backfill": _history_replica_backfill,
+    "history_replica_parity": _history_replica_parity,
 }
 
 

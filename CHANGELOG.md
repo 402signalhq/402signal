@@ -5,6 +5,22 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Probe history replica on the replay PostgreSQL (`live402/history_replica.py`,
+  `LIVE402_HISTORY_BACKEND=sqlite|dual`, owner migration
+  `ops/history-postgres-managed.sql`, schema `signal_history`): third step of
+  the second-machine plan. The SQLite history file on the writer's volume
+  stays the source of truth and the reader; with `dual`, every committed
+  change to it (probe, observations, per-URL change clocks, cap deletes,
+  sealed batches, scoring models) is captured inside the same SQLite
+  transaction as an outbox row and shipped in order by the writer's
+  maintenance loop through one owner function (`api_apply`, SECURITY
+  DEFINER, gated on the pinned runtime login like the replay, lease and
+  session functions). A backfill copies the existing file once, oldest probe
+  first, in chunks; an hourly parity line compares counts on both sides and
+  is the gate for moving the endpoint pages to the copy. Nothing in the
+  request path waits on PostgreSQL; a replica outage leaves the outbox row
+  for the next drain. Default unchanged: the SQLite file only. Loopback
+  contract tests in the `replay-postgres` workflow.
 - Production session store switches to the replay authority (`LIVE402_SESSION_BACKEND = "postgres"` in `fly.toml`; the owner functions in `ops/session-postgres-managed.sql` are installed). The writer copies the machine's SQLite session state in once on its first lease acquisition; the SQLite file stays as the observation cache only. Second step of the second-machine plan.
 - MCP: the listed tools are `check` (paid), `preview` and `validate`. `route`
   is the former name of `check`: `tools/call route` keeps working for
