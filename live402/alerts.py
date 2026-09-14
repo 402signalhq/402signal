@@ -17,11 +17,14 @@ shown once at creation:
 
     X-402Signal-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<body>">
 
-Delivery is at least once and every transition is delivered: a scan that finds
-more changes than one batch holds sends the oldest batch and moves the
-subscription's cursor only past what it sent, so the rest goes out on the next
-scan (changes in the cut-off second may repeat). A receiver that sees the same
-`event`, `url` and `changed_at` twice has seen the same change twice. Each scan
+Delivery is at least once and every observed change is delivered: a scan that
+finds more changes than one batch holds sends the oldest batch, moves the
+subscription's cursor only past what it sent and remembers which changes in
+the cut-off second went out, so the rest follow on the next scan without
+repeating what was already acknowledged. Liveness is the latest observed state
+per URL, so several flips between two scans collapse into the net change. A
+receiver that sees the same `event`, `url` and `changed_at` twice has seen the
+same change twice (a delivery whose 2xx was lost is repeated). Each scan
 delivers to a bounded number of subscriptions so webhook latency cannot hold
 the writer's housekeeping loop; the rest stay due for the next tick.
 """
@@ -64,6 +67,10 @@ KEY_HINT = 'alerts need a recognized X-402Signal-Key; ask ross@402signal.com, su
 NO_STORE = {"Cache-Control": "no-store, private"}
 OWN_HOSTS = frozenset({"402signal.com", "www.402signal.com"})
 ID_RE = re.compile(r"[0-9a-f]{16}\Z")
+# Reserved key inside the stored state (URL keys start with "https://", so it
+# cannot collide): the changes already delivered from the second just after the
+# cursor, so a batch cut inside one second does not repeat them for good.
+SENT_KEY = "~sent"
 
 _scan_lock = threading.Lock()
 
@@ -194,9 +201,17 @@ def _normalize_events(raw) -> list[str]:
 # --- rows ---------------------------------------------------------------------
 
 
+def _parse_sent(raw) -> tuple[int, frozenset] | None:
+    """(second, {(url, event)}) already delivered from the second after the cursor, if any."""
+    try:
+        return int(raw["ts"]), frozenset((str(url), str(event)) for url, event in raw["keys"])
+    except (TypeError, KeyError, ValueError):
+        return None
+
+
 class _Sub:
     __slots__ = (
-        "id", "owner", "url", "hosts", "events", "secret", "created_at", "cursor_ts", "state",
+        "id", "owner", "url", "hosts", "events", "secret", "created_at", "cursor_ts", "state", "sent",
         "last_delivery_at", "last_status", "failures", "next_attempt_at", "disabled_at", "disabled_reason",
     )
 
@@ -212,6 +227,7 @@ class _Sub:
             self.state = dict(json.loads(state_json or "{}"))
         except (ValueError, TypeError):
             self.state = {}
+        self.sent = _parse_sent(self.state.pop(SENT_KEY, None))
 
     def public(self) -> dict:
         now = _now()
@@ -336,27 +352,54 @@ def _events_for(sub: _Sub, observations: dict) -> tuple[list[dict], dict]:
                     "miss_reason": latest["miss_reason"], "observed_at": _iso(latest["ts"]), "endpoint_page": page,
                     "_ts": int(latest["ts"]),
                 })
+    if sub.sent:
+        second, keys = sub.sent
+        events = [e for e in events if e["_ts"] != second or (e["url"], e["event"]) not in keys]
     events.sort(key=lambda e: (e["_ts"], e["url"], e["event"]))
     return events, state
 
 
-def _batch(sub: _Sub, events: list[dict], state: dict, cursor: int) -> tuple[list[dict], dict, int]:
-    """The oldest batch, the state to store and the cursor to advance to.
+def _batch(sub: _Sub, events: list[dict], state: dict, cursor: int) -> tuple[list[dict], dict, int, dict | None]:
+    """The oldest batch, the state to store, the cursor to advance to and the sent marker.
 
     When more than one batch is pending, the cursor moves only past what is sent and
     liveness transitions that were cut keep their previous state, so nothing is
-    skipped; a change in the cut-off second is sent again next scan (at least once).
+    skipped. The marker names the changes delivered from the second just after the
+    cursor (the cut-off second, or the scan second), so the next scan sends the rest
+    of that second without repeating these: with more changes stamped in one second
+    than a batch holds, the cursor alone could never move past them.
     """
-    if len(events) <= MAX_EVENTS_PER_DELIVERY:
-        return [{k: v for k, v in e.items() if k != "_ts"} for e in events], state, cursor
-    batch = events[:MAX_EVENTS_PER_DELIVERY]
-    cutoff = int(batch[-1]["_ts"])
-    deferred = {e["url"] for e in events[MAX_EVENTS_PER_DELIVERY:] if e["event"] == "liveness_changed"}
-    kept = {url: live for url, live in state.items() if url not in deferred}
-    for url in deferred:
-        if url in sub.state:
-            kept[url] = sub.state[url]
-    return [{k: v for k, v in e.items() if k != "_ts"} for e in batch], kept, min(cursor, cutoff - 1)
+    batch = events
+    if len(events) > MAX_EVENTS_PER_DELIVERY:
+        batch = events[:MAX_EVENTS_PER_DELIVERY]
+        cutoff = int(batch[-1]["_ts"])
+        deferred = {e["url"] for e in events[MAX_EVENTS_PER_DELIVERY:] if e["event"] == "liveness_changed"}
+        kept = {url: live for url, live in state.items() if url not in deferred}
+        for url in deferred:
+            if url in sub.state:
+                kept[url] = sub.state[url]
+        state = kept
+        cursor = min(cursor, cutoff - 1)
+    stripped = [{k: v for k, v in e.items() if k != "_ts"} for e in batch]
+    return stripped, state, cursor, _sent_marker(sub, batch, cursor)
+
+
+def _sent_marker(sub: _Sub, batch: list[dict], cursor: int) -> dict | None:
+    """The changes at second cursor+1 delivered so far (this batch plus earlier ones), or None."""
+    second = cursor + 1
+    keys = {(e["url"], e["event"]) for e in batch if int(e["_ts"]) == second}
+    if sub.sent and sub.sent[0] == second:
+        keys |= sub.sent[1]
+    if not keys:
+        return None
+    return {"ts": second, "keys": sorted(keys)}
+
+
+def _state_json(state: dict, sent: dict | None) -> str:
+    out = dict(state)
+    if sent:
+        out[SENT_KEY] = sent
+    return json.dumps(out, sort_keys=True)
 
 
 # --- signing and delivery -----------------------------------------------------
@@ -417,13 +460,12 @@ def _deliver(sub: _Sub, payload: dict) -> tuple[int | None, str | None]:
 
 
 def _record(sub: _Sub, kind: str, delivery_id: str, status, error, n_events: int, ts: int, *,
-            cursor_ts: int | None = None, state: dict | None = None) -> bool:
+            cursor_ts: int | None = None, state_json: str | None = None) -> bool:
     ok = status is not None and 200 <= int(status) < 300
     st = _store()
     st.alert_delivery_add(delivery_id, sub.id, ts, kind, status, n_events, error, DELIVERIES_KEPT)
     if ok:
-        state_json = json.dumps(state or {}, sort_keys=True) if cursor_ts is not None else None
-        st.alert_sub_delivered(sub.id, ts, int(status), cursor_ts, state_json)
+        st.alert_sub_delivered(sub.id, ts, int(status), cursor_ts, state_json if cursor_ts is not None else None)
     else:
         failures = int(sub.failures or 0) + 1
         backoff = min(BACKOFF_MAX_S, BACKOFF_BASE_S * (2 ** min(failures - 1, 10)))
@@ -544,9 +586,9 @@ def scan(now: int | None = None) -> int:
             # One second of overlap so a change committed in the scan second is not lost.
             cursor = ts - 1
             if not events:
-                st.alert_sub_cursor(sub.id, cursor, json.dumps(state, sort_keys=True))
+                st.alert_sub_cursor(sub.id, cursor, _state_json(state, _sent_marker(sub, [], cursor)))
                 continue
-            events, state, cursor = _batch(sub, events, state, cursor)
+            events, state, cursor, sent = _batch(sub, events, state, cursor)
             delivery_id = secrets.token_hex(8)
             payload = {
                 "type": "402signal.alerts", "delivery_id": delivery_id, "subscription_id": sub.id,
@@ -554,7 +596,10 @@ def scan(now: int | None = None) -> int:
             }
             status, error = _deliver(sub, payload)
             attempted += 1
-            ok = _record(sub, "alerts", delivery_id, status, error, len(events), ts, cursor_ts=cursor, state=state)
+            ok = _record(
+                sub, "alerts", delivery_id, status, error, len(events), ts,
+                cursor_ts=cursor, state_json=_state_json(state, sent),
+            )
             if not ok:
                 sys.stderr.write("alert_delivery_failed subscription=%s status=%s error=%s\n" % (sub.id, status, error))
         _prune(ts)

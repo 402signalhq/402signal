@@ -236,6 +236,54 @@ class AlertsTests(unittest.TestCase):
         self.assertNotIn("_ts", first[0])
         self.assertEqual(alerts.scan(now=t0 + 2020), 0)
 
+    def _tied_price_changes(self, n, ts):
+        urls = ["https://%s/api/tie%03d" % (HOST, i) for i in range(n)]
+        for url in urls:
+            history.record_probe(url, _snap(True, PAYTO_A, ts=ts - 1000))
+        self._create(events=["price"])
+        self.assertEqual(alerts.scan(now=ts - 600), 0)
+        for url in urls:
+            history.record_probe(url, _snap(True, PAYTO_A, amount="20000", ts=ts))
+        return urls
+
+    def _delivered_urls(self, index=None):
+        bodies = self.sent if index is None else [self.sent[index]]
+        return [e["url"] for _url, body, _headers in bodies for e in json.loads(body)["events"]]
+
+    def test_changes_stamped_in_one_second_all_go_out_without_repeats(self):
+        """Security review F1 refresh: a batch cut inside one second used to resend the same 200 for good."""
+        t0 = int(time.time()) - 3600
+        n = 2 * alerts.MAX_EVENTS_PER_DELIVERY + 1
+        urls = self._tied_price_changes(n, t0)
+        sizes = []
+        for step in range(4):
+            if step == 1:
+                session.forget_store()  # a writer restart between scans: the marker lives in the store
+            if alerts.scan(now=t0 + 1000 + 10 * step):
+                sizes.append(len(self._delivered_urls(-1)))
+        self.assertEqual(sizes, [alerts.MAX_EVENTS_PER_DELIVERY, alerts.MAX_EVENTS_PER_DELIVERY, 1])
+        delivered = self._delivered_urls()
+        self.assertEqual(len(delivered), n)
+        self.assertEqual(set(delivered), set(urls))
+        # Once the whole second went out the marker is dropped with the advancing cursor.
+        row = session.store().alert_sub_get(json.loads(self.sent[-1][1])["subscription_id"], hashlib.sha256(KEY_ONE.encode()).hexdigest())
+        self.assertNotIn(alerts.SENT_KEY, json.loads(row[8]))
+
+    def test_a_failed_tied_batch_is_repeated_then_the_rest_follow(self):
+        t0 = int(time.time()) - 3600
+        urls = self._tied_price_changes(alerts.MAX_EVENTS_PER_DELIVERY + 1, t0)
+        self.post_fails = True
+        self.assertEqual(alerts.scan(now=t0 + 1000), 1)
+        failed = set(self._delivered_urls(-1))
+        self.assertEqual(len(failed), alerts.MAX_EVENTS_PER_DELIVERY)
+        self.post_fails = False
+        retry_at = t0 + 1000 + alerts.BACKOFF_BASE_S + 1
+        self.assertEqual(alerts.scan(now=retry_at), 1)
+        self.assertEqual(set(self._delivered_urls(-1)), failed)
+        self.assertEqual(alerts.scan(now=retry_at + 10), 1)
+        self.assertEqual(set(self._delivered_urls(-1)), set(urls) - failed)
+        self.assertEqual(alerts.scan(now=retry_at + 20), 0)
+
     def test_a_cut_liveness_transition_is_kept_for_the_next_batch(self):
         t0 = int(time.time()) - 3600
         price_urls = ["https://%s/api/p%03d" % (HOST, i) for i in range(alerts.MAX_EVENTS_PER_DELIVERY)]

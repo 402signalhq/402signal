@@ -266,6 +266,13 @@ No AC2 connection, approval queue, signing service, key, infrastructure componen
 or extra on-chain transaction is introduced. The existing batched anchor lifecycle
 and limits remain in force. There are no additional server probes for binding.
 
+MPP offers seen on an ordinary check are observation only. The result carries
+them as `mpp_offers` (and an MPP-only seller's charge as an `mpp-charge`
+option), but this binding and the paid-route gate qualify x402 `exact` offers
+only: an MPP-only winner is answered as an unbilled miss (`no_402_envelope`,
+HTTP 503) with the observed offers preserved, never as a signed receipt. Native
+MPP charges bind through the Check group offer path and the native adapters.
+
 ## Validation and rollback
 
 Run the existing complete fixture suite and `test_route_binding.py` separately.
