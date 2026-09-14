@@ -59,7 +59,7 @@ try {
   for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]) {
     const browser=await launcher.launch({headless:true});
     try {
-      for(const width of [320,360,375,390,414,768,1440]) {
+      for(const width of [320,360,375,390,414,768,1280,1440]) {
         const context=await browser.newContext({viewport:{width,height:width<700?844:1000},deviceScaleFactor:1,hasTouch:width<700,reducedMotion:'reduce'});
         const errors=[],forbidden=[],requests=[];
         await context.addInitScript(()=>{
@@ -87,7 +87,7 @@ try {
             const endpoint=new URL(selected);
             if(endpoint.pathname==='/limited') {await route.fulfill({status:429,contentType:'application/json',body:'{}'});return;}
             if(endpoint.pathname==='/malformed') {await route.fulfill({status:200,contentType:'application/json',body:'[]'});return;}
-            const body={url:selected,payable:true,invocable:true,verified_at:'2026-09-08T12:00:00Z',observed:{http_status:402,payTo:'<img src=x onerror="window.sellerInjected=true">'},flags:['missing schema']};
+            const body={url:selected,payable:true,invocable:true,verified_at:'2026-09-08T12:00:00Z',claimed:{amount:'999999',asset:'ClaimedToken',network:'catalog-only'},observed:{amount:'20000',http_status:402,payTo:'<img src=x onerror="window.sellerInjected=true">'},flags:['missing schema']};
             if(endpoint.pathname==='/unlisted') {body.miss_reason='no_candidates';body.payable=false;body.observed={};}
             if(endpoint.pathname==='/mismatch') body.url='https://different.example/api';
             if(endpoint.pathname==='/slow') await new Promise(done=>setTimeout(done,250));
@@ -171,7 +171,13 @@ try {
           assert.equal(requests.filter(r=>r.path==='/validate').length,before+1);
           const request=requests.filter(r=>r.path==='/validate').at(-1);assert.equal(new URL(request.url).searchParams.get('url'),exactURL);
           assert.equal(await page.locator('#seller-result img').count(),0);assert.equal(await page.evaluate(()=>window.sellerInjected),false);
-          assert.match(await page.locator('#seller-result').innerText(),/not established by this result/);await noOverflow(page,'seller result');
+          const observedText=await page.locator('#seller-result').innerText();
+          assert.match(observedText,/Observed amount \(atomic units\)/);assert.match(observedText,/20000/);
+          assert.match(observedText,/Observed asset\s+Not established in this response/);
+          assert.match(observedText,/Observed network\s+Not established in this response/);
+          assert.doesNotMatch(observedText,/999999|ClaimedToken|catalog-only/);
+          assert.equal(await page.locator('#seller-result a').getAttribute('href'),'/how#playground');
+          assert.match(observedText,/not established by this result/);await noOverflow(page,'seller result');
           await page.locator('#seller-url').fill('https://seller.example/unlisted');await page.locator('#seller-check').click();
           await page.locator('#seller-status').filter({hasText:'No seller probe was made'}).waitFor();assert.match(await page.locator('#seller-status').innerText(),/does not show.*offline/);
           for(const invalid of ['https://user:pass@seller.example/path','http://seller.example/path','https://seller.example/path#private']) {

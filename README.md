@@ -1,8 +1,8 @@
 # 402Signal
 
-**Signed proof of what your agent was offered before it paid.** 402Signal checks the endpoint, the price and the recipient at the moment of payment, on x402 and MPP, and gives you a third-party record you can verify offline. Your application keeps its wallet, signing authority and final payment decision.
+**Signed proof of what your agent was offered before it paid.** 402Signal checks supported seller offers against buyer rules. On supported bound profiles, the local guard verifies signed evidence before your wallet signs; generic MPP offer observation does not itself provide a signed execution binding. Your application keeps its wallet, signing authority and final payment decision.
 
-A qualifying check costs **$0.003 USDC**, paid over x402 with the same wallet. Completed normal misses are not settled: a check that finds no qualifying offer is free. Opening a hosted session costs $0.005 and lets you reuse one observation for 20 hops or 10 minutes. Seller payment, channel funding and network costs are separate, and a check is not a guarantee of delivery or output quality. Platform plans are priced on receipts issued and records retained: see [pricing](https://402signal.com/pricing).
+A qualifying check costs **$0.003 USDC**, paid over x402 with the same wallet. Completed normal misses are not settled: a check that finds no qualifying offer is free. Opening a hosted session costs $0.005 and lets you reuse one observation for 20 hops or 10 minutes. Seller payment, channel funding and network costs are separate, and a check is not a guarantee of delivery or output quality. Platform plans are quoted monthly on agreed receipt volume, workloads, capacity and support, with supported integration help and observation-triggered signed alerts. Start with a scoped evaluation. The quote states whether checking fees are included or separate. Private evidence stays in customer-owned storage; hosted retention is not included by default. See [pricing](https://402signal.com/pricing).
 
 [Website](https://402signal.com/) · [Try a sample check](https://402signal.com/try) · [Developer guides](https://402signal.com/developers) · [Trust](https://402signal.com/trust) · [OpenAPI](https://402signal.com/openapi.json) · [MCP](https://402signal.com/mcp.json) · [Changelog](CHANGELOG.md) · [Security policy](SECURITY.md)
 
@@ -12,13 +12,13 @@ The service is also listed in third-party catalogues such as PayAPI Market (http
 
 | You are | Start here | You get |
 |---|---|---|
-| A buyer or a platform embedding payments | [Add the check to your client](https://402signal.com/developers#route-binding) | Every payment checked as it is made; a receipt per qualifying check; alerts when a seller you depend on changes |
+| A buyer or a platform embedding payments | [Add the check to your client](https://402signal.com/developers#route-binding) | Checks in your configured payment path; signed evidence on supported bound profiles; alerts when a new observation detects a seller change |
 | A seller | [Find your host](https://402signal.com/endpoints) | Your listing as buyers see it, a readiness badge, and the same public numbers as everyone else |
 | An auditor or compliance reviewer | [Verify a record](https://402signal.com/trust) | The receipt format, the public log, the anchor, and the [Offer Evidence Record](docs/evidence-record.md) specification |
 
 ## Start in a minute
 
-**Official x402 client.** One hook adds the check before every seller payment. It pays the fee with your own wallet, re-reads the seller's challenge, verifies the signed receipt with your pinned log key, and aborts a payment whose terms differ from what was verified:
+**Official x402 client.** One hook adds the check to your configured seller-payment path. It pays the fee with your own wallet, re-reads the seller's challenge, verifies the signed receipt with your pinned log key, and aborts a payment whose terms differ from what was verified:
 
 ```sh
 npm install @402signal/route-guard@0.7.4 && npm audit signatures

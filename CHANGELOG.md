@@ -17,6 +17,8 @@ server. The format follows Keep a Changelog; dates are UTC.
   bare id. The checking fee is still paid on Base, Solana or Algorand only.
   Non-EVM families seen in the catalog (XRP Ledger, Stellar, Hedera) are not
   observed yet.
+- Website: buyer-first homepage with a labeled synthetic offer example and profile limits; official-client hook first in its guide; explicit customer-owned evidence storage, compact audience links, scoped evaluations and monthly quoted Platform plans; no invented numerical tier prices or hosted-retention promises. The unpaid sample displays observed atomic amount and supplied asset/network fields with explicit unknowns. September report corrects network-membership labels, price-change arithmetic, traffic cohorts and an unresolved seller-network attribution. Payment behavior and pricing are unchanged.
+
 - Production shadow catalog ships to the replay authority (`LIVE402_CATALOG_BACKEND = "dual"` in `fly.toml`; the owner functions in `ops/catalog-postgres-managed.sql` are installed). The SQLite file stays the reader; the writer backfills it once and logs parity hourly. Fourth step of the second-machine plan.
 - Production probe history ships to the replay authority (`LIVE402_HISTORY_BACKEND = "dual"` in `fly.toml`; the owner functions in `ops/history-postgres-managed.sql` are installed). The SQLite file stays the reader; the writer backfills it once and logs parity hourly. Third step of the second-machine plan.
 - Accuracy: the recipient-change statistic says the same thing everywhere.
