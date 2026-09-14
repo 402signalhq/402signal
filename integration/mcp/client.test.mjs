@@ -30,23 +30,25 @@ test('official MCP client initializes, notifies, lists tools and calls free and 
     };
     const free = await connect({});
     const tools = await free.listTools();
-    assert(tools.tools.some(tool => tool.name === 'route'));
+    assert.deepEqual(tools.tools.map(tool => tool.name), ['check', 'preview', 'validate']);
+    for (const tool of tools.tools) assert.equal(typeof tool.annotations.readOnlyHint, 'boolean', tool.name);
     const preview = await free.callTool({name:'preview',arguments:{need:'weather'}});
     assert.equal(preview.isError, false);
     assert.equal(preview.structuredContent.not_probed, true);
     const invalid = await free.callTool({name:'validate',arguments:{url:'invalid'}});
     assert.equal(invalid.isError, true);
-    await assert.rejects(free.callTool({name:'route',arguments:{need:'weather'}}), /402/);
+    await assert.rejects(free.callTool({name:'check',arguments:{need:'weather'}}), /402/);
     const paid = await connect(fixture.headers);
     const args = {need:'weather',url:'https://fixture.402signal.local/weather'};
-    const result = await paid.callTool({name:'route',arguments:args});
+    const result = await paid.callTool({name:'check',arguments:args});
     assert.equal(result.isError, false);
     assert.equal(result.structuredContent.billing.settled, true);
+    // route is the former name of check: unlisted, still accepted by tools/call.
     const again = await paid.callTool({name:'route',arguments:args});
     assert.deepEqual(again.structuredContent, result.structuredContent);
     const missClient = await connect(fixture.miss_headers);
     const missArgs = {need:'echo',url:'https://fixture.402signal.local/echo'};
-    const miss = await missClient.callTool({name:'route',arguments:missArgs});
+    const miss = await missClient.callTool({name:'check',arguments:missArgs});
     assert.equal(miss.isError,false);
     assert.equal(miss.structuredContent.live,false);
     assert.equal(miss.structuredContent.payable,false);
@@ -54,7 +56,7 @@ test('official MCP client initializes, notifies, lists tools and calls free and 
     assert.equal(miss.structuredContent.billing.settlement_state,'not_attempted');
     assert.equal(miss.structuredContent.billing.settled,false);
     assert.equal(miss.structuredContent.pq_trust,undefined);
-    assert.deepEqual((await missClient.callTool({name:'route',arguments:missArgs})).structuredContent,miss.structuredContent);
+    assert.deepEqual((await missClient.callTool({name:'check',arguments:missArgs})).structuredContent,miss.structuredContent);
   } finally {
     await Promise.allSettled(clients.map(client => client.close()));
     if (child.exitCode === null) { child.kill(); await once(child,'exit'); }

@@ -541,7 +541,7 @@ class PaywallTests(unittest.TestCase):
         self.assertTrue(json.loads(prev_raw).get("not_probed"))
         mcp_status, mcp_raw = _get(self.port, "/mcp.json")
         self.assertEqual(mcp_status, 200)
-        self.assertIn("route", [t.get("name") for t in json.loads(mcp_raw).get("tools") or []])
+        self.assertIn("check", [t.get("name") for t in json.loads(mcp_raw).get("tools") or []])
 
     def test_homepage_algorand_pay_no_mnemonic(self):
         status, html = _get(self.port, "/")
@@ -766,14 +766,14 @@ class PaywallTests(unittest.TestCase):
         amounts = [str(a.get("amount")) for a in body.get("accepts") or []]
         self.assertEqual(amounts, ["3000", "3000", "3000"])
 
-    def test_get_mcp_json_lists_route_tool(self):
+    def test_get_mcp_json_lists_check_tool(self):
         status, raw = _get(self.port, "/mcp.json")
         self.assertEqual(status, 200)
         body = json.loads(raw)
         names = [t.get("name") for t in body.get("tools") or []]
-        self.assertIn("route", names)
+        self.assertEqual(names, ["check", "preview", "validate"])
         by_name = {t.get("name"): t.get("description") or "" for t in body.get("tools") or []}
-        self.assertTrue(by_name["route"].startswith("Selects a live paid API endpoint"))
+        self.assertTrue(by_name["check"].startswith("Runs the paid pre-flight check"))
         self.assertTrue(by_name["preview"].startswith("Discovers catalog-listed paid API endpoints"))
         self.assertTrue(by_name["validate"].startswith(
             "Checks unpaid readiness for one concrete HTTPS seller URL"
@@ -800,7 +800,8 @@ class PaywallTests(unittest.TestCase):
         )
         self.assertEqual(status, 200)
         tools = ((body.get("result") or {}).get("tools")) or []
-        self.assertTrue(any(t.get("name") == "route" for t in tools))
+        self.assertTrue(any(t.get("name") == "check" for t in tools))
+        self.assertFalse(any(t.get("name") == "route" for t in tools))
         status, body = _json_post(
             self.port,
             "/mcp",
@@ -848,10 +849,10 @@ class PaywallTests(unittest.TestCase):
         self.assertTrue(spec["info"]["description"].startswith(catalog))
         self.assertIn("payment envelope", spec["info"]["description"])
         self.assertIn("MCP: GET /mcp.json.", spec["info"]["description"])
-        self.assertNotEqual(mcp_mod.ROUTE_DESCRIPTION, catalog)
+        self.assertNotEqual(mcp_mod.CHECK_DESCRIPTION, catalog)
         self.assertEqual(mcp_mod.manifest()["description"], catalog)
-        route = next(t for t in mcp_mod.manifest()["tools"] if t["name"] == "route")
-        self.assertEqual(route["description"], mcp_mod.ROUTE_DESCRIPTION)
+        check = next(t for t in mcp_mod.manifest()["tools"] if t["name"] == "check")
+        self.assertEqual(check["description"], mcp_mod.CHECK_DESCRIPTION)
         self.assertTrue(discover.LLMS_TXT.startswith("# 402Signal\n\n" + catalog))
         readme = Path(__file__).resolve().parent.parent.joinpath("README.md").read_text(
             encoding="utf-8"
@@ -1926,10 +1927,10 @@ class ProductBriefTests(unittest.TestCase):
     def test_mcp_output_schema(self):
         from live402 import mcp as mcp_mod
         tools = mcp_mod.manifest()["tools"]
-        route = next(t for t in tools if t.get("name") == "route")
+        route = next(t for t in tools if t.get("name") == "check")
         self.assertLessEqual(len(mcp_mod.manifest()["description"]), 500)
         self.assertEqual(mcp_mod.manifest()["description"], payment.CATALOG_DESCRIPTION)
-        self.assertEqual(route["description"], mcp_mod.ROUTE_DESCRIPTION)
+        self.assertEqual(route["description"], mcp_mod.CHECK_DESCRIPTION)
         preview = next(t for t in tools if t.get("name") == "preview")
         validate = next(t for t in tools if t.get("name") == "validate")
         self.assertEqual(preview["description"], mcp_mod.PREVIEW_DESCRIPTION)
@@ -1974,7 +1975,7 @@ class ProductBriefTests(unittest.TestCase):
         )[1].get("extensions") or {}).get("bazaar") or {}
         inp = (bazaar.get("info") or {}).get("input") or {}
         self.assertEqual(inp.get("type"), "mcp")
-        self.assertEqual(inp.get("toolName"), "route")
+        self.assertEqual(inp.get("toolName"), "check")
 
     def test_openapi_preview_and_rails(self):
         spec = json.loads(_get(self.port, "/openapi.json")[1])

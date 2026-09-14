@@ -15,8 +15,8 @@ MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 PAYMENT_NOTE = (
     "This stdio adapter connects to the hosted 402Signal service. Preview and "
-    "validate are free. Paid route calls require an x402-capable HTTP client at "
-    + ENDPOINT + ". This adapter does not sign or submit payments."
+    "validate are free. Paid check calls (route is the former name of check) require an "
+    "x402-capable HTTP client at " + ENDPOINT + ". This adapter does not sign or submit payments."
 )
 
 

@@ -6,8 +6,9 @@ live tool definitions and responses. It does not start a self-hosted router.
 Python 3.12 is sufficient; no additional packages, credentials, wallet, or
 environment variables are required. Internet access to 402signal.com is required.
 
-`preview` and `validate` are free and usable through stdio. A paid `route` call
-returns a tool error containing the HTTP 402 payment challenge. Use an
+`preview` and `validate` are free and usable through stdio. A paid `check` call
+(or `route`, its former name) returns a tool error containing the HTTP 402
+payment challenge. Use an
 x402-capable HTTP client at the endpoint above to sign and submit payments.
 This adapter does not handle wallets, forward payment headers, or bypass payment.
 Seller payment remains separate from the 402Signal routing fee.
@@ -33,8 +34,9 @@ service version. The adapter's initial release version is `0.1.0`.
 ## Validation
 
 Run `python -m unittest discover -s tests -p test_glama_stdio.py` for the adapter
-regression tests. Live smoke checks should initialize, list the four real tools
-(`check` is an alias of `route` with the same schema and fee),
-call free preview and validate, and confirm that a route call without payment
-returns a payment challenge while a subsequent free call still succeeds.
+regression tests. Live smoke checks should initialize, list the three real tools
+(`check`, `preview`, `validate`; `route` is the former name of `check`, accepted
+by `tools/call` but not listed), call free preview and validate, and confirm
+that a check call without payment returns a payment challenge while a
+subsequent free call still succeeds.
 Do not provide payment credentials for these checks.
