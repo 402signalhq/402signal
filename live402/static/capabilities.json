@@ -19,7 +19,7 @@
       "tag": "route-guard-v0.7.7",
       "state": "pending",
       "digest_status": "provisional-until-release",
-      "source_revision": "a71d967bc2074f88bb53b0e73e2fce1266f09d67",
+      "source_revision": "452fa278853eb2758dc7b19101f5f13113501be4",
       "provisional_pack_sha256": "f3685802077129ee323cd8e06734cf0188d83a314c8bbcde327c6747820ee944",
       "provisional_sums_sha256": "4f95a780cb01205fc200a61a798780afca9fc218724ebf68654973b7a1c3c464",
       "distribution": "Release candidate: GitHub release archive and npm registry (@402signal/route-guard@0.7.7, provenance) once tagged and published; not an install URL yet",
