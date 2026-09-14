@@ -5,6 +5,7 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Production session store switches to the replay authority (`LIVE402_SESSION_BACKEND = "postgres"` in `fly.toml`; the owner functions in `ops/session-postgres-managed.sql` are installed). The writer copies the machine's SQLite session state in once on its first lease acquisition; the SQLite file stays as the observation cache only. Second step of the second-machine plan.
 - MCP: the listed tools are `check` (paid), `preview` and `validate`. `route`
   is the former name of `check`: `tools/call route` keeps working for
   existing clients, but it is no longer listed, because two identical listed
