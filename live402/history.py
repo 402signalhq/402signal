@@ -1170,7 +1170,12 @@ def repaired_rail(url: str, pay_to: str | None, recorded: str | None, claims: li
             continue
         rail = _text(claim.get("rail"))
         listed = _text(claim.get("payTo"))
-        if rail and listed and payment.payto_equal(listed, text, rail):
+        # A catalog claim can carry a feed-derived rail the address cannot belong to
+        # (a PayAI listing of an EVM network was filed under "solana" before EVM
+        # chains were classified); such a claim says nothing about this recipient.
+        if not rail or not listed or not payment.valid_payto_for_rail(text, rail):
+            continue
+        if payment.payto_equal(listed, text, rail):
             rails.add(rail)
     if len(rails) == 1:
         return next(iter(rails))

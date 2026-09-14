@@ -139,6 +139,10 @@ class RepairRulesTests(unittest.TestCase):
         two = [{"rail": "base", "payTo": BASE_PAYTO}, {"rail": "polygon", "payTo": BASE_PAYTO.upper().replace("0X", "0x")}]
         self.assertEqual(history.repaired_rail(URL, BASE_PAYTO, "polygon", two), "polygon")
         self.assertEqual(history.repaired_rail(URL, BASE_PAYTO, "solana", two), "base")
+        # A feed-derived catalog rail the address cannot belong to is ignored, so it cannot keep a wrong label.
+        mislabelled = [{"rail": "solana", "payTo": BASE_PAYTO}, {"rail": "base", "payTo": BASE_PAYTO}]
+        self.assertEqual(history.repaired_rail(URL, BASE_PAYTO, "solana", mislabelled), "base")
+        self.assertEqual(history.repaired_rail(URL, SOLANA_PAYTO, "base", [{"rail": "base", "payTo": SOLANA_PAYTO}]), "solana")
         # No catalog: the recipient's shape decides; a 0x recipient keeps an EVM rail, else base.
         self.assertEqual(history.repaired_rail(URL, SOLANA_PAYTO, "algorand", []), "solana")
         self.assertEqual(history.repaired_rail(URL, ALGO_PAYTO, None, []), "algorand")
