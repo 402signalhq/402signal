@@ -11,7 +11,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from live402 import payment, probe
+from live402 import history_replica, payment, probe
 
 DEFAULT_DB = "/tmp/live402-history.sqlite"
 VOLUME_DB = "/data/live402-history.sqlite"
@@ -69,6 +69,8 @@ INTISH_FIELDS = frozenset({"http_status", "latency_ms", "schema_present", "payab
 _lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
 _conn_path: str | None = None
+# What the current locked write touched, for the replica outbox (dual backend only).
+_effects: history_replica.Effects | None = None
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS probes (
@@ -131,6 +133,15 @@ CREATE TABLE IF NOT EXISTS scoring_models (
     spec_json TEXT NOT NULL,
     recorded_at INTEGER NOT NULL,
     PRIMARY KEY (model_id, model_hash)
+);
+CREATE TABLE IF NOT EXISTS replica_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payload TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS replica_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
 );
 """
 
@@ -250,9 +261,25 @@ def _chmod_db_files(path: str) -> None:
             pass
 
 
+def _begin_effects() -> None:
+    """Start collecting what this locked write touches. Caller holds _lock."""
+    global _effects
+    _effects = history_replica.Effects() if history_replica.dual() else None
+
+
+def _commit_with_effects(conn: sqlite3.Connection) -> None:
+    """Queue the change set for the replica in this transaction, then commit. Caller holds _lock."""
+    global _effects
+    effects, _effects = _effects, None
+    if effects is not None:
+        history_replica.enqueue(conn.cursor(), effects)
+    conn.commit()
+
+
 def reset() -> None:
     """Delete the history DB (tests)."""
-    global _conn, _conn_path
+    global _conn, _conn_path, _effects
+    _effects = None
     with _lock:
         path = _conn_path or db_path()
         if _conn is not None:
@@ -470,6 +497,8 @@ def _insert_observation(
         """,
         (probe_id, batch_id, source_type, source, rail, url, field, text, status, ts, trust_class),
     )
+    if _effects is not None and cur.lastrowid:
+        _effects.obs_ids.add(int(cur.lastrowid))
 
 
 def _write_observed(cur, *, probe_id, batch_id, source, rail, url, ts, fields: dict, trust_class=None) -> None:
@@ -527,6 +556,8 @@ def _delete_probes_and_obs(cur, ids: list) -> None:
     extra = [(i,) for i in ids]
     cur.executemany("DELETE FROM probes WHERE id = ?", extra)
     cur.executemany("DELETE FROM observations WHERE probe_id = ?", extra)
+    if _effects is not None:
+        _effects.deleted_probes.update(int(i) for i in ids)
 
 
 def _cap_observations(cur, url: str) -> None:
@@ -538,6 +569,8 @@ def _cap_observations(cur, url: str) -> None:
     if len(ids) > OBS_PER_URL_CAP:
         extra = [(i,) for i in ids[OBS_PER_URL_CAP:]]
         cur.executemany("DELETE FROM observations WHERE id = ?", extra)
+        if _effects is not None:
+            _effects.deleted_observations.update(int(i) for i in ids[OBS_PER_URL_CAP:])
 
 
 def _is_sealed_unlocked(batch_id: str | None) -> bool:
@@ -558,6 +591,8 @@ def _seal_unlocked(batch_id: str) -> None:
         "INSERT OR IGNORE INTO sealed_batches (batch_id, sealed_at) VALUES (?, ?)",
         (batch_id, int(time.time())),
     )
+    if _effects is not None:
+        _effects.sealed.append(batch_id)
 
 
 def batch_is_sealed(batch_id: str | None) -> bool:
@@ -579,9 +614,10 @@ def seal_batch(batch_id: str | None) -> None:
         if not bid:
             return
         with _lock:
+            _begin_effects()
             conn = _connect()
             _seal_unlocked(bid)
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
     except Exception:
         return
@@ -770,6 +806,8 @@ def _touch_validate_url_state(cur, dest: str, snap: dict, meta: dict) -> bool:
         """,
         (dest, ts, pay_changed_at, price_changed_at, schema_changed_at),
     )
+    if _effects is not None:
+        _effects.urls.add(dest)
     return True
 
 
@@ -854,6 +892,8 @@ def _apply_trusted_url_state(cur, dest: str, snap: dict, meta: dict, *, force: b
         """,
         (dest, last_pay, last_amt, last_schema, pay_changed_at, price_changed_at, schema_changed_at, last_checked, last_ok, pending_pay, ts),
     )
+    if _effects is not None:
+        _effects.urls.add(dest)
     return True
 
 
@@ -938,6 +978,8 @@ def _write_probe_row(dest: str, snap: dict, meta: dict) -> None:
         (dest, ts, live, payable, invocable, latency, pay_to, amount, miss, rail, schema_present, settled, trust_class, traffic),
     )
     probe_id = cur.lastrowid
+    if _effects is not None and probe_id:
+        _effects.probe_ids.add(int(probe_id))
     obs_fields = {
         "live": live,
         "payable": payable,
@@ -1021,9 +1063,10 @@ def record_probe(url: str, snap: dict | None = None) -> dict:
         with _lock:
             if batch_id and _is_sealed_unlocked(batch_id):
                 return meta
+            _begin_effects()
             _write_probe_row(dest, snap, meta)
             conn = _connect()
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         if is_trusted_class(classify_trust_class(snap)) and is_public_traffic(
             classify_traffic_class(dest, snap)
@@ -1043,10 +1086,11 @@ def touch_validate_clocks(url: str, snap: dict | None = None) -> dict:
             return meta
         blob = snap if isinstance(snap, dict) else {}
         with _lock:
+            _begin_effects()
             conn = _connect()
             cur = conn.cursor()
             _touch_validate_url_state(cur, dest, blob, meta)
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         return meta
     except Exception:
@@ -1075,6 +1119,7 @@ def persist_route_batch(batch_id: str | None, results: list | None) -> dict:
         with _lock:
             if _is_sealed_unlocked(bid):
                 return metas
+            _begin_effects()
             for raw in rows:
                 snap = dict(raw)
                 snap["batch_id"] = bid
@@ -1093,7 +1138,7 @@ def persist_route_batch(batch_id: str | None, results: list | None) -> dict:
                     raw["payTo_changed"] = True
             _seal_unlocked(bid)
             conn = _connect()
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         # Tentative route observations do not advance shadow freshness.
         return metas
@@ -1117,6 +1162,7 @@ def mark_batch_settled(batch_id: str | None, winner_url: str | None = None) -> N
             return
         shadow_rows: list[tuple[str, dict]] = []
         with _lock:
+            _begin_effects()
             conn = _connect()
             cur = conn.cursor()
             cur.execute(
@@ -1161,6 +1207,8 @@ def mark_batch_settled(batch_id: str | None, winner_url: str | None = None) -> N
                 "UPDATE observations SET trust_class = ? WHERE probe_id IN (%s)" % qmarks,
                 (TRUST_ROUTE_SETTLED, *ids),
             )
+            if _effects is not None:
+                _effects.probe_ids.update(ids)
             for row in rows:
                 applied_url = _text(row[1])
                 if not applied_url:
@@ -1185,7 +1233,7 @@ def mark_batch_settled(batch_id: str | None, winner_url: str | None = None) -> N
                 applied = _apply_trusted_url_state(cur, applied_url, snap, {})
                 if applied:
                     shadow_rows.append((applied_url, snap))
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         for applied_url, snap in shadow_rows:
             _touch_shadow_verified(applied_url, snap)
@@ -1204,6 +1252,7 @@ def record_claim(url: str, fields: dict | None = None, *, source=None, rail=None
         if when is None:
             when = int(time.time())
         with _lock:
+            _begin_effects()
             conn = _connect()
             cur = conn.cursor()
             _write_claimed(
@@ -1217,7 +1266,7 @@ def record_claim(url: str, fields: dict | None = None, *, source=None, rail=None
                 fields=blob,
             )
             _cap_observations(cur, dest)
-            conn.commit()
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
     except Exception:
         return
@@ -1849,6 +1898,7 @@ def ensure_scoring_model(record: dict | None) -> dict | None:
         if effective is None:
             effective = int(time.time())
         with _lock:
+            _begin_effects()
             conn = _connect()
             conn.execute(
                 """
@@ -1858,7 +1908,9 @@ def ensure_scoring_model(record: dict | None) -> dict | None:
                 """,
                 (model_id, digest, int(effective), str(spec), int(time.time())),
             )
-            conn.commit()
+            if _effects is not None:
+                _effects.models.append((model_id, digest))
+            _commit_with_effects(conn)
             _chmod_db_files(_conn_path or db_path())
         return {"model_id": model_id, "model_hash": digest, "effective_ts": int(effective)}
     except Exception:
