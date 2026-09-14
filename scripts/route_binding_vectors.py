@@ -19,6 +19,15 @@ from live402 import route_binding as rb
 from live402.pq import receipt, store
 
 
+# Public TEST recipients, pinned so the published vectors stay byte-identical
+# when the fixture fee wallets move. They carry no funds and grant nothing.
+FIXTURE_PAYTO = {
+    "base": "0xb18fc2275f36dae99eb215caeff03b431f887d16",
+    "solana": "HCM423cyKYVUoq9GvmqUphZwYVB6M2wez34i9jzSewLy",
+    "algorand": "N2JSJZCSORMYGYO2NSIYRUEMBFRHEOMYODVXV2MXYYHB5H2JVUGG6NJ4NQ",
+}
+
+
 def generate():
     cases = []
     historical = []
@@ -40,7 +49,7 @@ def generate():
         store.reset()
         vkey = receipt.configure_signer(key)
         try:
-            for i, rail in enumerate(("base", "solana", "algorand", "base")):
+            for i, rail in enumerate(("base", "solana", "algorand", "base", "base")):
                 method, request_bytes = ("POST", b"{}") if i == 3 else ("GET", b"")
                 acc = next(
                     a
@@ -51,12 +60,36 @@ def generate():
                 )
                 acc = {k: v for k, v in acc.items() if k != "extra"}
                 acc["amount"] = "10000"  # Seller price is independent of routing fee.
+                acc["payTo"] = FIXTURE_PAYTO[rail]
                 env = {"x402Version": 2, "accepts": [acc]}
                 if i == 3:
                     # UTF-16 key order, escaped strings and extra data participate
                     # in the cross-language hash; none are silently discarded.
                     env["extensions"] = {
                         "bazaar": {"\U0001f600": "a\nb", "\ue000": "\u2028"}
+                    }
+                if i == 4:
+                    # Decimal values in a seller's bazaar example (agent402.tools
+                    # quotes prices this way). Every layout class of the ES6
+                    # number grammar is present: plain decimal, integral (1.0
+                    # hashes as 1), leading zeros, negative and both exponent
+                    # signs. Python and JavaScript must hash the same bytes.
+                    env["extensions"] = {
+                        "bazaar": {
+                            "info": {
+                                "output": {
+                                    "example": {
+                                        "price": 67234.12,
+                                        "change_24h": -0.5,
+                                        "supply": 1.0,
+                                        "ratio": 0.000001,
+                                        "tick": 1e-7,
+                                        "weight": 123456789.125,
+                                        "count": 42,
+                                    }
+                                }
+                            }
+                        }
                     }
                 selected = payment.selected_payment_fields(
                     payment.validate_observed_accept(acc, env)

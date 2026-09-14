@@ -9,9 +9,9 @@ import test from "node:test";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const checker = join(root, "scripts/check_route_guard_archive.mjs");
 const REVIEWED_PACK =
-  "bb5b49e63b37297b4460c37c6337ff80070988f8103c55ac309549d7d1790f76";
+  "164a1328ddcba856b667b74b43573bfb455016144cef84858ae66054be64b5ff";
 const REVIEWED_SUMS =
-  "e8502e1f3e7c510fa41f579b65dd64168ac85d105e28b2482e8e4c184442d66d";
+  "d414db64f83d5f68013451c912c7c6a6c03aa32d95d4007ac5b942b353abeaa9";
 
 function runChecker(tgz, sums) {
   return spawnSync(process.execPath, [checker, tgz, "--checksum-file", sums], {
@@ -23,10 +23,10 @@ function runChecker(tgz, sums) {
 test("candidate digest mismatch fails closed before install", () => {
   const dir = mkdtempSync(join(tmpdir(), "route-guard-archive-mismatch-"));
   try {
-    const tgz = join(dir, "402signal-route-guard-0.7.3.tgz");
+    const tgz = join(dir, "402signal-route-guard-0.7.4.tgz");
     const sums = join(dir, "SHA256SUMS");
-    writeFileSync(tgz, "not-the-reviewed-0.7.3-bytes");
-    writeFileSync(sums, `${"00".repeat(32)}  402signal-route-guard-0.7.3.tgz\n`);
+    writeFileSync(tgz, "not-the-reviewed-0.7.4-bytes");
+    writeFileSync(sums, `${"00".repeat(32)}  402signal-route-guard-0.7.4.tgz\n`);
     const result = runChecker(tgz, sums);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, new RegExp(REVIEWED_PACK));
@@ -45,10 +45,10 @@ test("SHA256SUMS digest mismatch fails closed before install", (t) => {
   }
   const dir = mkdtempSync(join(tmpdir(), "route-guard-archive-sums-"));
   try {
-    const tgz = join(dir, "402signal-route-guard-0.7.3.tgz");
+    const tgz = join(dir, "402signal-route-guard-0.7.4.tgz");
     const sums = join(dir, "SHA256SUMS");
-    copyFileSync(join(packDir, "402signal-route-guard-0.7.3.tgz"), tgz);
-    writeFileSync(sums, `${"11".repeat(32)}  402signal-route-guard-0.7.3.tgz\n`);
+    copyFileSync(join(packDir, "402signal-route-guard-0.7.4.tgz"), tgz);
+    writeFileSync(sums, `${"11".repeat(32)}  402signal-route-guard-0.7.4.tgz\n`);
     const result = runChecker(tgz, sums);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, new RegExp(REVIEWED_SUMS));

@@ -588,6 +588,25 @@ def _binding_reason(result: dict, exc: BaseException) -> str:
     return telemetry.binding_reason(exc)
 
 
+def _trim_schema_echo(result: dict) -> None:
+    """Drop seller schemas from an answer that cannot be executed anyway.
+
+    A binding-unavailable answer is not a route to call, so the seller's input
+    and output schemas (often kilobytes of JSON Schema) only pad the miss. The
+    economic terms, the challenge options and every decision field stay.
+    """
+    target = result.get("target")
+    if isinstance(target, dict):
+        for key in ("inputSchema", "outputSchema"):
+            target.pop(key, None)
+    envelope = result.get("envelope")
+    accepts = envelope.get("accepts") if isinstance(envelope, dict) else None
+    if isinstance(accepts, list):
+        for option in accepts:
+            if isinstance(option, dict):
+                option.pop("outputSchema", None)
+
+
 def _binding_unavailable(result: dict, body: dict, rail: str, reason: str) -> tuple[int, dict, None]:
     pool = _binding_pool(result)
     if pool:
@@ -596,14 +615,21 @@ def _binding_unavailable(result: dict, body: dict, rail: str, reason: str) -> tu
         result["compared"] = select.comparison(pool, None, objective, constraints)
     result = _downgrade_unbillable_result(result)
     result.pop("decision_binding", None)
+    # The seller answered with a live challenge; what failed is the binding.
+    # Say so instead of the generic envelope miss the downgrade would pick.
+    result["error"] = "route_binding_unavailable"
     result["binding_error"] = "route_binding_unavailable"
     result["binding_error_reason"] = reason
+    result["miss_reason"] = "binding_unavailable"
+    result["stop_reason"] = "candidate_set_exhausted"
+    result.pop("unmet_constraints", None)
     result["billing"] = _billing(
         rail,
         settlement_attempted=False,
         settled=False,
         settlement_state="not_attempted",
     )
+    _trim_schema_echo(result)
     _strip_private_probe_state(result)
     _log_settle_skipped(rail)
     return 503, result, None

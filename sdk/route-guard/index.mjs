@@ -14,8 +14,11 @@ const NORMAL_MISSES = new Set([
   "no_candidates", "no_402_envelope", "no_payto", "reachable_200",
   "quote_expired", "no_input_schema", "constraints_unmet", "unsafe_to_probe",
 ]);
+// 503 only: the seller answered with a live challenge but the signed binding
+// could not be built. Nothing was billed; the buyer may retry the same request.
 const LEGACY_MISSES = new Set([...NORMAL_MISSES, "probe_timeout", "upstream_5xx",
-  "ssrf", "probe_budget_exhausted", "probe_limit_reached", "invalid_need"]);
+  "ssrf", "probe_budget_exhausted", "probe_limit_reached", "invalid_need",
+  "binding_unavailable"]);
 
 /** Classifies an explicit unpaid outcome; never grants spending/retry authority. */
 export function isUnsettledRouteMiss(options) {
@@ -57,14 +60,20 @@ const fail = (code = "invalid_binding") => {
 
 const parse = (raw, options = {}) => parseJson(raw, {...options, fail});
 
+// RFC 8785. Numbers: any finite double within plus or minus 2^53, laid out by
+// JSON.stringify (ES6 Number::toString), the reference layout the server's
+// Python reproduces digit for digit. A decimal token such as 67234.12 arrives
+// from the strict parser as a Fraction and hashes by value, so "1.0" and "1"
+// are the same number (the profile is value-based, like the server's).
 function canonical(value, ordinaryNumbers = false, depth = 0) {
   if (depth > 24) fail("invalid_json");
   if (value === null || typeof value === "boolean" || typeof value === "string")
     return JSON.stringify(value);
+  if (value instanceof Fraction) value = value.value;
   if (
     typeof value === "number" &&
     Number.isFinite(value) &&
-    (ordinaryNumbers || Number.isSafeInteger(value))
+    Math.abs(value) <= Number.MAX_SAFE_INTEGER
   )
     return JSON.stringify(value);
   if (Array.isArray(value))

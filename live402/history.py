@@ -857,6 +857,26 @@ def _apply_trusted_url_state(cur, dest: str, snap: dict, meta: dict, *, force: b
     return True
 
 
+def _lab_payto_rotation(cur, dest: str, pay_to: str, rail, meta: dict) -> None:
+    """Flag a self-test observation whose recipient differs from the lab's last live one.
+
+    Reads the lab's own probe rows only (traffic class self_test), never
+    url_state, and writes nothing. The next live self-test observation of the
+    new recipient becomes the new reference, so a deliberate rotation clears
+    after one refused run.
+    """
+    cur.execute(
+        "SELECT payTo FROM probes WHERE url = ? AND live = 1 AND payTo IS NOT NULL AND payTo != '' "
+        "AND traffic_class = ? ORDER BY ts DESC, id DESC LIMIT 1",
+        (dest, TRAFFIC_SELF_TEST),
+    )
+    row = cur.fetchone()
+    previous = _text(row[0]) if row else None
+    if previous and not payment.payto_equal(previous, pay_to, rail):
+        meta["payTo_flipped"] = True
+        meta["payTo_pending"] = True
+
+
 def _write_probe_row(dest: str, snap: dict, meta: dict) -> None:
     """Insert one probe + observations. Caller holds _lock. Does not commit.
 
@@ -901,6 +921,12 @@ def _write_probe_row(dest: str, snap: dict, meta: dict) -> None:
     cur = conn.cursor()
     state = _load_url_state(cur, dest)
     _payto_risk_against_trusted(state, pay_to, rail, claimed, meta)
+    if traffic == TRAFFIC_SELF_TEST and live and pay_to:
+        # Operator self-tests never touch the public per-URL state, so a
+        # recipient rotation on a lab seller is judged against the lab's own
+        # previous live observation of that URL. A lab run then meets the same
+        # payTo_pending refusal a public buyer would, with nothing public moved.
+        _lab_payto_rotation(cur, dest, pay_to, rail, meta)
     if trusted and is_public_traffic(traffic):
         # Recompute flags from the apply path so establish/pending match writes.
         meta["payTo_flipped"] = False

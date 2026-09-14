@@ -1,6 +1,8 @@
 # fly.toml - single paid router app 402signal. No extra hostnames.
 # One writer Machine: min_machines_running = 1 plus the writer lease
 # (private ops note leadership-lease.md) keep one publisher and one paid router.
+# The lease row lives in the replay authority (signal_router, managed variant),
+# so a machine without the volume can hold or observe it.
 # Replay authority is Fly Managed Postgres via secrets. Catalog, history,
 # sessions and the MainNet PQ log stay on the /data volume.
 # Never set test-support modes here. Falcon SK is never on this app.
@@ -84,8 +86,11 @@ kill_timeout = "75s"
   # TestNet OBHYX... must not appear as a MainNet default.
   LIVE402_PQ_FALCON_MAINNET_ADDRESS = "GVIAG3YMJ7OLJ3JAUBNI2YP5JCQQCQYWN25UAGLC2BTPOBUL3ZZTILIMWU"
   LIVE402_PQ_FALCON_NETWORK = "mainnet"
-  # Writer lease and capacity tunables (private ops notes).
-  LIVE402_LEADERSHIP_BACKEND = "file"
+  # Writer lease and capacity tunables (private ops notes). "postgres" needs
+  # ops/router-leadership-managed.sql installed on the replay authority
+  # (done before this value changed); "file" is the rollback value and the
+  # lock file stays on the volume.
+  LIVE402_LEADERSHIP_BACKEND = "postgres"
   # Transparency-leaf outbox (private runbook leaf-outbox.md): a process without the
   # writer lease queues public leaf bytes in the replay authority instead of
   # refusing plain paid checks. The owner migration is installed.

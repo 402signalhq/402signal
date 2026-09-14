@@ -85,10 +85,14 @@ The envelope may likewise carry a top-level `inputSchema` object.
 This tolerance is not a claim of strict x402 schema conformance; the protocol's
 five-tag limit is narrower. Metadata grants no trust or payment authority. Other
 resource fields remain limited to `url`, `description` and `mimeType`; unknown
-extensions, floating-point challenge values and disagreeing extracted
-header/body challenges remain unsupported. Deploy a compatible server and guard
-together; older guards reject these newly accepted descriptions. There is no
-receipt-format or payment-authority change.
+extensions and disagreeing extracted header/body challenges remain unsupported.
+Decimal values in a challenge (a bazaar output example that quotes `67234.12`,
+for instance) are accepted when finite and within plus or minus 2^53 and are
+laid out per RFC 8785 (the ES6 number form, which `JSON.stringify` emits), so
+Python and JavaScript hash the same bytes. Deploy a compatible server and guard
+together; older guards reject these newly accepted descriptions (route-guard
+0.7.3 refuses a challenge with decimal values as `invalid_json`, fail closed,
+until 0.7.4). There is no receipt-format or payment-authority change.
 
 The default freshness window is 60 seconds. `LIVE402_ROUTE_BINDING_TTL_S` accepts
 integers 1..120; invalid settings fail closed for opted-in requests. Receipt
@@ -166,8 +170,9 @@ re-serialize legacy floating-point evidence identically. Decode the strings to
 inspect the policy, winner, observation, selected payment, candidate digest and
 scoring model. They are never executable instructions.
 
-The outer commitment uses an RFC8785 subset: null, booleans, Unicode strings,
-arrays, objects, and safe integers only. Reject floats, non-finite numbers,
+The outer commitment uses RFC 8785: null, booleans, Unicode strings, arrays,
+objects, and finite numbers within plus or minus 2^53 in the ES6 layout (the
+evidence itself carries only integers and strings). Reject non-finite numbers,
 duplicate keys, lone surrogates, unsafe integers, excessive size/depth, unknown
 binding/evidence fields, and unsupported versions. Public leaves still contain
 only `type`, minute-rounded `ts`, nonce and salted commitment. The producer does not copy seller response bodies or buyer payment headers,
