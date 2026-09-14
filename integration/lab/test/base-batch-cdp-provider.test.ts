@@ -196,12 +196,15 @@ test("wrong JWT endpoint, expiry, excessive lifetime and malformed signature fai
     },
   );
   try {
+    // token() stamps its own nbf when it runs; keep every bad claim well past the
+    // validator's bounds (exp > now + 5, nbf <= now, exp - nbf <= 120) so a second
+    // elapsing between this `now` and the token's cannot turn a rejection into an accept.
     const now = Math.floor(Date.now() / 1000);
     for (const patch of [
       { uri: "POST api.cdp.coinbase.com/platform/v2/x402/settle" },
-      { exp: now + 5 },
-      { nbf: now + 1 },
-      { exp: now + 121 },
+      { exp: now + 2 },
+      { nbf: now + 60 },
+      { exp: now + 300 },
       { aud: ["other"] },
     ]) {
       f.write({ ...f.bundle(), supportedJwt: token("supported", patch) });
