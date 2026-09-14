@@ -262,3 +262,9 @@ th,td { text-align:left; vertical-align:top; padding:14px 12px; border-bottom:1p
 /* Keep the four task groups within the existing chip navigation. */
 .developer-page .guide-group { flex: 1 1 15rem; min-width: 0; }
 .developer-page .guide-group .chip { margin: 0 .35rem .5rem 0; }
+
+/* Keep the homepage's offer example and short hook readable at narrow widths. */
+.home-page .hero-v2 > * { min-width: 0; }
+.home-page .offer-example { align-self: start; }
+.home-page .home-hook { white-space: pre-wrap; overflow-wrap: anywhere; }
+.home-page .support-table caption { text-align: left; padding: 0 0 12px; }

@@ -10,6 +10,10 @@ The submitted requirement is not proof of human approval. If an agent submitted 
 
 A retained paid `/route` response may include slim `compared[]` rows with `selectable`, `payTo_pending` / `payTo_changed`, `risk`, and `excluded_reason` (including `binding_unavailable`). Those fields explain which candidates were selectable and why others were excluded for the checked offer. They do not prove delivery, settlement, or human approval. Catalog and seller labels remain untrusted.
 
+## Storage and export ownership
+
+The current service returns evidence to the buyer; it does not include a general hosted customer archive or export API. Your team stores and exports the original files, retains an approved policy version and controls access, deletion and the retention period. Private response recovery lasts 120 seconds after the request began, not the duration of a platform evaluation. Any additional hosted retention needs a separate written scope. A pilot can first demonstrate retrieval and offline verification from your own storage.
+
 ## Verify before drawing conclusions
 
 Use the matching historical verifier for the record version. For supported v4 records:

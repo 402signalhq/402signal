@@ -169,15 +169,24 @@
           setText('seller-status', 'Readiness response received. This was not a purchase or a settlement test.');
           const list = el('dl','checks compact');
           const observed = result.observed && typeof result.observed === 'object' ? result.observed : {};
+          const shown = value => typeof value === 'string' && value.length ? value.slice(0,200) : 'Not established in this response';
+          const checkedAt = typeof result.verified_at === 'string' ? Date.parse(result.verified_at) : NaN;
+          const age = Number.isFinite(checkedAt) && checkedAt <= Date.now() ? Math.floor((Date.now() - checkedAt) / 1000) : null;
           const facts = [
             ['Supported offer metadata',result.payable === true ? 'Accepted by the offer parser at this check' : result.payable === false ? 'Not established at this check' : 'Unknown'],
             ['Input information',result.invocable === true ? 'Sufficient at this check' : 'Insufficient or unknown'],
             ['HTTP status',Number.isInteger(observed.http_status) ? String(observed.http_status) : 'Unknown'],
-            ['Observed recipient',typeof observed.payTo === 'string' ? observed.payTo.slice(0,200) : 'Not returned'],
+            ['Observed amount (atomic units)',shown(observed.amount)],
+            ['Observed asset',shown(observed.asset)],
+            ['Observed network',shown(observed.network)],
+            ['Observed recipient',shown(observed.payTo)],
+            ['Observation age at display',age === null ? 'Not established in this response' : String(age) + ' seconds; not a freshness guarantee'],
             ['Check timestamp',typeof result.verified_at === 'string' ? result.verified_at.slice(0,80) : 'Not returned'],
           ];
           for (const [label,value] of facts) { const row = el('div',''); row.append(el('dt','',label),el('dd','',value)); list.appendChild(row); }
           $('seller-result').appendChild(list);
+          $('seller-result').appendChild(el('p','note','Atomic amounts are not dollar prices. This readiness response may omit asset, decimals or network. Missing observed terms are not filled from the catalog.'));
+          const next = el('a','', 'See how a changed offer is stopped'); next.href = '/how#playground'; $('seller-result').appendChild(next);
           if (Array.isArray(result.flags)) $('seller-result').appendChild(el('p','note','Flags: ' + result.flags.filter(x=>typeof x==='string').slice(0,20).map(x=>x.slice(0,200)).join(', ')));
           $('seller-result').appendChild(el('p','note','Receiving-account checks, buyer compatibility, payment settlement and output quality are not established by this result.'));
         }

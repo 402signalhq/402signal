@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="314" viewBox="0 0 760 314" role="img" aria-label="Live rate and latency by rail, September 2026">
 <rect width="760" height="314" fill="#fbf8f2"/>
 <text x="32" y="40" font-family="Georgia, serif" font-size="24" fill="#1c1c22">State of x402 endpoints, September 2026</text>
-<text x="32" y="66" font-family="Verdana, sans-serif" font-size="13" fill="#5f5f66">2,396 probes on 349 URLs; share of probes answered with a live 402 challenge, by fee rail; median and p95 time to the challenge</text>
+<text x="32" y="66" font-family="Verdana, sans-serif" font-size="13" fill="#5f5f66">2,396 probes on 349 URLs; share of probes answered with a live 402 challenge, by recorded probe rail; median and p95 time to the challenge</text>
 <text x="32" y="118" font-family="Verdana, sans-serif" font-size="14" fill="#1c1c22">Base</text>
 <rect x="140" y="104" width="420" height="20" rx="4" fill="#e6e2d9"/>
 <rect x="140" y="104" width="399" height="20" rx="4" fill="#2f8f8a"/>
@@ -17,5 +17,5 @@
 <rect x="140" y="212" width="356" height="20" rx="4" fill="#2f8f8a"/>
 <text x="570" y="226" font-family="Verdana, sans-serif" font-size="13" fill="#1c1c22">84.9% live of 436</text>
 <text x="140" y="248" font-family="Verdana, sans-serif" font-size="11" fill="#5f5f66">median 1195 ms, p95 2721 ms to the challenge</text>
-<text x="32" y="292" font-family="Verdana, sans-serif" font-size="12" fill="#5f5f66">6 observed price changes and 0 observed recipient changes among 316 tracked URLs. Source: 402signal.com/insights. Public organic probes; nothing a seller pays for changes these numbers.</text>
+<text x="32" y="292" font-family="Verdana, sans-serif" font-size="12" fill="#5f5f66">6 observed price changes and 0 observed recipient changes among 316 tracked URLs. Source: 402signal.com/insights. All recorded traffic classes; see method.</text>
 </svg>

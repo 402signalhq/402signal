@@ -133,12 +133,12 @@ class HomepageProductTests(unittest.TestCase):
             self.assertIn(phrase, text)
 
     def test_problem_first_product_and_visible_primer(self):
-        self.assertWords(self.home, ("Check the deal before your agent pays.", "New to agent payments?", "An API is a service", "x402 and MPP", "hosted API", "local guard", "signed binding", "Your buyer still validates"))
+        self.assertWords(self.home, ("Check the offer before your agent pays.", "New to agent payments?", "An API is a service", "x402 and MPP", "hosted API", "local guard", "signed binding", "Your buyer still validates"))
         self.assertNotIn('id="integration-example"', self.home)
         self.assertNotIn("AgentsTools", self.home)
 
     def test_scenarios_are_not_invented_customer_incidents(self):
-        self.assertWords(self.home, ("From the probe history", "api.kadec0.xyz", "$0.030", "$0.050", "api.syraa.fun", "signing callback is never called", "What 402Signal is not", "a seller cannot pay to be left out"))
+        self.assertWords(self.home, ("From the probe history", "api.kadec0.xyz", "$0.030", "$0.050", "Synthetic x402 example", "not a customer loss", "existing cap may already reject", "probe-weighted", "not population-wide uptime"))
         self.assertWords(self.how, ("Neither study used 402Signal", "controlled simulations", "not reported customer incidents"))
         for href in ("https://www.anthropic.com/research/project-vend-1", "https://www.anthropic.com/research/agentic-misalignment"):
             self.assertIn(href, [url for _, url in _parse(self.how).links])
@@ -164,8 +164,8 @@ class HomepageProductTests(unittest.TestCase):
         self.assertWords(self.how, ("Direct payment", "checking fee is a separate payment", "buyer validates transaction effects"))
 
     def test_pricing_not_fulfillment_or_every_session_call(self):
-        self.assertWords(self.home, ("$0.003", "$0.005", "A check that finds nothing costs nothing", "receipts issued and records retained"))
-        self.assertWords(self.pages["/pricing"], ("$0.003", "$0.005", "Completed no-match checks are free", "No subscription", "Seller charges", "later buyer refusal", "does not buy another observation for every call", "hosted session open", "do not call a facilitator", "receipts issued", "not a guarantee of delivery or output quality"))
+        self.assertWords(self.home, ("$0.003", "$0.005", "A check that finds nothing costs nothing", "your own storage", "20 hops or 10 minutes"))
+        self.assertWords(self.pages["/pricing"], ("$0.003", "$0.005", "Completed no-match checks are free", "No subscription", "Seller charges", "later buyer refusal", "does not buy another observation for every call", "hosted session open", "do not call a facilitator", "You store the private evidence", "not a guarantee of delivery or output quality"))
         self.assertIn("not a guarantee of delivery or output quality", self.home)
         self.assertWords(self.devs, ("billing.settlement_state=not_attempted", "HTTP 503", "already-settled checking fee"))
 
@@ -186,6 +186,21 @@ class HomepageProductTests(unittest.TestCase):
         for word in ("router", "routing fee", "valid live route"):
             self.assertNotIn(word, _text(self.home).lower(), word)
             self.assertNotIn(word, _get_full(self.port, "/llms.txt")[1].lower(), word)
+
+
+    def test_evaluation_and_profile_claims_remain_bounded(self):
+        pricing = self.pages["/pricing"]
+        self.assertWords(pricing, ("120 seconds", "no self-serve subscription", "does not waive checking fees",
+                                   "not included", "Existing agreed Design partner terms",
+                                   "do not include continuous or scheduled monitoring"))
+        self.assertWords(self.home, ("Generic charge, session and subscription observation",
+                                   "does not itself provide a signed execution binding",
+                                   "Only payments routed through the configured guard",
+                                   "They do not make seller payments post-quantum secure"))
+        self.assertIn('id="client-hook"', self.devs)
+        self.assertLess(self.devs.index('id="client-hook"'), self.devs.index("1. Request bound evidence"))
+        self.assertNotIn("keep calling /route.", self.devs)
+        self.assertIn("/how#playground", self.pages["/try"])
 
     def test_scope_is_in_guide_not_release_history_on_home(self):
         self.assertNotIn("Controlled MainNet tests are complete", self.home)
@@ -313,7 +328,7 @@ class HomepageProductTests(unittest.TestCase):
 
     def test_runtime_installation_and_guard_responsibilities(self):
         self.assertWords(self.devs, ("Node.js 22 or newer", "Node 24", "POSIX", "npm install @402signal/route-guard@0.7.4", "npm audit signatures", "sha256sum --check SHA256SUMS", "PUBLIC TEST KEY", "independent trusted configuration", "default observation window is 60 seconds", "transaction effects", "prevent", "scaffolding, not complete wallet code", "next already-probed selectable", "local guard refusal", "excluded_reason: binding_unavailable"))
-        self.assertWords(self.devs, ("node scripts/install_route_guard.mjs", "npm install --ignore-scripts", "not a broken service", "route_outcome.next_action", "isUnsettledRouteMiss", "examples/search.ts", "MCP preview/validate cannot complete a paid route", "wrapExactAuthorize", "keep_calling_route", "Do not stop calling"))
+        self.assertWords(self.devs, ("node scripts/install_route_guard.mjs", "npm install --ignore-scripts", "not a broken service", "route_outcome.next_action", "isUnsettledRouteMiss", "examples/search.ts", "MCP preview/validate cannot complete a paid route", "wrapExactAuthorize", "keep_calling_route", "Only the policy owner may relax constraints"))
         self.assertIn("withVerifiedRoute", self.devs)
         self.assertIn("verifyReceipt", self.devs)
 

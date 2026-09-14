@@ -71,7 +71,10 @@ def catalog_section(conn, since: int) -> dict:
         "SELECT count(*) FROM resources WHERE input_schema_present = 1").fetchone()[0]
     rows = conn.execute(
         "SELECT network, count(DISTINCT resource_id) FROM accept_claims GROUP BY network ORDER BY 2 DESC").fetchall()
+    # Each resource contributes once per distinct network identifier, including aliases.
     total_claims = sum(n for _, n in rows)
+    out["network_memberships_total"] = total_claims
+    out["network_share_basis"] = "distinct_resource_network_memberships"
     out["networks"] = [
         {"network": net, "name": NETWORK_NAMES.get(net or "", net or "unknown"), "listings": n,
          "share": round(100.0 * n / total_claims, 1) if total_claims else None}
@@ -168,7 +171,7 @@ def named_changes(conn, since: int) -> list[dict]:
 
 
 def host_table(rows: list, limit: int = 15) -> list[dict]:
-    """Per-host observation summary, largest hosts by probes first. Public organic rows only."""
+    """Per-host summary: organic and unclassified rows, excluding labeled tests and owned hosts."""
     by_host: dict = {}
     for r in rows:
         if (r[8] or "unclassified") not in ("organic", "unclassified"):
@@ -264,7 +267,7 @@ def chart_svg(report: dict) -> str:
         'aria-label="Live rate and latency by rail, %s">' % (width, height, width, height, report["meta"]["period_label"]),
         '<rect width="%d" height="%d" fill="#fbf8f2"/>' % (width, height),
         '<text x="32" y="40" font-family="Georgia, serif" font-size="24" fill="%s">State of x402 endpoints, %s</text>' % (ink, report["meta"]["period_label"]),
-        '<text x="32" y="66" font-family="Verdana, sans-serif" font-size="13" fill="%s">%s probes on %s URLs; share of probes answered with a live 402 challenge, by fee rail; median and p95 time to the challenge</text>'
+        '<text x="32" y="66" font-family="Verdana, sans-serif" font-size="13" fill="%s">%s probes on %s URLs; share of probes answered with a live 402 challenge, by recorded probe rail; median and p95 time to the challenge</text>'
         % (muted, f"{h['probes']:,}", f"{h['distinct_urls']:,}"),
     ]
     for i, (rail, v) in enumerate(rails):
@@ -279,7 +282,7 @@ def chart_svg(report: dict) -> str:
                      % (y + 44, muted, v["latency_p50_ms"] if v["latency_p50_ms"] is not None else "n/a",
                         v["latency_p95_ms"] if v["latency_p95_ms"] is not None else "n/a"))
     us = h["url_state"]
-    parts.append('<text x="32" y="%d" font-family="Verdana, sans-serif" font-size="12" fill="%s">%d observed price changes and %d observed recipient changes among %s tracked URLs. Source: 402signal.com/insights. Public organic probes; nothing a seller pays for changes these numbers.</text>'
+    parts.append('<text x="32" y="%d" font-family="Verdana, sans-serif" font-size="12" fill="%s">%d observed price changes and %d observed recipient changes among %s tracked URLs. Source: 402signal.com/insights. All recorded traffic classes; see method.</text>'
                  % (height - 22, muted, us["price_changes_in_period"], us["recipient_changes_in_period"], f"{us['tracked_urls']:,}"))
     parts.append("</svg>")
     return "\n".join(parts) + "\n"
@@ -331,12 +334,16 @@ def render(report: dict) -> str:
         sum(f["claims"] for f in c["facilitators_declared"] if f["facilitator"] != "(none declared)"),
         sum(f["claims"] for f in c["facilitators_declared"])))
     lines.append("")
-    lines.append("### Networks by listing share (%d networks seen)" % c["network_count"])
+    lines.append("### Networks by resource-network membership share (%d identifiers seen)" % c["network_count"])
     lines.append("")
-    lines.append("| Network | Listings | Share |")
+    lines.append("| Network identifier | Distinct listings in this network | Membership share |")
     lines.append("|---|---:|---:|")
     for n in c["networks"][:12]:
         lines.append("| %s | %s | %s |" % (n["name"], f"{n['listings']:,}", ("%.1f%%" % n["share"]) if n["share"] is not None else "n/a"))
+    lines.append("")
+    lines.append("Membership shares use the sum of distinct resource-network pairs across all identifiers, "
+                 "not the number of unique resources. A multi-network resource appears in several rows; "
+                 "aliases remain separate. These are not unique-listing reach percentages.")
     lines.append("")
     lines.append("### Capabilities (top 10)")
     lines.append("")
@@ -390,7 +397,7 @@ def render(report: dict) -> str:
                 ("%s ms" % hs["latency_p50_ms"]) if hs["latency_p50_ms"] is not None else "n/a",
                 ("%s ms" % hs["latency_p95_ms"]) if hs["latency_p95_ms"] is not None else "n/a"))
         lines.append("")
-        lines.append("Each host has a public page at https://402signal.com/endpoints/<host> with the same numbers, a badge and a claim link.")
+        lines.append("Each host has a public page at https://402signal.com/endpoints/<host> with a rolling window that may differ from this report.")
         lines.append("")
     lines.append("Catalog claim events in the period: " + (", ".join(
         "%s %d" % (k, v) for k, v in sorted(c["claim_events_in_period"].items())) or "none") + ".")
@@ -406,8 +413,10 @@ def render(report: dict) -> str:
                  "before and after values come from the observation rows on either side of the change clock. A "
                  "listed change is a discovery feed's claim for a URL changing (the catalog listing, at its claimed "
                  "time); listed changes are reported separately and never counted as observed changes. Sponsored "
-                 "and lab traffic classes are 402Signal's own tests and are shown separately; public reliability "
-                 "data on 402signal.com excludes them.")
+                 "and lab traffic classes are shown separately. Overall probe and rail rates include all recorded "
+                 "traffic classes; unclassified does not establish independent customer usage. Named host "
+                 "rows include organic and unclassified probes but exclude labeled tests and owned hosts. "
+                 "Live endpoint pages may use different windows and filters.")
     return "\n".join(lines) + "\n"
 
 
