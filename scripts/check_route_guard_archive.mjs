@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /** Verify a packed route-guard archive, not the source tree.
  *
- * 0.7.4 packed bytes are digest-checked against the published pair before
+ * 0.7.5 packed bytes are digest-checked against the reviewed pair before
  * npm install or import. SHA256SUMS is checked the same way: file digest plus
- * contents vs the tarball hash. Mismatch fails closed. 0.7.4 is published
- * (GitHub release archive; npm registry); the tree must still pack to the
- * same bytes.
+ * contents vs the tarball hash. Mismatch fails closed. 0.7.5 is the release
+ * candidate (pending capabilities row, provisional pair); 0.7.4 stays the
+ * published installer pin until the release. The tree must pack to the
+ * reviewed bytes.
  * Default verify: current chk_grp without buyer merchant_profile, historical
  * leaves that still name merchant_profile, and refuse-on-drift.
  * --historical-verifier tests the published 0.7.1 path: historical leaves
@@ -21,13 +22,13 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = resolve(new URL("..", import.meta.url).pathname);
-const CANDIDATE_TAG = "route-guard-v0.7.4";
-const CANDIDATE_TGZ = "402signal-route-guard-0.7.4.tgz";
-// Reproduced twice locally with npm 11.19.0 on the release branch tip.
+const CANDIDATE_TAG = "route-guard-v0.7.5";
+const CANDIDATE_TGZ = "402signal-route-guard-0.7.5.tgz";
+// Reproduced twice locally with npm 11.19.0 (Node 24) on the release branch tip.
 const REVIEWED_PACK_SHA256 =
-  "164a1328ddcba856b667b74b43573bfb455016144cef84858ae66054be64b5ff";
+  "4c325c41db1ca4f744539b3daf00d9651ce2d1a0e236009cdd9a6b9d29724c69";
 const REVIEWED_SUMS_SHA256 =
-  "d414db64f83d5f68013451c912c7c6a6c03aa32d95d4007ac5b942b353abeaa9";
+  "56fdac051d9531f3d8dca5d4c0b9814b3a7492bc8fe6a1e8e0d918e93cbda4fb";
 
 const arguments_ = process.argv.slice(2);
 let candidate = CANDIDATE_TGZ;
@@ -147,7 +148,7 @@ try {
   const currentDir = mkdtempSync(join(work, "current-"));
   const { verifyBatchRoute } = await install(archive, currentDir);
   const version = packageVersion(currentDir);
-  assert.equal(version, "0.7.4");
+  assert.equal(version, "0.7.5");
   const codecs = new Set();
   for (const v of chkGrp) {
     assert.equal(Object.hasOwn(v.request, "merchant_profile"), false);

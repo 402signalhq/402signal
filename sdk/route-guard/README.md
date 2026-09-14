@@ -25,8 +25,10 @@ check before every seller payment. The hook pays the $0.003 checking fee with
 the same wallet through your payment-capable fetch, re-reads the seller's
 unpaid challenge with a plain fetch, verifies the signed receipt against the
 pinned log key, and aborts the payment unless the verified offer is exactly
-what the client selected. 402Signal's own fee challenge passes through
-unchecked, so nothing recurses.
+what the client selected. The hook's own checking-fee payment passes through
+so nothing recurses, but only while that check is in flight, on the exact
+check URL, to a 402Signal fee recipient, at most the fee; a seller challenge
+that merely names the router's origin is refused (see "Guard hardening").
 
 ```js
 import { x402Client } from "@x402/core/client";
@@ -243,21 +245,21 @@ See [the response contract](../../docs/route-miss-http-status.md).
 ## Install the client
 
 From the npm registry, then check the provenance attestation that the release
-workflow attaches (it names this repository and the `route-guard-v0.7.4` tag):
+workflow attaches (it names this repository and the `route-guard-v0.7.5` tag; 0.7.4 is the last published version until the 0.7.5 release lands):
 
 ```sh
-npm install @402signal/route-guard@0.7.4
+npm install @402signal/route-guard@0.7.5
 npm audit signatures
 ```
 
-Or use the [v0.7.4 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.4) and verify its digest against `SHA256SUMS` and the `packages` row in https://402signal.com/capabilities.json before installing:
+Or use the [v0.7.5 release archive](https://github.com/402signalhq/402signal/releases/tag/route-guard-v0.7.5) and verify its digest against `SHA256SUMS` and the `packages` row in https://402signal.com/capabilities.json before installing:
 
 ```sh
 sha256sum --check SHA256SUMS
-npm install --ignore-scripts ./402signal-route-guard-0.7.4.tgz
+npm install --ignore-scripts ./402signal-route-guard-0.7.5.tgz
 ```
 
-From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.4.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
+From a checked-out release, `npm pack ./sdk/route-guard` also builds the dependency-free package. Compare the resulting `402signal-route-guard-0.7.5.tgz` SHA-256 with the digest published on that GitHub release before installing. The tarball includes TypeScript
 declarations, the local guard and HTTP client. Node 22 or newer is required.
 No install script or wallet dependency is included. Windows callers can supply
 their own durable store; the supplied filesystem adapter runs on POSIX, including WSL.
@@ -388,6 +390,32 @@ const trialHeaders = {
 ```
 
 The original v4 exact-payment guard remains separate.
+
+## Guard hardening (0.7.5)
+
+From the independent security review of 2026-09-14:
+
+- The x402 hook's recursion exemption (letting the buyer pay 402Signal's own
+  checking fee) is no longer granted to any challenge that names the router's
+  origin. It applies only while the hook's own check request is in flight, only
+  for the exact check URL, and only for a payment to one of 402Signal's fee
+  recipients (`DEFAULT_FEE_RECIPIENTS`, from `GET /rails`; override with
+  `feeRecipients` from trusted configuration) at most `maxFeeAtomic` (default
+  5000, a session open). A seller challenge that claims the router's origin
+  outside those bounds is refused, whatever `onMiss` says.
+- `fetchChallenge` (the built-in seller reread) is bounded: at most 64 KiB and
+  10 s end to end, cancelled on either bound (`RouteGuardError`
+  `challenge_too_large` / `challenge_timeout`), with the caller's `AbortSignal`
+  forwarded. Tune with `maxChallengeBytes` and `challengeTimeoutMs`.
+- `method: "POST"` now requires `challengeFor`, `requestFor` and `bodyFor`
+  (the exact body bytes), because the built-in reread sends no body and the
+  receipt binds `body_sha256`. GET is unchanged.
+- `mppGuard` reports the verifier's typed reason (for example
+  `invalid_batch_binding`) instead of a generic `verification_failed`.
+- `prepareVerifiedNativeBaseMpp` (integration/mpp-client) carries the routing
+  evidence's expiry into the deferred credential: authorize, signer entry and
+  credential return all stop at the earlier of the evidence and merchant
+  deadlines (`expired_route_evidence`).
 
 ## Decimal challenge values (0.7.4)
 

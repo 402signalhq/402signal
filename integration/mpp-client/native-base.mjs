@@ -18,7 +18,8 @@ function address(x){check(typeof x==='string'&&/^0x[0-9a-fA-F]{40}$/.test(x)&&Bi
 function amount(x){check(typeof x==='string'&&/^[1-9][0-9]{0,77}$/.test(x)&&BigInt(x)<2n**256n);return BigInt(x);}
 function keys(x,required,optional=[]){check(obj(x)&&required.every(k=>Object.hasOwn(x,k))&&Object.keys(x).every(k=>[...required,...optional].includes(k)));}
 /** No network, signing or payment occurs before the caller's durable authorize callback. */
-export function prepareNativeBaseMpp({request,challenge:wire,policy,now=()=>Date.now()}){
+/** evidenceExpiresAt (ms): the verified routing evidence's deadline; signing must also stop there. */
+export function prepareNativeBaseMpp({request,challenge:wire,policy,now=()=>Date.now(),evidenceExpiresAt}){
  keys(request,['url','method','body']);check(typeof request.url==='string'&&request.body instanceof Uint8Array&&request.body.length<=262144);
  const url=new URL(request.url);check(url.protocol==='https:'&&!url.username&&!url.password&&!url.hash);
  check(['GET','POST'].includes(request.method)&&(request.method!=='GET'||request.body.length===0));
@@ -45,11 +46,15 @@ export function prepareNativeBaseMpp({request,challenge:wire,policy,now=()=>Date
  check(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(params.expires));
  const expires=Date.parse(params.expires),initial=now();
  check(Number.isSafeInteger(initial)&&Number.isFinite(expires)&&initial<expires&&expires-initial<=horizon*1000);
- const assertFresh=()=>{const n=now();check(Number.isSafeInteger(n)&&n>=initial&&n<Math.floor(expires/1000)*1000,'expired_native_base_charge');};
+ if(evidenceExpiresAt!==undefined)check(Number.isSafeInteger(evidenceExpiresAt)&&evidenceExpiresAt>initial,'expired_route_evidence');
+ // Every later authority boundary (authorize, signer entry, credential return) rechecks both
+ // deadlines: the merchant challenge's and, when the caller verified routing evidence, that
+ // evidence's shorter one. A delay between preparation and signing cannot outlive either.
+ const assertFresh=()=>{const n=now();check(Number.isSafeInteger(n)&&n>=initial&&n<Math.floor(expires/1000)*1000,'expired_native_base_charge');if(evidenceExpiresAt!==undefined)check(n<evidenceExpiresAt,'expired_route_evidence');};
  if(params.digest)check(params.digest==='sha-256='+createHash('sha256').update(Buffer.from(snapshot.bodyBase64,'base64')).digest('base64'));
  check(snapshot.method!=='POST'||!!params.digest,'native_post_requires_body_digest');
  const offer=challenge.request;validateOffer(offer);
- const inspection=freeze({protocol:'mpp',method:'evm',intent:'charge',network:'eip155:8453',asset:BASE_USDC,recipient,payer,amountAtomic:offer.amount,expiresAt:expires,request:snapshot,challengeSha256:sha(wire.wwwAuthenticate),responseSha256:sha(canon(retainedWire)),selectedChallengeSha256:sha(selected.raw),selectedChallengeId:params.id});
+ const inspection=freeze({protocol:'mpp',method:'evm',intent:'charge',network:'eip155:8453',asset:BASE_USDC,recipient,payer,amountAtomic:offer.amount,expiresAt:expires,evidenceExpiresAt:evidenceExpiresAt??null,request:snapshot,challengeSha256:sha(wire.wwwAuthenticate),responseSha256:sha(canon(retainedWire)),selectedChallengeSha256:sha(selected.raw),selectedChallengeId:params.id});
  const nonce=keccak256(toBytes(challenge.id+challenge.realm));
  // One chain authorization keeps one durable claim even if a header or offer is re-presented.
  const authorizationId=sha(canon({network:'eip155:8453',asset:BASE_USDC,payer,nonce}));let used=false;
@@ -80,7 +85,9 @@ export function prepareVerifiedNativeBaseMpp({routeEvidence,...options}){
  check(bound.profile==='base-mpp-charge-v1'&&options.request.method==='GET'&&options.request.body.length===0&&bound.request.url===options.request.url,'native_observation_request_mismatch');
  check(eq(bound.challenge,{status:options.challenge.status,bodyText:options.challenge.bodyText??'',paymentRequired:options.challenge.paymentRequired??null,wwwAuthenticate:options.challenge.wwwAuthenticate}),'native_observation_challenge_mismatch');
  const selected=selectNativeCharge(bound.challenge,bound.request,'evm',bound.buyer_limits.realm,e=>validateBaseChargeProfile(e,bound.request,bound.buyer_limits));
- const result=prepareNativeBaseMpp({...options,now});
+ // The signed observation expires before the merchant challenge does (60 s against up to
+ // 300 s); the deferred credential must stop at the earlier of the two (security review S3).
+ const result=prepareNativeBaseMpp({...options,now,evidenceExpiresAt:bound.expires_at*1000});
  check(result.inspection.selectedChallengeSha256===sha(selected.raw),'native_observation_selection_mismatch');
  check(bound.terms.per_call_amount_atomic===result.inspection.amountAtomic&&bound.terms.recipient.toLowerCase()===result.inspection.recipient.toLowerCase(),'native_observation_terms_mismatch');
  return result;

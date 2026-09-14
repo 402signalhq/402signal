@@ -277,7 +277,9 @@ export function mppGuard(options = {}) {
         ...(now === undefined ? {} : { now: typeof now === "function" ? now() : now }),
       });
     } catch (error) {
-      const code = error instanceof RouteGuardError ? error.code : "verification_failed";
+      // batch.mjs raises its own RouteGuardError class; read the typed code from any
+      // guard error rather than testing one module's class (security review F4).
+      const code = error && typeof error.code === "string" && error.code ? error.code : "verification_failed";
       outcome.aborted = `receipt verification failed (${code})`;
       if (onResult) onResult(outcome);
       throw new MppGuardError("mpp_guard_verification_failed", code);

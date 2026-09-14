@@ -14,15 +14,36 @@
 // wallet through fetchWithPayment), fetches the seller's raw unpaid challenge
 // once more with a plain fetch, verifies the signed receipt locally against
 // that challenge with the pinned log key, and aborts the payment unless the
-// verified offer matches the requirements the client selected. 402Signal's
-// own fee challenge is allowed through without a check, so the hook never
-// recurses.
+// verified offer matches the requirements the client selected. The hook's own
+// checking-fee payment is let through without a check so it never recurses,
+// but only while that check request is in flight, only for the exact check
+// URL, and only for a payment to one of 402Signal's fee recipients at most the
+// fee amount: a seller cannot earn the exemption by naming the router in its
+// challenge, and a challenge that claims the router's origin outside those
+// bounds is refused outright.
 //
 // Zero dependencies. Never holds keys, never signs, never retries.
 
 import { RouteGuardError, verifyRoute } from "./index.mjs";
 
 export const DEFAULT_ROUTER = "https://402signal.com/route";
+
+/**
+ * 402Signal's checking-fee recipients (GET /rails), one per fee rail. The
+ * recursion exemption is granted only to a payment that goes to one of these.
+ * A rotation ships with a package release; pass feeRecipients from trusted
+ * configuration to override.
+ */
+export const DEFAULT_FEE_RECIPIENTS = Object.freeze([
+  "0xa2604ae688228af8349363770351bfcec66d4fa0", // base
+  "C8qDYG8NTyvdY85gvGfs1WajwGhiLu6f1vi3JaG1r1iA", // solana
+  "N2JSJZCSORMYGYO2NSIYRUEMBFRHEOMYODVXV2MXYYHB5H2JVUGG6NJ4NQ", // algorand
+]);
+/** $0.005 USDC: a hosted session open. A check is 3000. */
+export const DEFAULT_MAX_FEE_ATOMIC = "5000";
+/** The raw seller challenge the verifier accepts is at most 64 KiB; reading stops there. */
+export const MAX_CHALLENGE_BYTES = 64 * 1024;
+export const DEFAULT_CHALLENGE_TIMEOUT_MS = 10000;
 
 const RAIL_BY_PREFIX = [
   ["eip155:", "base"],
@@ -75,23 +96,89 @@ export function defaultRequest(resourceUrl, selected, extra = {}) {
   return { ...request, ...extra };
 }
 
+async function readBounded(response, maxBytes, controller) {
+  const body = response && response.body;
+  if (body && typeof body.getReader === "function") {
+    const reader = body.getReader();
+    const chunks = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        const error = new RouteGuardError("challenge_too_large");
+        try {
+          await reader.cancel(error);
+        } catch {
+          // the stream is being abandoned either way
+        }
+        controller.abort(error);
+        throw error;
+      }
+      chunks.push(value);
+    }
+    const joined = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      joined.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return new TextDecoder("utf-8").decode(joined);
+  }
+  const text = await response.text();
+  if (new TextEncoder().encode(text).byteLength > maxBytes) throw new RouteGuardError("challenge_too_large");
+  return text;
+}
+
 /**
  * Fetch the seller's current unpaid challenge with a plain fetch: same URL and
  * method the check observed, redirects refused, both channels captured.
+ *
+ * The seller controls this response, so the read is bounded before anything is
+ * parsed: at most maxBytes (default 64 KiB, the verifier's own cap) and at most
+ * timeoutMs (default 10 s) end to end, with the caller's AbortSignal forwarded.
+ * Over either bound the read fails closed with RouteGuardError
+ * challenge_too_large or challenge_timeout, and the stream is cancelled.
  */
-export async function fetchChallenge(rawFetch, url, method = "GET") {
-  const response = await rawFetch(url, {
-    method,
-    headers: { accept: "application/json" },
-    redirect: "error",
+export async function fetchChallenge(rawFetch, url, method = "GET", options = {}) {
+  const { maxBytes = MAX_CHALLENGE_BYTES, timeoutMs = DEFAULT_CHALLENGE_TIMEOUT_MS, signal } = options;
+  const controller = new AbortController();
+  const aborted = new Promise((_resolve, reject) => {
+    controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true });
   });
-  const bodyText = await response.text();
-  return {
-    status: response.status,
-    bodyText,
-    paymentRequired: headerValue(response, "payment-required"),
-    xPaymentRequired: headerValue(response, "x-payment-required"),
-  };
+  aborted.catch(() => {});
+  const timer = setTimeout(() => controller.abort(new RouteGuardError("challenge_timeout")), timeoutMs);
+  if (typeof timer.unref === "function") timer.unref();
+  const forward = () => controller.abort(signal.reason);
+  if (signal) {
+    if (signal.aborted) forward();
+    else signal.addEventListener("abort", forward, { once: true });
+  }
+  try {
+    const response = await Promise.race([
+      rawFetch(url, {
+        method,
+        headers: { accept: "application/json" },
+        redirect: "error",
+        signal: controller.signal,
+      }),
+      aborted,
+    ]);
+    const bodyText = await Promise.race([readBounded(response, maxBytes, controller), aborted]);
+    return {
+      status: response.status,
+      bodyText,
+      paymentRequired: headerValue(response, "payment-required"),
+      xPaymentRequired: headerValue(response, "x-payment-required"),
+    };
+  } catch (error) {
+    const reason = controller.signal.aborted ? controller.signal.reason : undefined;
+    throw reason instanceof RouteGuardError ? reason : error;
+  } finally {
+    clearTimeout(timer);
+    if (signal) signal.removeEventListener("abort", forward);
+  }
 }
 
 /**
@@ -112,7 +199,19 @@ export async function fetchChallenge(rawFetch, url, method = "GET") {
  *                           default { url, require_route_binding: true, networks }.
  *                           Add max_price_usd or other constraints here.
  * options.method            Method the buyer uses for the seller request. The hosted
- *                           check observes GET; default "GET".
+ *                           check observes GET; default "GET". POST is accepted only
+ *                           with challengeFor, requestFor and bodyFor, because the
+ *                           built-in reread sends no body and the receipt binds the
+ *                           exact body bytes.
+ * options.bodyFor           Optional (context) => Uint8Array | string, the exact body
+ *                           the buyer sends; bound into the verification. Required
+ *                           for POST.
+ * options.feeRecipients     402Signal fee recipients the recursion exemption may pay
+ *                           (default DEFAULT_FEE_RECIPIENTS; see GET /rails).
+ * options.maxFeeAtomic      Largest atomic amount the exemption may pay (default
+ *                           DEFAULT_MAX_FEE_ATOMIC, a session open).
+ * options.maxChallengeBytes, options.challengeTimeoutMs
+ *                           Bounds for the built-in seller reread (64 KiB, 10 s).
  * options.onMiss            "abort" (default) or "allow" when 402Signal reports no
  *                           qualifying live offer or cannot bind.
  * options.replayKey         Optional (context) => 64 lowercase hex chars, sent as
@@ -129,11 +228,16 @@ export function signalGuard(options = {}) {
     rawFetch = globalThis.fetch,
     challengeFor,
     requestFor,
+    bodyFor,
     method = "GET",
     onMiss = "abort",
     replayKey,
     onResult,
     now,
+    feeRecipients = DEFAULT_FEE_RECIPIENTS,
+    maxFeeAtomic = DEFAULT_MAX_FEE_ATOMIC,
+    maxChallengeBytes = MAX_CHALLENGE_BYTES,
+    challengeTimeoutMs = DEFAULT_CHALLENGE_TIMEOUT_MS,
   } = options;
   if (typeof fetchWithPayment !== "function") {
     throw new TypeError("signalGuard: fetchWithPayment (a payment-capable fetch) is required");
@@ -147,12 +251,36 @@ export function signalGuard(options = {}) {
   if (method !== "GET" && method !== "POST") {
     throw new TypeError("signalGuard: method must be GET or POST");
   }
+  if (method === "POST" && (typeof challengeFor !== "function" || typeof requestFor !== "function" || typeof bodyFor !== "function")) {
+    throw new TypeError(
+      "signalGuard: POST needs challengeFor, requestFor and bodyFor carrying the exact request body; the built-in reread sends none",
+    );
+  }
   if (onMiss !== "abort" && onMiss !== "allow") {
     throw new TypeError("signalGuard: onMiss must be \"abort\" or \"allow\"");
+  }
+  if (!Array.isArray(feeRecipients) || feeRecipients.length === 0 || !feeRecipients.every((r) => typeof r === "string" && r.length > 0)) {
+    throw new TypeError("signalGuard: feeRecipients must be a non-empty list of recipient strings");
+  }
+  if (!/^[0-9]{1,30}$/.test(String(maxFeeAtomic))) {
+    throw new TypeError("signalGuard: maxFeeAtomic must be an atomic amount string");
   }
   const routerUrl = new URL(router);
   if (routerUrl.protocol !== "https:" && routerUrl.hostname !== "127.0.0.1" && routerUrl.hostname !== "localhost") {
     throw new TypeError("signalGuard: router must be an https URL");
+  }
+  const feeRecipientSet = new Set(feeRecipients.map((r) => (r.startsWith("0x") ? r.toLowerCase() : r)));
+  const feeCap = BigInt(String(maxFeeAtomic));
+  // Counts this hook's own check requests currently awaiting the router. The
+  // recursion exemption exists only while one is in flight.
+  let feeCallsInFlight = 0;
+
+  function ownFeeChallenge(target, selected) {
+    if (feeCallsInFlight === 0 || target.href !== routerUrl.href) return false;
+    if (!selected || typeof selected !== "object") return false;
+    if (!feeRecipientSet.has(normalizeAddress(selected.payTo, selected.network))) return false;
+    const amount = String(selected.amount ?? "");
+    return /^[0-9]{1,30}$/.test(amount) && BigInt(amount) <= feeCap;
   }
 
   return async function beforePaymentCreation(context) {
@@ -165,9 +293,14 @@ export function signalGuard(options = {}) {
     } catch {
       return abort("402signal: payment resource url is missing");
     }
-    // The buyer is paying 402Signal's own checking fee. Let it through; a check
-    // of the checker would recurse forever.
-    if (target.origin === routerUrl.origin) return undefined;
+    // The buyer is paying 402Signal's own checking fee for the check this hook
+    // started: let it through, or a check of the checker would recurse forever.
+    if (ownFeeChallenge(target, selected)) return undefined;
+    // Anything else that claims the checker's origin is a seller trying to borrow
+    // that exemption (the router does not check itself): refuse, whatever onMiss says.
+    if (target.origin === routerUrl.origin) {
+      return abort("402signal: seller challenge claims the checker's own url");
+    }
     if (!selected || typeof selected !== "object") {
       return abort("402signal: no selected payment requirements");
     }
@@ -182,6 +315,7 @@ export function signalGuard(options = {}) {
 
     let response;
     let text;
+    feeCallsInFlight += 1;
     try {
       response = await fetchWithPayment(routerUrl.href, {
         method: "POST",
@@ -192,6 +326,8 @@ export function signalGuard(options = {}) {
       text = await response.text();
     } catch (error) {
       return abort(`402signal: check request failed (${(error && error.message) || "network error"})`);
+    } finally {
+      feeCallsInFlight -= 1;
     }
 
     let body;
@@ -212,7 +348,9 @@ export function signalGuard(options = {}) {
 
     let challenge;
     try {
-      challenge = challengeFor ? await challengeFor(context) : await fetchChallenge(rawFetch, target.href, method);
+      challenge = challengeFor
+        ? await challengeFor(context)
+        : await fetchChallenge(rawFetch, target.href, method, { maxBytes: maxChallengeBytes, timeoutMs: challengeTimeoutMs });
     } catch (error) {
       outcome.aborted = `402signal: seller challenge unavailable (${(error && error.message) || "network error"})`;
       if (onResult) onResult(outcome);
@@ -220,11 +358,16 @@ export function signalGuard(options = {}) {
     }
 
     try {
+      const requestContext = { url: target.href, method };
+      if (bodyFor) {
+        const body = bodyFor(context);
+        requestContext.body = typeof body === "string" ? new TextEncoder().encode(body) : body;
+      }
       const verified = verifyRoute({
         routeResponseJson: text,
         routeRequestJson,
         trustedLogVkey,
-        request: { url: target.href, method },
+        request: requestContext,
         challenge,
         now: typeof now === "function" ? now() : now,
       });

@@ -5,6 +5,29 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- `@402signal/route-guard` 0.7.5 release candidate (security review
+  2026-09-14, SDK side; the pending `capabilities.json` row carries the
+  provisional pair, the installer and site pins stay on the published 0.7.4
+  until the release):
+  - S1: the x402 hook's recursion exemption is granted only while the hook's
+    own check request is in flight, for the exact check URL, to one of
+    402Signal's fee recipients (`DEFAULT_FEE_RECIPIENTS`, from `GET /rails`;
+    `feeRecipients` overrides) and at most `maxFeeAtomic` (5000). A seller
+    challenge that names the router's origin outside those bounds is refused
+    whatever `onMiss` says; before, any challenge claiming the router's origin
+    was allowed through with no check or receipt verification.
+  - S2: `fetchChallenge` reads the seller's reread through a bounded stream:
+    64 KiB and 10 s end to end, cancelled on either bound
+    (`challenge_too_large`, `challenge_timeout`), caller `AbortSignal`
+    forwarded; `maxChallengeBytes` and `challengeTimeoutMs` tune it.
+  - S3: `prepareVerifiedNativeBaseMpp` carries the routing evidence's expiry
+    into the deferred credential; authorize, signer entry and credential
+    return stop at the earlier of the evidence and merchant deadlines
+    (`expired_route_evidence`).
+  - F4: `mppGuard` reports the verifier's typed reason instead of a generic
+    `verification_failed` when the batch verifier refuses.
+  - F5: `method: "POST"` requires `challengeFor`, `requestFor` and `bodyFor`;
+    the exact body is bound into verification. GET is unchanged.
 - Security review 2026-09-14 (independent assessment of `d824de2`), server side:
   - F1 alerts: a scan with more changes than one delivery holds (200) now
     sends the oldest batch and moves the subscription's cursor only past what
