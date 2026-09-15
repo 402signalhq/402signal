@@ -443,7 +443,20 @@ class HomepageProductTests(unittest.TestCase):
             self.assertIn('href="/styles.css"', _read(name))
             self.assertNotIn("?v=", _read(name))
         self.assertIn('rel="canonical" href="https://402signal.com/"', self.home)
-        self.assertIn('property="og:image" content="https://402signal.com/og.png"', self.home)
+        # The preview image carries the deploy version so link unfurlers re-fetch it
+        # after every deploy; the static file itself stays unversioned.
+        self.assertIn('property="og:image" content="https://402signal.com/og.png?v=' + version + '"', self.home)
+        self.assertNotIn('content="https://402signal.com/og.png"', self.home)
+        self.assertIn('content="https://402signal.com/og.png"', _read("index.html"))
+        conn = HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", "/og.png?v=" + version)
+        res = conn.getresponse()
+        head, headers = res.read(8), {k.lower(): v for k, v in res.getheaders()}
+        conn.close()
+        self.assertEqual(res.status, 200)
+        self.assertEqual(head, b"\x89PNG\r\n\x1a\n")
+        self.assertEqual(headers.get("cache-control"), asset_version.ASSET_LONG_CACHE)
+        self.assertIn("image/png", headers.get("content-type", ""))
 
     def test_machine_interfaces_and_unpaid_route_preserved(self):
         for path in ("/preview?need=weather", "/openapi.json", "/mcp.json", "/.well-known/x402.json", "/rails", "/pulse", "/llms.txt"):
