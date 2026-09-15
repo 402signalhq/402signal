@@ -578,6 +578,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
         "servers": [{"url": origin, "description": "This origin"}],
         "tags": [
             {"name": "Paid", "description": "x402-gated routes"},
+            {"name": "Discovery", "description": "Unpaid discovery and browser surfaces; nothing under this tag settles a checking fee"},
             {"name": "Public", "description": "Catalog, preflight, rails, and liveness"},
             {"name": "Keys", "description": "Admission keys, check credits and change alerts; each call answers only for the credentials presented"},
         ],
@@ -585,9 +586,13 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
             "/route": {
                 "get": {
                     "operationId": "getRoute",
-                    "tags": ["Paid"],
-                    "summary": "Get JSON 402 challenge or HTML page",
-                    "description": "Agents and crawlers that omit Accept or send application/json receive HTTP 402 with accepts[]. Browsers that send text/html receive an HTML page. Agents that intend to pay should POST.",
+                    "tags": ["Discovery"],
+                    # A discovery alias, not a second paid resource: origin scanners that
+                    # read this contract were listing GET /route as its own $0.003 service.
+                    # The priced declaration lives on POST /route only.
+                    "x-402signal-role": "discovery-alias",
+                    "summary": "Unpaid 402 challenge or human page; authorize with POST /route",
+                    "description": "A discovery and browser alias of POST /route. Agents and crawlers that omit Accept or send application/json receive the current unpaid HTTP 402 challenge with accepts[]; browsers that send text/html receive an HTML page. Nothing here settles a checking fee: a buyer that intends to authorize sends the same challenge's payment header with POST /route, never GET.",
                     "parameters": [
                         {
                             "in": "header",
@@ -597,16 +602,6 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                             "schema": {"type": "string", "example": "application/json"},
                         }
                     ],
-                    "x-payment-info": {
-                        "price": {"mode": "fixed", "currency": "USD", "amount": ROUTING_PRICE_USDC},
-                        "protocols": [{"x402": {}}],
-                        "networks": ["eip155:8453", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8="],
-                        "asset": "USDC",
-                        "amountAtomic": payment.AMOUNT_ATOMIC,
-                        "billingModel": payment.ROUTING_BILLING_MODEL,
-                        "settlementCondition": payment.ROUTING_SETTLEMENT_CONDITION,
-                        "typedMissesSettled": False,
-                    },
                     "responses": {
                         "200": {
                             "description": "HTML page for browsers that send Accept: text/html",
@@ -636,6 +631,7 @@ def openapi_spec(resource_url: str = ROUTE) -> dict:
                 "post": {
                     "operationId": "route",
                     "tags": ["Paid"],
+                    "x-402signal-role": "paid-authorization",
                     "parameters": [{"$ref": "#/components/parameters/ReplayKey"}],
                     "summary": "Authorize $0.003 USDC; settle only for a valid live route",
                     "description": DESC,

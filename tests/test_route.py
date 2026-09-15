@@ -699,7 +699,7 @@ class PaywallTests(unittest.TestCase):
         spec = json.loads(_get(self.port, "/openapi.json")[1])
         self.assertTrue(str(spec.get("openapi", "")).startswith("3."))
         route_get = spec["paths"]["/route"]["get"]
-        self.assertEqual(route_get.get("summary"), "Get JSON 402 challenge or HTML page")
+        self.assertEqual(route_get.get("summary"), "Unpaid 402 challenge or human page; authorize with POST /route")
         self.assertIn("402", route_get["responses"])
         self.assertIn("200", route_get["responses"])
         route = spec["paths"]["/route"]["post"]

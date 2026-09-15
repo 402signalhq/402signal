@@ -5,6 +5,15 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- OpenAPI: `GET /route` is declared as what it is, the unpaid discovery and
+  browser alias (`Discovery` tag, `x-402signal-role: discovery-alias`, no
+  price block); `POST /route` is the one priced operation
+  (`x-402signal-role: paid-authorization`). External origin scanners had been
+  listing GET as a second $0.003 service. Runtime unchanged. New tests hold
+  the rule and check that `/rails`, the well-known files and every unpaid
+  challenge (GET, POST, MCP `tools/call`) agree on networks, price and the
+  POST input method, and that `/mcp` answers 400, 200 and 402 to malformed,
+  handshake and unpaid tool-call requests respectively.
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
   PR #250 merge commit (5ea0df9), GitHub release 2026-09-14T15:52:55Z with the
   reviewed pair (`8fbf694f…` tarball, `00572428…` SHA256SUMS; the downloaded
