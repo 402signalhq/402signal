@@ -5,6 +5,15 @@ server. The format follows Keep a Changelog; dates are UTC.
 
 ## Unreleased
 
+- Site: the link-preview image (`og.png`, what X, Slack, Discord and iMessage
+  show for a 402signal.com link) now carries the current headline, "Check the
+  offer before your agent pays.", instead of the pre-relaunch line it still
+  showed; the artwork, wordmark and rails are the original pixels, only the
+  headline text was replaced in the same face. Served pages stamp the deploy
+  version onto the `og:image` URL, the way the stylesheet and scripts are
+  stamped, so unfurlers that cache by URL fetch the new image after this and
+  every later deploy (`/og.png?v=<version>` is served with the long-lived
+  cache header, the bare path stays revalidated).
 - `@402signal/route-guard` 0.7.6 published: tag `route-guard-v0.7.6` on the
   PR #250 merge commit (5ea0df9), GitHub release 2026-09-14T15:52:55Z with the
   reviewed pair (`8fbf694f…` tarball, `00572428…` SHA256SUMS; the downloaded

@@ -17,6 +17,11 @@ HTML_REVALIDATE = "no-cache, must-revalidate"
 ASSET_LONG_CACHE = "public, max-age=31536000, immutable"
 ASSET_PATHS = ("/styles.css", "/app.js", "/dashboard.js", "/transparency.js", "/verify.js")
 ASSET_FILES = tuple(p.lstrip("/") for p in ASSET_PATHS)
+# The link-preview image is referenced by absolute URL in the og:image /
+# twitter:image meta tags. Link unfurlers (X, Slack, Discord, LinkedIn, iMessage)
+# cache by URL for days, so the served pages carry the deploy version on it:
+# a new image reaches every preview on the next deploy without a rename.
+OG_IMAGE_URL = "https://402signal.com/og.png"
 _TOKEN = re.compile(r"^[A-Za-z0-9._-]{7,64}$")
 _GIT_SHA = re.compile(r"^[0-9a-f]{7,40}$")
 _cached: str | None = None
@@ -50,6 +55,10 @@ def stamp_html(html: str, version: str | None = None) -> str:
                 needle = "%s=%s%s%s" % (attr, quote, path, quote)
                 if needle in out:
                     out = out.replace(needle, "%s=%s%s%s" % (attr, quote, stamped, quote))
+    for quote in ('"', "'"):
+        needle = "content=%s%s%s" % (quote, OG_IMAGE_URL, quote)
+        if needle in out:
+            out = out.replace(needle, "content=%s%s%s" % (quote, versioned_url(OG_IMAGE_URL, ver), quote))
     return out
 
 
