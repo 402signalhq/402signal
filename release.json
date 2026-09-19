@@ -1,0 +1,8 @@
+{
+  "tag": "algorand-batch-buyer-v0.2.0",
+  "original_source_commit": "65371be8c2d54af6fe52459d31f5009b0171f962",
+  "original_published_at": "2026-09-08T21:23:28Z",
+  "artifact": "402signal-algorand-batch-buyer-0.2.0.tgz",
+  "sha256": "36a984cca2ac33200d15fe1318f8163c2dcdf61b9bb97308d18763b2967a792b",
+  "snapshot": "Exact files from the published package; not the original full-repository source tree."
+}
