@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "generatedFrom": "unchanged repository primitives; only native parser import path adjusted",
+  "files": {
+    "internal/base-batch-lifecycle.js": {
+      "source": "integration/lab/dist/src/base-batch-lifecycle.js",
+      "sourceSha256": "b911cbee05b7f08739717343c5b5c488edf0356c96e5eb05484812e3e53ae875",
+      "packagedSha256": "b911cbee05b7f08739717343c5b5c488edf0356c96e5eb05484812e3e53ae875"
+    },
+    "internal/base-batch-observer.js": {
+      "source": "integration/lab/dist/src/base-batch-observer.js",
+      "sourceSha256": "1ab01f658618b30ba432a90790ad3bcb2e66034fb01dc8851234f0551ef5d5a6",
+      "packagedSha256": "1ab01f658618b30ba432a90790ad3bcb2e66034fb01dc8851234f0551ef5d5a6"
+    },
+    "internal/base-batch-ledger.js": {
+      "source": "integration/lab/dist/src/base-batch-ledger.js",
+      "sourceSha256": "8aa83a30fa71893e902aa56d3e84635b5610eaabb320257028ed76c3e2beed69",
+      "packagedSha256": "8aa83a30fa71893e902aa56d3e84635b5610eaabb320257028ed76c3e2beed69"
+    },
+    "internal/batch-schema-readiness.js": {
+      "source": "integration/lab/dist/src/batch-schema-readiness.js",
+      "sourceSha256": "501f275892160c502b2246ebbcdc203ee50caa73d95d55c4925d49bbce6ee0ba",
+      "packagedSha256": "501f275892160c502b2246ebbcdc203ee50caa73d95d55c4925d49bbce6ee0ba"
+    },
+    "internal/batch-operation-journal.js": {
+      "source": "integration/lab/dist/src/batch-operation-journal.js",
+      "sourceSha256": "c4c3ad28f905a3cfdec578a18c51d699a52f718798afb361bd08201ff4d8e586",
+      "packagedSha256": "c4c3ad28f905a3cfdec578a18c51d699a52f718798afb361bd08201ff4d8e586"
+    },
+    "internal/batch-operation-runner.js": {
+      "source": "integration/lab/dist/src/batch-operation-runner.js",
+      "sourceSha256": "3238c01ea9b74efa4e157fb453b51ffa47c3572eb16b0d58aecb61a85b09ed77",
+      "packagedSha256": "3238c01ea9b74efa4e157fb453b51ffa47c3572eb16b0d58aecb61a85b09ed77"
+    },
+    "internal/local-ledger.mjs": {
+      "source": "integration/lab/owner-runtime/local-ledger.mjs",
+      "sourceSha256": "ff5ded4588d19ae01dd587f2525a68400270b255cff606bca0ccd310e98d3c65",
+      "packagedSha256": "ff5ded4588d19ae01dd587f2525a68400270b255cff606bca0ccd310e98d3c65"
+    },
+    "internal/native-v1.mjs": {
+      "source": "integration/lab/solana-session-contracts/src/owner-session.mjs",
+      "sourceSha256": "90cfed7c12ef28814f96e5cb7c74ca1542b61ccccad87625802abb73b9e3a1a7",
+      "packagedSha256": "91a20f99229be5ecf5383bd17fc9ecd480ae98f284e2e992bb16285d054eace5"
+    },
+    "route-guard/batch.mjs": {
+      "source": "sdk/route-guard/batch.mjs",
+      "sourceSha256": "0d9beb2ad459023b308d6f74174bfe916abb8d61254285861289ccaf5cd12528",
+      "packagedSha256": "0d9beb2ad459023b308d6f74174bfe916abb8d61254285861289ccaf5cd12528"
+    },
+    "route-guard/client.mjs": {
+      "source": "sdk/route-guard/client.mjs",
+      "sourceSha256": "d11d1b84b36bf5016c33fe1596c73b86f15c9632875cdc66da899545daf57778",
+      "packagedSha256": "d11d1b84b36bf5016c33fe1596c73b86f15c9632875cdc66da899545daf57778"
+    },
+    "route-guard/file-store.mjs": {
+      "source": "sdk/route-guard/file-store.mjs",
+      "sourceSha256": "f2fde4a6d3c28729b5f9199d5ba59dd8bf6c4907fc2b76fe2e20af710a9ea7cc",
+      "packagedSha256": "f2fde4a6d3c28729b5f9199d5ba59dd8bf6c4907fc2b76fe2e20af710a9ea7cc"
+    },
+    "route-guard/index.mjs": {
+      "source": "sdk/route-guard/index.mjs",
+      "sourceSha256": "c58e46cdc44c51a3cc82f6752fcaa83fa3352d657a9f15e793970657ce858e24",
+      "packagedSha256": "c58e46cdc44c51a3cc82f6752fcaa83fa3352d657a9f15e793970657ce858e24"
+    },
+    "route-guard/internal-json.mjs": {
+      "source": "sdk/route-guard/internal-json.mjs",
+      "sourceSha256": "3620a93d28bed6ee1992f085345deb5321f8966e2febf6c6a8a991109917105b",
+      "packagedSha256": "3620a93d28bed6ee1992f085345deb5321f8966e2febf6c6a8a991109917105b"
+    },
+    "route-guard/recovery.mjs": {
+      "source": "sdk/route-guard/recovery.mjs",
+      "sourceSha256": "7761bb343929d90eedba46af6be84faeddd7fd01428f4a31fc88de3a85abb20f",
+      "packagedSha256": "7761bb343929d90eedba46af6be84faeddd7fd01428f4a31fc88de3a85abb20f"
+    },
+    "route-guard/batch-profiles/algorand-charge.mjs": {
+      "source": "sdk/route-guard/batch-profiles/algorand-charge.mjs",
+      "sourceSha256": "f16d30a446e6e806ec682afd9674007a2ce374af948845882288bcc490c089aa",
+      "packagedSha256": "f16d30a446e6e806ec682afd9674007a2ce374af948845882288bcc490c089aa"
+    },
+    "route-guard/batch-profiles/algorand-generic.mjs": {
+      "source": "sdk/route-guard/batch-profiles/algorand-generic.mjs",
+      "sourceSha256": "42be45b37af7cabd204d47f7786c7699208662aef76c16f8ff81ed5a6e593c01",
+      "packagedSha256": "42be45b37af7cabd204d47f7786c7699208662aef76c16f8ff81ed5a6e593c01"
+    },
+    "route-guard/batch-profiles/algorand-manifest.mjs": {
+      "source": "sdk/route-guard/batch-profiles/algorand-manifest.mjs",
+      "sourceSha256": "0d8d6441b5d249c15cfcbf74a4617ec9464516bf212524f8146f63f28f8a8d28",
+      "packagedSha256": "0d8d6441b5d249c15cfcbf74a4617ec9464516bf212524f8146f63f28f8a8d28"
+    },
+    "route-guard/batch-profiles/algorand.mjs": {
+      "source": "sdk/route-guard/batch-profiles/algorand.mjs",
+      "sourceSha256": "b740bc95870de93b5ff93a53aa426b92dc9db534bf171575a9ae4d6715f01f41",
+      "packagedSha256": "b740bc95870de93b5ff93a53aa426b92dc9db534bf171575a9ae4d6715f01f41"
+    },
+    "route-guard/batch-profiles/base-charge.mjs": {
+      "source": "sdk/route-guard/batch-profiles/base-charge.mjs",
+      "sourceSha256": "55f39f29860051932aea5e57cf2ee6646011854cd7618a48d3c63e2c1b9d14af",
+      "packagedSha256": "55f39f29860051932aea5e57cf2ee6646011854cd7618a48d3c63e2c1b9d14af"
+    },
+    "route-guard/batch-profiles/base.mjs": {
+      "source": "sdk/route-guard/batch-profiles/base.mjs",
+      "sourceSha256": "0c165dac2a015f2ed4201a7f9703592ea01b1c29086195bd79d6c1ac26b126f1",
+      "packagedSha256": "0c165dac2a015f2ed4201a7f9703592ea01b1c29086195bd79d6c1ac26b126f1"
+    },
+    "route-guard/batch-profiles/native-charge.mjs": {
+      "source": "sdk/route-guard/batch-profiles/native-charge.mjs",
+      "sourceSha256": "bb0255d789f01eb674712257dc3276c004d53982855951450d847cc6a9848f62",
+      "packagedSha256": "bb0255d789f01eb674712257dc3276c004d53982855951450d847cc6a9848f62"
+    },
+    "route-guard/batch-profiles/solana.mjs": {
+      "source": "sdk/route-guard/batch-profiles/solana.mjs",
+      "sourceSha256": "435d6faac54c7550bddfae89e5b43998f5c62d16ec251e92ba7ecad5771546b4",
+      "packagedSha256": "435d6faac54c7550bddfae89e5b43998f5c62d16ec251e92ba7ecad5771546b4"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "tag": "session-client-v0.1.1",
+  "original_source_commit": "37152505b06f6fc5c003a3ee347a18187f51e3e5",
+  "original_published_at": "2026-09-08T21:48:08Z",
+  "artifact": "402signal-session-client-0.1.1.tgz",
+  "sha256": "682b149b96d475c0def54ff01eab7194ca0db6645bb4a69a76b03f958bbc9aea",
+  "snapshot": "Exact files from the published package; not the original full-repository source tree."
+}
