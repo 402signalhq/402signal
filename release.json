@@ -1,0 +1,8 @@
+{
+  "tag": "route-guard-v0.7.7",
+  "original_source_commit": "b3333fc0e8f1211e3a07d258da571c96bb7b157c",
+  "original_published_at": "2026-09-17T01:37:03Z",
+  "artifact": "402signal-route-guard-0.7.7.tgz",
+  "sha256": "02dbfa385b9c79d439a93e5ae32256965cfe5c1a05cc32f66fd302c49940e45d",
+  "snapshot": "Exact files from the published package; not the original full-repository source tree."
+}
