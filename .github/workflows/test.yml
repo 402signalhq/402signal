@@ -1,0 +1,96 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12.14"
+      - name: Select Node 24
+        shell: bash
+        run: |
+          set -euo pipefail
+          node_dir="$(find "$RUNNER_TOOL_CACHE/node" -mindepth 3 -maxdepth 3 -type d -path '*/24.*/x64/bin' -print | sort -V | tail -n 1)"
+          test -n "$node_dir"
+          "$node_dir/node" -e 'if (Number(process.versions.node.split(".")[0]) !== 24) process.exit(1)'
+          printf '%s\n' "$node_dir" >> "$GITHUB_PATH"
+      - name: Test Python client and MCP adapter
+        run: |
+          python -m pip install --disable-pip-version-check cryptography==50.0.1
+          PYTHONPATH=sdk/python/src:protocol/python python -m unittest discover -s sdk/python/tests -v
+          python -m unittest discover -s tests -p test_glama_stdio.py -v
+          PYTHONPATH=protocol/python python -m unittest discover -s protocol/tests -v
+      - name: Test local guard
+        run: |
+          npm --prefix sdk/route-guard run check
+          npm --prefix sdk/route-guard test
+      - name: Install locked client dependencies
+        run: |
+          for package in client-runtime reference-buyer mpp-client mpp-algorand session-client client-runtime/solana-session-contracts batch-buyer/algorand; do
+            npm --prefix "integration/$package" ci --ignore-scripts --no-audit --no-fund
+          done
+      - name: Build client primitives and buyer packages
+        run: |
+          npm --prefix integration/client-runtime run build
+          npm --prefix integration/session-client run build
+          npm --prefix integration/batch-buyer/algorand run build
+      - name: Test payment adapters and consumer packages
+        run: |
+          for package in reference-buyer mpp-client mpp-algorand session-client; do
+            npm --prefix "integration/$package" test
+          done
+          # The retained Solana test peer is exercised by session-client's suite.
+          # It has no separate test suite or deployable merchant runtime.
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          globalThis.fetch = () => { throw Error('package imports must not use network'); };
+          for (const [file, name] of [
+            ['index.mjs', 'prepareAlgorandBatch'],
+            ['manifest.mjs', 'executeAlgorandManifest'],
+            ['manifest-store.mjs', 'AlgorandManifestStore'],
+          ]) {
+            const client = await import('./integration/batch-buyer/algorand/' + file);
+            assert.equal(typeof client[name], 'function', file + ':' + name);
+          }
+          JS
+          node integration/buyer-checks/lifecycle.mjs all
+          node --test integration/buyer-checks/*.test.mjs
+          npm --prefix integration/session-client run test:package
+          npm --prefix integration/session-client run test:types
+          node scripts/check_route_guard_package.mjs
+      - name: Verify published archive checksums and historical receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          pack_dir="$RUNNER_TEMP/published-route-guard"
+          mkdir -p "$pack_dir"
+          for asset in 402signal-route-guard-0.7.7.tgz SHA256SUMS; do
+            curl --fail --silent --show-error --location \
+              "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.7/$asset" \
+              --output "$pack_dir/$asset"
+          done
+          node scripts/check_route_guard_archive.mjs "$pack_dir/402signal-route-guard-0.7.7.tgz" \
+            --checksum-file "$pack_dir/SHA256SUMS" \
+            --historical-verifier https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.1/402signal-route-guard-0.7.1.tgz
+          PACK_DIR="$pack_dir" node --test scripts/check_route_guard_archive.test.mjs scripts/install_route_guard.test.mjs
+      - name: Audit locked client dependencies
+        run: |
+          for package in client-runtime reference-buyer mpp-client mpp-algorand session-client client-runtime/solana-session-contracts batch-buyer/algorand; do
+            npm --prefix "integration/$package" audit --package-lock-only --ignore-scripts --audit-level=high
+          done
+      - name: Build the MCP adapter container
+        run: docker build --tag 402signal-mcp:ci .

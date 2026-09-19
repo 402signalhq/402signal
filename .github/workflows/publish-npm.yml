@@ -1,0 +1,72 @@
+name: Publish route-guard to npm
+
+on:
+  push:
+    tags:
+      - "route-guard-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish (for example route-guard-v0.8.0)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == '402signalhq/402signal'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
+          persist-credentials: false
+
+      - name: Check the runner's Node and npm
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version; npm --version
+          major="$(node -p 'Number(process.versions.node.split(".")[0])')"
+          test "$major" -ge 22 || { echo "Node 22 or newer is required (package engines)"; exit 1; }
+
+      - name: Check the tag matches the package version
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref="$RELEASE_TAG"
+          version="$(node -p "require('./sdk/route-guard/package.json').version")"
+          test "$ref" = "route-guard-v$version" || { echo "tag $ref does not match package version $version"; exit 1; }
+
+      - name: Test the package (zero dependencies, no network)
+        run: |
+          npm --prefix sdk/route-guard run check
+          npm --prefix sdk/route-guard test
+
+      - name: Publish with provenance (npm Trusted Publishing)
+        working-directory: sdk/route-guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version; npm --version
+          recent() { node -e 'const [a,b,c]=process.argv[1].trim().split(".").map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)' "$1"; }
+          NPM=npm
+          if ! recent "$(npm --version)"; then
+            npm install --prefix "$RUNNER_TEMP/npm11" --no-audit --no-fund --ignore-scripts npm@11 >/dev/null
+            NPM="node $RUNNER_TEMP/npm11/node_modules/npm/bin/npm-cli.js"
+          fi
+          $NPM --version
+          recent "$($NPM --version)" || { echo "npm 11.5.1+ required"; exit 1; }
+          $NPM publish --provenance --access public --ignore-scripts

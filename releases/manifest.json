@@ -1,0 +1,370 @@
+{
+  "original_repository_id": 1351479757,
+  "assets": [
+    {
+      "tag": "route-guard-v0.7.7",
+      "name": "402signal-route-guard-0.7.7.tgz",
+      "size": 57793,
+      "sha256": "02dbfa385b9c79d439a93e5ae32256965cfe5c1a05cc32f66fd302c49940e45d",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.7/402signal-route-guard-0.7.7.tgz",
+      "attestations": 1,
+      "archive_files": 28
+    },
+    {
+      "tag": "route-guard-v0.7.7",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "4483399ee58f933b87874e9d0241b775a41680fb2003cc892d35bbe747cba869",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.7/SHA256SUMS"
+    },
+    {
+      "tag": "route-guard-v0.7.6",
+      "name": "402signal-route-guard-0.7.6.tgz",
+      "size": 54430,
+      "sha256": "8fbf694fd2f703e9fc4427906ac5e699174c96c8a01460e586ee5d48235ac693",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.6/402signal-route-guard-0.7.6.tgz",
+      "attestations": 1,
+      "archive_files": 28
+    },
+    {
+      "tag": "route-guard-v0.7.6",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "005724281f546902c8d59844023078e5a3d2e6355ff2381331811bf05f9d4c82",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.6/SHA256SUMS"
+    },
+    {
+      "tag": "route-guard-v0.7.4",
+      "name": "402signal-route-guard-0.7.4.tgz",
+      "size": 51336,
+      "sha256": "164a1328ddcba856b667b74b43573bfb455016144cef84858ae66054be64b5ff",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.4/402signal-route-guard-0.7.4.tgz",
+      "attestations": 1,
+      "archive_files": 28
+    },
+    {
+      "tag": "route-guard-v0.7.4",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "d414db64f83d5f68013451c912c7c6a6c03aa32d95d4007ac5b942b353abeaa9",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.4/SHA256SUMS"
+    },
+    {
+      "tag": "route-guard-v0.7.3",
+      "name": "402signal-route-guard-0.7.3.tgz",
+      "size": 47348,
+      "sha256": "bb5b49e63b37297b4460c37c6337ff80070988f8103c55ac309549d7d1790f76",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.3/402signal-route-guard-0.7.3.tgz",
+      "archive_files": 27
+    },
+    {
+      "tag": "route-guard-v0.7.3",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "e8502e1f3e7c510fa41f579b65dd64168ac85d105e28b2482e8e4c184442d66d",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.3/SHA256SUMS"
+    },
+    {
+      "tag": "route-guard-v0.7.2",
+      "name": "402signal-route-guard-0.7.2.tgz",
+      "size": 37913,
+      "sha256": "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.2/402signal-route-guard-0.7.2.tgz",
+      "archive_files": 23
+    },
+    {
+      "tag": "route-guard-v0.7.2",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "5fae35204f6c309b4f30384cf6cd66958e6bf09edfe8fea3d6859094d4754639",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.2/SHA256SUMS"
+    },
+    {
+      "tag": "route-guard-v0.7.1",
+      "name": "402signal-route-guard-0.7.1.tgz",
+      "size": 33472,
+      "sha256": "574633f724e00967603ece1f4bea7bd23572b9a37098a58bb2b72267b9013a30",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.1/402signal-route-guard-0.7.1.tgz",
+      "archive_files": 23
+    },
+    {
+      "tag": "route-guard-v0.7.1",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "f80949c928a7ce4598cc57c474964d9837247e6069d90f52b2313f3009f95125",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.1/SHA256SUMS"
+    },
+    {
+      "tag": "session-client-v0.1.1",
+      "name": "402signal-session-client-0.1.1.tgz",
+      "size": 66920,
+      "sha256": "682b149b96d475c0def54ff01eab7194ca0db6645bb4a69a76b03f958bbc9aea",
+      "url": "https://github.com/402signalhq/402signal/releases/download/session-client-v0.1.1/402signal-session-client-0.1.1.tgz",
+      "archive_files": 36
+    },
+    {
+      "tag": "session-client-v0.1.1",
+      "name": "PROVENANCE.json",
+      "size": 999,
+      "sha256": "98257b33b238e10c03db389864d54df8911cf4d2fff654a93c72148c6fa742c5",
+      "url": "https://github.com/402signalhq/402signal/releases/download/session-client-v0.1.1/PROVENANCE.json"
+    },
+    {
+      "tag": "session-client-v0.1.1",
+      "name": "SHA256SUMS.txt",
+      "size": 101,
+      "sha256": "e9522cbfa2432790a7bf9977b5f6b7fd2be3259e9f78956e1672f038c6715293",
+      "url": "https://github.com/402signalhq/402signal/releases/download/session-client-v0.1.1/SHA256SUMS.txt"
+    },
+    {
+      "tag": "route-guard-v0.7.0",
+      "name": "402signal-route-guard-0.7.0.tgz",
+      "size": 33348,
+      "sha256": "3a775b824c1c8a83e9ea782b4092cd30b30c6347e531b26dace8eb67b94542d4",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.0/402signal-route-guard-0.7.0.tgz",
+      "archive_files": 23
+    },
+    {
+      "tag": "route-guard-v0.7.0",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "303921695e3f4ca0af492247b96c0061d7eca9288bc1005916a5ee4b69bc5105",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.0/SHA256SUMS"
+    },
+    {
+      "tag": "mpp-client-v0.1.0",
+      "name": "402signal-mpp-client-0.1.0.tgz",
+      "size": 37937,
+      "sha256": "cc507a426fd0bdb68d7f508717689c3fb74df1ba7503aca93d8e1c67fdbaf0cc",
+      "url": "https://github.com/402signalhq/402signal/releases/download/mpp-client-v0.1.0/402signal-mpp-client-0.1.0.tgz",
+      "archive_files": 27
+    },
+    {
+      "tag": "mpp-client-v0.1.0",
+      "name": "SHA256SUMS",
+      "size": 97,
+      "sha256": "2b9732dcb577d2e7e9424978e482bb359770fe7d218bf47e7b31fa994bdfdee2",
+      "url": "https://github.com/402signalhq/402signal/releases/download/mpp-client-v0.1.0/SHA256SUMS"
+    },
+    {
+      "tag": "algorand-batch-buyer-v0.2.0",
+      "name": "402signal-algorand-batch-buyer-0.2.0.tgz",
+      "size": 19165,
+      "sha256": "36a984cca2ac33200d15fe1318f8163c2dcdf61b9bb97308d18763b2967a792b",
+      "url": "https://github.com/402signalhq/402signal/releases/download/algorand-batch-buyer-v0.2.0/402signal-algorand-batch-buyer-0.2.0.tgz",
+      "archive_files": 14
+    },
+    {
+      "tag": "algorand-batch-buyer-v0.2.0",
+      "name": "SHA256SUMS",
+      "size": 107,
+      "sha256": "9a59c1f78ec2d1809ec46a664e9c52e09c3110651dc7e1fcbec8da34e8567a3e",
+      "url": "https://github.com/402signalhq/402signal/releases/download/algorand-batch-buyer-v0.2.0/SHA256SUMS"
+    },
+    {
+      "tag": "route-guard-v0.5.0",
+      "name": "402signal-route-guard-0.5.0.tgz",
+      "size": 28318,
+      "sha256": "e49c98429f9403267bfc4b40adb993911c112ac4187ae42708b3cdab1feefc50",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.5.0/402signal-route-guard-0.5.0.tgz",
+      "archive_files": 19
+    },
+    {
+      "tag": "route-guard-v0.5.0",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "fba00fbcd6b122fd3da1e55b1440cb092a6f2f8b3eb8b9ab15beb6bdd3a2e41f",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.5.0/SHA256SUMS"
+    },
+    {
+      "tag": "route-guard-v0.4.0",
+      "name": "402signal-route-guard-0.4.0.tgz",
+      "size": 21465,
+      "sha256": "3f4781ad3b3e4a5fce38c01c9a8d0f9309d19b3442559228da227fa88cea7035",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.4.0/402signal-route-guard-0.4.0.tgz",
+      "archive_files": 13
+    },
+    {
+      "tag": "route-guard-v0.4.0",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "fedebbd81c6cb9c2172f063c21fe0354859378793a354920de360c7ec087c6a0",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.4.0/SHA256SUMS"
+    },
+    {
+      "tag": "route-guard-v0.3.0",
+      "name": "402signal-route-guard-0.3.0.tgz",
+      "size": 20825,
+      "sha256": "775b14ace3079e458518a0981bd39277dc22c4ad6e3eab2e1e9b4df44cfc537b",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.3.0/402signal-route-guard-0.3.0.tgz",
+      "archive_files": 13
+    },
+    {
+      "tag": "route-guard-v0.3.0",
+      "name": "SHA256SUMS",
+      "size": 98,
+      "sha256": "d11bdc0c6a494a50cca7d7af1865849bda97294839fb35a7ca6630d93078bf8e",
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.3.0/SHA256SUMS"
+    }
+  ],
+  "source_snapshots": [
+    {
+      "tag": "route-guard-v0.7.7",
+      "original_source_commit": "b3333fc0e8f1211e3a07d258da571c96bb7b157c",
+      "original_published_at": "2026-09-17T01:37:03Z",
+      "artifact": "402signal-route-guard-0.7.7.tgz",
+      "sha256": "02dbfa385b9c79d439a93e5ae32256965cfe5c1a05cc32f66fd302c49940e45d",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "f61766bf1c88bc9d62d6eab971817177fda1357b"
+    },
+    {
+      "tag": "route-guard-v0.7.6",
+      "original_source_commit": "5ea0df9deb0e4b6141082f0dbbfa5e0bcb7534d3",
+      "original_published_at": "2026-09-14T15:52:55Z",
+      "artifact": "402signal-route-guard-0.7.6.tgz",
+      "sha256": "8fbf694fd2f703e9fc4427906ac5e699174c96c8a01460e586ee5d48235ac693",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "05c2dee4ecf2b40ce387f2999bfe4e1041eba5d3"
+    },
+    {
+      "tag": "route-guard-v0.7.4",
+      "original_source_commit": "5bc1e651c7501706e90788e498d98d0918e9eeb8",
+      "original_published_at": "2026-09-13T23:35:35Z",
+      "artifact": "402signal-route-guard-0.7.4.tgz",
+      "sha256": "164a1328ddcba856b667b74b43573bfb455016144cef84858ae66054be64b5ff",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "be10a812aeb913786b504f29118089f51bfa33dd"
+    },
+    {
+      "tag": "route-guard-v0.7.3",
+      "original_source_commit": "58241029bf3a7949c388bf3398279fdf446c2893",
+      "original_published_at": "2026-09-13T14:06:05Z",
+      "artifact": "402signal-route-guard-0.7.3.tgz",
+      "sha256": "bb5b49e63b37297b4460c37c6337ff80070988f8103c55ac309549d7d1790f76",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "17e4ef8e8baf5133c0c569c2b1eac65320caab01"
+    },
+    {
+      "tag": "route-guard-v0.7.2",
+      "original_source_commit": "fdbcff3bc9b31826567b8cb456d4a883009eb9ff",
+      "original_published_at": "2026-09-10T13:53:45Z",
+      "artifact": "402signal-route-guard-0.7.2.tgz",
+      "sha256": "f23d534537a847d592770aea2bbdbbce493f668645d6dcf95985b21d2a70195a",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "363b1769a3b0a336ed646b2393f0372238092baf"
+    },
+    {
+      "tag": "route-guard-v0.7.1",
+      "original_source_commit": "0b6ba91531526a9c5bb19ff7b2bf10733f29df5a",
+      "original_published_at": "2026-09-09T21:06:46Z",
+      "artifact": "402signal-route-guard-0.7.1.tgz",
+      "sha256": "574633f724e00967603ece1f4bea7bd23572b9a37098a58bb2b72267b9013a30",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "164d5ed7fd24e65c71f11681e05fc27ed8c8411a"
+    },
+    {
+      "tag": "session-client-v0.1.1",
+      "original_source_commit": "37152505b06f6fc5c003a3ee347a18187f51e3e5",
+      "original_published_at": "2026-09-08T21:48:08Z",
+      "artifact": "402signal-session-client-0.1.1.tgz",
+      "sha256": "682b149b96d475c0def54ff01eab7194ca0db6645bb4a69a76b03f958bbc9aea",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "1b9c77cd38da7649e13f8c967e8704a181dd7efb"
+    },
+    {
+      "tag": "route-guard-v0.7.0",
+      "original_source_commit": "65371be8c2d54af6fe52459d31f5009b0171f962",
+      "original_published_at": "2026-09-08T21:23:36Z",
+      "artifact": "402signal-route-guard-0.7.0.tgz",
+      "sha256": "3a775b824c1c8a83e9ea782b4092cd30b30c6347e531b26dace8eb67b94542d4",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "50b38f8251514c4985e617c919250807a8247260"
+    },
+    {
+      "tag": "mpp-client-v0.1.0",
+      "original_source_commit": "65371be8c2d54af6fe52459d31f5009b0171f962",
+      "original_published_at": "2026-09-08T21:23:32Z",
+      "artifact": "402signal-mpp-client-0.1.0.tgz",
+      "sha256": "cc507a426fd0bdb68d7f508717689c3fb74df1ba7503aca93d8e1c67fdbaf0cc",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "10afbe6f4e5dbcc33841e78f8f04fcbadd8ee3ea"
+    },
+    {
+      "tag": "algorand-batch-buyer-v0.2.0",
+      "original_source_commit": "65371be8c2d54af6fe52459d31f5009b0171f962",
+      "original_published_at": "2026-09-08T21:23:28Z",
+      "artifact": "402signal-algorand-batch-buyer-0.2.0.tgz",
+      "sha256": "36a984cca2ac33200d15fe1318f8163c2dcdf61b9bb97308d18763b2967a792b",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "5476db6585ac81566c3e6c02047ac88a867cb532"
+    },
+    {
+      "tag": "route-guard-v0.5.0",
+      "original_source_commit": "0093d6e6b491b8ec357234d74fce55346e3c0432",
+      "original_published_at": "2026-09-07T23:26:40Z",
+      "artifact": "402signal-route-guard-0.5.0.tgz",
+      "sha256": "e49c98429f9403267bfc4b40adb993911c112ac4187ae42708b3cdab1feefc50",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "361618efc142208b03ecca8817e34f666bb27037"
+    },
+    {
+      "tag": "route-guard-v0.4.0",
+      "original_source_commit": "b9fbaf0676670db633c8e27998cc045e02f2018d",
+      "original_published_at": "2026-09-07T21:33:51Z",
+      "artifact": "402signal-route-guard-0.4.0.tgz",
+      "sha256": "3f4781ad3b3e4a5fce38c01c9a8d0f9309d19b3442559228da227fa88cea7035",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "fe3b6dfd6cec5a477c0e1ac609ea8d2ea0605efd"
+    },
+    {
+      "tag": "route-guard-v0.3.0",
+      "original_source_commit": "7e6c223619cc2194d4916f4c4928e7a94b827464",
+      "original_published_at": "2026-09-07T19:30:37Z",
+      "artifact": "402signal-route-guard-0.3.0.tgz",
+      "sha256": "775b14ace3079e458518a0981bd39277dc22c4ad6e3eab2e1e9b4df44cfc537b",
+      "snapshot": "Exact files from the published package; not the original full-repository source tree.",
+      "snapshot_commit": "4c031b88ac480ac88cf81f3dd99d1ff2fdacd2a5"
+    },
+    {
+      "tag": "python-v0.1.0",
+      "original_source_commit": "3ceecef1455a7332c03cf924e9f9257bf2dbe81d",
+      "snapshot_commit": "fa9fa1203d5f235916715853a75468f91cf6ef27",
+      "snapshot": "Exact sdk/python source subtree from the original release tag."
+    },
+    {
+      "tag": "python-v0.1.1",
+      "original_source_commit": "5bc1e651c7501706e90788e498d98d0918e9eeb8",
+      "snapshot_commit": "9fd98483c232f26afd1da63c106afa1641b3a204",
+      "snapshot": "Exact sdk/python source subtree from the original release tag."
+    },
+    {
+      "tag": "python-v0.1.2",
+      "original_source_commit": "b3333fc0e8f1211e3a07d258da571c96bb7b157c",
+      "snapshot_commit": "6d0dab22f9d5314f4a88c77ace7eac9c04fc1089",
+      "snapshot": "Exact sdk/python source subtree from the original release tag."
+    }
+  ],
+  "signature_bundles": [
+    {
+      "tag": "route-guard-v0.7.4",
+      "name": "402signal-route-guard-0.7.4.tgz.sigstore-1.json",
+      "sha256": "19615445a0d3b824e0367a6f046c1e2d720ce6b20457a6c1ba5efaf4f1ea247a",
+      "original_repository_id": 1351479757,
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.4/402signal-route-guard-0.7.4.tgz.sigstore-1.json"
+    },
+    {
+      "tag": "route-guard-v0.7.6",
+      "name": "402signal-route-guard-0.7.6.tgz.sigstore-1.json",
+      "sha256": "8fa081d34a792ad5685782a128562efed7ad7b4b6484ed709d6ae0eae3e811a0",
+      "original_repository_id": 1351479757,
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.6/402signal-route-guard-0.7.6.tgz.sigstore-1.json"
+    },
+    {
+      "tag": "route-guard-v0.7.7",
+      "name": "402signal-route-guard-0.7.7.tgz.sigstore-1.json",
+      "sha256": "e642d40fe2e3d09c524ff0c8e7c309d8f74a3fee2b35bb5dc03e25fffd4fa535",
+      "original_repository_id": 1351479757,
+      "url": "https://github.com/402signalhq/402signal/releases/download/route-guard-v0.7.7/402signal-route-guard-0.7.7.tgz.sigstore-1.json"
+    }
+  ]
+}

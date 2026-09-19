@@ -1,0 +1,43 @@
+# Investigate a purchase using retained evidence
+
+A high bill and an agent's summary can disagree. A retained 402Signal observation helps establish what requirements reached the service and which offer it checked. It is not a record of everything the agent did.
+
+## Retain three different records
+
+Keep the operator-approved policy, the original route request and complete response, and the buyer's wallet/execution record. Retain the observation's `pq_trust.transparency.receipt` and private `reveal`. Store them securely outside the agent's writable workspace where practical. The public commitments are not a backup of private evidence.
+
+The submitted requirement is not proof of human approval. If an agent submitted a $0.20 limit, the receipt does not establish that the operator intended $0.20. Compare it with your separately retained approved policy. Transactions that bypassed 402Signal do not appear just because other transactions used it.
+
+A retained paid `/route` response may include slim `compared[]` rows with `selectable`, `payTo_pending` / `payTo_changed`, `risk`, and `excluded_reason` (including `binding_unavailable`). Those fields explain which candidates were selectable and why others were excluded for the checked offer. They do not prove delivery, settlement, or human approval. Catalog and seller labels remain untrusted.
+
+## Storage and export ownership
+
+The current service returns evidence to the buyer; it does not include a general hosted customer archive or export API. Your team stores and exports the original files, retains an approved policy version and controls access, deletion and the retention period. Private response recovery lasts 120 seconds after the request began, not the duration of a platform evaluation. Any additional hosted retention needs a separate written scope. A pilot can first demonstrate retrieval and offline verification from your own storage.
+
+## Verify before drawing conclusions
+
+Use the matching historical verifier for the record version. For supported v4 records:
+
+```js
+import { verifyReceipt } from '@402signal/route-guard';
+const result = verifyReceipt({
+  routeResponseJson,
+  routeRequestJson,
+  trustedLogVkey
+});
+```
+
+These variables come from retained raw records and independent trusted key configuration. Do not accept the trust key from the same response being verified. Do not parse and reserialize untrusted JSON before verification. This checks signature and inclusion, does not invoke a signer, and does not refresh expiry. The returned scope marks the current quote, payment confirmation, anchor and delivery as not checked.
+
+Run `node integration/buyer-checks/run.mjs` for a synthetic example in which the original historical record verifies and an altered covered policy fails. It is not a test of Falcon anchoring.
+
+## What later anchoring adds
+
+The immediate checkpoint uses Ed25519. Cumulative checkpoints are subsequently anchored on Algorand MainNet using Falcon authorization. For covered records, independently checking the appropriate confirmed anchor supplies a separate history reference against later changes. Pending records are not confirmed anchors.
+
+Post-quantum checkpoint authorization is not a blanket claim that the entire evidence pipeline is quantum secure. Original receipts, payment signatures, hash assumptions, retained data, trusted key history and verification software still matter. The local historical verifier above does not verify the later chain anchor. Preserve the evidence needed for long-term review rather than relying on a permanent-storage promise.
+
+The log cannot reconstruct deleted private records, prove delivery, explain internal model reasoning or reveal bypassed activity. It is not an automatic agent-monitoring dashboard. It makes a specific observed record verifiable, which is useful evidence alongside your own controls and records.
+
+Trust overview: https://402signal.com/how#trust
+Checkpoint viewer: https://402signal.com/transparency

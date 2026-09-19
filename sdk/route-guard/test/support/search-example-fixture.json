@@ -1,0 +1,185 @@
+{
+  "synthetic_test_proof": true,
+  "not_a_production_route": true,
+  "no_wallet_payment": true,
+  "query": "x402 payment protocol",
+  "url": "https://api.agentstools.dev/search?query=x402%20payment%20protocol&max_results=5",
+  "request": {
+    "url": "https://api.agentstools.dev/search?query=x402%20payment%20protocol&max_results=5",
+    "need": "web search",
+    "networks": [
+      "base"
+    ],
+    "max_price_usd": 0.001,
+    "require_route_binding": true
+  },
+  "response": {
+    "url": "https://api.agentstools.dev/search?query=x402%20payment%20protocol&max_results=5",
+    "live": true,
+    "payable": true,
+    "invocable": true,
+    "status": 402,
+    "payTo": "0x1111111111111111111111111111111111111111",
+    "envelope": {
+      "x402Version": 2,
+      "error": "Synthetic test challenge",
+      "resource": {
+        "url": "https://api.agentstools.dev/search",
+        "serviceName": "web-search",
+        "tags": [
+          "web",
+          "search",
+          "web-search",
+          "serp",
+          "results",
+          "grounding",
+          "research",
+          "real-time",
+          "multi-engine",
+          "agents"
+        ]
+      },
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "eip155:8453",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "amount": "1000",
+          "payTo": "0x1111111111111111111111111111111111111111",
+          "maxTimeoutSeconds": 300,
+          "extra": {
+            "name": "USD Coin",
+            "version": "2"
+          }
+        }
+      ],
+      "extensions": {
+        "bazaar": {}
+      }
+    },
+    "selected_payment": {
+      "rail": "base",
+      "network": "eip155:8453",
+      "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "amount_atomic": 1000,
+      "display_amount": "$0.001",
+      "normalized_usd": 0.001,
+      "payTo": "0x1111111111111111111111111111111111111111",
+      "facilitator": null
+    },
+    "probed_at": "2026-09-05T00:00:00Z",
+    "latency_ms": 12,
+    "applied_constraints": {
+      "networks": [
+        "base"
+      ],
+      "max_price_usd": 0.001
+    },
+    "decision_binding": {
+      "model": "proof_carrying_route_v1",
+      "observed_at": 1788566400,
+      "expires_at": 1788566460,
+      "request": {
+        "url": "https://api.agentstools.dev/search?query=x402%20payment%20protocol&max_results=5",
+        "method": "GET",
+        "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "quote_sha256": "79e0fce829fa252248c4d6fca7bc54abae08d4b5a3e671301917716167d92c64",
+      "selected_index": 0
+    },
+    "payment_authorization": {
+      "pq_native": false
+    },
+    "pq_trust": {
+      "transparency": {
+        "log_origin": "402signal.com/pq/log",
+        "leaf_type": "402signal.route_decision.v4",
+        "reveal": {
+          "type": "402signal.route_decision.v4",
+          "ts": "2026-09-05T00:00:00Z",
+          "nonce": "0202020202020202020202020202020202020202020202020202020202020202",
+          "commitment": "2e72cef7feb36c28b17aca908ec82e3f84a91f2a5503d51d46ff8a93c1191777",
+          "event_version": "402signal.route_decision.v4",
+          "evidence": {
+            "evidence_version": 2,
+            "routing_evidence_json": "{\"comparison\":{\"candidate_count\":null,\"candidate_set_digest\":null,\"observation_batch_hash\":null,\"probe_batch_id\":null},\"decision\":{\"miss_reason\":null,\"outcome\":\"winner\",\"winner_url\":\"https://api.agentstools.dev/search?query=x402%20payment%20protocol&max_results=5\"},\"evidence_version\":1,\"observation\":{\"challenge_observed\":true,\"http_status\":402,\"invocable\":true,\"latency_ms\":12,\"live\":true,\"observed_at\":\"2026-09-05T00:00:00Z\",\"payable\":true},\"policy\":{\"constraints\":{\"max_price_usd\":0.001,\"networks\":[\"base\"]},\"objective\":null,\"unresolved\":[]},\"request\":{\"need\":\"web search\",\"url\":\"https://api.agentstools.dev/search?query=x402%20payment%20protocol&max_results=5\"},\"scoring\":{\"model_hash\":\"d4e0e1fe865ff68fddc1bd74da773fb5541a23e3356b80e9dcb190b4e7407378\",\"model_id\":\"reputation-v2\"},\"selected_payment\":{\"amount_atomic\":\"1000\",\"asset\":\"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\",\"network\":\"eip155:8453\",\"payTo\":\"0x1111111111111111111111111111111111111111\",\"rail\":\"base\",\"scheme\":null}}",
+            "request_json": "{\"max_price_usd\":0.001,\"need\":\"web search\",\"networks\":[\"base\"],\"require_route_binding\":true,\"url\":\"https://api.agentstools.dev/search?query=x402%20payment%20protocol&max_results=5\"}",
+            "binding": {
+              "model": "proof_carrying_route_v1",
+              "observed_at": 1788566400,
+              "expires_at": 1788566460,
+              "request": {
+                "url": "https://api.agentstools.dev/search?query=x402%20payment%20protocol&max_results=5",
+                "method": "GET",
+                "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "quote_sha256": "79e0fce829fa252248c4d6fca7bc54abae08d4b5a3e671301917716167d92c64",
+              "selected_index": 0
+            }
+          },
+          "salt": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "status": "pending",
+        "state": "checkpoint_signed",
+        "index": 0,
+        "checkpoint_size": 1,
+        "receipt": {
+          "index": 0,
+          "inclusion_path": [],
+          "checkpoint": "402signal.com/pq/log\n1\nV+iG7kwLoDaab3zX4AOuUCWiDmfn+ckqvIWA9i6EuPA=\n\n\u2014 402signal.com/pq/log bMKVpP7sZuY4FY4k7janVCUum46t/Ss9BLt4NlF0u+FaP4SzUOlbdpsY8KDolwM+Br1GCQV9LCDWUC7TtMXEzVRsgQg=\n",
+          "leaf_hash": "57e886ee4c0ba0369a6f7cd7e003ae5025a20e67e7f9c92abc8580f62e84b8f0"
+        }
+      }
+    },
+    "billing": {
+      "model": "success_only_v1",
+      "condition": "live_eligible_route_found",
+      "asset": "USDC",
+      "amount_atomic": "3000",
+      "display_amount": "$0.003",
+      "rail": "base",
+      "settlement_state": "settled",
+      "settlement_attempted": true,
+      "settled": true
+    }
+  },
+  "challenge": {
+    "x402Version": 2,
+    "error": "Synthetic test challenge",
+    "resource": {
+      "url": "https://api.agentstools.dev/search",
+      "serviceName": "web-search",
+      "tags": [
+        "web",
+        "search",
+        "web-search",
+        "serp",
+        "results",
+        "grounding",
+        "research",
+        "real-time",
+        "multi-engine",
+        "agents"
+      ]
+    },
+    "accepts": [
+      {
+        "scheme": "exact",
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "amount": "1000",
+        "payTo": "0x1111111111111111111111111111111111111111",
+        "maxTimeoutSeconds": 300,
+        "extra": {
+          "name": "USD Coin",
+          "version": "2"
+        }
+      }
+    ],
+    "extensions": {
+      "bazaar": {}
+    }
+  },
+  "trusted_vkey": "402signal.com/pq/log+6cc295a4+AQOhB7/zzhC+HXDdGOdLwJln5NYwm6UNXx3chmQSVTG4",
+  "now": 1788566402
+}

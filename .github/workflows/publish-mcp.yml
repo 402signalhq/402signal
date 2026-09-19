@@ -1,0 +1,53 @@
+name: Publish MCP Registry metadata
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-mcp-registry
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == '402signalhq/402signal'
+    environment: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+
+      - name: Install MCP publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          curl --fail --location --silent --show-error \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz" \
+            --output publisher.tar.gz
+          echo 'a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc  publisher.tar.gz' | sha256sum --check --strict
+          tar xzf publisher.tar.gz mcp-publisher
+          ./mcp-publisher --version
+
+      - name: Validate manifest
+        run: ./mcp-publisher validate server.json
+
+      - name: Check immutable registry version
+        id: registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/mcp_registry_preflight.py server.json >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate with GitHub OIDC
+        if: steps.registry.outputs.publish == 'true'
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish
+        if: steps.registry.outputs.publish == 'true'
+        run: ./mcp-publisher publish server.json

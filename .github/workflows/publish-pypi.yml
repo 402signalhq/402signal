@@ -1,0 +1,62 @@
+name: Publish 402signal to PyPI
+
+on:
+  push:
+    tags:
+      - "python-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish (for example python-v0.1.0)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-pypi
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == '402signalhq/402signal'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Check the tag matches the package version
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref="$RELEASE_TAG"
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("sdk/python/pyproject.toml","rb"))["project"]["version"])')"
+          test "$ref" = "python-v$version" || { echo "tag $ref does not match package version $version"; exit 1; }
+
+      - name: Test and build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check "build==1.2.2.post1" "cryptography>=42"
+          PYTHONPATH=sdk/python/src python3 -m unittest discover -s sdk/python/tests -v
+          python3 -m build --sdist --wheel --outdir dist sdk/python
+          ls -l dist
+
+      - name: Publish to PyPI (Trusted Publishing, attestations on)
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: dist
+          attestations: true

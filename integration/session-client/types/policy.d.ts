@@ -1,0 +1,23 @@
+import type { CanonicalValue, Normalized, DeepReadonly, SessionPolicy, CallerRequest, RequestSnapshot, SessionLedger, InitialObservation, Rail, ContinuationController, CallScope, SessionPacket, SessionResponse, CallOutcome, RecoverSession, ObservationBinding } from './common.js';
+import type { BaseSessionPlan } from './base.js';
+import type { SolanaSessionPlan } from './solana.js';
+export type * from './common.js';
+export function check(value: unknown, message?: string): asserts value;
+export function canonical(value: CanonicalValue): string;
+export function hash(value: string | Uint8Array): string;
+export function digest(value: CanonicalValue): string;
+export function clone<T extends CanonicalValue>(value: T): Normalized<T>;
+export function frozen<T extends CanonicalValue>(value: T): DeepReadonly<Normalized<T>>;
+export function atomic(value: string): bigint;
+export function exact(value: unknown, keys: readonly string[]): void;
+export function requestSnapshot(request: CallerRequest, policy: SessionPolicy): RequestSnapshot;
+export function validatePolicy(policy: SessionPolicy, plan: BaseSessionPlan, rail: 'base'): SessionPolicy;
+export function validatePolicy(policy: SessionPolicy, plan: SolanaSessionPlan, rail: 'solana'): SessionPolicy;
+export function readInitialObservation(ledger: SessionLedger): Promise<InitialObservation>;
+export function initializeContinuation(controller: ContinuationController, policy: SessionPolicy, options: InitialObservation | undefined, rail: Rail, match: (binding: ObservationBinding, policy: SessionPolicy) => void): Promise<void>;
+export function fundingFresh(controller: ContinuationController): void;
+export function continuationFresh(controller: ContinuationController, challengeExpiresAt?: number): void;
+export function callScope(controller: ContinuationController, sequence: number, request: CallerRequest): CallScope;
+export function retainAcceptance(controller: ContinuationController, rail: Rail, scope: CallScope, packet: SessionPacket, response: SessionResponse, validateReceipt: (response: SessionResponse) => unknown): Promise<CallOutcome>;
+/** Low-level receipt evidence is intentionally unknown; validate it before use. */
+export function recoverCall(controller: ContinuationController, rail: Rail, sequence: number, recover: RecoverSession, validateReceipt: (response: SessionResponse, retainedEntry: unknown) => unknown): Promise<CallOutcome>;

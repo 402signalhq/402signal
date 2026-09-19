@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "purpose": "synthetic-plan",
+  "directory": "/private/402signal-observation",
+  "policy": {
+    "buyerAddress": "0x1111111111111111111111111111111111111111",
+    "routerPayTo": "0x2222222222222222222222222222222222222222",
+    "routerUrl": "https://402signal.com/route",
+    "rpcUrl": "https://rpc.example.invalid/",
+    "campaignMaximumAtomic": "3000",
+    "buyerNativeFeeAtomic": "0",
+    "sellers": []
+  },
+  "routeRequestJson": "{\"url\":\"https://merchant.example?contact=a@b\",\"networks\":[\"base\"],\"max_price_usd\":0.02,\"require_route_binding\":true}",
+  "trust": {
+    "approvedKeyFile": "docs/customer/approved-log-key.txt",
+    "approvedFingerprint": "cc99b21db1ce0bd3b8551bc7a76e83cbc4768290d39672a6bc1bfd772ed83970",
+    "provenance": "Review docs/customer/approved-log-key.json and approve this pin through trusted operator policy before live use."
+  }
+}
