@@ -1,0 +1,148 @@
+{
+  "files": [
+    {
+      "source": "integration/mpp-client/index.mjs",
+      "path": "index.mjs",
+      "sourceSha256": "5ebdb4222b2c69c7cdb0a7e0fe22363d3c8d478aee6d34c8a23a8e1b05509232",
+      "sha256": "97a032448709336d57ece452a09618d59a4db812d0d7e20d3bdc927e0355dde1"
+    },
+    {
+      "source": "integration/mpp-client/native-base.mjs",
+      "path": "native-base.mjs",
+      "sourceSha256": "6f5bf828265f4032dc1f13ca79d6a0cd34be8b78575739180f342d1192ed2ffb",
+      "sha256": "a231c6d968936aa9e68d5a34b6fd0f37e7f44b499dcd28d988c7135bf6f1d044"
+    },
+    {
+      "source": "integration/mpp-client/native-base.d.ts",
+      "path": "native-base.d.ts",
+      "sourceSha256": "79e68e681f0d32f3ded10d266b28112154c4e31580885491caab6520b7a6d208",
+      "sha256": "c7c4d4b5f10c532219b7eb8211040bbd28d237a8f620256b1353b2b1b04b61cf"
+    },
+    {
+      "source": "sdk/route-guard/index.mjs",
+      "path": "_guard/index.mjs",
+      "sourceSha256": "c58e46cdc44c51a3cc82f6752fcaa83fa3352d657a9f15e793970657ce858e24",
+      "sha256": "c58e46cdc44c51a3cc82f6752fcaa83fa3352d657a9f15e793970657ce858e24"
+    },
+    {
+      "source": "sdk/route-guard/index.d.ts",
+      "path": "_guard/index.d.ts",
+      "sourceSha256": "8a6021e5e929d17e0976157e16e08ee857c51d4a60460a35e273e0b2e5bae6e7",
+      "sha256": "8a6021e5e929d17e0976157e16e08ee857c51d4a60460a35e273e0b2e5bae6e7"
+    },
+    {
+      "source": "sdk/route-guard/recovery.mjs",
+      "path": "_guard/recovery.mjs",
+      "sourceSha256": "7761bb343929d90eedba46af6be84faeddd7fd01428f4a31fc88de3a85abb20f",
+      "sha256": "7761bb343929d90eedba46af6be84faeddd7fd01428f4a31fc88de3a85abb20f"
+    },
+    {
+      "source": "sdk/route-guard/recovery.d.ts",
+      "path": "_guard/recovery.d.ts",
+      "sourceSha256": "3adcf59d0193ca1d4666ddc841196683414a5ed68f5059a6da9d8f7f14bf6eaf",
+      "sha256": "3adcf59d0193ca1d4666ddc841196683414a5ed68f5059a6da9d8f7f14bf6eaf"
+    },
+    {
+      "source": "sdk/route-guard/client.mjs",
+      "path": "_guard/client.mjs",
+      "sourceSha256": "d11d1b84b36bf5016c33fe1596c73b86f15c9632875cdc66da899545daf57778",
+      "sha256": "d11d1b84b36bf5016c33fe1596c73b86f15c9632875cdc66da899545daf57778"
+    },
+    {
+      "source": "sdk/route-guard/client.d.ts",
+      "path": "_guard/client.d.ts",
+      "sourceSha256": "c49812e718b87f95d1371c59758e62cf18ccf23fe61f484cc46137ba068ae297",
+      "sha256": "c49812e718b87f95d1371c59758e62cf18ccf23fe61f484cc46137ba068ae297"
+    },
+    {
+      "source": "sdk/route-guard/file-store.mjs",
+      "path": "_guard/file-store.mjs",
+      "sourceSha256": "f2fde4a6d3c28729b5f9199d5ba59dd8bf6c4907fc2b76fe2e20af710a9ea7cc",
+      "sha256": "f2fde4a6d3c28729b5f9199d5ba59dd8bf6c4907fc2b76fe2e20af710a9ea7cc"
+    },
+    {
+      "source": "sdk/route-guard/file-store.d.ts",
+      "path": "_guard/file-store.d.ts",
+      "sourceSha256": "fec802cbe0777a6097a183079bcf99beb57dfc1ab3caf9f86f3d7861d3074e68",
+      "sha256": "fec802cbe0777a6097a183079bcf99beb57dfc1ab3caf9f86f3d7861d3074e68"
+    },
+    {
+      "source": "sdk/route-guard/internal-json.mjs",
+      "path": "_guard/internal-json.mjs",
+      "sourceSha256": "3620a93d28bed6ee1992f085345deb5321f8966e2febf6c6a8a991109917105b",
+      "sha256": "3620a93d28bed6ee1992f085345deb5321f8966e2febf6c6a8a991109917105b"
+    },
+    {
+      "source": "sdk/route-guard/batch.mjs",
+      "path": "_guard/batch.mjs",
+      "sourceSha256": "0d9beb2ad459023b308d6f74174bfe916abb8d61254285861289ccaf5cd12528",
+      "sha256": "0d9beb2ad459023b308d6f74174bfe916abb8d61254285861289ccaf5cd12528"
+    },
+    {
+      "source": "sdk/route-guard/batch.d.ts",
+      "path": "_guard/batch.d.ts",
+      "sourceSha256": "12af9f2ef78d59a3f2d12ad2ca0bc5d4a2af861e5883356d634e4fd2589dc3c0",
+      "sha256": "12af9f2ef78d59a3f2d12ad2ca0bc5d4a2af861e5883356d634e4fd2589dc3c0"
+    },
+    {
+      "source": "sdk/route-guard/batch-profiles/base.mjs",
+      "path": "_guard/batch-profiles/base.mjs",
+      "sourceSha256": "0c165dac2a015f2ed4201a7f9703592ea01b1c29086195bd79d6c1ac26b126f1",
+      "sha256": "0c165dac2a015f2ed4201a7f9703592ea01b1c29086195bd79d6c1ac26b126f1"
+    },
+    {
+      "source": "sdk/route-guard/batch-profiles/solana.mjs",
+      "path": "_guard/batch-profiles/solana.mjs",
+      "sourceSha256": "435d6faac54c7550bddfae89e5b43998f5c62d16ec251e92ba7ecad5771546b4",
+      "sha256": "435d6faac54c7550bddfae89e5b43998f5c62d16ec251e92ba7ecad5771546b4"
+    },
+    {
+      "source": "sdk/route-guard/batch-profiles/algorand.mjs",
+      "path": "_guard/batch-profiles/algorand.mjs",
+      "sourceSha256": "b740bc95870de93b5ff93a53aa426b92dc9db534bf171575a9ae4d6715f01f41",
+      "sha256": "b740bc95870de93b5ff93a53aa426b92dc9db534bf171575a9ae4d6715f01f41"
+    },
+    {
+      "source": "sdk/route-guard/batch-profiles/algorand-generic.mjs",
+      "path": "_guard/batch-profiles/algorand-generic.mjs",
+      "sourceSha256": "42be45b37af7cabd204d47f7786c7699208662aef76c16f8ff81ed5a6e593c01",
+      "sha256": "42be45b37af7cabd204d47f7786c7699208662aef76c16f8ff81ed5a6e593c01"
+    },
+    {
+      "source": "sdk/route-guard/batch-profiles/algorand-manifest.mjs",
+      "path": "_guard/batch-profiles/algorand-manifest.mjs",
+      "sourceSha256": "0d8d6441b5d249c15cfcbf74a4617ec9464516bf212524f8146f63f28f8a8d28",
+      "sha256": "0d8d6441b5d249c15cfcbf74a4617ec9464516bf212524f8146f63f28f8a8d28"
+    },
+    {
+      "source": "sdk/route-guard/batch-profiles/base-charge.mjs",
+      "path": "_guard/batch-profiles/base-charge.mjs",
+      "sourceSha256": "55f39f29860051932aea5e57cf2ee6646011854cd7618a48d3c63e2c1b9d14af",
+      "sha256": "55f39f29860051932aea5e57cf2ee6646011854cd7618a48d3c63e2c1b9d14af"
+    },
+    {
+      "source": "sdk/route-guard/batch-profiles/native-charge.mjs",
+      "path": "_guard/batch-profiles/native-charge.mjs",
+      "sourceSha256": "bb0255d789f01eb674712257dc3276c004d53982855951450d847cc6a9848f62",
+      "sha256": "bb0255d789f01eb674712257dc3276c004d53982855951450d847cc6a9848f62"
+    },
+    {
+      "source": "sdk/route-guard/batch-profiles/algorand-charge.mjs",
+      "path": "_guard/batch-profiles/algorand-charge.mjs",
+      "sourceSha256": "f16d30a446e6e806ec682afd9674007a2ce374af948845882288bcc490c089aa",
+      "sha256": "f16d30a446e6e806ec682afd9674007a2ce374af948845882288bcc490c089aa"
+    },
+    {
+      "source": "LICENSE",
+      "path": "LICENSE",
+      "sourceSha256": "8c0deefe86413b401724b3f737707957ede7944a6071e9d342fabc94ea70edc6",
+      "sha256": "8c0deefe86413b401724b3f737707957ede7944a6071e9d342fabc94ea70edc6"
+    },
+    {
+      "source": "integration/mpp-client/NATIVE.md",
+      "path": "README.md",
+      "sourceSha256": "2f611c7bdc394f0397bdce5cee50939fb9a5f8915f203bdcd4e97ac3e0440080",
+      "sha256": "2f611c7bdc394f0397bdce5cee50939fb9a5f8915f203bdcd4e97ac3e0440080"
+    }
+  ]
+}

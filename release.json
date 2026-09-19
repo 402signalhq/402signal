@@ -1,0 +1,8 @@
+{
+  "tag": "mpp-client-v0.1.0",
+  "original_source_commit": "65371be8c2d54af6fe52459d31f5009b0171f962",
+  "original_published_at": "2026-09-08T21:23:32Z",
+  "artifact": "402signal-mpp-client-0.1.0.tgz",
+  "sha256": "cc507a426fd0bdb68d7f508717689c3fb74df1ba7503aca93d8e1c67fdbaf0cc",
+  "snapshot": "Exact files from the published package; not the original full-repository source tree."
+}
