@@ -1,0 +1,79 @@
+{
+  "name": "@402signal/route-guard",
+  "version": "0.7.4",
+  "private": false,
+  "type": "module",
+  "description": "402Signal buyer-owned routing client, private response recovery and local evidence verifier.",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs"
+    },
+    "./recovery": {
+      "types": "./recovery.d.ts",
+      "import": "./recovery.mjs"
+    },
+    "./client": {
+      "types": "./client.d.ts",
+      "import": "./client.mjs"
+    },
+    "./file-store": {
+      "types": "./file-store.d.ts",
+      "import": "./file-store.mjs"
+    },
+    "./batch": {
+      "types": "./batch.d.ts",
+      "import": "./batch.mjs"
+    },
+    "./x402": {
+      "types": "./x402.d.ts",
+      "import": "./x402.mjs"
+    },
+    "./mpp": {
+      "types": "./mpp.d.ts",
+      "import": "./mpp.mjs"
+    }
+  },
+  "files": [
+    "index.mjs",
+    "index.d.ts",
+    "x402.mjs",
+    "x402.d.ts",
+    "mpp.mjs",
+    "mpp.d.ts",
+    "README.md",
+    "recovery.mjs",
+    "recovery.d.ts",
+    "client.mjs",
+    "client.d.ts",
+    "file-store.mjs",
+    "file-store.d.ts",
+    "internal-json.mjs",
+    "LICENSE",
+    "NOTICE",
+    "examples/search.ts",
+    "batch.mjs",
+    "batch.d.ts",
+    "batch-profiles/base.mjs",
+    "batch-profiles/solana.mjs",
+    "batch-profiles/algorand.mjs",
+    "batch-profiles/algorand-generic.mjs",
+    "batch-profiles/algorand-manifest.mjs",
+    "batch-profiles/base-charge.mjs",
+    "batch-profiles/native-charge.mjs",
+    "batch-profiles/algorand-charge.mjs"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check index.mjs && node --check recovery.mjs && node --check client.mjs && node --check file-store.mjs && node --check internal-json.mjs && node --check batch.mjs && node --check x402.mjs && node --check mpp.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/402signalhq/402signal.git",
+    "directory": "sdk/route-guard"
+  },
+  "license": "Apache-2.0"
+}
